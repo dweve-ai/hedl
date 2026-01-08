@@ -8,7 +8,8 @@ homepage.workspace = true
 description = "HEDL canonicalization and pretty-printing"
 
 [dependencies]
-hedl-core = { path = "../hedl-core" }
+hedl-core.workspace = true
 
 [dev-dependencies]
+proptest = "1.0"
 

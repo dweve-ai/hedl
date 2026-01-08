@@ -24,12 +24,10 @@
 //!
 //! - `value_inference`: Tests for value type inference determinism
 //! - `references`: Tests for reference resolution consistency
-//! - `roundtrip`: Tests for parse → canonicalize → parse roundtrip properties
 //! - `ditto`: Tests for ditto marker expansion correctness
 //!
 //! Each module runs 1000+ test cases per property to ensure comprehensive coverage.
 
 pub mod ditto;
 pub mod references;
-pub mod roundtrip;
 pub mod value_inference;

@@ -19,5 +19,4 @@ serde = ["dep:serde"]
 
 [dev-dependencies]
 proptest = "1.0"
-hedl-c14n.workspace = true
 
