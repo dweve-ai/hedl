@@ -10,15 +10,15 @@ name = "hedl"
 path = "src/main.rs"
 
 [dependencies]
-hedl-core = { path = "../hedl-core" }
-hedl-c14n = { path = "../hedl-c14n" }
-hedl-json = { path = "../hedl-json" }
-hedl-yaml = { path = "../hedl-yaml" }
-hedl-xml = { path = "../hedl-xml" }
-hedl-csv = { path = "../hedl-csv" }
-hedl-parquet = { path = "../hedl-parquet" }
-hedl-toon = { path = "../hedl-toon" }
-hedl-lint = { path = "../hedl-lint" }
+hedl-core.workspace = true
+hedl-c14n.workspace = true
+hedl-json.workspace = true
+hedl-yaml.workspace = true
+hedl-xml.workspace = true
+hedl-csv.workspace = true
+hedl-parquet.workspace = true
+hedl-toon.workspace = true
+hedl-lint.workspace = true
 clap.workspace = true
 clap_complete = "4.4"
 serde_json.workspace = true

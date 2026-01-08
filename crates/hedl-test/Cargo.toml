@@ -14,10 +14,10 @@ generate = []
 
 [dependencies]
 hedl-core = { workspace = true }
-hedl-c14n = { path = "../hedl-c14n" }
+hedl-c14n.workspace = true
 
 [dev-dependencies]
-hedl-json = { path = "../hedl-json" }
-hedl-yaml = { path = "../hedl-yaml" }
-hedl-xml = { path = "../hedl-xml" }
+hedl-json.workspace = true
+hedl-yaml.workspace = true
+hedl-xml.workspace = true
 regex = "1.0"

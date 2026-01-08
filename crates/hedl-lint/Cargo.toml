@@ -8,9 +8,9 @@ homepage.workspace = true
 description = "HEDL linting and best practices validation"
 
 [dependencies]
-hedl-core = { path = "../hedl-core" }
+hedl-core.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-hedl-bench = { path = "../hedl-bench" }
+hedl-bench.workspace = true
 

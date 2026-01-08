@@ -8,10 +8,10 @@ homepage.workspace = true
 description = "CSV file to/from HEDL conversion"
 
 [dependencies]
-hedl-core = { path = "../hedl-core" }
+hedl-core.workspace = true
 csv = "1.3"
 thiserror.workspace = true
 
 [dev-dependencies]
-hedl-core = { path = "../hedl-core" }
+hedl-core.workspace = true
 hedl-test = { workspace = true }

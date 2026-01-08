@@ -8,11 +8,11 @@ homepage.workspace = true
 description = "HEDL to TOON (Token-Oriented Object Notation) conversion"
 
 [dependencies]
-hedl-core = { path = "../hedl-core" }
+hedl-core.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 hedl-test = { workspace = true }
 hedl-bench = { workspace = true }
-hedl-json = { path = "../hedl-json" }
+hedl-json.workspace = true
 proptest = "1.5"

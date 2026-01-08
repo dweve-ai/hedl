@@ -8,7 +8,7 @@ homepage.workspace = true
 description = "HEDL to/from YAML conversion"
 
 [dependencies]
-hedl-core = { path = "../hedl-core" }
+hedl-core.workspace = true
 serde.workspace = true
 serde_yaml = "0.9"
 thiserror.workspace = true

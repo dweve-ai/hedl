@@ -15,8 +15,8 @@ hedl-core.workspace = true
 hedl-stream.workspace = true
 hedl-c14n.workspace = true
 hedl-lint.workspace = true
-hedl-lsp = { path = "../hedl-lsp" }
-hedl-mcp = { path = "../hedl-mcp" }
+hedl-lsp.workspace = true
+hedl-mcp.workspace = true
 
 # Optional format converters
 hedl-json = { workspace = true, optional = true }
@@ -25,8 +25,8 @@ hedl-xml = { workspace = true, optional = true }
 hedl-toon = { workspace = true, optional = true }
 hedl-csv = { workspace = true, optional = true }
 hedl-neo4j = { workspace = true, optional = true }
-hedl-parquet = { path = "../hedl-parquet", optional = true }
-hedl-ffi = { path = "../hedl-ffi", features = ["json", "yaml", "xml"], optional = true }
+hedl-parquet = { workspace = true, optional = true }
+hedl-ffi = { workspace = true, optional = true }
 
 # External dependencies
 serde = { workspace = true, features = ["derive"] }

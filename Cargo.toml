@@ -47,6 +47,7 @@ hedl-parquet = { version = "1.0.0", path = "crates/hedl-parquet" }
 hedl-neo4j = { version = "1.0.0", path = "crates/hedl-neo4j" }
 hedl-lint = { version = "1.0.0", path = "crates/hedl-lint" }
 hedl-test = { version = "1.0.0", path = "crates/hedl-test" }
+hedl-ffi = { version = "1.0.0", path = "crates/hedl-ffi" }
 # AI/DX Enhancement crates
 hedl-mcp = { version = "1.0.0", path = "crates/hedl-mcp" }
 hedl-lsp = { version = "1.0.0", path = "crates/hedl-lsp" }
