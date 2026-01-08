@@ -38,7 +38,6 @@ all-formats = ["yaml", "xml", "csv", "parquet", "neo4j", "toon"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
-hedl-bench = { workspace = true }
 proptest = "1.5"
 
 

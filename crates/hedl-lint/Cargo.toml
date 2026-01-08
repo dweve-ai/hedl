@@ -12,5 +12,4 @@ hedl-core.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-hedl-bench.workspace = true
 

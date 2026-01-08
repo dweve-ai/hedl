@@ -13,6 +13,5 @@ thiserror.workspace = true
 
 [dev-dependencies]
 hedl-test = { workspace = true }
-hedl-bench = { workspace = true }
 hedl-json.workspace = true
 proptest = "1.5"
