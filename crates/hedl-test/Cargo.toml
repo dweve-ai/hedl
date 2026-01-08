@@ -17,7 +17,4 @@ hedl-core = { workspace = true }
 hedl-c14n.workspace = true
 
 [dev-dependencies]
-hedl-json.workspace = true
-hedl-yaml.workspace = true
-hedl-xml.workspace = true
 regex = "1.0"
