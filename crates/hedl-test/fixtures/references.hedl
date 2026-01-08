@@ -1,0 +1,4 @@
+%VERSION: 1.0
+---
+local_ref: @some_id
+typed_ref: @User:alice

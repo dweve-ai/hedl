@@ -1,0 +1,9 @@
+%VERSION: 1.0
+---
+null_val: ~
+bool_true: true
+bool_false: false
+int_val: 42
+float_val: 3.14
+string_val: hello
+quoted_val: "hello world"

@@ -1,0 +1,34 @@
+[package]
+name = "hedl-cli"
+version.workspace = true
+edition = "2021"
+description = "HEDL command-line interface"
+license.workspace = true
+
+[[bin]]
+name = "hedl"
+path = "src/main.rs"
+
+[dependencies]
+hedl-core = { path = "../hedl-core" }
+hedl-c14n = { path = "../hedl-c14n" }
+hedl-json = { path = "../hedl-json" }
+hedl-yaml = { path = "../hedl-yaml" }
+hedl-xml = { path = "../hedl-xml" }
+hedl-csv = { path = "../hedl-csv" }
+hedl-parquet = { path = "../hedl-parquet" }
+hedl-toon = { path = "../hedl-toon" }
+hedl-lint = { path = "../hedl-lint" }
+clap.workspace = true
+clap_complete = "4.4"
+serde_json.workspace = true
+thiserror.workspace = true
+colored = "2.0"
+rayon = "1.8"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.0"
+tempfile = "3.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"

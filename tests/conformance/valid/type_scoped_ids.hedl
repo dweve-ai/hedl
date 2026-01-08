@@ -1,0 +1,8 @@
+%VERSION: 1.0
+%STRUCT: A: [id,v]
+%STRUCT: B: [id,v]
+---
+a: @A
+  |x,1
+b: @B
+  |x,2

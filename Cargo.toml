@@ -1,0 +1,77 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/hedl",
+    "crates/hedl-core",
+    "crates/hedl-c14n",
+    "crates/hedl-json",
+    "crates/hedl-yaml",
+    "crates/hedl-xml",
+    "crates/hedl-csv",
+    "crates/hedl-toon",
+    "crates/hedl-parquet",
+    "crates/hedl-neo4j",
+    "crates/hedl-lint",
+    "crates/hedl-cli",
+    "crates/hedl-ffi",
+    "crates/hedl-test",
+    # AI/DX Enhancement Crates
+    "crates/hedl-mcp",     # MCP Server for AI/LLM integration
+    "crates/hedl-lsp",     # Language Server Protocol for IDEs
+    "crates/hedl-wasm",    # WebAssembly bindings for browser
+    "crates/hedl-stream",  # Streaming parser for large files
+    # Benchmarks & Testing
+    "crates/hedl-bench",   # Performance benchmarks and token efficiency
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Dweve B.V. <opensource@dweve.com>"]
+repository = "https://github.com/dweve-ai/hedl"
+homepage = "https://dweve.com"
+rust-version = "1.70"
+
+[workspace.dependencies]
+# Internal crates
+hedl = { version = "1.0.0", path = "crates/hedl" }
+hedl-core = { version = "1.0.0", path = "crates/hedl-core" }
+hedl-c14n = { version = "1.0.0", path = "crates/hedl-c14n" }
+hedl-json = { version = "1.0.0", path = "crates/hedl-json" }
+hedl-yaml = { version = "1.0.0", path = "crates/hedl-yaml" }
+hedl-xml = { version = "1.0.0", path = "crates/hedl-xml" }
+hedl-csv = { version = "1.0.0", path = "crates/hedl-csv" }
+hedl-toon = { version = "1.0.0", path = "crates/hedl-toon" }
+hedl-parquet = { version = "1.0.0", path = "crates/hedl-parquet" }
+hedl-neo4j = { version = "1.0.0", path = "crates/hedl-neo4j" }
+hedl-lint = { version = "1.0.0", path = "crates/hedl-lint" }
+hedl-test = { version = "1.0.0", path = "crates/hedl-test" }
+# AI/DX Enhancement crates
+hedl-mcp = { version = "1.0.0", path = "crates/hedl-mcp" }
+hedl-lsp = { version = "1.0.0", path = "crates/hedl-lsp" }
+hedl-wasm = { version = "1.0.0", path = "crates/hedl-wasm" }
+hedl-stream = { version = "1.0.0", path = "crates/hedl-stream" }
+# Benchmarks & Testing
+hedl-bench = { version = "1.0.0", path = "crates/hedl-bench" }
+
+# External dependencies
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+quick-xml = { version = "0.31", features = ["serialize"] }
+csv = "1.3"
+parquet = "57.0"
+arrow = "57.0"
+clap = { version = "4.4", features = ["derive"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Performance optimization profiles
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+
+[profile.bench]
+inherits = "release"

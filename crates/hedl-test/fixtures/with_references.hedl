@@ -1,0 +1,11 @@
+%VERSION: 1.0
+%STRUCT: Post: [id,title,author]
+%STRUCT: User: [id,name]
+---
+posts: @Post
+  |post1,Hello World,@User:alice
+  |post2,Rust is great,@User:bob
+  |post3,HEDL Tutorial,@User:alice
+users: @User
+  |alice,Alice Smith
+  |bob,Bob Jones

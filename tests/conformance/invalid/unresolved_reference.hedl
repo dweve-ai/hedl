@@ -1,0 +1,5 @@
+%VERSION: 1.0
+%STRUCT: T: [id,ref]
+---
+data: @T
+  |a,@nonexistent

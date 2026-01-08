@@ -1,0 +1,20 @@
+# Fuzzing artifacts
+corpus/
+artifacts/
+
+# Fuzzing target executables
+target/
+
+# Crash reports
+crash-*
+leak-*
+timeout-*
+oom-*
+slow-unit-*
+
+# Coverage data
+*.profdata
+*.profraw
+
+# libFuzzer files
+fuzz-*.log

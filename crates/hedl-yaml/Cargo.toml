@@ -1,0 +1,19 @@
+[package]
+name = "hedl-yaml"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "HEDL to/from YAML conversion"
+
+[dependencies]
+hedl-core = { path = "../hedl-core" }
+serde.workspace = true
+serde_yaml = "0.9"
+thiserror.workspace = true
+
+[dev-dependencies]
+hedl-test = { workspace = true }
+proptest = "1.4"
+

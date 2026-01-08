@@ -1,0 +1,14 @@
+[package]
+name = "hedl-c14n"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "HEDL canonicalization and pretty-printing"
+
+[dependencies]
+hedl-core = { path = "../hedl-core" }
+
+[dev-dependencies]
+

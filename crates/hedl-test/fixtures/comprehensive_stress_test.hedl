@@ -1,0 +1,762 @@
+%VERSION: 1.0
+
+# ============================================================================
+# COMPREHENSIVE HEDL STRESS TEST
+# This file exercises EVERY feature in the HEDL v1.0.0 specification
+# Including: all scalar types, all directives, edge cases, nesting, etc.
+# Target: 1000+ lines testing every aspect of the spec
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# ALIAS SECTION - Testing all alias types and edge cases
+# ----------------------------------------------------------------------------
+
+%ALIAS: %true_alias: "true"
+%ALIAS: %false_alias: "false"
+%ALIAS: %null_alias: "~"
+%ALIAS: %int_alias: "42"
+%ALIAS: %neg_int_alias: "-999"
+%ALIAS: %float_alias: "3.14159"
+%ALIAS: %neg_float_alias: "-2.71828"
+%ALIAS: %empty_alias: ""
+%ALIAS: %string_alias: "Hello, World!"
+%ALIAS: %complex_string: "Value with ""quoted"" text and # hash"
+%ALIAS: %leading_spaces: "  spaces before"
+%ALIAS: %trailing_spaces: "spaces after  "
+%ALIAS: %unicode_alias: "Hello 世界 🌍"
+%ALIAS: %ref_like_string: "@user1"
+%ALIAS: %expr_like_string: "$(x + 1)"
+%ALIAS: %tensor_like: "[1,2,3]"
+%ALIAS: %email_alias: "admin@example.com"
+%ALIAS: %url_alias: "https://example.com/path?param=value"
+
+# ----------------------------------------------------------------------------
+# STRUCT SECTION - Testing various column counts and patterns
+# ----------------------------------------------------------------------------
+
+# Single column schema (minimal)
+%STRUCT: SingleCol: [id]
+
+# Two column schema
+%STRUCT: Pair: [id,value]
+
+# Three column schema (common case)
+%STRUCT: Triple: [id,name,description]
+
+# Many columns (10+ to test limits)
+%STRUCT: ManyColumns: [id,col1,col2,col3,col4,col5,col6,col7,col8,col9,col10,col11,col12]
+
+# Schema with descriptive column names
+%STRUCT: User: [id,username,email,age,active,bio]
+%STRUCT: Post: [id,author_id,title,content,created_at,view_count]
+%STRUCT: Comment: [id,post_id,commenter_id,text,timestamp]
+%STRUCT: Tag: [id,name,color]
+%STRUCT: Category: [id,name,parent_id,order]
+
+# Schemas for nested testing
+%STRUCT: Project: [id,name,budget,status]
+%STRUCT: Task: [id,title,assignee,priority,complete]
+%STRUCT: SubTask: [id,description,estimated_hours]
+
+# Additional schemas for complex relationships
+%STRUCT: Organization: [id,name,industry]
+%STRUCT: Department: [id,org_id,name,head_id]
+%STRUCT: Employee: [id,dept_id,name,role,salary]
+
+# Schema with underscores in all positions
+%STRUCT: UnderscoreTest: [_id,name_,_middle_name_]
+
+# ----------------------------------------------------------------------------
+# NEST SECTION - Testing parent-child hierarchies
+# ----------------------------------------------------------------------------
+
+%NEST: User > Post
+%NEST: Post > Comment
+%NEST: Project > Task
+%NEST: Task > SubTask
+%NEST: Organization > Department
+%NEST: Department > Employee
+%NEST: Category > Category
+
+# ----------------------------------------------------------------------------
+# SEPARATOR - Required before body
+# ----------------------------------------------------------------------------
+---
+
+# ============================================================================
+# BODY SECTION - Comprehensive data testing
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# SECTION 1: Simple Key-Value Pairs with ALL Scalar Types
+# ----------------------------------------------------------------------------
+
+scalars:
+
+  # NULL values
+  null_val: ~
+
+  # Boolean values (case-sensitive, lowercase)
+  bool_true: true
+  bool_false: false
+
+  # Integer values
+  int_zero: 0
+  int_positive: 42
+  int_negative: -42
+  int_large: 999999999
+  int_small: -999999999
+  int_leading_zero: 001
+  int_leading_zeros: 00042
+
+  # Float values (must have decimal point)
+  float_zero: 0.0
+  float_positive: 3.14159
+  float_negative: -2.71828
+  float_small: 0.001
+  float_trailing_zeros: 42.000
+  float_many_decimals: 3.141592653589793
+
+  # String values (unquoted)
+  string_simple: hello
+  string_with_spaces: this is a string
+  string_numbers: 123abc
+  string_mixed: abc123def456
+  string_underscore: hello_world
+  string_hyphen: hello-world
+  string_at_inside: alice@example.com
+  string_dollar_inside: price$
+  string_percent_inside: 50%off
+
+  # String values (quoted)
+  quoted_simple: "hello"
+  quoted_with_spaces: "  leading and trailing  "
+  quoted_empty: ""
+  quoted_with_hash: "This has a # hash"
+  quoted_with_comma: "value1, value2, value3"
+  quoted_escaped_quote: "He said ""Hello"""
+  quoted_backslash: "C:\path\to\file"
+  quoted_unicode: "Hello 世界 🌍 Привет"
+  quoted_multichar: "The quick brown fox jumps over the lazy dog"
+
+  # Reference values (will be resolved later in the file)
+  ref_local: @User:user1
+  ref_qualified: @User:user2
+  ref_with_hyphen: @User:user3
+  ref_with_underscore: @User:user4
+  ref_qualified_complex: @Post:post1
+
+  # Expression values
+  expr_simple: $(x + 1)
+  expr_complex: $((a + b) * c)
+  expr_nested_parens: $(((x)))
+  expr_with_comma: $(func(a, b, c))
+  expr_array_access: $(arr[0])
+  expr_property: $(obj.prop)
+
+  # Alias expansion values
+  alias_bool_true: %true_alias
+  alias_bool_false: %false_alias
+  alias_int: %int_alias
+  alias_float: %float_alias
+  alias_string: %string_alias
+  alias_empty: %empty_alias
+  alias_complex: %complex_string
+  alias_unicode: %unicode_alias
+
+  # Tensor literals (1D)
+  tensor_1d_int: [1,2,3,4,5]
+  tensor_1d_float: [1.1,2.2,3.3,4.4,5.5]
+  tensor_1d_mixed: [1,2.5,3,4.0,5]
+  tensor_1d_negative: [-1,-2,-3,-4,-5]
+  tensor_1d_single: [42]
+
+  # Tensor literals (2D)
+  tensor_2d_square: [[1,2], [3,4]]
+  tensor_2d_rect: [[1,2,3], [4,5,6]]
+  tensor_2d_float: [[1.1,2.2], [3.3,4.4]]
+  tensor_2d_large: [[1,2,3,4,5], [6,7,8,9,10], [11,12,13,14,15]]
+
+  # Tensor literals (3D and higher)
+  tensor_3d: [[[1,2], [3,4]], [[5,6], [7,8]]]
+  tensor_3d_float: [[[1.1,2.2], [3.3,4.4]], [[5.5,6.6], [7.7,8.8]]]
+
+  # Special case: ditto in key-value context is literal string
+  ditto_literal: ^
+
+# ----------------------------------------------------------------------------
+# SECTION 2: Nested Objects (Multiple Levels)
+# ----------------------------------------------------------------------------
+
+database:
+  connection:
+    host: localhost
+    port: 5432
+    username: admin
+    password: secret123
+    options:
+      ssl: true
+      timeout: 30
+      pool_size: 10
+
+logging:
+  level: info
+  outputs:
+    console:
+      enabled: true
+      format: json
+    file:
+      enabled: true
+      path: /var/log/app.log
+      rotate: daily
+      max_size: 100
+
+api:
+  version: v1
+  base_url: https://api.example.com
+  endpoints:
+    users:
+      path: /users
+      methods: [GET,POST,PUT,DELETE]
+    posts:
+      path: /posts
+      methods: [GET,POST]
+
+# ----------------------------------------------------------------------------
+# SECTION 3: Matrix Lists with Declared Schemas
+# ----------------------------------------------------------------------------
+
+# Single column matrix
+single_col_list: @SingleCol
+  |sc1
+  |sc2
+  |sc3
+
+# Two column matrix
+pair_list: @Pair
+  |p1,value1
+  |p2,value2
+  |p3,value3
+
+# Three column matrix with various types
+triple_list: @Triple
+  |t1,First,"This is the first item"
+  |t2,Second,"This is the second item"
+  |t3,Third,"This is the third item"
+
+# ----------------------------------------------------------------------------
+# SECTION 4: Matrix Lists with Inline Schemas
+# ----------------------------------------------------------------------------
+
+inline_simple: @InlineSimple[id,name]
+  |is1,Alice
+  |is2,Bob
+  |is3,Carol
+
+inline_complex: @InlineComplex[id,value,active,ref,expr]
+  |ic1,42,true,@User:user1,$(x + 1)
+  |ic2,3.14,false,@User:user2,$(y * 2)
+  |ic3,-99,true,@User:user3,$((a + b))
+
+# ----------------------------------------------------------------------------
+# SECTION 5: Matrix Lists with ALL Value Types in Cells
+# ----------------------------------------------------------------------------
+
+all_types: @AllTypes[id,null_col,bool_col,int_col,float_col,string_col,ref_col,expr_col,tensor_col,alias_col]
+  |at1,~,true,42,3.14,simple,@User:user1,$(x),[1,2,3],%int_alias
+  |at2,~,false,-99,-2.71,"quoted string",@User:user2,$(y + 1),[[1,2],[3,4]],%string_alias
+  |at3,~,true,0,0.0,"with ""quotes""",@Post:post1,$((a * b)),[1.1,2.2,3.3],%float_alias
+  |at4,~,false,999999,123.456,alice@example.com,@Comment:c1,$(func(a,b)),[0],%true_alias
+
+# ----------------------------------------------------------------------------
+# SECTION 6: Ditto Operator Testing
+# ----------------------------------------------------------------------------
+
+ditto_test: @DittoTest[id,repeat_val,change_val,ref_val,expr_val]
+  |dt1,apple,100,@User:user1,$(x)
+  |dt2,^,200,^,^
+  |dt3,^,^,@User:user2,$(y)
+  |dt4,orange,^,^,^
+  |dt5,^,300,@User:user3,$(z)
+
+# Ditto with various types
+ditto_types: @DittoTypes[id,bool_val,int_val,float_val,string_val,tensor_val]
+  |dtt1,true,42,3.14,hello,[1,2,3]
+  |dtt2,^,^,^,^,^
+  |dtt3,false,99,2.71,world,[[1,2],[3,4]]
+  |dtt4,^,^,^,^,^
+
+# ----------------------------------------------------------------------------
+# SECTION 7: Special String Values Requiring Quoting
+# ----------------------------------------------------------------------------
+
+special_strings: @SpecialStrings[id,value]
+  |ss1,"contains, comma"
+  |ss2,"contains # hash"
+  |ss3,"contains | pipe"
+  |ss4,"contains ""quotes"""
+  |ss5,"  leading spaces"
+  |ss6,"trailing spaces  "
+  |ss7,"true"
+  |ss8,"false"
+  |ss9,"~"
+  |ss10,"^"
+  |ss11,"@not-a-ref"
+  |ss12,"$(not-an-expr)"
+  |ss13,"%not-an-alias"
+  |ss14,"[not,a,tensor]"
+  |ss15,"123"
+  |ss16,"3.14"
+
+# ----------------------------------------------------------------------------
+# SECTION 8: Empty Matrix Lists (valid - zero rows)
+# ----------------------------------------------------------------------------
+
+empty_list: @EmptyList[id,name,value]
+
+# ----------------------------------------------------------------------------
+# SECTION 9: Matrix Lists with References Between Lists
+# ----------------------------------------------------------------------------
+
+users: @User[id,username,email,age,active,bio]
+  |user1,alice,alice@example.com,30,true,"Software engineer with 10 years experience"
+  |user2,bob,bob@example.com,25,true,"Designer and UX specialist"
+  |user3,carol,carol@example.com,35,false,"Product manager"
+  |user4,dave,dave@example.com,28,true,"Data scientist and ML engineer"
+
+posts: @Post[id,author_id,title,content,created_at,view_count]
+  |post1,@User:user1,"First Post","This is my first post on the platform!","2024-01-01T10:00:00Z",100
+  |post2,@User:user1,"Second Post","Another interesting article about technology","2024-01-02T14:30:00Z",250
+  |post3,@User:user2,"Design Principles","Let's talk about modern design patterns","2024-01-03T09:15:00Z",500
+  |post4,@User:user2,"UX Best Practices","How to create amazing user experiences","2024-01-04T11:00:00Z",750
+  |post5,@User:user3,"Product Strategy","Building great products requires vision","2024-01-05T16:45:00Z",320
+  |post6,@User:user4,"Machine Learning Basics","Introduction to ML algorithms and concepts","2024-01-06T08:30:00Z",890
+
+comments: @Comment[id,post_id,commenter_id,text,timestamp]
+  |c1,@Post:post1,@User:user2,"Great first post!","2024-01-01T12:00:00Z"
+  |c2,@Post:post1,@User:user3,"Welcome to the platform!","2024-01-01T13:00:00Z"
+  |c3,@Post:post2,@User:user4,"Very insightful article","2024-01-02T15:00:00Z"
+  |c4,@Post:post3,@User:user1,"Love these design tips","2024-01-03T10:00:00Z"
+  |c5,@Post:post3,@User:user4,"Can you elaborate on pattern X?","2024-01-03T11:30:00Z"
+  |c6,@Post:post4,@User:user3,"This is exactly what we need","2024-01-04T12:00:00Z"
+  |c7,@Post:post5,@User:user1,"Interesting perspective","2024-01-05T17:00:00Z"
+  |c8,@Post:post6,@User:user2,"Looking forward to more ML content","2024-01-06T09:00:00Z"
+
+tags: @Tag[id,name,color]
+  |tag1,technology,"#0088FF"
+  |tag2,design,"#FF0088"
+  |tag3,product,"#00FF88"
+  |tag4,ml,"#8800FF"
+  |tag5,tutorial,"#FF8800"
+
+# ----------------------------------------------------------------------------
+# SECTION 10: Many Columns (Testing Schema Limits)
+# ----------------------------------------------------------------------------
+
+many_cols: @ManyColumns
+  |mc1,val1,val2,val3,val4,val5,val6,val7,val8,val9,val10,val11,val12
+  |mc2,a,b,c,d,e,f,g,h,i,j,k,l
+  |mc3,1,2,3,4,5,6,7,8,9,10,11,12
+  |mc4,"q1","q2","q3","q4","q5","q6","q7","q8","q9","q10","q11","q12"
+
+# ----------------------------------------------------------------------------
+# SECTION 11: Long String Values
+# ----------------------------------------------------------------------------
+
+long_strings: @LongStrings[id,content]
+  |ls1,"The quick brown fox jumps over the lazy dog. This is a pangram that contains every letter of the alphabet at least once."
+  |ls2,"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+  |ls3,"In computer science, a data structure is a way of organizing and storing data so that it can be accessed and modified efficiently."
+
+# ----------------------------------------------------------------------------
+# SECTION 12: Unicode in IDs and Values
+# ----------------------------------------------------------------------------
+
+unicode_data: @UnicodeData[id,text,emoji]
+  |hello_world,"Hello 世界","🌍🌎🌏"
+  |greeting,"Привет мир","👋"
+  |multilang,"こんにちは世界","🗣️"
+  |symbols,"α β γ δ ε","∑∫∂∇"
+  |mixed,"Mix of English, 中文, and العربية","🌐"
+
+# ----------------------------------------------------------------------------
+# SECTION 13: NEST Hierarchies - User > Post > Comment
+# ----------------------------------------------------------------------------
+
+nested_users: @User
+  |[2] nested_u1,alice_nested,alice.nested@example.com,30,true,"Nested user 1"
+    |[2] nested_p1,@User:nested_u1,"Alice First Post","Content from Alice","2024-01-01T10:00:00Z",50
+      |nested_c1,@Post:nested_p1,@User:nested_u2,"Comment on Alice's post","2024-01-01T11:00:00Z"
+      |nested_c2,@Post:nested_p1,@User:nested_u3,"Another comment","2024-01-01T12:00:00Z"
+    |[1] nested_p2,@User:nested_u1,"Alice Second Post","More content from Alice","2024-01-02T10:00:00Z",75
+      |nested_c3,@Post:nested_p2,@User:nested_u2,"Great post Alice!","2024-01-02T11:00:00Z"
+  |[2] nested_u2,bob_nested,bob.nested@example.com,25,true,"Nested user 2"
+    |[1] nested_p3,@User:nested_u2,"Bob's First Post","Content from Bob","2024-01-03T10:00:00Z",100
+      |nested_c4,@Post:nested_p3,@User:nested_u1,"Comment from Alice","2024-01-03T11:00:00Z"
+    |[0] nested_p4,@User:nested_u2,"Bob's Second Post","More from Bob","2024-01-04T10:00:00Z",120
+  |[1] nested_u3,carol_nested,carol.nested@example.com,35,false,"Nested user 3"
+    |[0] nested_p5,@User:nested_u3,"Carol's Only Post","Carol's content","2024-01-05T10:00:00Z",60
+
+# ----------------------------------------------------------------------------
+# SECTION 14: NEST Hierarchies - Project > Task > SubTask (3 levels)
+# ----------------------------------------------------------------------------
+
+projects: @Project
+  |[3] proj1,"Website Redesign",100000.0,active
+    |[3] task1,"Design mockups",@Employee:emp1,high,false
+      |st1,"Create wireframes",8.0
+      |st2,"Design color scheme",4.0
+      |st3,"Create component library",16.0
+    |[3] task2,"Implement frontend",@Employee:emp2,high,false
+      |st4,"Setup React project",4.0
+      |st5,"Implement components",40.0
+      |st6,"Add responsive styling",16.0
+    |[2] task3,"Backend API",@Employee:emp3,medium,false
+      |st7,"Design API schema",8.0
+      |st8,"Implement endpoints",32.0
+  |[2] proj2,"Mobile App",150000.0,planning
+    |[2] task4,"Market research",@Employee:emp1,low,true
+      |st9,"Competitor analysis",16.0
+      |st10,"User surveys",24.0
+    |[2] task5,"Technical planning",@Employee:emp3,medium,false
+      |st11,"Choose tech stack",8.0
+      |st12,"Architecture design",16.0
+  |[2] proj3,"Data Migration",75000.0,completed
+    |[2] task6,"Data audit",@Employee:emp2,high,true
+      |st13,"Inventory current data",8.0
+      |st14,"Identify issues",16.0
+    |[2] task7,"Migration script",@Employee:emp3,high,true
+      |st15,"Write migration code",40.0
+      |st16,"Test migration",24.0
+
+# ----------------------------------------------------------------------------
+# SECTION 15: NEST Hierarchies - Organization > Department > Employee
+# ----------------------------------------------------------------------------
+
+organizations: @Organization
+  |[3] org1,"TechCorp Industries","Technology"
+    |[3] dept1,@Organization:org1,"Engineering",@Employee:emp1
+      |emp1,@Department:dept1,"Alice Engineer","Senior Engineer",120000.0
+      |emp2,@Department:dept1,"Bob Developer","Software Developer",95000.0
+      |emp3,@Department:dept1,"Carol Architect","Solutions Architect",140000.0
+    |[2] dept2,@Organization:org1,"Design",@Employee:emp4
+      |emp4,@Department:dept2,"Dave Designer","Lead Designer",105000.0
+      |emp5,@Department:dept2,"Eve UX","UX Researcher",90000.0
+    |[2] dept3,@Organization:org1,"Product",@Employee:emp6
+      |emp6,@Department:dept3,"Frank Manager","Product Manager",130000.0
+      |emp7,@Department:dept3,"Grace Analyst","Business Analyst",85000.0
+  |[2] org2,"DataFlow Systems","Analytics"
+    |[2] dept4,@Organization:org2,"Data Science",@Employee:emp8
+      |emp8,@Department:dept4,"Henry Scientist","Lead Data Scientist",150000.0
+      |emp9,@Department:dept4,"Ivy Analyst","Data Analyst",80000.0
+    |[1] dept5,@Organization:org2,"Infrastructure",@Employee:emp10
+      |emp10,@Department:dept5,"Jack DevOps","DevOps Engineer",110000.0
+
+# ----------------------------------------------------------------------------
+# SECTION 16: NEST Hierarchies - Category > Category (Self-referential)
+# ----------------------------------------------------------------------------
+
+categories: @Category
+  |[2] cat1,"Electronics",~,1
+    |[3] cat2,"Computers",@Category:cat1,1
+      |cat3,"Laptops",@Category:cat2,1
+      |cat4,"Desktops",@Category:cat2,2
+      |cat5,"Accessories",@Category:cat2,3
+    |[2] cat6,"Mobile Devices",@Category:cat1,2
+      |cat7,"Smartphones",@Category:cat6,1
+      |cat8,"Tablets",@Category:cat6,2
+  |[2] cat9,"Books",~,2
+    |[3] cat10,"Fiction",@Category:cat9,1
+      |cat11,"Science Fiction",@Category:cat10,1
+      |cat12,"Fantasy",@Category:cat10,2
+      |cat13,"Mystery",@Category:cat10,3
+    |[2] cat14,"Non-Fiction",@Category:cat9,2
+      |cat15,"History",@Category:cat14,1
+      |cat16,"Science",@Category:cat14,2
+
+# ----------------------------------------------------------------------------
+# SECTION 17: Comments Testing (Full-line and Inline)
+# ----------------------------------------------------------------------------
+
+# This is a full-line comment
+comments_test:
+  # Another full-line comment indented
+  key1: value1  # Inline comment after value
+  key2: value2  # Another inline comment
+
+  # Comment before nested object
+  nested:  # Inline comment after object start
+    # Full-line comment inside nested
+    inner_key: inner_value  # Inline comment in nested object
+
+# Comment between top-level elements
+
+comment_matrix: @CommentMatrix[id,name]  # Inline comment on list start
+  # Full-line comment before first row
+  |cm1,"First"  # Inline comment on row
+  |cm2,"Second"  # Another row comment
+  # Full-line comment between rows
+  |cm3,"Third"
+
+# ----------------------------------------------------------------------------
+# SECTION 18: Blank Lines Testing
+# ----------------------------------------------------------------------------
+
+blank_test:
+
+  key1: value1
+
+
+  key2: value2
+
+  nested:
+
+    inner1: val1
+
+    inner2: val2
+
+
+blank_matrix: @BlankMatrix[id,value]
+
+  |bm1,val1
+
+  |bm2,val2
+
+  |bm3,val3
+
+
+# ----------------------------------------------------------------------------
+# SECTION 19: Edge Cases - Empty Strings in Various Contexts
+# ----------------------------------------------------------------------------
+
+empty_strings: @EmptyStrings[id,empty_val,other_val]
+  |es1,"","not empty"
+  |es2,"not empty",""
+  |es3,"",""
+
+# ----------------------------------------------------------------------------
+# SECTION 20: Edge Cases - Null Values in Matrix (except ID column)
+# ----------------------------------------------------------------------------
+
+nulls_in_matrix: @NullsMatrix[id,nullable1,nullable2,nullable3]
+  |nm1,~,value1,value2
+  |nm2,value1,~,value2
+  |nm3,value1,value2,~
+  |nm4,~,~,~
+
+# ----------------------------------------------------------------------------
+# SECTION 21: Edge Cases - All Boolean Combinations
+# ----------------------------------------------------------------------------
+
+bool_matrix: @BoolMatrix[id,bool1,bool2,bool3]
+  |b1,true,true,true
+  |b2,true,true,false
+  |b3,true,false,true
+  |b4,true,false,false
+  |b5,false,true,true
+  |b6,false,true,false
+  |b7,false,false,true
+  |b8,false,false,false
+
+# ----------------------------------------------------------------------------
+# SECTION 22: Edge Cases - Number Variations
+# ----------------------------------------------------------------------------
+
+number_variations: @NumberVars[id,int_val,float_val]
+  |nv1,0,0.0
+  |nv2,1,1.0
+  |nv3,-1,-1.0
+  |nv4,999999999,999999999.0
+  |nv5,-999999999,-999999999.0
+  |nv6,42,42.42
+  |nv7,100,0.001
+  |nv8,007,7.0
+
+# ----------------------------------------------------------------------------
+# SECTION 23: Edge Cases - References with Different Formats
+# ----------------------------------------------------------------------------
+
+reference_formats: @RefFormats[id,local_ref,qualified_ref,hyphen_ref,underscore_ref]
+  |rf1,@User:user1,@User:user1,@User:user1,@User:user1
+  |rf2,@Post:post1,@Post:post1,@Post:post2,@Post:post3
+  |rf3,@Tag:tag1,@Tag:tag1,@Tag:tag2,@Tag:tag3
+
+# ----------------------------------------------------------------------------
+# SECTION 24: Edge Cases - Expressions with Various Patterns
+# ----------------------------------------------------------------------------
+
+expression_patterns: @ExprPatterns[id,expr]
+  |ep1,$(x)
+  |ep2,$(x + y)
+  |ep3,$(x * y + z)
+  |ep4,$((x))
+  |ep5,$(((x + y)))
+  |ep6,$(func(a))
+  |ep7,$(func(a,b,c))
+  |ep8,$(nested(func1(a),func2(b)))
+  |ep9,$(array[0])
+  |ep10,$(x > 0)
+  |ep11,$(a && b)
+  |ep12,$(obj.property)
+
+# ----------------------------------------------------------------------------
+# SECTION 25: Edge Cases - Tensor Variations
+# ----------------------------------------------------------------------------
+
+tensor_variations: @TensorVars[id,tensor_val]
+  |tv1,[0]
+  |tv2,[1]
+  |tv3,[1,2]
+  |tv4,[1,2,3,4,5,6,7,8,9,10]
+  |tv5,[[1]]
+  |tv6,[[1,2]]
+  |tv7,[[1],[2]]
+  |tv8,[[1,2],[3,4],[5,6]]
+  |tv9,[[[1]]]
+  |tv10,[[[1,2],[3,4]],[[5,6],[7,8]]]
+  |tv11,[1.0,2.0,3.0]
+  |tv12,[[1.1,2.2],[3.3,4.4]]
+  |tv13,[-1,-2,-3]
+  |tv14,[[-1.1,-2.2],[-3.3,-4.4]]
+
+# ----------------------------------------------------------------------------
+# SECTION 26: Edge Cases - Underscore IDs
+# ----------------------------------------------------------------------------
+
+underscore_ids: @UnderscoreIds[id,name]
+  |_private,"Private item"
+  |_system,"System item"
+  |_internal_123,"Internal item"
+  |normal_id,"Normal item"
+  |_mix_123_test,"Mixed item"
+
+# ----------------------------------------------------------------------------
+# SECTION 27: Edge Cases - Hyphenated IDs
+# ----------------------------------------------------------------------------
+
+hyphenated_ids: @HyphenIds[id,name]
+  |item-1,"Item one"
+  |item-2,"Item two"
+  |multi-word-id,"Multi word"
+  |test-123-abc,"Test item"
+  |a-b-c-d-e,"Many hyphens"
+
+# ----------------------------------------------------------------------------
+# SECTION 28: Alias Expansion in Different Contexts
+# ----------------------------------------------------------------------------
+
+alias_contexts: @AliasContexts[id,alias_as_bool,alias_as_int,alias_as_float,alias_as_string]
+  |ac1,%true_alias,%int_alias,%float_alias,%string_alias
+  |ac2,%false_alias,%neg_int_alias,%neg_float_alias,%complex_string
+  |ac3,%true_alias,42,3.14,regular_string
+
+# ----------------------------------------------------------------------------
+# SECTION 29: Ditto Chains (Multiple Consecutive Dittos)
+# ----------------------------------------------------------------------------
+
+ditto_chains: @DittoChains[id,val1,val2,val3]
+  |dc1,alpha,100,true
+  |dc2,^,^,^
+  |dc3,^,^,^
+  |dc4,beta,^,^
+  |dc5,^,200,^
+  |dc6,^,^,false
+  |dc7,gamma,300,true
+  |dc8,^,^,^
+
+# ----------------------------------------------------------------------------
+# SECTION 30: Mixed Types in Single List
+# ----------------------------------------------------------------------------
+
+mixed_types_list: @MixedTypes[id,value]
+  |mt1,42
+  |mt2,3.14
+  |mt3,true
+  |mt4,false
+  |mt5,~
+  |mt6,"string value"
+  |mt7,@User:user1
+  |mt8,$(x + 1)
+  |mt9,[1,2,3]
+  |mt10,%int_alias
+
+# ----------------------------------------------------------------------------
+# SECTION 31: Complex Nesting with Multiple Children
+# ----------------------------------------------------------------------------
+
+complex_nested: @User
+  |[3] complex_u1,user_complex_1,complex1@example.com,40,true,"Complex nested structure test"
+    |[3] complex_p1,@User:complex_u1,"Post 1-1","First post content","2024-01-01T00:00:00Z",10
+      |complex_c1,@Post:complex_p1,@User:complex_u2,"Comment 1-1-1","2024-01-01T01:00:00Z"
+      |complex_c2,@Post:complex_p1,@User:complex_u3,"Comment 1-1-2","2024-01-01T02:00:00Z"
+      |complex_c3,@Post:complex_p1,@User:complex_u4,"Comment 1-1-3","2024-01-01T03:00:00Z"
+    |[2] complex_p2,@User:complex_u1,"Post 1-2","Second post content","2024-01-02T00:00:00Z",20
+      |complex_c4,@Post:complex_p2,@User:complex_u2,"Comment 1-2-1","2024-01-02T01:00:00Z"
+      |complex_c5,@Post:complex_p2,@User:complex_u3,"Comment 1-2-2","2024-01-02T02:00:00Z"
+    |[0] complex_p3,@User:complex_u1,"Post 1-3","Third post content","2024-01-03T00:00:00Z",30
+  |[2] complex_u2,user_complex_2,complex2@example.com,35,true,"Another complex user"
+    |[1] complex_p4,@User:complex_u2,"Post 2-1","Content for post 2-1","2024-01-04T00:00:00Z",40
+      |complex_c6,@Post:complex_p4,@User:complex_u1,"Comment 2-1-1","2024-01-04T01:00:00Z"
+    |[0] complex_p5,@User:complex_u2,"Post 2-2","Content for post 2-2","2024-01-05T00:00:00Z",50
+  |[0] complex_u3,user_complex_3,complex3@example.com,30,false,"Third complex user"
+  |[1] complex_u4,user_complex_4,complex4@example.com,28,true,"Fourth complex user"
+    |[3] complex_p6,@User:complex_u4,"Post 4-1","Content from user 4","2024-01-06T00:00:00Z",60
+      |complex_c7,@Post:complex_p6,@User:complex_u1,"Comment 4-1-1","2024-01-06T01:00:00Z"
+      |complex_c8,@Post:complex_p6,@User:complex_u2,"Comment 4-1-2","2024-01-06T02:00:00Z"
+      |complex_c9,@Post:complex_p6,@User:complex_u3,"Comment 4-1-3","2024-01-06T03:00:00Z"
+
+# ----------------------------------------------------------------------------
+# SECTION 32: Special Characters in Quoted Strings
+# ----------------------------------------------------------------------------
+
+special_chars: @SpecialChars[id,value]
+  |sc_1,"Tab:	end"
+  |sc_2,"Newline is not allowed in v1.0"
+  |sc_3,"Backslash: \ is literal"
+  |sc_4,"Forward slash: /"
+  |sc_5,"At sign: @"
+  |sc_6,"Dollar: $"
+  |sc_7,"Percent: %"
+  |sc_8,"Caret: ^"
+  |sc_9,"Tilde: ~"
+  |sc_10,"Brackets: []{}"
+  |sc_11,"Parens: ()"
+  |sc_12,"Semicolon: ;"
+  |sc_13,"Colon: :"
+  |sc_14,"Equals: ="
+  |sc_15,"Plus: +"
+  |sc_16,"Asterisk: *"
+
+# ----------------------------------------------------------------------------
+# SECTION 33: Very Long Lines (Testing Line Length Limits)
+# ----------------------------------------------------------------------------
+
+long_lines: @LongLines[id,content]
+  |ll1,"This is a very long string value that contains a lot of text to test the parser's ability to handle long lines without issues. It should parse correctly regardless of the length. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+
+# ----------------------------------------------------------------------------
+# SECTION 34: Combinations of Features
+# ----------------------------------------------------------------------------
+
+feature_combinations: @FeatureCombos[id,ditto_test,alias_test,ref_test,expr_test,tensor_test]
+  |fc1,value1,%int_alias,@User:user1,$(x + 1),[1,2,3]
+  |fc2,^,%float_alias,@User:user2,$(y * 2),[[1,2],[3,4]]
+  |fc3,value2,^,^,$((a + b)),^
+  |fc4,^,%string_alias,@Post:post1,^,[5,6,7]
+
+# ----------------------------------------------------------------------------
+# SECTION 35: Final Comprehensive Matrix with All Features
+# ----------------------------------------------------------------------------
+
+final_comprehensive: @FinalComprehensive[id,null_col,bool_col,int_col,float_col,str_col,ref_col,expr_col,tensor_col,alias_col,ditto_col]
+  |final1,~,true,42,3.14,hello,@User:user1,$(x),[1,2],%int_alias,baseline
+  |final2,~,^,100,2.71,world,^,$(y),[[1]],%float_alias,^
+  |final3,~,false,-50,-1.5,"quoted",@User:user2,$((a)),[3,4,5],^,changed
+  |final4,~,^,^,^,^,@Post:post1,$(b + c),^,%string_alias,^
+  |final5,~,true,0,0.0,"",@Comment:c1,$(func()),[1],%true_alias,end
+
+# ============================================================================
+# END OF COMPREHENSIVE STRESS TEST
+# Total sections: 35
+# Coverage: All scalar types, all directives, all features, extensive edge cases
+# ============================================================================

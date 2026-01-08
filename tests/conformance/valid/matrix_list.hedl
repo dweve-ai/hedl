@@ -1,0 +1,5 @@
+%VERSION: 1.0
+%STRUCT: T: [id,v]
+---
+d: @T
+  |x,1

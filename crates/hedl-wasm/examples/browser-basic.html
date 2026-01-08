@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEDL WASM - Basic Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .panel h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 300px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    pre {
+      background: #f8f8f8;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 13px;
+      min-height: 300px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .error {
+      background: #fee;
+      color: #c00;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      border-left: 4px solid #c00;
+    }
+
+    .success {
+      background: #efe;
+      color: #080;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      border-left: 4px solid #080;
+    }
+
+    .stats {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .loading {
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>HEDL WASM - Basic Example</h1>
+
+  <div id="status" class="loading">Loading WASM module...</div>
+
+  <div class="controls">
+    <button id="convert-btn" disabled>Convert to JSON</button>
+    <button id="format-btn" disabled>Format HEDL</button>
+    <button id="validate-btn" disabled>Validate</button>
+    <button id="clear-btn">Clear</button>
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <h2>HEDL Input</h2>
+      <textarea id="hedl-input">%VERSION: 1.0
+%STRUCT: User[id,name,email,role]
+%STRUCT: Post[id,title,content,views]
+%NEST: User > Post
+%ALIAS: %active: "true"
+%ALIAS: %admin: "admin"
+---
+users: @User
+  |alice,Alice Smith,alice@example.com,%admin
+    |post1,Hello World,My first post,150
+    |post2,HEDL Intro,Introduction to HEDL,320
+  |bob,Bob Jones,bob@example.com,user
+    |post3,Getting Started,How to get started,95
+  |charlie,Charlie Brown,charlie@example.com,user
+
+settings:
+  active: %active
+  maxUsers: 1000
+  features: [analytics,search,export]</textarea>
+    </div>
+
+    <div class="panel">
+      <h2>Output</h2>
+      <pre id="output">Waiting for conversion...</pre>
+    </div>
+  </div>
+
+  <div class="stats">
+    <h2>Statistics</h2>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-schemas">-</div>
+        <div class="stat-label">Schemas</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-entities">-</div>
+        <div class="stat-label">Entities</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-hedl-tokens">-</div>
+        <div class="stat-label">HEDL Tokens</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-json-tokens">-</div>
+        <div class="stat-label">JSON Tokens</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-savings">-</div>
+        <div class="stat-label">Token Savings</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import init, { parse, toJson, format, validate, getStats, version } from 'https://unpkg.com/hedl-wasm@latest/hedl_wasm.js';
+
+    // Initialize WASM
+    try {
+      await init();
+      document.getElementById('status').className = 'success';
+      document.getElementById('status').textContent = `HEDL WASM v${version()} loaded successfully!`;
+
+      // Enable buttons
+      document.getElementById('convert-btn').disabled = false;
+      document.getElementById('format-btn').disabled = false;
+      document.getElementById('validate-btn').disabled = false;
+    } catch (e) {
+      document.getElementById('status').className = 'error';
+      document.getElementById('status').textContent = `Failed to load WASM: ${e.message}`;
+    }
+
+    // Convert to JSON
+    document.getElementById('convert-btn').addEventListener('click', () => {
+      const hedl = document.getElementById('hedl-input').value;
+      const statusEl = document.getElementById('status');
+
+      try {
+        const doc = parse(hedl);
+        const json = doc.toJsonString(true);
+        document.getElementById('output').textContent = json;
+
+        statusEl.className = 'success';
+        statusEl.textContent = 'Converted successfully!';
+
+        updateStats(doc, hedl);
+      } catch (e) {
+        document.getElementById('output').textContent = `Error: ${e.message}`;
+        statusEl.className = 'error';
+        statusEl.textContent = `Conversion failed: ${e.message}`;
+      }
+    });
+
+    // Format HEDL
+    document.getElementById('format-btn').addEventListener('click', () => {
+      const hedl = document.getElementById('hedl-input').value;
+      const statusEl = document.getElementById('status');
+
+      try {
+        const formatted = format(hedl, true);
+        document.getElementById('output').textContent = formatted;
+
+        statusEl.className = 'success';
+        statusEl.textContent = 'Formatted successfully!';
+      } catch (e) {
+        document.getElementById('output').textContent = `Error: ${e.message}`;
+        statusEl.className = 'error';
+        statusEl.textContent = `Formatting failed: ${e.message}`;
+      }
+    });
+
+    // Validate
+    document.getElementById('validate-btn').addEventListener('click', () => {
+      const hedl = document.getElementById('hedl-input').value;
+      const statusEl = document.getElementById('status');
+
+      const result = validate(hedl, true);
+
+      if (result.valid) {
+        let output = 'Validation passed!\n\n';
+
+        if (result.warnings.length > 0) {
+          output += 'Warnings:\n';
+          result.warnings.forEach(w => {
+            output += `  Line ${w.line}: ${w.message} [${w.rule}]\n`;
+          });
+        } else {
+          output += 'No warnings.';
+        }
+
+        document.getElementById('output').textContent = output;
+        statusEl.className = 'success';
+        statusEl.textContent = 'Validation passed!';
+      } else {
+        let output = 'Validation failed!\n\n';
+        output += 'Errors:\n';
+        result.errors.forEach(e => {
+          output += `  Line ${e.line}: ${e.message} (${e.type})\n`;
+        });
+
+        if (result.warnings.length > 0) {
+          output += '\nWarnings:\n';
+          result.warnings.forEach(w => {
+            output += `  Line ${w.line}: ${w.message} [${w.rule}]\n`;
+          });
+        }
+
+        document.getElementById('output').textContent = output;
+        statusEl.className = 'error';
+        statusEl.textContent = 'Validation failed!';
+      }
+    });
+
+    // Clear
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      document.getElementById('hedl-input').value = '%VERSION: 1.0\n---\n';
+      document.getElementById('output').textContent = 'Waiting for conversion...';
+      document.getElementById('status').className = 'success';
+      document.getElementById('status').textContent = 'Cleared!';
+
+      // Reset stats
+      document.getElementById('stat-schemas').textContent = '-';
+      document.getElementById('stat-entities').textContent = '-';
+      document.getElementById('stat-hedl-tokens').textContent = '-';
+      document.getElementById('stat-json-tokens').textContent = '-';
+      document.getElementById('stat-savings').textContent = '-';
+    });
+
+    // Update statistics
+    function updateStats(doc, hedl) {
+      try {
+        // Document stats
+        document.getElementById('stat-schemas').textContent = doc.schemaCount;
+
+        const entities = doc.countEntities();
+        const totalEntities = Object.values(entities).reduce((a, b) => a + b, 0);
+        document.getElementById('stat-entities').textContent = totalEntities;
+
+        // Token stats
+        const stats = getStats(hedl);
+        document.getElementById('stat-hedl-tokens').textContent = stats.hedlTokens;
+        document.getElementById('stat-json-tokens').textContent = stats.jsonTokens;
+        document.getElementById('stat-savings').textContent = `${stats.savingsPercent}%`;
+      } catch (e) {
+        console.error('Failed to update stats:', e);
+      }
+    }
+  </script>
+</body>
+</html>

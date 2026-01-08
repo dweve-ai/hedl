@@ -1,0 +1,79 @@
+%VERSION: 1.0
+%STRUCT: User: [id,username,email,display_name,bio,avatar_url,joined_at,is_verified,follower_count]
+%STRUCT: Category: [id,name,slug,description,color,post_count]
+%STRUCT: Tag: [id,name,usage_count]
+%STRUCT: Post: [id,title,slug,excerpt,content,author_id,category_id,status,is_featured,view_count,read_time_minutes,created_at,updated_at,published_at]
+%STRUCT: Comment: [id,content,author_id,post_id,parent_id,created_at,is_edited,is_deleted]
+%STRUCT: Reaction: [id,post_id,user_id,type,created_at]
+%STRUCT: PostTag: [id,post_id,tag_id]
+%STRUCT: Follower: [id,follower_id,following_id,created_at]
+---
+users: @User
+  |user1,alice_dev,alice@techblog.com,Alice Johnson,Full-stack developer passionate about React and Rust,https://avatars.example.com/alice.jpg,2023-01-15T10:00:00Z,true,1250
+  |user2,bob_writes,bob@techblog.com,Bob Smith,Technical writer and documentation enthusiast,https://avatars.example.com/bob.jpg,2023-02-20T14:30:00Z,^,890
+  |user3,charlie_ml,charlie@techblog.com,Charlie Chen,Machine learning engineer at BigTech,https://avatars.example.com/charlie.jpg,2023-03-10T09:15:00Z,false,2100
+  |user4,diana_design,diana@techblog.com,Diana Rodriguez,UX designer crafting delightful experiences,https://avatars.example.com/diana.jpg,2023-04-05T11:45:00Z,true,1680
+  |user5,evan_backend,evan@techblog.com,Evan Park,"Backend architect, Go and Kubernetes expert",https://avatars.example.com/evan.jpg,2023-05-12T16:20:00Z,false,750
+
+categories: @Category
+  |cat1,Programming,programming,Articles about programming languages and techniques,"#3498db",45
+  |cat2,Web Development,web-dev,Frontend and backend web development topics,"#2ecc71",38
+  |cat3,Machine Learning,ml,"AI, ML, and data science articles","#9b59b6",22
+  |cat4,DevOps,devops,"CI/CD, containers, and infrastructure","#e74c3c",31
+  |cat5,Design,design,UI/UX design principles and practices,"#f39c12",19
+
+tags: @Tag
+  |tag1,rust,28
+  |tag2,javascript,52
+  |tag3,python,41
+  |tag4,react,35
+  |tag5,docker,29
+  |tag6,kubernetes,24
+  |tag7,typescript,33
+  |tag8,machine-learning,18
+  |tag9,api-design,15
+  |tag10,testing,21
+
+posts: @Post
+  |post1,Getting Started with Rust in 2024,rust-getting-started-2024,A beginner's guide to Rust programming,"Rust has become one of the most loved programming languages. In this comprehensive guide, we'll explore why Rust is gaining popularity and how to get started with your first project.",@user1,@cat1,published,true,4520,12,2024-01-10T09:00:00Z,2024-01-10T15:30:00Z,2024-01-10T16:00:00Z
+  |post2,Building Scalable APIs with GraphQL,scalable-graphql-apis,Master GraphQL API development,"GraphQL offers a flexible approach to API design. Learn how to build performant, scalable GraphQL APIs that can handle millions of requests.",@user2,@cat2,^,false,3280,15,2024-01-12T11:00:00Z,2024-01-13T10:00:00Z,2024-01-13T12:00:00Z
+  |post3,Introduction to Neural Networks,intro-neural-networks,Understanding neural networks from scratch,Neural networks are the foundation of modern AI. This article breaks down the concepts in an accessible way for developers new to machine learning.,@user3,@cat3,^,true,5890,20,2024-01-15T08:30:00Z,^,2024-01-15T10:00:00Z
+  |post4,Kubernetes Best Practices for Production,k8s-production-best-practices,Production-ready Kubernetes deployments,"Running Kubernetes in production requires careful planning. Learn the best practices for security, scaling, and monitoring your clusters.",@user5,@cat4,^,false,2150,18,2024-01-18T14:00:00Z,2024-01-19T09:00:00Z,2024-01-19T10:00:00Z
+  |post5,Design Systems That Scale,scalable-design-systems,Building enterprise design systems,A well-built design system can transform how your team works. Discover the principles behind design systems used by top tech companies.,@user4,@cat5,^,^,1890,14,2024-01-20T10:00:00Z,2024-01-21T16:00:00Z,2024-01-21T18:00:00Z
+  |post6,Advanced TypeScript Patterns,advanced-typescript-patterns,Level up your TypeScript game,"Take your TypeScript skills to the next level with advanced type patterns, conditional types, and mapped types that make your code safer.",@user1,@cat1,^,true,3450,16,2024-01-25T09:00:00Z,^,2024-01-25T12:00:00Z
+
+comments: @Comment
+  |comment1,Great introduction! I've been meaning to learn Rust. The memory safety features are what attracted me.,@user2,@post1,~,2024-01-10T17:30:00Z,false,false
+  |comment2,"Same here! The borrow checker was tricky at first, but it really helps catch bugs early.",@user3,^,@comment1,2024-01-10T18:15:00Z,^,^
+  |comment3,"Thanks for the kind words! Yes, the borrow checker is your friend once you get used to it.",@user1,^,@comment2,2024-01-10T19:00:00Z,^,^
+  |comment4,How does this compare to REST for smaller projects? Is GraphQL overkill for simple APIs?,@user5,@post2,~,2024-01-13T14:00:00Z,^,^
+  |comment5,"Good question! For simple CRUD apps, REST might be simpler. GraphQL shines when you have complex data relationships.",@user2,^,@comment4,2024-01-13T15:30:00Z,true,^
+  |comment6,Finally an ML article I can understand! The diagrams really helped explain backpropagation.,@user4,@post3,~,2024-01-15T12:00:00Z,false,^
+
+reactions: @Reaction
+  |react1,@post1,@user2,like,2024-01-10T17:00:00Z
+  |react2,^,@user3,love,2024-01-10T17:05:00Z
+  |react3,^,@user4,like,2024-01-10T18:00:00Z
+  |react4,^,@user5,insightful,2024-01-10T19:00:00Z
+  |react5,@post2,@user1,like,2024-01-13T12:30:00Z
+  |react6,^,@user3,^,2024-01-13T13:00:00Z
+  |react7,@post3,@user1,love,2024-01-15T10:30:00Z
+  |react8,^,@user2,like,2024-01-15T11:00:00Z
+
+post_tags: @PostTag
+  |pt1,@post1,@tag1
+  |pt2,^,@tag3
+  |pt3,@post2,@tag2
+  |pt4,^,@tag9
+  |pt5,@post3,@tag3
+  |pt6,^,@tag8
+  |pt7,@post4,@tag5
+  |pt8,^,@tag6
+
+followers: @Follower
+  |follow1,@user2,@user1,2023-02-25T10:00:00Z
+  |follow2,@user3,^,2023-03-15T14:00:00Z
+  |follow3,@user4,^,2023-04-10T09:00:00Z
+  |follow4,@user1,@user2,2023-02-22T11:00:00Z
+  |follow5,@user3,^,2023-03-20T16:00:00Z
+  |follow6,@user1,@user3,2023-03-12T08:00:00Z

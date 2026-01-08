@@ -1,0 +1,12 @@
+%VERSION: 1.0
+%STRUCT: Address: [street, city, zip]
+%STRUCT: Person: [name, age, address]
+---
+company: Acme Corp
+employees: @Person
+  | Alice, 30, @Address(123 Main St, Springfield, 12345)
+  | Bob, 25, @Address(456 Oak Ave, Shelbyville, 67890)
+metadata:
+  created: 2024-01-01
+  updated: 2024-12-31
+  version: 1.0

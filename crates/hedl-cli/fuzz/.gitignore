@@ -1,0 +1,18 @@
+# Fuzzing artifacts
+corpus/
+artifacts/
+target/
+
+# Fuzzing crash reports
+crash-*
+leak-*
+timeout-*
+oom-*
+
+# Fuzzing coverage data
+coverage/
+*.profdata
+*.profraw
+
+# Build artifacts
+Cargo.lock

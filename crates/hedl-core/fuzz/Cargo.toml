@@ -1,0 +1,42 @@
+[package]
+name = "hedl-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.hedl-core]
+path = ".."
+
+# Prevent this from interfering with workspace
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_parse"
+path = "fuzz_targets/fuzz_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_limits"
+path = "fuzz_targets/fuzz_limits.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_references"
+path = "fuzz_targets/fuzz_references.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_nest_depth"
+path = "fuzz_targets/fuzz_nest_depth.rs"
+test = false
+doc = false

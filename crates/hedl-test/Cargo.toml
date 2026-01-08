@@ -1,0 +1,23 @@
+[package]
+name = "hedl-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Shared test fixtures and utilities for HEDL format converters"
+keywords = ["hedl", "test", "fixtures"]
+categories = ["development-tools::testing"]
+
+[features]
+generate = []
+
+[dependencies]
+hedl-core = { workspace = true }
+hedl-c14n = { path = "../hedl-c14n" }
+
+[dev-dependencies]
+hedl-json = { path = "../hedl-json" }
+hedl-yaml = { path = "../hedl-yaml" }
+hedl-xml = { path = "../hedl-xml" }
+regex = "1.0"

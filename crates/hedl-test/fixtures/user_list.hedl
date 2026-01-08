@@ -1,0 +1,7 @@
+%VERSION: 1.0
+%STRUCT: User: [id,name,email]
+---
+users: @User
+  |alice,Alice Smith,alice@example.com
+  |bob,Bob Jones,bob@example.com
+  |charlie,Charlie Brown,charlie@example.com

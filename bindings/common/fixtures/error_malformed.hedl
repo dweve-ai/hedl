@@ -1,0 +1,6 @@
+%VERSION: 1.0
+---
+unclosed_string: "this string has no closing quote
+missing_value:
+bad_indent:
+not_aligned: value

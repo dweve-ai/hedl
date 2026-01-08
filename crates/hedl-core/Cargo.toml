@@ -1,0 +1,23 @@
+[package]
+name = "hedl-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Core parser and data model for HEDL format"
+
+[dependencies]
+thiserror.workspace = true
+memchr = "2.7"  # SIMD-optimized byte searching
+bumpalo = "3.16"  # Arena allocation for expression parsing
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dev-dependencies]
+proptest = "1.0"
+hedl-c14n.workspace = true
+

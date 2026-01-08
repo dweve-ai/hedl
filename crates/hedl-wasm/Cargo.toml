@@ -1,0 +1,46 @@
+[package]
+name = "hedl-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "WebAssembly bindings for HEDL with TypeScript support"
+keywords = ["hedl", "wasm", "webassembly", "typescript", "browser"]
+categories = ["wasm", "web-programming"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Feature flags to control which format converters are included.
+# This helps reduce WASM bundle size for specialized use cases.
+[features]
+default = ["json"]
+
+# JSON is the most common format for web applications
+json = ["dep:hedl-json"]
+
+# Minimal build - core parsing and linting only
+minimal = []
+
+[dependencies]
+hedl-core = { workspace = true }
+hedl-c14n = { workspace = true }
+hedl-lint = { workspace = true }
+
+# Optional format converters (controlled by features)
+hedl-json = { workspace = true, optional = true }
+
+wasm-bindgen = "0.2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console"] }
+console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Os", "--enable-mutable-globals"]

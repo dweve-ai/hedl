@@ -1,0 +1,24 @@
+%VERSION: 1.0
+%STRUCT: Organization: [id,name,industry]
+%STRUCT: Department: [id,name,budget]
+%STRUCT: Employee: [id,name,role,salary]
+%NEST: Organization > Department
+%NEST: Department > Employee
+---
+# This file demonstrates the count hint syntax for hierarchical data
+# Count hints use the format: |[N] data where N is the count of direct children
+# Leaf nodes (no children) use the format: |data
+
+organizations: @Organization
+  |[2] org1,TechStart Inc,Technology
+    |[3] dept1,Engineering,500000.0
+      |eng1,Alice Smith,Senior Engineer,120000.0
+      |eng2,Bob Johnson,Software Engineer,95000.0
+      |eng3,Carol Williams,DevOps Engineer,105000.0
+    |[2] dept2,Design,250000.0
+      |des1,David Brown,Lead Designer,100000.0
+      |des2,Emma Davis,UX Designer,85000.0
+  |[1] org2,DataCorp,Analytics
+    |[2] dept3,Data Science,600000.0
+      |ds1,Frank Miller,Data Scientist,130000.0
+      |ds2,Grace Wilson,ML Engineer,125000.0

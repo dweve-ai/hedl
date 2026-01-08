@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<root>
+  <users>
+    <item><id>1</id><name>Alice</name></item>
+    <item><id>2</id><name>Bob</name></item>
+  </users>
+</root>

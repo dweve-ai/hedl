@@ -1,0 +1,71 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+
+# Cargo
+Cargo.lock
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+ENV/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# FFI/Native libraries
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Test artifacts
+*.profraw
+*.profdata
+coverage/
+lcov.info
+tarpaulin-report.html
+
+# Parquet test files
+*.parquet
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Proptest regressions
+*.proptest-regressions
+.backup
+crates/hedl-bench/target/
+.analysis

@@ -1,0 +1,30 @@
+[package]
+name = "hedl-neo4j"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Bidirectional conversion between HEDL and Neo4j graph databases"
+keywords = ["hedl", "neo4j", "graph", "cypher", "database"]
+categories = ["database", "encoding", "data-structures"]
+
+[features]
+default = []
+# Enable integration tests that require a running Neo4j instance
+integration-tests = []
+
+[dependencies]
+hedl-core = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+unicode-normalization = "0.1"
+
+[dev-dependencies]
+neo4rs = "0.9.0-rc"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+proptest = "1.4"
+serial_test = "3"
+hedl-test = { workspace = true }
+

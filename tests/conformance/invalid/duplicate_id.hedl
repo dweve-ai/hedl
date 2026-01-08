@@ -1,0 +1,6 @@
+%VERSION: 1.0
+%STRUCT: User: [id,name]
+---
+users: @User
+  |u1,Alice
+  |u1,Bob

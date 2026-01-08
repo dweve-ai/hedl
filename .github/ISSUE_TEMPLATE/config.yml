@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: mailto:security@dweve.com
+    about: Report security vulnerabilities via email (NOT through public issues)
+  - name: Documentation
+    url: https://docs.dweve.com
+    about: Check our documentation before opening an issue
+  - name: Community Discussions
+    url: https://github.com/dweve/PROJECT_NAME/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Support
+    url: mailto:support@dweve.com
+    about: Contact support for account or billing issues

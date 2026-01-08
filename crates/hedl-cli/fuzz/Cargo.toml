@@ -1,0 +1,71 @@
+[package]
+name = "hedl-cli-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+# This is an independent workspace for fuzzing
+
+[dependencies]
+libfuzzer-sys = "0.4"
+hedl-core = { path = "../../hedl-core" }
+hedl-c14n = { path = "../../hedl-c14n" }
+hedl-json = { path = "../../hedl-json" }
+hedl-yaml = { path = "../../hedl-yaml" }
+hedl-xml = { path = "../../hedl-xml" }
+hedl-csv = { path = "../../hedl-csv" }
+hedl-lint = { path = "../../hedl-lint" }
+serde_json = "1.0"
+tempfile = "3.0"
+
+[[bin]]
+name = "fuzz_parse"
+path = "fuzz_targets/fuzz_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_json_roundtrip"
+path = "fuzz_targets/fuzz_json_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_yaml_roundtrip"
+path = "fuzz_targets/fuzz_yaml_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_xml_roundtrip"
+path = "fuzz_targets/fuzz_xml_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_format"
+path = "fuzz_targets/fuzz_format.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_convert"
+path = "fuzz_targets/fuzz_convert.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_stats"
+path = "fuzz_targets/fuzz_stats.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_lint"
+path = "fuzz_targets/fuzz_lint.rs"
+test = false
+doc = false

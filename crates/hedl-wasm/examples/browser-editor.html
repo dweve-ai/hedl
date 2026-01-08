@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEDL Live Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+
+    .header {
+      background: #252526;
+      padding: 15px 20px;
+      border-bottom: 1px solid #3e3e3e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      color: #cccccc;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 8px 16px;
+      background: #0e639c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #1177bb;
+    }
+
+    button:disabled {
+      background: #3e3e3e;
+      color: #6e6e6e;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: #3e3e3e;
+    }
+
+    button.secondary:hover {
+      background: #4e4e4e;
+    }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: #3e3e3e;
+      overflow: hidden;
+    }
+
+    .pane {
+      background: #1e1e1e;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pane-header {
+      background: #252526;
+      padding: 8px 15px;
+      font-size: 12px;
+      color: #888;
+      border-bottom: 1px solid #3e3e3e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pane-header .badge {
+      background: #0e639c;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .pane-header .badge.error {
+      background: #f48771;
+    }
+
+    .pane-header .badge.success {
+      background: #89d185;
+    }
+
+    textarea {
+      flex: 1;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: none;
+      padding: 15px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+    }
+
+    pre {
+      flex: 1;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      overflow: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .status-bar {
+      background: #007acc;
+      color: white;
+      padding: 5px 15px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-bar.error {
+      background: #f48771;
+    }
+
+    .status-bar.success {
+      background: #89d185;
+      color: #1e1e1e;
+    }
+
+    .status-item {
+      display: flex;
+      gap: 15px;
+    }
+
+    .error-panel {
+      background: #1e1e1e;
+      border-top: 2px solid #f48771;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 10px 15px;
+    }
+
+    .error-item {
+      padding: 8px;
+      margin-bottom: 8px;
+      background: #2d2d2d;
+      border-left: 3px solid #f48771;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+    }
+
+    .error-item.warning {
+      border-left-color: #cca700;
+    }
+
+    .error-line {
+      color: #569cd6;
+      font-weight: bold;
+    }
+
+    .stats-panel {
+      background: #252526;
+      padding: 10px 15px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+      border-top: 1px solid #3e3e3e;
+      font-size: 12px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #4ec9b0;
+    }
+
+    .stat-label {
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      z-index: 1000;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Syntax highlighting */
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .number { color: #b5cea8; }
+    .comment { color: #6a9955; }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading-overlay">
+    <div>Loading HEDL WASM...</div>
+  </div>
+
+  <div class="header">
+    <h1>HEDL Live Editor</h1>
+    <div class="toolbar">
+      <button id="format-btn" disabled>Format</button>
+      <button id="validate-btn" class="secondary" disabled>Validate</button>
+      <button id="example-btn" class="secondary">Load Example</button>
+      <button id="copy-btn" class="secondary" disabled>Copy JSON</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="pane">
+      <div class="pane-header">
+        HEDL Input
+        <span class="badge" id="hedl-badge">Ready</span>
+      </div>
+      <textarea id="hedl-input" spellcheck="false">%VERSION: 1.0
+%STRUCT: User[id,name,email,age]
+%STRUCT: Post[id,title,views]
+%NEST: User > Post
+---
+users: @User
+  |alice,Alice Smith,alice@example.com,30
+    |post1,Introduction to HEDL,1250
+    |post2,Advanced Features,890
+  |bob,Bob Jones,bob@example.com,25
+    |post3,Getting Started,450</textarea>
+    </div>
+
+    <div class="pane">
+      <div class="pane-header">
+        JSON Output
+        <span class="badge success" id="json-badge">Auto-sync</span>
+      </div>
+      <pre id="json-output">Waiting for input...</pre>
+    </div>
+  </div>
+
+  <div id="error-panel" class="error-panel hidden"></div>
+
+  <div class="stats-panel">
+    <div class="stat">
+      <div class="stat-value" id="stat-lines">-</div>
+      <div class="stat-label">Lines</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-schemas">-</div>
+      <div class="stat-label">Schemas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-entities">-</div>
+      <div class="stat-label">Entities</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-hedl">-</div>
+      <div class="stat-label">HEDL Tokens</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-json">-</div>
+      <div class="stat-label">JSON Tokens</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="stat-savings">-</div>
+      <div class="stat-label">Savings</div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-bar">
+    <div class="status-item">
+      <span id="status-text">Initializing...</span>
+    </div>
+    <div class="status-item">
+      <span id="auto-convert">Auto-convert: ON</span>
+      <span id="version">v-.-.-</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import init, { parse, format, validate, getStats, version } from 'https://unpkg.com/hedl-wasm@latest/hedl_wasm.js';
+
+    let autoConvert = true;
+    let debounceTimer = null;
+
+    // Initialize
+    async function initialize() {
+      try {
+        await init();
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('format-btn').disabled = false;
+        document.getElementById('validate-btn').disabled = false;
+        document.getElementById('copy-btn').disabled = false;
+        document.getElementById('version').textContent = `v${version()}`;
+
+        updateStatus('Ready', 'success');
+
+        // Initial conversion
+        convertToJson();
+      } catch (e) {
+        updateStatus(`Initialization failed: ${e.message}`, 'error');
+        document.getElementById('loading').textContent = `Error: ${e.message}`;
+      }
+    }
+
+    // Auto-convert on input
+    document.getElementById('hedl-input').addEventListener('input', () => {
+      if (!autoConvert) return;
+
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(convertToJson, 500);
+
+      document.getElementById('hedl-badge').textContent = 'Typing...';
+      document.getElementById('hedl-badge').className = 'badge';
+    });
+
+    // Convert to JSON
+    function convertToJson() {
+      const hedl = document.getElementById('hedl-input').value;
+      const outputEl = document.getElementById('json-output');
+      const errorPanel = document.getElementById('error-panel');
+
+      try {
+        const doc = parse(hedl);
+        const json = doc.toJsonString(true);
+        outputEl.textContent = json;
+
+        document.getElementById('hedl-badge').textContent = 'Valid';
+        document.getElementById('hedl-badge').className = 'badge success';
+        document.getElementById('json-badge').textContent = 'Updated';
+        document.getElementById('json-badge').className = 'badge success';
+
+        errorPanel.classList.add('hidden');
+        errorPanel.innerHTML = '';
+
+        updateStats(doc, hedl);
+        updateStatus('Conversion successful', 'success');
+      } catch (e) {
+        outputEl.textContent = `Parse Error:\n\n${e.message}`;
+
+        document.getElementById('hedl-badge').textContent = 'Error';
+        document.getElementById('hedl-badge').className = 'badge error';
+
+        showError(e.message);
+        updateStatus(`Parse error: ${e.message}`, 'error');
+      }
+    }
+
+    // Format HEDL
+    document.getElementById('format-btn').addEventListener('click', () => {
+      const hedl = document.getElementById('hedl-input').value;
+
+      try {
+        const formatted = format(hedl, true);
+        document.getElementById('hedl-input').value = formatted;
+        updateStatus('Formatted successfully', 'success');
+        convertToJson();
+      } catch (e) {
+        updateStatus(`Format error: ${e.message}`, 'error');
+      }
+    });
+
+    // Validate
+    document.getElementById('validate-btn').addEventListener('click', () => {
+      const hedl = document.getElementById('hedl-input').value;
+      const result = validate(hedl, true);
+      const errorPanel = document.getElementById('error-panel');
+
+      if (result.valid) {
+        if (result.warnings.length > 0) {
+          errorPanel.innerHTML = '<strong>Validation passed with warnings:</strong><br>';
+          result.warnings.forEach(w => {
+            const div = document.createElement('div');
+            div.className = 'error-item warning';
+            div.innerHTML = `<span class="error-line">Line ${w.line}:</span> ${w.message} [${w.rule}]`;
+            errorPanel.appendChild(div);
+          });
+          errorPanel.classList.remove('hidden');
+          updateStatus(`Validation passed with ${result.warnings.length} warnings`, 'success');
+        } else {
+          errorPanel.classList.add('hidden');
+          updateStatus('Validation passed', 'success');
+        }
+      } else {
+        errorPanel.innerHTML = '<strong>Validation failed:</strong><br>';
+        result.errors.forEach(e => {
+          const div = document.createElement('div');
+          div.className = 'error-item';
+          div.innerHTML = `<span class="error-line">Line ${e.line}:</span> ${e.message} (${e.type})`;
+          errorPanel.appendChild(div);
+        });
+        errorPanel.classList.remove('hidden');
+        updateStatus(`Validation failed: ${result.errors.length} errors`, 'error');
+      }
+    });
+
+    // Load example
+    document.getElementById('example-btn').addEventListener('click', () => {
+      document.getElementById('hedl-input').value = `%VERSION: 1.0
+%STRUCT: Company[id,name,industry,employees]
+%STRUCT: Department[id,name,budget]
+%STRUCT: Employee[id,name,role,salary]
+%NEST: Company > Department
+%NEST: Department > Employee
+%ALIAS: %active: "true"
+---
+companies: @Company
+  |acme,Acme Corp,Technology,500
+    |eng,Engineering,5000000
+      |e001,Alice Johnson,Senior Engineer,150000
+      |e002,Bob Smith,Engineer,120000
+    |sales,Sales,2000000
+      |e003,Charlie Brown,Sales Lead,130000
+  |globex,Globex Inc,Manufacturing,1200
+    |prod,Production,8000000
+      |e004,Diana Prince,Production Manager,140000
+
+settings:
+  active: %active
+  timezone: "UTC"
+  features: [analytics,reporting,export]`;
+      convertToJson();
+      updateStatus('Example loaded', 'success');
+    });
+
+    // Copy JSON
+    document.getElementById('copy-btn').addEventListener('click', async () => {
+      const json = document.getElementById('json-output').textContent;
+
+      try {
+        await navigator.clipboard.writeText(json);
+        updateStatus('JSON copied to clipboard', 'success');
+      } catch (e) {
+        updateStatus('Failed to copy to clipboard', 'error');
+      }
+    });
+
+    // Update status bar
+    function updateStatus(text, type = '') {
+      const statusBar = document.getElementById('status-bar');
+      const statusText = document.getElementById('status-text');
+
+      statusText.textContent = text;
+      statusBar.className = `status-bar ${type}`;
+    }
+
+    // Show error
+    function showError(message) {
+      const errorPanel = document.getElementById('error-panel');
+      errorPanel.innerHTML = '';
+
+      const div = document.createElement('div');
+      div.className = 'error-item';
+      div.textContent = message;
+      errorPanel.appendChild(div);
+      errorPanel.classList.remove('hidden');
+    }
+
+    // Update statistics
+    function updateStats(doc, hedl) {
+      try {
+        // Line count
+        const lines = hedl.split('\n').length;
+        document.getElementById('stat-lines').textContent = lines;
+
+        // Schema count
+        document.getElementById('stat-schemas').textContent = doc.schemaCount;
+
+        // Entity count
+        const entities = doc.countEntities();
+        const totalEntities = Object.values(entities).reduce((a, b) => a + b, 0);
+        document.getElementById('stat-entities').textContent = totalEntities;
+
+        // Token stats
+        const stats = getStats(hedl);
+        document.getElementById('stat-hedl').textContent = stats.hedlTokens;
+        document.getElementById('stat-json').textContent = stats.jsonTokens;
+        document.getElementById('stat-savings').textContent = `${stats.savingsPercent}%`;
+      } catch (e) {
+        console.error('Failed to update stats:', e);
+      }
+    }
+
+    // Initialize on load
+    initialize();
+  </script>
+</body>
+</html>

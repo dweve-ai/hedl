@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Dweve.Hedl</RootNamespace>
+    <AssemblyName>Dweve.Hedl</AssemblyName>
+
+    <!-- Package metadata -->
+    <PackageId>Dweve.Hedl</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Dweve</Authors>
+    <Company>Dweve</Company>
+    <Description>HEDL (Hierarchical Entity Data Language) - Token-efficient data format optimized for LLM context windows. Provides 5-10x compression compared to JSON.</Description>
+    <PackageTags>hedl;llm;ai;data-format;json;yaml;compression;context-window</PackageTags>
+    <PackageLicenseExpression>Apache-2.0 OR MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/dweve-ai/hedl</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dweve-ai/hedl</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

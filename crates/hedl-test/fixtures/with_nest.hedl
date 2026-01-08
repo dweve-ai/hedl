@@ -1,0 +1,11 @@
+%VERSION: 1.0
+%STRUCT: Post: [id,title]
+%STRUCT: User: [id,name]
+%NEST: User > Post
+---
+users: @User
+  |[2] alice,Alice
+    |post1,Alice's first post
+    |post2,Alice's second post
+  |[1] bob,Bob
+    |post3,Bob's post

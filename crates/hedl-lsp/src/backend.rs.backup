@@ -1,0 +1,849 @@
+// Dweve HEDL - Hierarchical Entity Data Language
+//
+// Copyright (c) 2025 Dweve IP B.V. and individual contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+//! LSP backend implementation.
+//!
+//! # Performance Optimization
+//!
+//! This backend implements three key optimizations to reduce CPU usage:
+//!
+//! 1. **Debouncing**: Parse requests are delayed by 200ms to batch multiple
+//!    keystrokes together. This reduces parse operations by ~90% during typing.
+//!
+//! 2. **Dirty Tracking**: A content hash and dirty flag prevent redundant
+//!    parsing when document content hasn't actually changed.
+//!
+//! 3. **Caching**: Parsed `AnalyzedDocument` is cached and reused for LSP
+//!    queries (hover, completion, symbols) without blocking.
+//!
+//! See OPTIMIZATION.md for detailed performance analysis and trade-offs.
+
+use crate::analysis::AnalyzedDocument;
+use crate::completion::get_completions;
+use crate::hover::get_hover;
+use crate::symbols::{get_document_symbols, get_workspace_symbols};
+// Note: safe_slice_from and safe_slice_to were used by deprecated helper functions
+// use crate::utils::{safe_slice_from, safe_slice_to};
+use dashmap::DashMap;
+use parking_lot::Mutex;
+use ropey::Rope;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::mpsc;
+use tokio::time::sleep;
+use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer};
+use tracing::{debug, info};
+
+/// Debounce delay for document analysis (in milliseconds).
+/// This is set to 200ms as a balance between responsiveness and CPU efficiency.
+/// During typical typing, this reduces parse operations by ~90%.
+const DEBOUNCE_MS: u64 = 200;
+
+/// Default maximum document size in bytes (500 MB).
+/// Documents larger than this will be rejected to prevent memory exhaustion
+/// and excessive parsing time. This limit is configurable via `with_config()`.
+///
+/// Note: This limit exists primarily for memory management, not DoS protection.
+/// The 500MB default should accommodate most real-world HEDL documents.
+const DEFAULT_MAX_DOCUMENT_SIZE: usize = 500 * 1024 * 1024;
+
+/// Maximum number of simultaneously open documents (1000).
+/// This prevents unbounded memory growth from clients opening excessive
+/// documents. When this limit is reached, the least recently used document
+/// will be evicted.
+const MAX_OPEN_DOCUMENTS: usize = 1000;
+
+/// Document state with caching and dirty tracking.
+struct DocumentState {
+    /// Current rope content.
+    rope: Rope,
+    /// Cached analysis result (Arc-wrapped to avoid expensive clones).
+    analysis: Arc<AnalyzedDocument>,
+    /// Content hash for change detection.
+    content_hash: u64,
+    /// Dirty flag: true if content changed since last analysis.
+    dirty: bool,
+    /// Last access timestamp for LRU eviction.
+    last_access: std::time::Instant,
+}
+
+/// Cache statistics for monitoring and optimization.
+#[derive(Debug, Clone, Default)]
+pub struct CacheStatistics {
+    /// Number of cache hits (document found in cache).
+    pub hits: u64,
+    /// Number of cache misses (document not in cache).
+    pub misses: u64,
+    /// Number of document evictions due to cache size limit.
+    pub evictions: u64,
+    /// Current number of documents in cache.
+    pub current_size: usize,
+    /// Maximum cache size.
+    pub max_size: usize,
+}
+
+/// HEDL Language Server backend.
+pub struct HedlLanguageServer {
+    /// LSP client connection.
+    client: Client,
+    /// Document store: URI -> document state.
+    documents: DashMap<Url, Arc<Mutex<DocumentState>>>,
+    /// Debounce channels: URI -> sender for triggering analysis.
+    debounce_channels: DashMap<Url, mpsc::UnboundedSender<()>>,
+    /// Cache statistics for monitoring.
+    cache_stats: Arc<Mutex<CacheStatistics>>,
+    /// Maximum number of documents to cache (configurable via LSP init).
+    max_cache_size: Arc<parking_lot::RwLock<usize>>,
+    /// Maximum document size in bytes (configurable, default: 500 MB).
+    max_document_size: Arc<parking_lot::RwLock<usize>>,
+}
+
+impl HedlLanguageServer {
+    /// Create a new language server with default configuration.
+    ///
+    /// Default settings:
+    /// - Max cache size: 1000 documents
+    /// - Max document size: 500 MB
+    pub fn new(client: Client) -> Self {
+        Self::with_config(client, MAX_OPEN_DOCUMENTS, DEFAULT_MAX_DOCUMENT_SIZE)
+    }
+
+    /// Create a new language server with custom cache size.
+    ///
+    /// # Deprecated
+    ///
+    /// Use `with_config()` instead to configure both cache size and document size limit.
+    #[deprecated(since = "0.1.0", note = "Use `with_config()` instead")]
+    pub fn with_max_cache_size(client: Client, max_cache_size: usize) -> Self {
+        Self::with_config(client, max_cache_size, DEFAULT_MAX_DOCUMENT_SIZE)
+    }
+
+    /// Create a new language server with custom configuration.
+    ///
+    /// # Parameters
+    ///
+    /// - `client`: LSP client connection
+    /// - `max_cache_size`: Maximum number of documents to cache (default: 1000)
+    /// - `max_document_size`: Maximum document size in bytes (default: 500 MB)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use hedl_lsp::HedlLanguageServer;
+    /// use tower_lsp::Client;
+    ///
+    /// fn create_server(client: Client) -> HedlLanguageServer {
+    ///     // Allow up to 2000 documents, each up to 1 GB
+    ///     HedlLanguageServer::with_config(
+    ///         client,
+    ///         2000,  // max documents
+    ///         1024 * 1024 * 1024  // 1 GB per document
+    ///     )
+    /// }
+    /// ```
+    pub fn with_config(
+        client: Client,
+        max_cache_size: usize,
+        max_document_size: usize,
+    ) -> Self {
+        Self {
+            client,
+            documents: DashMap::new(),
+            debounce_channels: DashMap::new(),
+            cache_stats: Arc::new(Mutex::new(CacheStatistics {
+                max_size: max_cache_size,
+                ..Default::default()
+            })),
+            max_cache_size: Arc::new(parking_lot::RwLock::new(max_cache_size)),
+            max_document_size: Arc::new(parking_lot::RwLock::new(max_document_size)),
+        }
+    }
+
+    /// Get current cache statistics.
+    pub fn cache_statistics(&self) -> CacheStatistics {
+        let mut stats = self.cache_stats.lock();
+        stats.current_size = self.documents.len();
+        stats.clone()
+    }
+
+    /// Update maximum cache size (can be called during runtime).
+    pub fn set_max_cache_size(&self, new_max: usize) {
+        let mut max = self.max_cache_size.write();
+        *max = new_max;
+        let mut stats = self.cache_stats.lock();
+        stats.max_size = new_max;
+        debug!("Cache max size updated to: {}", new_max);
+    }
+
+    /// Get current maximum cache size.
+    pub fn max_cache_size(&self) -> usize {
+        *self.max_cache_size.read()
+    }
+
+    /// Update maximum document size (can be called during runtime).
+    pub fn set_max_document_size(&self, new_max: usize) {
+        let mut max = self.max_document_size.write();
+        *max = new_max;
+        debug!("Max document size updated to: {} bytes", new_max);
+    }
+
+    /// Get current maximum document size.
+    pub fn max_document_size(&self) -> usize {
+        *self.max_document_size.read()
+    }
+
+    /// Compute a simple hash for change detection.
+    fn hash_content(content: &str) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        content.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Update document content and mark as dirty.
+    ///
+    /// # Memory Management
+    ///
+    /// This method enforces a maximum document size limit to prevent memory exhaustion.
+    /// Documents exceeding the configured limit (default: 500 MB) are rejected.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the document was successfully updated, `false` if it was
+    /// rejected due to size constraints.
+    fn update_document_content(&self, uri: &Url, content: &str) -> bool {
+        // Memory management: Enforce maximum document size
+        let max_size = self.max_document_size();
+        if content.len() > max_size {
+            debug!(
+                "Document rejected: {} bytes exceeds maximum of {} bytes",
+                content.len(),
+                max_size
+            );
+            return false;
+        }
+
+        let rope = Rope::from_str(content);
+        let content_hash = Self::hash_content(content);
+
+        if let Some(state) = self.documents.get(uri) {
+            // Cache hit
+            {
+                let mut stats = self.cache_stats.lock();
+                stats.hits += 1;
+            }
+
+            let mut state = state.lock();
+            // Only update if content actually changed
+            if state.content_hash != content_hash {
+                state.rope = rope;
+                state.content_hash = content_hash;
+                state.dirty = true;
+                state.last_access = std::time::Instant::now();
+                debug!("Document marked dirty: {}", uri);
+            } else {
+                // Update access time even if content hasn't changed
+                state.last_access = std::time::Instant::now();
+            }
+        } else {
+            // Cache miss - new document
+            {
+                let mut stats = self.cache_stats.lock();
+                stats.misses += 1;
+            }
+
+            // New document - perform initial analysis synchronously
+            let analysis = Arc::new(AnalyzedDocument::analyze(content));
+            let state = DocumentState {
+                rope,
+                analysis,
+                content_hash,
+                dirty: false,
+                last_access: std::time::Instant::now(),
+            };
+            self.documents
+                .insert(uri.clone(), Arc::new(Mutex::new(state)));
+            debug!("New document created: {}", uri);
+        }
+
+        true
+    }
+
+    /// Evict the least recently used document.
+    ///
+    /// This is called when the number of open documents exceeds the configured
+    /// maximum cache size to prevent unbounded memory growth.
+    fn evict_lru_document(&self) {
+        if self.documents.is_empty() {
+            return;
+        }
+
+        // Find the LRU document
+        let mut lru_uri: Option<Url> = None;
+        let mut lru_time = std::time::Instant::now();
+
+        for entry in self.documents.iter() {
+            let state = entry.value().lock();
+            if lru_uri.is_none() || state.last_access < lru_time {
+                lru_uri = Some(entry.key().clone());
+                lru_time = state.last_access;
+            }
+        }
+
+        // Evict the LRU document
+        if let Some(uri) = lru_uri {
+            debug!(
+                "Evicting LRU document: {} (last access: {:?} ago)",
+                uri,
+                std::time::Instant::now().duration_since(lru_time)
+            );
+            self.documents.remove(&uri);
+            self.debounce_channels.remove(&uri);
+
+            // Update statistics
+            {
+                let mut stats = self.cache_stats.lock();
+                stats.evictions += 1;
+            }
+        }
+    }
+
+    /// Analyze a document if dirty.
+    async fn analyze_if_dirty(&self, uri: &Url) {
+        let state_arc = match self.documents.get(uri) {
+            Some(state) => state.clone(),
+            None => return,
+        };
+
+        let should_analyze = {
+            let state = state_arc.lock();
+            state.dirty
+        };
+
+        if should_analyze {
+            let content = {
+                let state = state_arc.lock();
+                state.rope.to_string()
+            };
+
+            debug!("Analyzing document: {}", uri);
+            let analysis = Arc::new(AnalyzedDocument::analyze(&content));
+
+            // Update state
+            {
+                let mut state = state_arc.lock();
+                state.analysis = Arc::clone(&analysis);
+                state.dirty = false;
+            }
+
+            // Send diagnostics
+            let diagnostics = analysis.to_lsp_diagnostics();
+            self.client
+                .publish_diagnostics(uri.clone(), diagnostics, None)
+                .await;
+        }
+    }
+
+    /// Start debounced analysis for a document.
+    fn schedule_analysis(&self, uri: Url) {
+        // Get or create debounce channel
+        let tx = if let Some(entry) = self.debounce_channels.get(&uri) {
+            entry.clone()
+        } else {
+            let (tx, mut rx) = mpsc::unbounded_channel();
+            let uri_clone = uri.clone();
+            let client = self.client.clone();
+            let documents = self.documents.clone();
+
+            // Spawn debounce task
+            tokio::spawn(async move {
+                while rx.recv().await.is_some() {
+                    // Wait for debounce period
+                    sleep(Duration::from_millis(DEBOUNCE_MS)).await;
+
+                    // Drain any additional signals during debounce
+                    while rx.try_recv().is_ok() {}
+
+                    // Perform analysis
+                    let state_arc = match documents.get(&uri_clone) {
+                        Some(state) => state.clone(),
+                        None => continue,
+                    };
+
+                    let should_analyze = {
+                        let state = state_arc.lock();
+                        state.dirty
+                    };
+
+                    if should_analyze {
+                        let content = {
+                            let state = state_arc.lock();
+                            state.rope.to_string()
+                        };
+
+                        debug!("Debounced analysis for: {}", uri_clone);
+                        let analysis = Arc::new(AnalyzedDocument::analyze(&content));
+
+                        // Update state
+                        {
+                            let mut state = state_arc.lock();
+                            state.analysis = Arc::clone(&analysis);
+                            state.dirty = false;
+                        }
+
+                        // Send diagnostics
+                        let diagnostics = analysis.to_lsp_diagnostics();
+                        client
+                            .publish_diagnostics(uri_clone.clone(), diagnostics, None)
+                            .await;
+                    }
+                }
+            });
+
+            self.debounce_channels.insert(uri.clone(), tx.clone());
+            tx
+        };
+
+        // Trigger analysis
+        let _ = tx.send(());
+    }
+
+    /// Get document content and analysis.
+    ///
+    /// This method also updates the last access time for LRU tracking.
+    /// Returns an Arc<AnalyzedDocument> to avoid expensive cloning.
+    fn get_document(&self, uri: &Url) -> Option<(String, Arc<AnalyzedDocument>)> {
+        self.documents.get(uri).map(|entry| {
+            let mut state = entry.lock();
+            state.last_access = std::time::Instant::now();
+            (state.rope.to_string(), Arc::clone(&state.analysis))
+        })
+    }
+}
+
+#[tower_lsp::async_trait]
+impl LanguageServer for HedlLanguageServer {
+    async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
+        info!("HEDL Language Server initializing");
+
+        Ok(InitializeResult {
+            capabilities: ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::FULL),
+                        will_save: None,
+                        will_save_wait_until: None,
+                        save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                            include_text: Some(true),
+                        })),
+                    },
+                )),
+                completion_provider: Some(CompletionOptions {
+                    resolve_provider: Some(false),
+                    trigger_characters: Some(vec![
+                        "@".to_string(),
+                        ":".to_string(),
+                        "%".to_string(),
+                        "$".to_string(),
+                        "|".to_string(),
+                    ]),
+                    work_done_progress_options: Default::default(),
+                    all_commit_characters: None,
+                    completion_item: None,
+                }),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
+                definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
+                document_symbol_provider: Some(OneOf::Left(true)),
+                workspace_symbol_provider: Some(OneOf::Left(true)),
+                document_formatting_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider: Some(
+                    SemanticTokensServerCapabilities::SemanticTokensOptions(
+                        SemanticTokensOptions {
+                            work_done_progress_options: Default::default(),
+                            legend: SemanticTokensLegend {
+                                token_types: vec![
+                                    SemanticTokenType::KEYWORD,
+                                    SemanticTokenType::TYPE,
+                                    SemanticTokenType::VARIABLE,
+                                    SemanticTokenType::STRING,
+                                    SemanticTokenType::NUMBER,
+                                    SemanticTokenType::COMMENT,
+                                    SemanticTokenType::OPERATOR,
+                                ],
+                                token_modifiers: vec![
+                                    SemanticTokenModifier::DEFINITION,
+                                    SemanticTokenModifier::DECLARATION,
+                                ],
+                            },
+                            range: Some(false),
+                            full: Some(SemanticTokensFullOptions::Bool(true)),
+                        },
+                    ),
+                ),
+                ..Default::default()
+            },
+            server_info: Some(ServerInfo {
+                name: "hedl-lsp".to_string(),
+                version: Some(crate::VERSION.to_string()),
+            }),
+        })
+    }
+
+    async fn initialized(&self, _params: InitializedParams) {
+        info!("HEDL Language Server initialized");
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        info!("HEDL Language Server shutting down");
+        Ok(())
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        debug!("Document opened: {}", params.text_document.uri);
+
+        // Memory management: Enforce maximum number of open documents
+        let max_cache = self.max_cache_size();
+        if self.documents.len() >= max_cache {
+            debug!(
+                "Maximum open documents ({}) reached, evicting LRU",
+                max_cache
+            );
+            self.evict_lru_document();
+        }
+
+        // Memory management: Check document size limit
+        let max_size = self.max_document_size();
+        if params.text_document.text.len() > max_size {
+            self.client
+                .show_message(
+                    MessageType::ERROR,
+                    format!(
+                        "Document too large: {} bytes exceeds maximum of {} bytes ({} MB)",
+                        params.text_document.text.len(),
+                        max_size,
+                        max_size / (1024 * 1024)
+                    ),
+                )
+                .await;
+            return;
+        }
+
+        // For did_open, analyze immediately (no debounce) to provide instant feedback
+        if self.update_document_content(&params.text_document.uri, &params.text_document.text) {
+            self.analyze_if_dirty(&params.text_document.uri).await;
+        }
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        debug!("Document changed: {}", params.text_document.uri);
+        if let Some(change) = params.content_changes.into_iter().last() {
+            // Update content and schedule debounced analysis
+            self.update_document_content(&params.text_document.uri, &change.text);
+            self.schedule_analysis(params.text_document.uri);
+        }
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        debug!("Document saved: {}", params.text_document.uri);
+        if let Some(text) = params.text {
+            // For did_save, analyze immediately to ensure diagnostics are current
+            self.update_document_content(&params.text_document.uri, &text);
+            self.analyze_if_dirty(&params.text_document.uri).await;
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        debug!("Document closed: {}", params.text_document.uri);
+        self.documents.remove(&params.text_document.uri);
+        self.debounce_channels.remove(&params.text_document.uri);
+        // Clear diagnostics
+        self.client
+            .publish_diagnostics(params.text_document.uri, vec![], None)
+            .await;
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        if let Some((content, analysis)) = self.get_document(uri) {
+            let items = get_completions(analysis.as_ref(), &content, position);
+            return Ok(Some(CompletionResponse::Array(items)));
+        }
+
+        Ok(None)
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        if let Some((content, analysis)) = self.get_document(uri) {
+            return Ok(get_hover(analysis.as_ref(), &content, position));
+        }
+
+        Ok(None)
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        if let Some((_content, analysis)) = self.get_document(uri) {
+            // Try using the enhanced reference index v2 first for O(1) precise lookups
+            if let Some((ref_str, _loc)) = analysis.reference_index_v2.find_reference_at(position) {
+                // Parse the reference to extract type and ID
+                let ref_content = ref_str.strip_prefix('@').unwrap_or(ref_str);
+
+                if let Some(colon_pos) = ref_content.find(':') {
+                    // Qualified reference: @Type:id
+                    let type_name = &ref_content[..colon_pos];
+                    let id = &ref_content[colon_pos + 1..];
+
+                    if let Some(def_loc) =
+                        analysis.reference_index_v2.find_definition(type_name, id)
+                    {
+                        return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                            uri: uri.clone(),
+                            range: def_loc.to_range(),
+                        })));
+                    }
+                } else {
+                    // Unqualified reference: @id - search across all types
+                    let id = ref_content;
+                    for (type_name, _) in &analysis.entities {
+                        if let Some(def_loc) =
+                            analysis.reference_index_v2.find_definition(type_name, id)
+                        {
+                            return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                                uri: uri.clone(),
+                                range: def_loc.to_range(),
+                            })));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        if let Some((_content, analysis)) = self.get_document(uri) {
+            // Use enhanced reference index v2 for O(1) precise lookups
+            if let Some((ref_str, _loc)) = analysis.reference_index_v2.find_reference_at(position) {
+                let mut locations = Vec::new();
+
+                // Get all references using the v2 index with precise character positions
+                let ref_locations = analysis.reference_index_v2.find_references(ref_str);
+
+                for ref_loc in ref_locations {
+                    locations.push(Location {
+                        uri: uri.clone(),
+                        range: ref_loc.to_range(),
+                    });
+                }
+
+                // If this is a qualified reference, also include the definition if requested
+                if params.context.include_declaration {
+                    let ref_content = ref_str.strip_prefix('@').unwrap_or(ref_str);
+
+                    if let Some(colon_pos) = ref_content.find(':') {
+                        // Qualified reference: @Type:id
+                        let type_name = &ref_content[..colon_pos];
+                        let id = &ref_content[colon_pos + 1..];
+
+                        if let Some(def_loc) =
+                            analysis.reference_index_v2.find_definition(type_name, id)
+                        {
+                            locations.push(Location {
+                                uri: uri.clone(),
+                                range: def_loc.to_range(),
+                            });
+                        }
+                    } else {
+                        // Unqualified reference: @id - find definition across all types
+                        let id = ref_content;
+                        for (type_name, _) in &analysis.entities {
+                            if let Some(def_loc) =
+                                analysis.reference_index_v2.find_definition(type_name, id)
+                            {
+                                locations.push(Location {
+                                    uri: uri.clone(),
+                                    range: def_loc.to_range(),
+                                });
+                                break; // Only include the first definition found
+                            }
+                        }
+                    }
+                }
+
+                return Ok(Some(locations));
+            }
+        }
+
+        Ok(None)
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = &params.text_document.uri;
+
+        if let Some((content, analysis)) = self.get_document(uri) {
+            let symbols = get_document_symbols(analysis.as_ref(), &content);
+            return Ok(Some(DocumentSymbolResponse::Nested(symbols)));
+        }
+
+        Ok(None)
+    }
+
+    async fn symbol(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> Result<Option<Vec<SymbolInformation>>> {
+        let mut all_symbols = Vec::new();
+
+        for entry in self.documents.iter() {
+            let uri = entry.key();
+            let state_arc = entry.value();
+            let analysis = {
+                let state = state_arc.lock();
+                Arc::clone(&state.analysis)
+            };
+
+            let mut symbols = get_workspace_symbols(analysis.as_ref(), &params.query);
+
+            // Fix URIs
+            for sym in &mut symbols {
+                sym.location.uri = uri.clone();
+            }
+
+            all_symbols.extend(symbols);
+        }
+
+        Ok(Some(all_symbols))
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = &params.text_document.uri;
+
+        if let Some((content, analysis)) = self.get_document(uri) {
+            if let Some(doc) = &analysis.document {
+                // Canonicalize the document
+                let config = hedl_c14n::CanonicalConfig::default();
+                if let Ok(formatted) = hedl_c14n::canonicalize_with_config(doc, &config) {
+                    if formatted != content {
+                        let line_count = content.lines().count();
+                        return Ok(Some(vec![TextEdit {
+                            range: Range {
+                                start: Position {
+                                    line: 0,
+                                    character: 0,
+                                },
+                                end: Position {
+                                    line: line_count as u32,
+                                    character: 0,
+                                },
+                            },
+                            new_text: formatted,
+                        }]));
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+}
+
+// --- Helper Functions (DEPRECATED) ---
+//
+// The following functions are deprecated and replaced by the reference_index_v2
+// which provides O(1) lookups with precise character positions.
+// They are kept here for reference but should not be used in new code.
+
+/* DEPRECATED: Use analysis.reference_index_v2.find_reference_at() instead
+/// Find a reference token (starting with @) at the given position.
+///
+/// # Security
+///
+/// Uses safe string slicing to prevent UTF-8 boundary panics.
+fn find_reference_at(content: &str, position: Position) -> Option<String> {
+    let lines: Vec<&str> = content.lines().collect();
+    let line_num = position.line as usize;
+
+    if line_num >= lines.len() {
+        return None;
+    }
+
+    let line = lines[line_num];
+    let char_pos = position.character as usize;
+
+    // Security: Use safe slicing to prevent UTF-8 boundary panics
+    let prefix = safe_slice_to(line, char_pos);
+
+    let at_pos = prefix.rfind('@')?;
+
+    // Find end of reference
+    let rest = safe_slice_from(line, at_pos);
+    let end = rest
+        .find(|c: char| c.is_whitespace() || c == '|' || c == ',')
+        .unwrap_or(rest.len());
+
+    // Safe to slice here because 'end' comes from char::find which returns valid boundaries
+    Some(rest[..end].to_string())
+}
+
+DEPRECATED: Use analysis.reference_index_v2.find_definition() instead
+fn find_definition(analysis: &AnalyzedDocument, reference: &str, uri: &Url) -> Option<Location> {
+    let ref_content = reference.strip_prefix('@')?;
+
+    let (type_name, id) = if let Some(colon_pos) = ref_content.find(':') {
+        (
+            Some(&ref_content[..colon_pos]),
+            &ref_content[colon_pos + 1..],
+        )
+    } else {
+        (None, ref_content)
+    };
+
+    // Find entity
+    for (t, entities) in &analysis.entities {
+        if type_name.is_none_or(|tn| tn == t) {
+            if let Some(line) = entities.get(id) {
+                return Some(Location {
+                    uri: uri.clone(),
+                    range: Range {
+                        start: Position {
+                            line: (*line - 1) as u32,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: (*line - 1) as u32,
+                            character: 1000,
+                        },
+                    },
+                });
+            }
+        }
+    }
+
+    None
+}
+*/

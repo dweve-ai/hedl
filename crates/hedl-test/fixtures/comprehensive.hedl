@@ -1,0 +1,24 @@
+%VERSION: 1.0
+%STRUCT: Comment: [id,text,author,post]
+%STRUCT: Post: [id,title,views]
+%STRUCT: Tag: [id,name,color]
+%STRUCT: User: [id,name,email,age]
+%NEST: User > Post
+---
+comments: @Comment
+  |c1,Great article!,@User:bob,@Post:p1
+computed: $($(config_max_items * 2))
+config_debug: true
+config_max_items: 1000
+config_threshold: 0.95
+config_version: 1.0.0
+meta_created_by: system
+meta_version: 1
+tags: @Tag
+  |rust,Rust,"#FF4500"
+  |hedl,HEDL,"#00BFFF"
+users: @User
+  |[1] alice,Alice Smith,alice@example.com,30
+    |p1,Introduction to HEDL,100
+  |[0] bob,Bob Jones,bob@example.com,25
+weights: [0.1,0.2,0.3]

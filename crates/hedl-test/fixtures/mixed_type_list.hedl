@@ -1,0 +1,6 @@
+%VERSION: 1.0
+%STRUCT: Item: [id,name,count,price,active,notes]
+---
+items: @Item
+  |item1,Widget,100,9.99,true,Best seller
+  |item2,Gadget,50,19.99,false,~

@@ -1,0 +1,242 @@
+[package]
+name = "hedl-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Benchmarks and performance testing for HEDL"
+publish = false
+
+[dependencies]
+# Internal crates - always available
+hedl-core.workspace = true
+hedl-stream.workspace = true
+hedl-c14n.workspace = true
+hedl-lint.workspace = true
+hedl-lsp = { path = "../hedl-lsp" }
+hedl-mcp = { path = "../hedl-mcp" }
+
+# Optional format converters
+hedl-json = { workspace = true, optional = true }
+hedl-yaml = { workspace = true, optional = true }
+hedl-xml = { workspace = true, optional = true }
+hedl-toon = { workspace = true, optional = true }
+hedl-csv = { workspace = true, optional = true }
+hedl-neo4j = { workspace = true, optional = true }
+hedl-parquet = { path = "../hedl-parquet", optional = true }
+hedl-ffi = { path = "../hedl-ffi", features = ["json", "yaml", "xml"], optional = true }
+
+# External dependencies
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+serde_yaml.workspace = true
+rand = "0.8"
+fake = { version = "2.9", features = ["derive"] }
+tiktoken-rs = "0.6"
+ureq = { version = "2.9", features = ["json"] }
+once_cell = "1.19"
+tempfile = "3.8"
+rayon = "1.8"
+chrono = { version = "0.4", features = ["serde"] }
+ctor = "0.2"
+csv = "1.3"
+parquet = { workspace = true, optional = true }
+
+# Database comparisons (for row operations benchmark)
+rusqlite = { version = "0.32", optional = true }
+duckdb = { version = "1.1", optional = true }
+polars = { version = "0.44", features = ["lazy", "sql"], optional = true }
+arrow = { version = "53", optional = true }
+flate2 = "1.0"  # For compression benchmarks
+
+# WASM runtime for real WASM benchmarks
+wasmtime = { version = "27", optional = true }
+anyhow = { version = "1.0", optional = true }
+
+[dependencies.dhat]
+version = "0.3"
+optional = true
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tower-lsp = "0.20"
+
+# Core benchmarks (Phase 3)
+[[bench]]
+name = "parsing"
+harness = false
+path = "benches/core/parsing.rs"
+
+[[bench]]
+name = "lexer"
+harness = false
+path = "benches/core/lexer.rs"
+
+[[bench]]
+name = "validation"
+harness = false
+path = "benches/core/validation.rs"
+
+# Integration benchmarks
+[[bench]]
+name = "comprehensive"
+path = "benches/integration/comprehensive.rs"
+harness = false
+
+[[bench]]
+name = "parallel"
+path = "benches/integration/parallel.rs"
+harness = false
+
+[[bench]]
+name = "end_to_end"
+path = "benches/integration/end_to_end.rs"
+harness = false
+
+# Regression tracking
+[[bench]]
+name = "regression"
+path = "benches/regression/tracking.rs"
+harness = false
+
+# Feature benchmarks (Phase 5)
+[[bench]]
+name = "canonicalization"
+path = "benches/features/canonicalization.rs"
+harness = false
+
+[[bench]]
+name = "streaming"
+path = "benches/features/streaming.rs"
+harness = false
+
+[[bench]]
+name = "tensors"
+path = "benches/features/tensors.rs"
+harness = false
+
+[[bench]]
+name = "rows"
+path = "benches/features/rows.rs"
+harness = false
+
+[[bench]]
+name = "references"
+path = "benches/features/references.rs"
+harness = false
+
+[[bench]]
+name = "nesting"
+path = "benches/features/nesting.rs"
+harness = false
+
+[[bench]]
+name = "zero_copy"
+path = "benches/features/zero_copy.rs"
+harness = false
+
+# DISABLED: inference benchmark requires hedl_core::inference which is currently private
+# [[bench]]
+# name = "inference"
+# path = "benches/features/inference.rs"
+# harness = false
+
+[[bin]]
+name = "accuracy"
+path = "src/bin/accuracy.rs"
+
+[[example]]
+name = "simple_benchmark"
+path = "examples/simple_benchmark.rs"
+
+[[example]]
+name = "custom_report"
+path = "examples/custom_report.rs"
+
+[[example]]
+name = "regression_check"
+path = "examples/regression_check.rs"
+
+[features]
+default = ["json", "yaml", "xml", "csv", "toon", "neo4j", "parquet", "ffi", "wasm-runtime"]
+dhat-heap = ["dhat"]
+json = ["dep:hedl-json"]
+yaml = ["dep:hedl-yaml"]
+xml = ["dep:hedl-xml"]
+csv = ["dep:hedl-csv"]
+toon = ["dep:hedl-toon"]
+neo4j = ["dep:hedl-neo4j"]
+parquet = ["dep:hedl-parquet", "dep:parquet"]
+ffi = ["dep:hedl-ffi"]
+wasm-runtime = ["dep:wasmtime", "dep:anyhow"]
+database-comparison = ["dep:rusqlite", "dep:duckdb", "dep:polars", "dep:arrow"]
+
+# Bindings benchmarks (Phase 6)
+[[bench]]
+name = "ffi"
+harness = false
+path = "benches/bindings/ffi.rs"
+
+[[bench]]
+name = "wasm"
+harness = false
+path = "benches/bindings/wasm.rs"
+
+# Tools benchmarks (Phase 6)
+[[bench]]
+name = "lsp"
+harness = false
+path = "benches/tools/lsp.rs"
+
+[[bench]]
+name = "mcp"
+harness = false
+path = "benches/tools/mcp.rs"
+
+[[bench]]
+name = "linting"
+harness = false
+path = "benches/tools/linting.rs"
+
+# Format conversion benchmarks (Phase 4)
+[[bench]]
+name = "format_json"
+harness = false
+path = "benches/formats/json.rs"
+
+[[bench]]
+name = "format_yaml"
+harness = false
+path = "benches/formats/yaml.rs"
+
+[[bench]]
+name = "format_xml"
+harness = false
+path = "benches/formats/xml.rs"
+
+[[bench]]
+name = "format_csv"
+harness = false
+path = "benches/formats/csv.rs"
+
+[[bench]]
+name = "format_parquet"
+harness = false
+path = "benches/formats/parquet.rs"
+
+[[bench]]
+name = "format_neo4j"
+harness = false
+path = "benches/formats/neo4j_cypher.rs"
+
+[[bench]]
+name = "format_toon"
+harness = false
+path = "benches/formats/toon.rs"
+
+[[bench]]
+name = "format_roundtrip"
+harness = false
+path = "benches/formats/roundtrip.rs"

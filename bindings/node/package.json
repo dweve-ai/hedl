@@ -1,0 +1,48 @@
+{
+  "name": "hedl",
+  "version": "1.0.0",
+  "description": "HEDL (Hierarchical Entity Data Language) - Token-efficient data format for LLMs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node test/test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "hedl",
+    "data-format",
+    "llm",
+    "context-optimization",
+    "json",
+    "yaml",
+    "csv",
+    "parquet",
+    "neo4j"
+  ],
+  "author": "Dweve",
+  "license": "(Apache-2.0 OR MIT)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dweve-ai/hedl"
+  },
+  "homepage": "https://github.com/dweve-ai/hedl",
+  "bugs": {
+    "url": "https://github.com/dweve-ai/hedl/issues"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "koffi": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ]
+}

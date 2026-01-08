@@ -1,0 +1,601 @@
+{
+  "categories": [
+    {
+      "__hedl_schema": ["id", "name", "slug", "description", "color", "post_count"],
+      "color": "#3498db",
+      "description": "Articles about programming languages and techniques",
+      "id": "cat1",
+      "name": "Programming",
+      "post_count": 45,
+      "slug": "programming"
+    },
+    {
+      "color": "#2ecc71",
+      "description": "Frontend and backend web development topics",
+      "id": "cat2",
+      "name": "Web Development",
+      "post_count": 38,
+      "slug": "web-dev"
+    },
+    {
+      "color": "#9b59b6",
+      "description": "AI, ML, and data science articles",
+      "id": "cat3",
+      "name": "Machine Learning",
+      "post_count": 22,
+      "slug": "ml"
+    },
+    {
+      "color": "#e74c3c",
+      "description": "CI/CD, containers, and infrastructure",
+      "id": "cat4",
+      "name": "DevOps",
+      "post_count": 31,
+      "slug": "devops"
+    },
+    {
+      "color": "#f39c12",
+      "description": "UI/UX design principles and practices",
+      "id": "cat5",
+      "name": "Design",
+      "post_count": 19,
+      "slug": "design"
+    }
+  ],
+  "comments": [
+    {
+      "__hedl_schema": ["id", "content", "author_id", "post_id", "parent_id", "created_at", "is_edited", "is_deleted"],
+      "author_id": {
+        "@ref": "@user2"
+      },
+      "content": "Great introduction! I've been meaning to learn Rust. The memory safety features are what attracted me.",
+      "created_at": "2024-01-10T17:30:00Z",
+      "id": "comment1",
+      "is_deleted": false,
+      "is_edited": false,
+      "parent_id": null,
+      "post_id": {
+        "@ref": "@post1"
+      }
+    },
+    {
+      "author_id": {
+        "@ref": "@user3"
+      },
+      "content": "Same here! The borrow checker was tricky at first, but it really helps catch bugs early.",
+      "created_at": "2024-01-10T18:15:00Z",
+      "id": "comment2",
+      "is_deleted": false,
+      "is_edited": false,
+      "parent_id": {
+        "@ref": "@comment1"
+      },
+      "post_id": {
+        "@ref": "@post1"
+      }
+    },
+    {
+      "author_id": {
+        "@ref": "@user1"
+      },
+      "content": "Thanks for the kind words! Yes, the borrow checker is your friend once you get used to it.",
+      "created_at": "2024-01-10T19:00:00Z",
+      "id": "comment3",
+      "is_deleted": false,
+      "is_edited": false,
+      "parent_id": {
+        "@ref": "@comment2"
+      },
+      "post_id": {
+        "@ref": "@post1"
+      }
+    },
+    {
+      "author_id": {
+        "@ref": "@user5"
+      },
+      "content": "How does this compare to REST for smaller projects? Is GraphQL overkill for simple APIs?",
+      "created_at": "2024-01-13T14:00:00Z",
+      "id": "comment4",
+      "is_deleted": false,
+      "is_edited": false,
+      "parent_id": null,
+      "post_id": {
+        "@ref": "@post2"
+      }
+    },
+    {
+      "author_id": {
+        "@ref": "@user2"
+      },
+      "content": "Good question! For simple CRUD apps, REST might be simpler. GraphQL shines when you have complex data relationships.",
+      "created_at": "2024-01-13T15:30:00Z",
+      "id": "comment5",
+      "is_deleted": false,
+      "is_edited": true,
+      "parent_id": {
+        "@ref": "@comment4"
+      },
+      "post_id": {
+        "@ref": "@post2"
+      }
+    },
+    {
+      "author_id": {
+        "@ref": "@user4"
+      },
+      "content": "Finally an ML article I can understand! The diagrams really helped explain backpropagation.",
+      "created_at": "2024-01-15T12:00:00Z",
+      "id": "comment6",
+      "is_deleted": false,
+      "is_edited": false,
+      "parent_id": null,
+      "post_id": {
+        "@ref": "@post3"
+      }
+    }
+  ],
+  "followers": [
+    {
+      "__hedl_schema": ["id", "follower_id", "following_id", "created_at"],
+      "created_at": "2023-02-25T10:00:00Z",
+      "follower_id": {
+        "@ref": "@user2"
+      },
+      "following_id": {
+        "@ref": "@user1"
+      },
+      "id": "follow1"
+    },
+    {
+      "created_at": "2023-03-15T14:00:00Z",
+      "follower_id": {
+        "@ref": "@user3"
+      },
+      "following_id": {
+        "@ref": "@user1"
+      },
+      "id": "follow2"
+    },
+    {
+      "created_at": "2023-04-10T09:00:00Z",
+      "follower_id": {
+        "@ref": "@user4"
+      },
+      "following_id": {
+        "@ref": "@user1"
+      },
+      "id": "follow3"
+    },
+    {
+      "created_at": "2023-02-22T11:00:00Z",
+      "follower_id": {
+        "@ref": "@user1"
+      },
+      "following_id": {
+        "@ref": "@user2"
+      },
+      "id": "follow4"
+    },
+    {
+      "created_at": "2023-03-20T16:00:00Z",
+      "follower_id": {
+        "@ref": "@user3"
+      },
+      "following_id": {
+        "@ref": "@user2"
+      },
+      "id": "follow5"
+    },
+    {
+      "created_at": "2023-03-12T08:00:00Z",
+      "follower_id": {
+        "@ref": "@user1"
+      },
+      "following_id": {
+        "@ref": "@user3"
+      },
+      "id": "follow6"
+    }
+  ],
+  "post_tags": [
+    {
+      "__hedl_schema": ["id", "post_id", "tag_id"],
+      "id": "pt1",
+      "post_id": {
+        "@ref": "@post1"
+      },
+      "tag_id": {
+        "@ref": "@tag1"
+      }
+    },
+    {
+      "id": "pt2",
+      "post_id": {
+        "@ref": "@post1"
+      },
+      "tag_id": {
+        "@ref": "@tag3"
+      }
+    },
+    {
+      "id": "pt3",
+      "post_id": {
+        "@ref": "@post2"
+      },
+      "tag_id": {
+        "@ref": "@tag2"
+      }
+    },
+    {
+      "id": "pt4",
+      "post_id": {
+        "@ref": "@post2"
+      },
+      "tag_id": {
+        "@ref": "@tag9"
+      }
+    },
+    {
+      "id": "pt5",
+      "post_id": {
+        "@ref": "@post3"
+      },
+      "tag_id": {
+        "@ref": "@tag3"
+      }
+    },
+    {
+      "id": "pt6",
+      "post_id": {
+        "@ref": "@post3"
+      },
+      "tag_id": {
+        "@ref": "@tag8"
+      }
+    },
+    {
+      "id": "pt7",
+      "post_id": {
+        "@ref": "@post4"
+      },
+      "tag_id": {
+        "@ref": "@tag5"
+      }
+    },
+    {
+      "id": "pt8",
+      "post_id": {
+        "@ref": "@post4"
+      },
+      "tag_id": {
+        "@ref": "@tag6"
+      }
+    }
+  ],
+  "posts": [
+    {
+      "__hedl_schema": ["id", "title", "slug", "excerpt", "content", "author_id", "category_id", "status", "is_featured", "view_count", "read_time_minutes", "created_at", "updated_at", "published_at"],
+      "author_id": {
+        "@ref": "@user1"
+      },
+      "category_id": {
+        "@ref": "@cat1"
+      },
+      "content": "Rust has become one of the most loved programming languages. In this comprehensive guide, we'll explore why Rust is gaining popularity and how to get started with your first project.",
+      "created_at": "2024-01-10T09:00:00Z",
+      "excerpt": "A beginner's guide to Rust programming",
+      "id": "post1",
+      "is_featured": true,
+      "published_at": "2024-01-10T16:00:00Z",
+      "read_time_minutes": 12,
+      "slug": "rust-getting-started-2024",
+      "status": "published",
+      "title": "Getting Started with Rust in 2024",
+      "updated_at": "2024-01-10T15:30:00Z",
+      "view_count": 4520
+    },
+    {
+      "author_id": {
+        "@ref": "@user2"
+      },
+      "category_id": {
+        "@ref": "@cat2"
+      },
+      "content": "GraphQL offers a flexible approach to API design. Learn how to build performant, scalable GraphQL APIs that can handle millions of requests.",
+      "created_at": "2024-01-12T11:00:00Z",
+      "excerpt": "Master GraphQL API development",
+      "id": "post2",
+      "is_featured": false,
+      "published_at": "2024-01-13T12:00:00Z",
+      "read_time_minutes": 15,
+      "slug": "scalable-graphql-apis",
+      "status": "published",
+      "title": "Building Scalable APIs with GraphQL",
+      "updated_at": "2024-01-13T10:00:00Z",
+      "view_count": 3280
+    },
+    {
+      "author_id": {
+        "@ref": "@user3"
+      },
+      "category_id": {
+        "@ref": "@cat3"
+      },
+      "content": "Neural networks are the foundation of modern AI. This article breaks down the concepts in an accessible way for developers new to machine learning.",
+      "created_at": "2024-01-15T08:30:00Z",
+      "excerpt": "Understanding neural networks from scratch",
+      "id": "post3",
+      "is_featured": true,
+      "published_at": "2024-01-15T10:00:00Z",
+      "read_time_minutes": 20,
+      "slug": "intro-neural-networks",
+      "status": "published",
+      "title": "Introduction to Neural Networks",
+      "updated_at": "2024-01-15T08:30:00Z",
+      "view_count": 5890
+    },
+    {
+      "author_id": {
+        "@ref": "@user5"
+      },
+      "category_id": {
+        "@ref": "@cat4"
+      },
+      "content": "Running Kubernetes in production requires careful planning. Learn the best practices for security, scaling, and monitoring your clusters.",
+      "created_at": "2024-01-18T14:00:00Z",
+      "excerpt": "Production-ready Kubernetes deployments",
+      "id": "post4",
+      "is_featured": false,
+      "published_at": "2024-01-19T10:00:00Z",
+      "read_time_minutes": 18,
+      "slug": "k8s-production-best-practices",
+      "status": "published",
+      "title": "Kubernetes Best Practices for Production",
+      "updated_at": "2024-01-19T09:00:00Z",
+      "view_count": 2150
+    },
+    {
+      "author_id": {
+        "@ref": "@user4"
+      },
+      "category_id": {
+        "@ref": "@cat5"
+      },
+      "content": "A well-built design system can transform how your team works. Discover the principles behind design systems used by top tech companies.",
+      "created_at": "2024-01-20T10:00:00Z",
+      "excerpt": "Building enterprise design systems",
+      "id": "post5",
+      "is_featured": false,
+      "published_at": "2024-01-21T18:00:00Z",
+      "read_time_minutes": 14,
+      "slug": "scalable-design-systems",
+      "status": "published",
+      "title": "Design Systems That Scale",
+      "updated_at": "2024-01-21T16:00:00Z",
+      "view_count": 1890
+    },
+    {
+      "author_id": {
+        "@ref": "@user1"
+      },
+      "category_id": {
+        "@ref": "@cat1"
+      },
+      "content": "Take your TypeScript skills to the next level with advanced type patterns, conditional types, and mapped types that make your code safer.",
+      "created_at": "2024-01-25T09:00:00Z",
+      "excerpt": "Level up your TypeScript game",
+      "id": "post6",
+      "is_featured": true,
+      "published_at": "2024-01-25T12:00:00Z",
+      "read_time_minutes": 16,
+      "slug": "advanced-typescript-patterns",
+      "status": "published",
+      "title": "Advanced TypeScript Patterns",
+      "updated_at": "2024-01-25T09:00:00Z",
+      "view_count": 3450
+    }
+  ],
+  "reactions": [
+    {
+      "__hedl_schema": ["id", "post_id", "user_id", "type", "created_at"],
+      "created_at": "2024-01-10T17:00:00Z",
+      "id": "react1",
+      "post_id": {
+        "@ref": "@post1"
+      },
+      "type": "like",
+      "user_id": {
+        "@ref": "@user2"
+      }
+    },
+    {
+      "created_at": "2024-01-10T17:05:00Z",
+      "id": "react2",
+      "post_id": {
+        "@ref": "@post1"
+      },
+      "type": "love",
+      "user_id": {
+        "@ref": "@user3"
+      }
+    },
+    {
+      "created_at": "2024-01-10T18:00:00Z",
+      "id": "react3",
+      "post_id": {
+        "@ref": "@post1"
+      },
+      "type": "like",
+      "user_id": {
+        "@ref": "@user4"
+      }
+    },
+    {
+      "created_at": "2024-01-10T19:00:00Z",
+      "id": "react4",
+      "post_id": {
+        "@ref": "@post1"
+      },
+      "type": "insightful",
+      "user_id": {
+        "@ref": "@user5"
+      }
+    },
+    {
+      "created_at": "2024-01-13T12:30:00Z",
+      "id": "react5",
+      "post_id": {
+        "@ref": "@post2"
+      },
+      "type": "like",
+      "user_id": {
+        "@ref": "@user1"
+      }
+    },
+    {
+      "created_at": "2024-01-13T13:00:00Z",
+      "id": "react6",
+      "post_id": {
+        "@ref": "@post2"
+      },
+      "type": "like",
+      "user_id": {
+        "@ref": "@user3"
+      }
+    },
+    {
+      "created_at": "2024-01-15T10:30:00Z",
+      "id": "react7",
+      "post_id": {
+        "@ref": "@post3"
+      },
+      "type": "love",
+      "user_id": {
+        "@ref": "@user1"
+      }
+    },
+    {
+      "created_at": "2024-01-15T11:00:00Z",
+      "id": "react8",
+      "post_id": {
+        "@ref": "@post3"
+      },
+      "type": "like",
+      "user_id": {
+        "@ref": "@user2"
+      }
+    }
+  ],
+  "tags": [
+    {
+      "__hedl_schema": ["id", "name", "usage_count"],
+      "id": "tag1",
+      "name": "rust",
+      "usage_count": 28
+    },
+    {
+      "id": "tag2",
+      "name": "javascript",
+      "usage_count": 52
+    },
+    {
+      "id": "tag3",
+      "name": "python",
+      "usage_count": 41
+    },
+    {
+      "id": "tag4",
+      "name": "react",
+      "usage_count": 35
+    },
+    {
+      "id": "tag5",
+      "name": "docker",
+      "usage_count": 29
+    },
+    {
+      "id": "tag6",
+      "name": "kubernetes",
+      "usage_count": 24
+    },
+    {
+      "id": "tag7",
+      "name": "typescript",
+      "usage_count": 33
+    },
+    {
+      "id": "tag8",
+      "name": "machine-learning",
+      "usage_count": 18
+    },
+    {
+      "id": "tag9",
+      "name": "api-design",
+      "usage_count": 15
+    },
+    {
+      "id": "tag10",
+      "name": "testing",
+      "usage_count": 21
+    }
+  ],
+  "users": [
+    {
+      "__hedl_schema": ["id", "username", "email", "display_name", "bio", "avatar_url", "joined_at", "is_verified", "follower_count"],
+      "avatar_url": "https://avatars.example.com/alice.jpg",
+      "bio": "Full-stack developer passionate about React and Rust",
+      "display_name": "Alice Johnson",
+      "email": "alice@techblog.com",
+      "follower_count": 1250,
+      "id": "user1",
+      "is_verified": true,
+      "joined_at": "2023-01-15T10:00:00Z",
+      "username": "alice_dev"
+    },
+    {
+      "avatar_url": "https://avatars.example.com/bob.jpg",
+      "bio": "Technical writer and documentation enthusiast",
+      "display_name": "Bob Smith",
+      "email": "bob@techblog.com",
+      "follower_count": 890,
+      "id": "user2",
+      "is_verified": true,
+      "joined_at": "2023-02-20T14:30:00Z",
+      "username": "bob_writes"
+    },
+    {
+      "avatar_url": "https://avatars.example.com/charlie.jpg",
+      "bio": "Machine learning engineer at BigTech",
+      "display_name": "Charlie Chen",
+      "email": "charlie@techblog.com",
+      "follower_count": 2100,
+      "id": "user3",
+      "is_verified": false,
+      "joined_at": "2023-03-10T09:15:00Z",
+      "username": "charlie_ml"
+    },
+    {
+      "avatar_url": "https://avatars.example.com/diana.jpg",
+      "bio": "UX designer crafting delightful experiences",
+      "display_name": "Diana Rodriguez",
+      "email": "diana@techblog.com",
+      "follower_count": 1680,
+      "id": "user4",
+      "is_verified": true,
+      "joined_at": "2023-04-05T11:45:00Z",
+      "username": "diana_design"
+    },
+    {
+      "avatar_url": "https://avatars.example.com/evan.jpg",
+      "bio": "Backend architect, Go and Kubernetes expert",
+      "display_name": "Evan Park",
+      "email": "evan@techblog.com",
+      "follower_count": 750,
+      "id": "user5",
+      "is_verified": false,
+      "joined_at": "2023-05-12T16:20:00Z",
+      "username": "evan_backend"
+    }
+  ]
+}

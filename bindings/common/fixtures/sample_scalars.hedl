@@ -1,0 +1,8 @@
+%VERSION: 1.0
+---
+string: "Hello, World!"
+integer: 42
+float: 3.14159
+boolean_true: true
+boolean_false: false
+null_value: null

@@ -1,0 +1,23 @@
+# Include type stub files and markers for PEP 561 compliance
+include hedl/py.typed
+include hedl/*.pyi
+recursive-include hedl *.pyi
+
+# Include documentation
+include README.md
+include TYPE_STUBS.md
+include LICENSE
+include LICENSE-APACHE
+include LICENSE-MIT
+
+# Include configuration
+include mypy.ini
+
+# Include examples
+recursive-include examples *.py
+
+# Exclude development files
+exclude scripts/*
+exclude tests/*
+global-exclude *.pyc
+global-exclude __pycache__

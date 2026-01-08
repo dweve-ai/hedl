@@ -1,0 +1,49 @@
+{
+  "fixtures": {
+    "basic": {
+      "description": "Basic HEDL document with struct and table data",
+      "files": {
+        "hedl": "sample_basic.hedl",
+        "json": "sample_basic.json",
+        "yaml": "sample_basic.yaml",
+        "xml": "sample_basic.xml"
+      }
+    },
+    "scalars": {
+      "description": "Various scalar types (string, int, float, bool, null)",
+      "files": {
+        "hedl": "sample_scalars.hedl"
+      }
+    },
+    "nested": {
+      "description": "Nested structures with multiple struct types",
+      "files": {
+        "hedl": "sample_nested.hedl"
+      }
+    },
+    "lists": {
+      "description": "Lists and arrays with various nesting levels",
+      "files": {
+        "hedl": "sample_lists.hedl"
+      }
+    },
+    "large": {
+      "description": "Large document for performance testing",
+      "files": {
+        "hedl": "sample_large.hedl"
+      }
+    }
+  },
+  "errors": {
+    "invalid_syntax": {
+      "description": "Invalid HEDL syntax that should fail parsing",
+      "file": "error_invalid_syntax.hedl",
+      "expected_error": true
+    },
+    "malformed": {
+      "description": "Malformed HEDL document with structural issues",
+      "file": "error_malformed.hedl",
+      "expected_error": true
+    }
+  }
+}

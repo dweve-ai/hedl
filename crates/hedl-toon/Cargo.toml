@@ -1,0 +1,18 @@
+[package]
+name = "hedl-toon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "HEDL to TOON (Token-Oriented Object Notation) conversion"
+
+[dependencies]
+hedl-core = { path = "../hedl-core" }
+thiserror.workspace = true
+
+[dev-dependencies]
+hedl-test = { workspace = true }
+hedl-bench = { workspace = true }
+hedl-json = { path = "../hedl-json" }
+proptest = "1.5"

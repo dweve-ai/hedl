@@ -1,0 +1,39 @@
+# Fuzzing configuration for hedl-core
+#
+# To enable fuzzing, add this to the main Cargo.toml:
+#
+# [dependencies]
+# libfuzzer-sys = { version = "0.4", optional = true }
+#
+# [features]
+# fuzzing = ["libfuzzer-sys"]
+# fuzzing_fast = ["fuzzing"]
+# fuzzing_invariants = ["fuzzing"]
+#
+# [[bin]]
+# name = "fuzz_parse"
+# path = "tests/fuzz/targets/parse.rs"
+# required-features = ["fuzzing"]
+
+# Integration instructions:
+#
+# 1. Install cargo-fuzz:
+#    cargo install cargo-fuzz
+#
+# 2. Initialize fuzz directory:
+#    cargo fuzz init
+#
+# 3. Copy parse.rs to fuzz/fuzz_targets/:
+#    cp tests/fuzz/targets/parse.rs fuzz/fuzz_targets/
+#
+# 4. Run fuzzer:
+#    cargo fuzz run parse
+#
+# 5. Run with corpus:
+#    cargo fuzz run parse fuzz/corpus/parse
+#
+# 6. Minimize corpus:
+#    cargo fuzz cmin parse
+#
+# 7. Run with timeout (e.g., 1 hour):
+#    timeout 3600 cargo fuzz run parse

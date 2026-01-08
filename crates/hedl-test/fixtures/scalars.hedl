@@ -1,0 +1,13 @@
+%VERSION: 1.0
+---
+bool_false: false
+bool_true: true
+float_negative: -2.718
+float_positive: 3.14159
+float_zero: 0.0
+int_negative: -17
+int_positive: 42
+int_zero: 0
+null_val: ~
+string_empty: ""
+string_simple: hello world

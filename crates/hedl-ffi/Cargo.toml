@@ -1,0 +1,55 @@
+[package]
+name = "hedl-ffi"
+version.workspace = true
+edition = "2021"
+description = "HEDL C ABI bindings"
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+# Feature flags to control which format converters are included.
+# This helps reduce binary size for specialized use cases.
+[features]
+default = ["all-formats"]
+all-formats = ["json", "yaml", "xml", "csv", "parquet", "neo4j", "toon"]
+
+# Individual format converters - can be selected independently
+json = ["dep:hedl-json"]
+yaml = ["dep:hedl-yaml"]
+xml = ["dep:hedl-xml"]
+csv = ["dep:hedl-csv"]
+parquet = ["dep:hedl-parquet"]
+neo4j = ["dep:hedl-neo4j"]
+toon = ["dep:hedl-toon"]
+
+# Convenience feature groups
+minimal = []  # Core only, no format converters
+web-formats = ["json", "yaml", "xml"]  # Common web formats
+data-formats = ["json", "csv", "parquet"]  # Data processing formats
+
+[dependencies]
+hedl-core = { path = "../hedl-core" }
+hedl-c14n = { path = "../hedl-c14n" }
+hedl-lint = { path = "../hedl-lint" }
+
+# Logging and tracing
+tracing = "0.1"
+
+# Optional format converters (controlled by features)
+hedl-json = { path = "../hedl-json", optional = true }
+hedl-yaml = { path = "../hedl-yaml", optional = true }
+hedl-xml = { path = "../hedl-xml", optional = true }
+hedl-csv = { path = "../hedl-csv", optional = true }
+hedl-parquet = { path = "../hedl-parquet", optional = true }
+hedl-neo4j = { path = "../hedl-neo4j", optional = true }
+hedl-toon = { path = "../hedl-toon", optional = true }
+
+[build-dependencies]
+cbindgen = "0.27"
+
+[dev-dependencies]
+# For thread safety testing
+parking_lot = "0.12"
+# For testing logging configuration
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

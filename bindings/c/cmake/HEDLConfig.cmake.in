@@ -1,0 +1,129 @@
+# Dweve HEDL - Hierarchical Entity Data Language
+#
+# Copyright (c) 2025 Dweve IP B.V. and individual contributors.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+@PACKAGE_INIT@
+
+# ============================================================================
+# HEDL CMake Package Configuration
+# ============================================================================
+
+include(CMakeFindDependencyMacro)
+
+# Determine which library type is available
+set(HEDL_SHARED_AVAILABLE @HEDL_BUILD_SHARED@)
+set(HEDL_STATIC_AVAILABLE @HEDL_BUILD_STATIC@)
+
+# ============================================================================
+# Define Imported Targets
+# ============================================================================
+
+# Shared library target
+if(HEDL_SHARED_AVAILABLE AND NOT TARGET HEDL::hedl)
+    add_library(HEDL::hedl SHARED IMPORTED)
+
+    # Platform-specific library names
+    if(WIN32)
+        set(HEDL_LIB_NAME "hedl_ffi.dll")
+        set(HEDL_IMPLIB_NAME "hedl_ffi.dll.lib")
+    elseif(APPLE)
+        set(HEDL_LIB_NAME "libhedl_ffi.dylib")
+    else()
+        set(HEDL_LIB_NAME "libhedl_ffi.so")
+    endif()
+
+    set_target_properties(HEDL::hedl PROPERTIES
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/${HEDL_LIB_NAME}"
+        INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/include"
+    )
+
+    # Windows import library
+    if(WIN32)
+        set_target_properties(HEDL::hedl PROPERTIES
+            IMPORTED_IMPLIB "${PACKAGE_PREFIX_DIR}/lib/${HEDL_IMPLIB_NAME}"
+        )
+    endif()
+endif()
+
+# Static library target
+if(HEDL_STATIC_AVAILABLE AND NOT TARGET HEDL::hedl_static)
+    add_library(HEDL::hedl_static STATIC IMPORTED)
+
+    # Platform-specific library names
+    if(WIN32)
+        set(HEDL_STATIC_NAME "hedl_ffi.lib")
+    else()
+        set(HEDL_STATIC_NAME "libhedl_ffi.a")
+    endif()
+
+    set_target_properties(HEDL::hedl_static PROPERTIES
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/lib/${HEDL_STATIC_NAME}"
+        INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/include"
+    )
+
+    # Platform-specific system libraries for static linking
+    if(UNIX AND NOT APPLE)
+        set_target_properties(HEDL::hedl_static PROPERTIES
+            INTERFACE_LINK_LIBRARIES "pthread;dl;m"
+        )
+    elseif(APPLE)
+        set_target_properties(HEDL::hedl_static PROPERTIES
+            INTERFACE_LINK_LIBRARIES "-framework Security"
+        )
+    elseif(WIN32)
+        set_target_properties(HEDL::hedl_static PROPERTIES
+            INTERFACE_LINK_LIBRARIES "ws2_32;userenv;bcrypt;ntdll"
+        )
+    endif()
+endif()
+
+# ============================================================================
+# Check Required Components
+# ============================================================================
+
+check_required_components(HEDL)
+
+# Provide informative error if no library is available
+if(NOT TARGET HEDL::hedl AND NOT TARGET HEDL::hedl_static)
+    message(FATAL_ERROR "HEDL library not found. Please install HEDL or check installation.")
+endif()
+
+# ============================================================================
+# Feature Availability
+# ============================================================================
+
+set(HEDL_FEATURE_JSON @HEDL_FEATURE_JSON@)
+set(HEDL_FEATURE_YAML @HEDL_FEATURE_YAML@)
+set(HEDL_FEATURE_XML @HEDL_FEATURE_XML@)
+set(HEDL_FEATURE_CSV @HEDL_FEATURE_CSV@)
+set(HEDL_FEATURE_PARQUET @HEDL_FEATURE_PARQUET@)
+set(HEDL_FEATURE_NEO4J @HEDL_FEATURE_NEO4J@)
+
+# Export feature list
+set(HEDL_FEATURES "")
+if(HEDL_FEATURE_JSON)
+    list(APPEND HEDL_FEATURES "JSON")
+endif()
+if(HEDL_FEATURE_YAML)
+    list(APPEND HEDL_FEATURES "YAML")
+endif()
+if(HEDL_FEATURE_XML)
+    list(APPEND HEDL_FEATURES "XML")
+endif()
+if(HEDL_FEATURE_CSV)
+    list(APPEND HEDL_FEATURES "CSV")
+endif()
+if(HEDL_FEATURE_PARQUET)
+    list(APPEND HEDL_FEATURES "Parquet")
+endif()
+if(HEDL_FEATURE_NEO4J)
+    list(APPEND HEDL_FEATURES "Neo4j")
+endif()
+
+message(STATUS "Found HEDL ${HEDL_VERSION}")
+if(HEDL_FEATURES)
+    string(REPLACE ";" ", " HEDL_FEATURES_STR "${HEDL_FEATURES}")
+    message(STATUS "  Enabled features: ${HEDL_FEATURES_STR}")
+endif()

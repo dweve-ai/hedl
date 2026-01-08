@@ -1,0 +1,8 @@
+# Known transitive dependency warnings
+# These are "unmaintained" (not vulnerable) - upstream hasn't updated yet
+
+[advisories]
+ignore = [
+    "RUSTSEC-2024-0436",  # paste - used by parquet, PR to fix was closed upstream
+    "RUSTSEC-2025-0134",  # rustls-pemfile - used by neo4rs, awaiting upstream update
+]

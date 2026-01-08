@@ -1,0 +1,44 @@
+[package]
+name = "hedl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HEDL - Hierarchical Entity Data Language"
+readme = "README.md"
+repository.workspace = true
+keywords = ["hedl", "data", "serialization", "ai", "ml"]
+categories = ["data-structures", "encoding", "parser-implementations"]
+
+[dependencies]
+hedl-core = { workspace = true }
+hedl-c14n = { workspace = true }
+hedl-json = { workspace = true }
+hedl-lint = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, optional = true }
+
+# Optional format converters
+hedl-yaml = { workspace = true, optional = true }
+hedl-xml = { workspace = true, optional = true }
+hedl-csv = { workspace = true, optional = true }
+hedl-parquet = { workspace = true, optional = true }
+hedl-neo4j = { workspace = true, optional = true }
+hedl-toon = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "hedl-core/serde"]
+yaml = ["dep:hedl-yaml"]
+xml = ["dep:hedl-xml"]
+csv = ["dep:hedl-csv"]
+parquet = ["dep:hedl-parquet"]
+neo4j = ["dep:hedl-neo4j"]
+toon = ["dep:hedl-toon"]
+all-formats = ["yaml", "xml", "csv", "parquet", "neo4j", "toon"]
+
+[dev-dependencies]
+serde_json = { workspace = true }
+hedl-bench = { workspace = true }
+proptest = "1.5"
+
+

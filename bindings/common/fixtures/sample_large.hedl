@@ -1,0 +1,48 @@
+%VERSION: 1.0
+%STRUCT: User: [id, name, email, age, country]
+%STRUCT: Product: [sku, name, price, category]
+%STRUCT: Order: [order_id, user_id, product_id, quantity, total]
+---
+users: @User
+  | 1, Alice Smith, alice@example.com, 30, USA
+  | 2, Bob Jones, bob@example.com, 25, Canada
+  | 3, Charlie Brown, charlie@example.com, 35, UK
+  | 4, Diana Prince, diana@example.com, 28, Germany
+  | 5, Eve Adams, eve@example.com, 32, France
+  | 6, Frank Miller, frank@example.com, 45, Spain
+  | 7, Grace Hopper, grace@example.com, 50, Italy
+  | 8, Henry Ford, henry@example.com, 40, Japan
+  | 9, Irene Adler, irene@example.com, 29, Australia
+  | 10, Jack Ryan, jack@example.com, 33, Brazil
+products: @Product
+  | SKU001, Laptop, 999.99, Electronics
+  | SKU002, Mouse, 29.99, Electronics
+  | SKU003, Keyboard, 79.99, Electronics
+  | SKU004, Monitor, 299.99, Electronics
+  | SKU005, Desk, 199.99, Furniture
+  | SKU006, Chair, 149.99, Furniture
+  | SKU007, Lamp, 39.99, Furniture
+  | SKU008, Notebook, 4.99, Stationery
+  | SKU009, Pen, 1.99, Stationery
+  | SKU010, Pencil, 0.99, Stationery
+orders: @Order
+  | 1001, 1, 1, 1, 999.99
+  | 1002, 2, 2, 2, 59.98
+  | 1003, 3, 3, 1, 79.99
+  | 1004, 4, 4, 1, 299.99
+  | 1005, 5, 5, 1, 199.99
+  | 1006, 6, 6, 1, 149.99
+  | 1007, 7, 7, 2, 79.98
+  | 1008, 8, 8, 10, 49.90
+  | 1009, 9, 9, 5, 9.95
+  | 1010, 10, 10, 100, 99.00
+  | 1011, 1, 2, 1, 29.99
+  | 1012, 2, 3, 1, 79.99
+  | 1013, 3, 4, 1, 299.99
+  | 1014, 4, 5, 1, 199.99
+  | 1015, 5, 6, 1, 149.99
+  | 1016, 6, 7, 1, 39.99
+  | 1017, 7, 8, 5, 24.95
+  | 1018, 8, 9, 10, 19.90
+  | 1019, 9, 10, 50, 49.50
+  | 1020, 10, 1, 1, 999.99

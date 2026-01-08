@@ -1,0 +1,177 @@
+{
+  "version": "current",
+  "timestamp": "2026-01-06T04:52:47.199031637+00:00",
+  "benchmarks": {
+    "conversion_json_tiny": {
+      "mean": 4177,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 3999,
+        "p95": 4746,
+        "p99": 11884
+      }
+    },
+    "validation_medium": {
+      "mean": 3958,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 3595,
+        "p95": 3890,
+        "p99": 27654
+      }
+    },
+    "linting_small": {
+      "mean": 524,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 439,
+        "p95": 475,
+        "p99": 5511
+      }
+    },
+    "conversion_json_medium": {
+      "mean": 469251,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 458060,
+        "p95": 510094,
+        "p99": 624482
+      }
+    },
+    "linting_medium": {
+      "mean": 4000,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 3602,
+        "p95": 3816,
+        "p99": 26913
+      }
+    },
+    "validation_small": {
+      "mean": 524,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 438,
+        "p95": 459,
+        "p99": 5552
+      }
+    },
+    "pipeline_full_small": {
+      "mean": 187392,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 178725,
+        "p95": 197078,
+        "p99": 222107
+      }
+    },
+    "canonicalization_tiny": {
+      "mean": 3632,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 3395,
+        "p95": 4108,
+        "p99": 18159
+      }
+    },
+    "pipeline_full_tiny": {
+      "mean": 18284,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 16703,
+        "p95": 21075,
+        "p99": 50467
+      }
+    },
+    "pipeline_full_medium": {
+      "mean": 1912828,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 1785359,
+        "p95": 1983084,
+        "p99": 2118683
+      }
+    },
+    "parsing_medium": {
+      "mean": 1559985,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 1547264,
+        "p95": 1645568,
+        "p99": 1847102
+      }
+    },
+    "canonicalization_medium": {
+      "mean": 316283,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 309658,
+        "p95": 335897,
+        "p99": 447949
+      }
+    },
+    "canonicalization_small": {
+      "mean": 31300,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 30604,
+        "p95": 33277,
+        "p99": 65746
+      }
+    },
+    "parsing_large": {
+      "mean": 17961646,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 18029199,
+        "p95": 19411897,
+        "p99": 19411897
+      }
+    },
+    "conversion_json_small": {
+      "mean": 48071,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 47559,
+        "p95": 53557,
+        "p99": 70930
+      }
+    },
+    "validation_tiny": {
+      "mean": 530,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 118,
+        "p95": 149,
+        "p99": 36080
+      }
+    },
+    "linting_tiny": {
+      "mean": 199,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 120,
+        "p95": 137,
+        "p99": 3318
+      }
+    },
+    "parsing_tiny": {
+      "mean": 13218,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 12728,
+        "p95": 15956,
+        "p99": 35045
+      }
+    },
+    "parsing_small": {
+      "mean": 154409,
+      "std_dev": 0,
+      "percentiles": {
+        "p50": 150939,
+        "p95": 178666,
+        "p99": 195742
+      }
+    }
+  }
+}

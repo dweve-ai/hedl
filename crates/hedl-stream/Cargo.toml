@@ -1,0 +1,27 @@
+[package]
+name = "hedl-stream"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Streaming parser for HEDL - memory-efficient processing of large files"
+keywords = ["hedl", "streaming", "parser", "big-data", "iterator"]
+categories = ["parser-implementations", "data-structures"]
+
+[features]
+default = []
+# Enable AVX2 SIMD optimizations for comment scanning (x86_64 only)
+avx2 = []
+# Enable async support with tokio
+async = ["tokio"]
+
+[dependencies]
+hedl-core = { workspace = true }
+thiserror = { workspace = true }
+tokio = { version = "1.35", features = ["io-util"], optional = true }
+
+[dev-dependencies]
+tempfile = "3.8"
+tokio = { version = "1.35", features = ["io-util", "macros", "rt"] }
+

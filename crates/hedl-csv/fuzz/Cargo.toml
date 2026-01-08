@@ -1,0 +1,30 @@
+[package]
+name = "hedl-csv-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.hedl-csv]
+path = ".."
+
+# Prevent this from interfering with workspace
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_from_csv"
+path = "fuzz_targets/fuzz_from_csv.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_parse_value"
+path = "fuzz_targets/fuzz_parse_value.rs"
+test = false
+doc = false

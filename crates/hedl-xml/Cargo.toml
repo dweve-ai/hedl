@@ -1,0 +1,32 @@
+[package]
+name = "hedl-xml"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "XML conversion for HEDL documents"
+
+[dependencies]
+hedl-core = { workspace = true }
+quick-xml = { workspace = true }
+thiserror = { workspace = true }
+string_cache = "0.8"
+smallvec = "1.13"
+roxmltree = "0.20"
+parking_lot = "0.12"
+
+# Optional async support
+tokio = { version = "1.43", features = ["fs", "io-util"], optional = true }
+
+[dev-dependencies]
+hedl-core = { workspace = true }
+hedl-test = { workspace = true }
+proptest = "1.5"
+tokio = { version = "1.43", features = ["full", "test-util"] }
+tempfile = "3.14"
+
+[features]
+default = []
+async = ["tokio"]
+

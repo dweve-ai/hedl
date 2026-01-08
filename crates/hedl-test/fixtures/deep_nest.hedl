@@ -1,0 +1,12 @@
+%VERSION: 1.0
+%STRUCT: Department: [id,name]
+%STRUCT: Employee: [id,name]
+%STRUCT: Organization: [id,name]
+%NEST: Department > Employee
+%NEST: Organization > Department
+---
+organizations: @Organization
+  |[1] acme,Acme Corp
+    |[2] engineering,Engineering
+      |emp1,John Doe
+      |emp2,Jane Doe

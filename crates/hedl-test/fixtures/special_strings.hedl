@@ -1,0 +1,11 @@
+%VERSION: 1.0
+---
+with_backslash: path\to\file
+with_mixed: "It's a ""test"" with	tabs and
+newlines"
+with_newline: line1
+line2
+line3
+with_quotes: "He said ""hello"" and 'goodbye'"
+with_tab: col1	col2	col3
+with_unicode: 日本語 中文 한국어 emoji: 🎉

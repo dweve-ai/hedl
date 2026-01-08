@@ -1,0 +1,51 @@
+{
+  "name": "dweve/hedl-php",
+  "description": "PHP bindings for HEDL (Hierarchical Entity Data Language) - a token-efficient data format optimized for LLM context windows",
+  "keywords": [
+    "hedl",
+    "data-format",
+    "llm",
+    "serialization",
+    "json",
+    "yaml",
+    "xml",
+    "csv",
+    "parquet",
+    "cypher"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "authors": [
+    {
+      "name": "Dweve Team",
+      "email": "hello@dweve.net"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require": {
+    "php": ">=8.0",
+    "ext-ffi": "*"
+  },
+  "require-dev": {
+    "amphp/amp": "^2.6.0",
+    "phpunit/phpunit": "^10.0"
+  },
+  "suggest": {
+    "amphp/amp": "For async/Promise-based operations using AMPHP concurrency framework"
+  },
+  "autoload": {
+    "psr-4": {
+      "Dweve\\Hedl\\": "./"
+    },
+    "files": [
+      "Hedl.php"
+    ]
+  },
+  "scripts": {
+    "test": "php tests/HedlTest.php",
+    "test:async": "php tests/HedlAsyncTest.php"
+  },
+  "support": {
+    "issues": "https://github.com/dweve/hedl/issues",
+    "source": "https://github.com/dweve/hedl"
+  }
+}

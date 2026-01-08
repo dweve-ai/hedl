@@ -1,0 +1,8 @@
+%VERSION: 1.0
+%ALIAS: %active: "true"
+%ALIAS: %inactive: "false"
+%STRUCT: User: [id,name,active]
+---
+users: @User
+  |u1,Alice,%active
+  |u2,Bob,%inactive

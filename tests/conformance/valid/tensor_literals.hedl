@@ -1,0 +1,6 @@
+%VERSION: 1.0
+%STRUCT: Data: [id,values]
+---
+data: @Data
+  |d1,[1,2,3]
+  |d2,[[1,2],[3,4]]
