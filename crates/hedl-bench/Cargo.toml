@@ -7,7 +7,6 @@ authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description = "Benchmarks and performance testing for HEDL"
-publish = false
 
 [dependencies]
 # Internal crates - always available
