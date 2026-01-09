@@ -476,4 +476,3 @@ cargo bench --bench parsing -- --baseline before
 
 ---
 
-*Last updated: 2026-01-06*

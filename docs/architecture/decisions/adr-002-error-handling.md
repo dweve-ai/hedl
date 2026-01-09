@@ -496,5 +496,3 @@ This ADR should be reviewed if:
 
 ---
 
-*Decision made: 2025-01-06*
-*Last reviewed: 2026-01-06*

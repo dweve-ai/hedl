@@ -256,4 +256,3 @@ let doc = parse_with_limits(input, opts)?;  // Continues despite bad refs
 
 ---
 
-*Last updated: 2026-01-07*

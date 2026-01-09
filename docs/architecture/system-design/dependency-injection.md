@@ -858,4 +858,3 @@ pub fn lint_document(doc: &Document) -> Vec<Diagnostic> {
 
 ---
 
-*Last updated: 2026-01-06*

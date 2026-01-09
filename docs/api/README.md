@@ -261,8 +261,3 @@ All APIs support HEDL format version **1.0**.
 - [LSP API Reference](lsp-api.md)
 - [Cross-Language Examples](examples.md)
 
----
-
-**Last updated**: 2025-01-06
-**HEDL Version**: 1.0
-**License**: Apache 2.0

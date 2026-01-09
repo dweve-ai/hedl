@@ -99,4 +99,3 @@ cargo bench -- --save-baseline current
 
 ---
 
-*Last updated: 2026-01-06*

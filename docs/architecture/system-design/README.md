@@ -285,4 +285,3 @@ impl Default for ParseOptions {
 
 ---
 
-*Last updated: 2026-01-06*

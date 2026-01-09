@@ -586,4 +586,3 @@ See the `examples/` directory for complete extension examples:
 
 ---
 
-*Last updated: 2026-01-06*

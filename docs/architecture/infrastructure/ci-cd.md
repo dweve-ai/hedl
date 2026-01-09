@@ -97,4 +97,3 @@ cargo doc --workspace --no-deps
 
 ---
 
-*Last updated: 2026-01-06*

@@ -402,5 +402,3 @@ impl Iterator for SyncStreamingParser {
 
 ---
 
-*Decision made: 2026-01-06*
-*Last reviewed: 2026-01-06*

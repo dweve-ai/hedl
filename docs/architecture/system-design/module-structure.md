@@ -875,4 +875,3 @@ hedl = { version = "1.0", features = ["all-formats"] }
 
 ---
 
-*Last updated: 2026-01-06*

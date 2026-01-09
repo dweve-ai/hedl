@@ -601,4 +601,3 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
 
 ---
 
-*Last updated: 2026-01-06*

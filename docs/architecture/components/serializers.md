@@ -124,4 +124,3 @@ for item in items {
 
 ---
 
-*Last updated: 2026-01-06*

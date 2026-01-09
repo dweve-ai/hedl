@@ -90,4 +90,3 @@ All architecture documentation follows these conventions:
 ---
 
 *Architecture documentation maintained by the HEDL team*
-*Last updated: 2026-01-06*

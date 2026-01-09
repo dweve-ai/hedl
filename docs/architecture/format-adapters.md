@@ -538,4 +538,3 @@ pub fn custom_converter(doc: &Document) -> Result<String, hedl_core::HedlError> 
 
 ---
 
-*Last updated: 2026-01-06*

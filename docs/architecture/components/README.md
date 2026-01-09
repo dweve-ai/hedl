@@ -304,4 +304,3 @@ All components have dedicated benchmarks.
 
 ---
 
-*Last updated: 2026-01-06*

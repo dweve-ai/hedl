@@ -675,4 +675,3 @@ pub fn parse(input: &str) -> Result<Document> {
 
 ---
 
-*Last updated: 2026-01-06*

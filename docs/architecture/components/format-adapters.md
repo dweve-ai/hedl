@@ -331,4 +331,3 @@ match hedl::json::to_json(&doc, &config) {
 
 ---
 
-*Last updated: 2026-01-07*

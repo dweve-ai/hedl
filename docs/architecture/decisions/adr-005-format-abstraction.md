@@ -395,5 +395,3 @@ let output = to_adapter.to_format(&doc, &Default::default())?;
 
 ---
 
-*Decision made: 2026-01-06*
-*Last reviewed: 2026-01-06*

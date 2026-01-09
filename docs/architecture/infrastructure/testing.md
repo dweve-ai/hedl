@@ -113,4 +113,3 @@ cargo fuzz run parse -- -max_total_time=60
 
 ---
 
-*Last updated: 2026-01-06*
