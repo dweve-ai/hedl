@@ -35,7 +35,7 @@ use hedl_json::{from_json as json_to_hedl, to_json_value, FromJsonConfig, ToJson
 use hedl_parquet::{from_parquet as parquet_to_hedl, to_parquet as hedl_to_parquet};
 use hedl_xml::{from_xml as xml_to_hedl, to_xml as hedl_to_xml, FromXmlConfig, ToXmlConfig};
 use hedl_yaml::{from_yaml as yaml_to_hedl, to_yaml as hedl_to_yaml, FromYamlConfig, ToYamlConfig};
-use hedl_toon::hedl_to_toon;
+use hedl_toon::{hedl_to_toon, toon_to_hedl};
 use std::path::Path;
 
 // JSON conversion
@@ -610,4 +610,49 @@ pub fn to_toon(file: &str, output: Option<&str>) -> Result<(), String> {
     let toon = hedl_to_toon(&doc).map_err(|e| format!("TOON conversion error: {}", e))?;
 
     write_output(&toon, output)
+}
+
+/// Convert a TOON file to HEDL format.
+///
+/// Parses a TOON file and converts it to HEDL format.
+///
+/// # Arguments
+///
+/// * `file` - Path to the TOON file to convert
+/// * `output` - Optional output file path. If `None`, writes to stdout
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success.
+///
+/// # Errors
+///
+/// Returns `Err` if:
+/// - The file cannot be read
+/// - The file contains syntax errors
+/// - HEDL generation fails
+/// - Output writing fails
+///
+/// # Examples
+///
+/// ```no_run
+/// use hedl_cli::commands::from_toon;
+///
+/// # fn main() -> Result<(), String> {
+/// // Convert TOON to HEDL on stdout
+/// from_toon("data.toon", None)?;
+///
+/// // Convert TOON to HEDL file
+/// from_toon("data.toon", Some("output.hedl"))?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn from_toon(file: &str, output: Option<&str>) -> Result<(), String> {
+    let content = read_file(file)?;
+
+    let doc = toon_to_hedl(&content).map_err(|e| format!("TOON parse error: {}", e))?;
+
+    let hedl = canonicalize(&doc).map_err(|e| format!("HEDL generation error: {}", e))?;
+
+    write_output(&hedl, output)
 }

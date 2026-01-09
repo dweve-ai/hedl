@@ -208,6 +208,19 @@ pub enum ConversionCommands {
         #[arg(short, long)]
         output: Option<String>,
     },
+
+    /// Convert TOON to HEDL
+    ///
+    /// Converts a TOON file to HEDL format.
+    FromToon {
+        /// Input TOON file
+        #[arg(value_name = "FILE")]
+        file: String,
+
+        /// Output file path (defaults to stdout)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
 }
 
 impl ConversionCommands {
@@ -265,6 +278,9 @@ impl ConversionCommands {
             }
             ConversionCommands::ToToon { file, output } => {
                 commands::to_toon(&file, output.as_deref())
+            }
+            ConversionCommands::FromToon { file, output } => {
+                commands::from_toon(&file, output.as_deref())
             }
         }
     }

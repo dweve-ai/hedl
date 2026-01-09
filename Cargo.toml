@@ -42,7 +42,7 @@ hedl-json = { version = "1.0.0", path = "crates/hedl-json" }
 hedl-yaml = { version = "1.0.0", path = "crates/hedl-yaml" }
 hedl-xml = { version = "1.0.0", path = "crates/hedl-xml" }
 hedl-csv = { version = "1.0.0", path = "crates/hedl-csv" }
-hedl-toon = { version = "1.0.0", path = "crates/hedl-toon" }
+hedl-toon = { version = "1.1.0", path = "crates/hedl-toon" }
 hedl-parquet = { version = "1.0.0", path = "crates/hedl-parquet" }
 hedl-neo4j = { version = "1.0.0", path = "crates/hedl-neo4j" }
 hedl-lint = { version = "1.0.0", path = "crates/hedl-lint" }

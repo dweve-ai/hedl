@@ -49,6 +49,7 @@ pub const MAX_NESTING_DEPTH: usize = 100;
 ///     Err(ToonError::SchemaMismatch { type_name, expected, actual }) => {
 ///         eprintln!("Schema mismatch for {}: expected {} fields, got {}", type_name, expected, actual);
 ///     }
+///     Err(e) => eprintln!("Error: {}", e),
 /// }
 /// ```
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -89,6 +90,50 @@ pub enum ToonError {
         expected: usize,
         /// Actual number of fields
         actual: usize,
+    },
+
+    // ========================================================================
+    // Parsing errors (from_toon)
+    // ========================================================================
+
+    /// Invalid TOON syntax at a specific line
+    #[error("Parse error at line {line}: {message}")]
+    ParseError {
+        /// Line number (1-indexed)
+        line: usize,
+        /// Description of the error
+        message: String,
+    },
+
+    /// Unexpected end of input
+    #[error("Unexpected end of input: {0}")]
+    UnexpectedEof(String),
+
+    /// Invalid array header format
+    #[error("Invalid array header at line {line}: {message}")]
+    InvalidArrayHeader {
+        /// Line number (1-indexed)
+        line: usize,
+        /// Description of the error
+        message: String,
+    },
+
+    /// Invalid value format
+    #[error("Invalid value at line {line}: {message}")]
+    InvalidValue {
+        /// Line number (1-indexed)
+        line: usize,
+        /// Description of the error
+        message: String,
+    },
+
+    /// Indentation error
+    #[error("Indentation error at line {line}: {message}")]
+    IndentationError {
+        /// Line number (1-indexed)
+        line: usize,
+        /// Description of the error
+        message: String,
     },
 }
 

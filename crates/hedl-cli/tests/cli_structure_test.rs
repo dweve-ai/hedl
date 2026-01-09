@@ -220,10 +220,10 @@ fn test_command_count() {
     let cmd = TestCli::command();
     let count = cmd.get_subcommands().count();
 
-    // We expect 20 commands total:
+    // We expect 21 commands total:
     // - 5 core (validate, format, lint, inspect, stats)
-    // - 11 conversion (to/from for json, yaml, xml, csv, parquet + to-toon)
+    // - 12 conversion (to/from for json, yaml, xml, csv, parquet, toon)
     // - 3 batch (batch-validate, batch-format, batch-lint)
     // - 1 utility (completion)
-    assert_eq!(count, 20, "Expected 20 commands, found {}", count);
+    assert_eq!(count, 21, "Expected 21 commands, found {}", count);
 }

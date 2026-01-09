@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! HEDL to TOON Conversion
+//! HEDL ↔ TOON Conversion
 //!
-//! Converts HEDL documents to TOON (Token-Oriented Object Notation) format.
+//! Bidirectional conversion between HEDL documents and TOON (Token-Oriented Object Notation) format.
 //! TOON is a compact, line-oriented format optimized for LLM consumption.
 //!
 //! # Overview
@@ -102,9 +102,11 @@
 //! TOON Spec: <https://github.com/toon-format/spec>
 
 mod error;
+mod from_toon;
 mod to_toon;
 
 pub use error::{ToonError, Result, MAX_NESTING_DEPTH};
+pub use from_toon::{from_toon, from_toon_with_config, FromToonConfig};
 pub use to_toon::{to_toon, Delimiter, ToToonConfig, ToToonConfigBuilder};
 
 use hedl_core::Document;
@@ -159,6 +161,55 @@ use hedl_core::Document;
 /// documents. It takes an immutable borrow of the document.
 pub fn hedl_to_toon(doc: &Document) -> Result<String> {
     to_toon(doc, &ToToonConfig::default())
+}
+
+/// Parse TOON string to HEDL document
+///
+/// This is a convenience function that uses the default TOON parsing configuration
+/// with auto-detection of indentation width.
+///
+/// # Arguments
+///
+/// * `toon` - The TOON formatted string to parse
+///
+/// # Returns
+///
+/// A HEDL Document, or a [`ToonError`] if parsing fails.
+///
+/// # Errors
+///
+/// - [`ToonError::ParseError`] - Invalid TOON syntax
+/// - [`ToonError::MaxDepthExceeded`] - Document nesting exceeds maximum depth
+/// - [`ToonError::IndentationError`] - Invalid indentation
+///
+/// # Examples
+///
+/// ```rust
+/// use hedl_toon::toon_to_hedl;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let toon = r#"name: MyApp
+/// version: 1
+/// users[2]{id,name}:
+///   u1,Alice
+///   u2,Bob
+/// "#;
+///
+/// let doc = toon_to_hedl(toon)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Performance
+///
+/// - Time Complexity: O(n) where n is the input length
+/// - Space Complexity: O(n) for the document structure
+///
+/// # Thread Safety
+///
+/// This function is thread-safe and can be called concurrently.
+pub fn toon_to_hedl(toon: &str) -> Result<Document> {
+    from_toon(toon)
 }
 
 #[cfg(test)]

@@ -29,8 +29,8 @@ mod validate;
 pub use batch_commands::{batch_format, batch_lint, batch_validate};
 pub use completion::{generate_completion_for_command, print_installation_instructions};
 pub use convert::{
-    from_csv, from_json, from_parquet, from_xml, from_yaml, to_csv, to_json, to_parquet, to_toon,
-    to_xml, to_yaml,
+    from_csv, from_json, from_parquet, from_toon, from_xml, from_yaml, to_csv, to_json,
+    to_parquet, to_toon, to_xml, to_yaml,
 };
 pub use format::format;
 pub use inspect::inspect;

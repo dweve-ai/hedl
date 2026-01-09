@@ -13,7 +13,7 @@ Complete specifications for all supported data formats.
 | **CSV** | `.csv` | ✓ | ✓ | ✓ | Comma-Separated Values |
 | **Parquet** | `.parquet` | ✓ | ✓ | ✓ | Apache Parquet columnar format |
 | **Neo4j Cypher** | `.cypher` | ✓ | ✓ | ✓ | Neo4j graph database import |
-| **TOON** | `.toon` | ✗ | ✓ | ✗ | Token-Oriented Object Notation for LLMs |
+| **TOON** | `.toon` | ✓ | ✓ | ✗ | Token-Oriented Object Notation for LLMs |
 
 ---
 
