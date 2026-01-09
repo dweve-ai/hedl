@@ -5,7 +5,6 @@ recursive-include hedl *.pyi
 
 # Include documentation
 include README.md
-include TYPE_STUBS.md
 include LICENSE
 include LICENSE-APACHE
 include LICENSE-MIT

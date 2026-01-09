@@ -218,56 +218,12 @@ except hedl.HedlError as e:
 
 ## Type Safety
 
-HEDL Python bindings are **fully typed** with comprehensive type stubs (PEP 561 compliant).
-
-### Using with mypy
-
-```python
-import hedl
-
-# All types are checked
-doc: hedl.Document = hedl.parse('%VERSION: 1.0\n---\nkey: value')
-version: tuple[int, int] = doc.version
-json_str: str = doc.to_json()
-```
-
-Run mypy for type checking:
-
-```bash
-mypy your_code.py --strict
-```
-
-### Features
-
-- Full type annotations for all APIs
-- Context manager protocol support
-- Union types for flexible input (str | bytes)
-- Comprehensive error type annotations
-- IDE autocompletion (VSCode, PyCharm, etc.)
-- Static type checking with mypy, pyright
-
-### Documentation
-
-See [TYPE_STUBS.md](TYPE_STUBS.md) for comprehensive type safety documentation.
-
-### Examples
-
-Check out [examples/typed_usage.py](examples/typed_usage.py) for production-grade typed examples.
+The bindings include type annotations for IDE autocompletion and static type checking with mypy/pyright.
 
 ## Testing
 
 ```bash
-# Run all tests
 pytest tests/ -v
-
-# Run type stub validation
-pytest tests/test_type_stubs.py -v
-
-# Run mypy validation
-./scripts/test_mypy.sh
-
-# Full type validation
-./scripts/validate_types.sh
 ```
 
 ## License
