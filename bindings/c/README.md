@@ -2,8 +2,6 @@
 
 Production-ready CMake integration for HEDL (Hierarchical Entity Data Language) C/C++ FFI bindings.
 
-**Status:** ✓ Fully Verified and Production-Ready (2026-01-05)
-
 ## Overview
 
 This directory provides a modern CMake build system for integrating HEDL into C and C++ projects. The bindings enable:
@@ -507,7 +505,6 @@ Contributions welcome! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Support
 
-- **Documentation**: https://docs.dweve.com/hedl
 - **Issues**: https://github.com/dweve-ai/hedl/issues
 - **Discussions**: https://github.com/dweve-ai/hedl/discussions
 

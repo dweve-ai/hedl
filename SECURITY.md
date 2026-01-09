@@ -49,7 +49,6 @@ When you report a security issue, we commit to:
 - Dweve APIs
 - Dweve Mesh infrastructure
 - dweve.com and subdomains
-- docs.dweve.com
 
 ### Out of Scope
 
