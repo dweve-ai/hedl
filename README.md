@@ -139,7 +139,7 @@ events: @Event
 | **CSV** | ✅ | ✅ | ❌ | Tabular data export |
 | **Parquet** | ✅ | ✅ | ❌ | Analytics and data warehousing |
 | **Neo4j Cypher** | ✅ | ✅ | ✅ | Graph database import |
-| **TOON** | ❌ | ✅ | ❌ | Type-Object Notation |
+| **TOON** | ✅ | ✅ | ❌ | Token-Oriented Object Notation |
 
 ---
 
@@ -302,10 +302,8 @@ HEDL is organized as a modular workspace with 19 specialized crates:
 
 ## Documentation
 
-- [Language Specification](docs/SPECIFICATION.md) - Complete HEDL syntax reference
+- [Language Specification](SPEC.md) - Complete HEDL syntax reference
 - [API Documentation](https://docs.rs/hedl) - Rust API docs
-- [Format Conversion Guide](docs/CONVERSION.md) - Multi-format workflows
-- [Performance Tuning](docs/PERFORMANCE.md) - Optimization strategies
 - [CLI Reference](crates/hedl-cli/README.md) - Command-line tool usage
 - [FFI Guide](crates/hedl-ffi/README.md) - C bindings integration
 - [WASM Guide](crates/hedl-wasm/README.md) - Browser/Node.js usage

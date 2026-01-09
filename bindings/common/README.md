@@ -16,7 +16,6 @@ Centralized test fixtures shared across all 6 language bindings (Python, Ruby, N
 
 **Documentation:**
 - See [fixtures/README.md](fixtures/README.md) for detailed usage guide
-- See [FIXTURES_IMPLEMENTATION.md](FIXTURES_IMPLEMENTATION.md) for implementation details
 
 **Quick Usage:**
 
@@ -63,7 +62,6 @@ string hedlContent = fixtures.BasicHedl;
 ```
 common/
 ├── README.md (this file)
-├── FIXTURES_IMPLEMENTATION.md (implementation details)
 └── fixtures/
     ├── README.md (fixtures documentation)
     ├── manifest.json (fixture metadata)
@@ -128,5 +126,3 @@ When adding common resources:
 ## Related Documentation
 
 - [Fixtures README](fixtures/README.md) - Detailed fixtures documentation
-- [Fixtures Implementation](FIXTURES_IMPLEMENTATION.md) - Implementation details
-- [Bindings Guide](../README.md) - Main bindings documentation

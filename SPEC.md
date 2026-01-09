@@ -2,13 +2,11 @@
 
 Hierarchical Entity Data Language
 
-**Status:** Standards Track  
-**Version:** 1.0.0  
-**MIME Type:** `application/hedl`  
-**File Extension:** `.hedl`  
-**Release Date:** 2025-12-25  
-
-**Notice:** This is the original release of HEDL v1.0.0, incorporating all fixes from review feedback before initial publication.
+**Status:** Released
+**Version:** 1.0.0
+**MIME Type:** `application/hedl`
+**File Extension:** `.hedl`
+**Release Date:** 2026-01-08
 
 ---
 

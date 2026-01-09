@@ -510,7 +510,7 @@ Contributions welcome! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## See Also
 
-- [HEDL Specification](../../SPECIFICATION.md)
+- [HEDL Specification](../../SPEC.md)
 - [Rust API Documentation](../../crates/hedl/README.md)
 - [Python Bindings](../python/README.md)
 - [Node.js Bindings](../node/README.md)
