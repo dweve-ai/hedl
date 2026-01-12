@@ -1709,7 +1709,7 @@ mod tests {
         ];
 
         for (type_name, plural) in test_cases {
-            let csv_data = format!("id,value\n1,test\n");
+            let csv_data = "id,value\n1,test\n".to_string();
             let config = FromCsvConfig {
                 list_key: Some(plural.to_string()),
                 ..Default::default()
@@ -1760,7 +1760,7 @@ mod tests {
             list_key: Some("MyCustomList".to_string()),
             ..Default::default()
         };
-        let doc = from_csv_with_config(&csv_data, "Item", &["value"], config).unwrap();
+        let doc = from_csv_with_config(csv_data, "Item", &["value"], config).unwrap();
 
         // Exact case should exist
         assert!(doc.get("MyCustomList").is_some());
@@ -1777,7 +1777,7 @@ mod tests {
             list_key: Some("".to_string()),
             ..Default::default()
         };
-        let doc = from_csv_with_config(&csv_data, "Item", &["value"], config).unwrap();
+        let doc = from_csv_with_config(csv_data, "Item", &["value"], config).unwrap();
 
         assert!(doc.get("").is_some());
     }
@@ -1789,7 +1789,7 @@ mod tests {
             list_key: Some("my-custom_list.v2".to_string()),
             ..Default::default()
         };
-        let doc = from_csv_with_config(&csv_data, "Item", &["value"], config).unwrap();
+        let doc = from_csv_with_config(csv_data, "Item", &["value"], config).unwrap();
 
         assert!(doc.get("my-custom_list.v2").is_some());
     }
@@ -1801,7 +1801,7 @@ mod tests {
             list_key: Some("人々".to_string()), // Japanese for "people"
             ..Default::default()
         };
-        let doc = from_csv_with_config(&csv_data, "Person", &["value"], config).unwrap();
+        let doc = from_csv_with_config(csv_data, "Person", &["value"], config).unwrap();
 
         assert!(doc.get("人々").is_some());
     }
@@ -1815,7 +1815,7 @@ mod tests {
             sample_rows: 10,
             ..Default::default()
         };
-        let doc = from_csv_with_config(&csv_data, "Person", &["value"], config).unwrap();
+        let doc = from_csv_with_config(csv_data, "Person", &["value"], config).unwrap();
 
         assert!(doc.get("people").is_some());
         let list = doc.get("people").unwrap().as_list().unwrap();
@@ -1892,7 +1892,7 @@ mod tests {
             list_key: Some("items_v2".to_string()),
             ..Default::default()
         };
-        let doc = from_csv_with_config(&csv_data, "Item", &["value"], config).unwrap();
+        let doc = from_csv_with_config(csv_data, "Item", &["value"], config).unwrap();
 
         assert!(doc.get("items_v2").is_some());
     }

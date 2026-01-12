@@ -738,8 +738,8 @@ mod tests {
 
         let json_config: ToJsonConfig = (&query_config).into();
 
-        assert_eq!(json_config.include_metadata, true);
-        assert_eq!(json_config.flatten_lists, true);
-        assert_eq!(json_config.include_children, false);
+        assert!(json_config.include_metadata);
+        assert!(json_config.flatten_lists);
+        assert!(!json_config.include_children);
     }
 }

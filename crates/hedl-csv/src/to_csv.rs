@@ -1155,7 +1155,7 @@ mod tests {
                 Value::String("1".to_string()),
                 Value::Bool(true),
                 Value::Int(42),
-                Value::Float(3.14),
+                Value::Float(3.5),
                 Value::String("hello".to_string()),
                 Value::Null,
                 Value::Reference(Reference::local("user1")),
@@ -1167,7 +1167,7 @@ mod tests {
         let csv = to_csv_list(&doc, "data").unwrap();
         assert!(csv.contains("true"));
         assert!(csv.contains("42"));
-        assert!(csv.contains("3.14"));
+        assert!(csv.contains("3.5"));
         assert!(csv.contains("hello"));
         assert!(csv.contains("@user1"));
     }

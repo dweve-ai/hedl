@@ -168,11 +168,6 @@ impl OperationCache {
         }
     }
 
-    /// Create a cache with default size.
-    pub fn default() -> Self {
-        Self::new(DEFAULT_CACHE_SIZE)
-    }
-
     /// Get a cached result if available.
     ///
     /// # Arguments

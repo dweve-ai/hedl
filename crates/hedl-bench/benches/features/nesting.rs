@@ -1661,8 +1661,11 @@ fn create_flat_comparison_table(results: &[NestingResult], report: &mut Benchmar
         // Calculate ACTUAL space savings from file sizes
         let flat_size = result.depth * result.width * 20; // Approximate flat field size
         let nested_size = result.input_size_bytes;
-        let space_savings = if flat_size > 0 {
+        let space_savings = if flat_size > 0 && flat_size > nested_size {
             ((flat_size - nested_size) as f64 / flat_size as f64) * 100.0
+        } else if flat_size > 0 && nested_size > flat_size {
+            // Negative savings (nested is larger)
+            -((nested_size - flat_size) as f64 / flat_size as f64) * 100.0
         } else {
             0.0
         };

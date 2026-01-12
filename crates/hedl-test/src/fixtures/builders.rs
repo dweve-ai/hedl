@@ -528,7 +528,7 @@ mod tests {
         assert!(matches!(ValueBuilder::null(), Value::Null));
         assert!(matches!(ValueBuilder::bool_val(true), Value::Bool(true)));
         assert!(matches!(ValueBuilder::int(42), Value::Int(42)));
-        assert!(matches!(ValueBuilder::float(3.14), Value::Float(_)));
+        assert!(matches!(ValueBuilder::float(3.5), Value::Float(_)));
         assert!(matches!(
             ValueBuilder::string("test"),
             Value::String(ref s) if s == "test"

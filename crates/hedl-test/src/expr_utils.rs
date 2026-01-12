@@ -258,6 +258,18 @@ pub fn try_expr_value(s: &str) -> Result<Value, ExprError> {
     try_expr(s).map(Value::Expression)
 }
 
+// Helper trait for Expression to check literal type (test helper only)
+#[allow(dead_code)]
+trait ExpressionExt {
+    fn is_literal(&self) -> bool;
+}
+
+impl ExpressionExt for Expression {
+    fn is_literal(&self) -> bool {
+        matches!(self, Expression::Literal { .. })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -426,17 +438,5 @@ mod tests {
             }
             _ => panic!("Expected ParseFailed with preserved input"),
         }
-    }
-}
-
-// Helper trait for Expression to check literal type (test helper only)
-#[allow(dead_code)]
-trait ExpressionExt {
-    fn is_literal(&self) -> bool;
-}
-
-impl ExpressionExt for Expression {
-    fn is_literal(&self) -> bool {
-        matches!(self, Expression::Literal { .. })
     }
 }

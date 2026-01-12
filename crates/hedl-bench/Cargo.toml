@@ -47,7 +47,7 @@ parquet = { workspace = true, optional = true }
 rusqlite = { version = "0.32", optional = true }
 duckdb = { version = "1.1", optional = true }
 polars = { version = "0.44", features = ["lazy", "sql"], optional = true }
-arrow = { version = "53", optional = true }
+arrow = { version = "57", optional = true }
 flate2 = "1.0"  # For compression benchmarks
 
 # WASM runtime for real WASM benchmarks
