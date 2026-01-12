@@ -69,7 +69,7 @@ use crate::document::{Document, Item, MatrixList, Node};
 use crate::error::{HedlError, HedlResult};
 use crate::header::parse_header;
 use crate::inference::{infer_quoted_value, infer_value, InferenceContext};
-use crate::limits::Limits;
+use crate::limits::{Limits, TimeoutContext};
 use crate::preprocess::{is_blank_line, is_comment_line, preprocess};
 use crate::reference::{register_node, resolve_references, TypeRegistry};
 use crate::value::Value;
@@ -419,6 +419,9 @@ pub fn parse(input: &[u8]) -> HedlResult<Document> {
 
 /// Parse a HEDL document with custom options.
 pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Document> {
+    // Create timeout context for parsing
+    let timeout_ctx = TimeoutContext::new(options.limits.timeout);
+
     // Phase 1: Preprocess (zero-copy line splitting)
     let preprocessed = preprocess(input, &options.limits)?;
 
@@ -426,12 +429,12 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
     let lines: Vec<(usize, &str)> = preprocessed.lines().collect();
 
     // Phase 2: Parse header
-    let (header, body_start_idx) = parse_header(&lines, &options.limits)?;
+    let (header, body_start_idx) = parse_header(&lines, &options.limits, &timeout_ctx)?;
 
     // Phase 3: Parse body
     let body_lines = &lines[body_start_idx..];
     let mut type_registries = TypeRegistry::new();
-    let root = parse_body(body_lines, &header, &options.limits, &mut type_registries)?;
+    let root = parse_body(body_lines, &header, &options.limits, &mut type_registries, &timeout_ctx)?;
 
     // Build document
     let mut doc = Document::new(header.version);
@@ -440,7 +443,8 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
     doc.nests = header.nests;
     doc.root = root;
 
-    // Phase 4: Reference resolution
+    // Phase 4: Reference resolution (with timeout check)
+    timeout_ctx.check_timeout(0)?;
     resolve_references(&doc, options.strict_refs)?;
 
     Ok(doc)
@@ -478,6 +482,7 @@ fn parse_body(
     header: &crate::header::Header,
     limits: &Limits,
     type_registries: &mut TypeRegistry,
+    timeout_ctx: &TimeoutContext,
 ) -> HedlResult<BTreeMap<String, Item>> {
     let mut stack: Vec<Frame> = vec![Frame::Root {
         object: BTreeMap::new(),
@@ -485,8 +490,14 @@ fn parse_body(
     let mut node_count = 0usize;
     let mut total_keys = 0usize;
     let mut block_string: Option<BlockStringState> = None;
+    let mut iteration_count = 0usize;
 
     for &(line_num, line) in lines {
+        // Periodic timeout check (every 10,000 iterations to minimize overhead)
+        iteration_count += 1;
+        if iteration_count % 10_000 == 0 {
+            timeout_ctx.check_timeout(line_num)?;
+        }
         // Handle block string accumulation mode
         if let Some(ref mut state) = block_string {
             // Process the line and check if block string is complete
@@ -1691,5 +1702,58 @@ mod tests {
         assert_eq!(opts.limits.max_indent_depth, 20);
         assert_eq!(opts.limits.max_nodes, 1000);
         assert!(opts.strict_refs);
+    }
+
+    // ==================== Timeout integration tests ====================
+
+    #[test]
+    fn test_parse_with_generous_timeout_succeeds() {
+        let doc = b"%VERSION: 1.0\n---\nkey: value\n";
+        let mut opts = ParseOptions::default();
+        opts.limits.timeout = Some(std::time::Duration::from_secs(10));
+        let result = parse_with_limits(doc, opts);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_with_no_timeout_succeeds() {
+        let doc = b"%VERSION: 1.0\n---\nkey: value\n";
+        let mut opts = ParseOptions::default();
+        opts.limits.timeout = None;
+        let result = parse_with_limits(doc, opts);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_with_very_short_timeout_fails() {
+        // Create a document large enough to take some time
+        let mut doc = String::from("%VERSION: 1.0\n---\ndata:\n");
+        for i in 0..100_000 {
+            doc.push_str(&format!("  key{}: value{}\n", i, i));
+        }
+
+        let mut opts = ParseOptions::default();
+        // Set an impossibly short timeout (1 microsecond)
+        opts.limits.timeout = Some(std::time::Duration::from_micros(1));
+
+        let result = parse_with_limits(doc.as_bytes(), opts);
+        assert!(result.is_err());
+
+        if let Err(e) = result {
+            let msg = e.to_string();
+            assert!(msg.contains("timeout") || msg.contains("Timeout"));
+        }
+    }
+
+    #[test]
+    fn test_default_timeout_is_reasonable() {
+        let opts = ParseOptions::default();
+        assert_eq!(opts.limits.timeout, Some(std::time::Duration::from_secs(30)));
+    }
+
+    #[test]
+    fn test_unlimited_has_no_timeout() {
+        let limits = Limits::unlimited();
+        assert_eq!(limits.timeout, None);
     }
 }

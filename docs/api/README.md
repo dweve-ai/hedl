@@ -169,9 +169,11 @@ cargo run --bin hedl-lsp
 
 Approximate throughput on modern hardware:
 
-- **Simple documents**: 50-100 MB/s
-- **Complex nested structures**: 10-30 MB/s
-- **Matrix lists**: 100-200 MB/s
+- **Parsing**: 54.6 MB/s
+- **JSON conversion**: 1,549 MB/s (HEDL→JSON), 2,883 MB/s (JSON→HEDL)
+- **YAML conversion**: 246 MB/s (HEDL→YAML), 377 MB/s (YAML→HEDL)
+- **XML conversion**: 2,964 MB/s (HEDL→XML), 953 MB/s (XML→HEDL)
+- **Linting**: 72-931 MB/s
 
 ### Token Savings
 

@@ -168,12 +168,12 @@ These protect against DoS attacks and can be customized when using HEDL as a lib
 ### How fast is HEDL parsing?
 
 HEDL is highly optimized:
-- **Efficient parsing**: Minimizes unnecessary allocations during the parsing phase.
+- **Efficient parsing**: 54.6 MB/s throughput
 - **SIMD optimizations**: Vectorized parsing for strings and numbers
-- **Parallel processing**: Batch operations use all CPU cores
-- **Benchmarks**: Typically 2-5x faster than equivalent JSON parsers
+- **Parallel processing**: Batch operations use all CPU cores (6.19x speedup @ 8 threads)
+- **Format conversion**: Up to 2,964 MB/s (HEDL→XML), 2,883 MB/s (JSON→HEDL)
 
-Example throughput: ~500 MB/sec on modern hardware.
+Typical latencies: 142 µs for small documents, 1.54 ms for medium documents.
 
 ### What's the memory usage?
 

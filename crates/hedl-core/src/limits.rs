@@ -17,6 +17,9 @@
 
 //! Security limits for HEDL parsing.
 
+use std::time::{Duration, Instant};
+use crate::error::{HedlError, HedlResult};
+
 /// Configurable limits for parser security.
 ///
 /// These limits protect against denial-of-service attacks and memory exhaustion
@@ -51,6 +54,14 @@ pub struct Limits {
     /// providing protection against memory exhaustion. For very large datasets,
     /// this can be increased via `ParseOptions`.
     pub max_total_keys: usize,
+    /// Maximum parsing duration (default: 30 seconds).
+    ///
+    /// Prevents denial-of-service attacks where a malicious document causes the
+    /// parser to hang indefinitely. The parser checks elapsed time periodically
+    /// and returns a `Timeout` error if parsing exceeds this duration.
+    ///
+    /// Set to `None` to disable timeout checking (not recommended for untrusted input).
+    pub timeout: Option<Duration>,
 }
 
 impl Default for Limits {
@@ -66,6 +77,7 @@ impl Default for Limits {
             max_block_string_size: 10 * 1024 * 1024, // 10MB
             max_object_keys: 10_000,
             max_total_keys: 10_000_000,             // 10M
+            timeout: Some(Duration::from_secs(30)), // 30 seconds
         }
     }
 }
@@ -84,7 +96,54 @@ impl Limits {
             max_block_string_size: usize::MAX,
             max_object_keys: usize::MAX,
             max_total_keys: usize::MAX,
+            timeout: None,
         }
+    }
+}
+
+/// Timeout context for tracking parsing time and enforcing timeout limits.
+///
+/// This structure tracks the start time of a parsing operation and provides
+/// a method to check whether the configured timeout has been exceeded.
+#[derive(Debug, Clone, Copy)]
+pub struct TimeoutContext {
+    start: Instant,
+    timeout: Option<Duration>,
+}
+
+impl TimeoutContext {
+    /// Create a new timeout context with the given timeout duration.
+    pub fn new(timeout: Option<Duration>) -> Self {
+        Self {
+            start: Instant::now(),
+            timeout,
+        }
+    }
+
+    /// Check if timeout has been exceeded. Returns an error if timeout exceeded.
+    ///
+    /// # Arguments
+    ///
+    /// * `line_num` - Line number for error reporting
+    ///
+    /// # Errors
+    ///
+    /// Returns a security error if the elapsed time exceeds the configured timeout.
+    pub fn check_timeout(&self, line_num: usize) -> HedlResult<()> {
+        if let Some(timeout) = self.timeout {
+            let elapsed = self.start.elapsed();
+            if elapsed > timeout {
+                return Err(HedlError::security(
+                    format!(
+                        "parsing timeout exceeded: {}ms > {}ms",
+                        elapsed.as_millis(),
+                        timeout.as_millis()
+                    ),
+                    line_num,
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -209,6 +268,7 @@ mod tests {
             max_block_string_size: 5000,
             max_object_keys: 100,
             max_total_keys: 500,
+            timeout: Some(Duration::from_secs(5)),
         };
         assert_eq!(limits.max_file_size, 100);
         assert_eq!(limits.max_line_length, 200);
@@ -220,6 +280,7 @@ mod tests {
         assert_eq!(limits.max_block_string_size, 5000);
         assert_eq!(limits.max_object_keys, 100);
         assert_eq!(limits.max_total_keys, 500);
+        assert_eq!(limits.timeout, Some(Duration::from_secs(5)));
     }
 
     #[test]
@@ -235,6 +296,7 @@ mod tests {
             max_block_string_size: 0,
             max_object_keys: 0,
             max_total_keys: 0,
+            timeout: Some(Duration::from_secs(0)),
         };
         assert_eq!(limits.max_file_size, 0);
         assert_eq!(limits.max_columns, 0);
@@ -288,5 +350,81 @@ mod tests {
         assert!(limits.max_total_keys > limits.max_object_keys,
             "max_total_keys ({}) should be greater than max_object_keys ({})",
             limits.max_total_keys, limits.max_object_keys);
+    }
+
+    // ==================== Timeout tests ====================
+
+    #[test]
+    fn test_default_timeout() {
+        let limits = Limits::default();
+        assert_eq!(limits.timeout, Some(Duration::from_secs(30)));
+    }
+
+    #[test]
+    fn test_unlimited_no_timeout() {
+        let limits = Limits::unlimited();
+        assert_eq!(limits.timeout, None);
+    }
+
+    #[test]
+    fn test_custom_timeout() {
+        let limits = Limits {
+            timeout: Some(Duration::from_secs(60)),
+            ..Limits::default()
+        };
+        assert_eq!(limits.timeout, Some(Duration::from_secs(60)));
+    }
+
+    #[test]
+    fn test_disabled_timeout() {
+        let limits = Limits {
+            timeout: None,
+            ..Limits::default()
+        };
+        assert_eq!(limits.timeout, None);
+    }
+
+    // ==================== TimeoutContext tests ====================
+
+    #[test]
+    fn test_timeout_context_no_timeout() {
+        let ctx = TimeoutContext::new(None);
+        // Should never timeout when timeout is None
+        assert!(ctx.check_timeout(1).is_ok());
+        assert!(ctx.check_timeout(1000).is_ok());
+    }
+
+    #[test]
+    fn test_timeout_context_with_generous_timeout() {
+        let ctx = TimeoutContext::new(Some(Duration::from_secs(10)));
+        // Should not timeout immediately
+        assert!(ctx.check_timeout(1).is_ok());
+    }
+
+    #[test]
+    fn test_timeout_context_with_zero_timeout() {
+        // Zero timeout should immediately trigger
+        let ctx = TimeoutContext::new(Some(Duration::from_micros(1)));
+        // Sleep a tiny bit to ensure elapsed time > 1 microsecond
+        std::thread::sleep(Duration::from_micros(10));
+        // Should timeout
+        let result = ctx.check_timeout(42);
+        assert!(result.is_err());
+        if let Err(e) = result {
+            let msg = e.to_string();
+            assert!(msg.contains("timeout exceeded") || msg.contains("Timeout"));
+        }
+    }
+
+    #[test]
+    fn test_timeout_context_error_message() {
+        let ctx = TimeoutContext::new(Some(Duration::from_nanos(1)));
+        std::thread::sleep(Duration::from_millis(1));
+        let result = ctx.check_timeout(123);
+        assert!(result.is_err());
+        if let Err(e) = result {
+            let msg = e.to_string();
+            assert!(msg.contains("123")); // Should include line number
+        }
     }
 }

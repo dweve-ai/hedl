@@ -30,12 +30,12 @@ Comprehensive guide to performance testing, optimization, and benchmarking in HE
 
 | Operation | Target | Measured |
 |-----------|--------|----------|
-| Parse small document (< 1KB) | < 100 μs | ~50 μs |
-| Parse medium document (10-100 KB) | < 10 ms | ~5 ms |
-| Parse large document (1-10 MB) | < 1 s | ~500 ms |
-| JSON conversion | < 2x parse time | ~1.5x |
-| YAML conversion | < 3x parse time | ~2x |
-| Canonicalization | < parse time | ~0.5x |
+| Parse small document (~10KB) | < 200 μs | ~142 μs |
+| Parse medium document (100KB) | < 2 ms | ~1.54 ms |
+| Parse large document (1-10 MB) | < 1 s | (varies) |
+| JSON conversion (HEDL→JSON) | < 500 μs | ~292 μs |
+| YAML conversion (HEDL→YAML) | < 2 ms | ~1,834 μs |
+| Canonicalization | < 100 μs | ~30 μs (small) |
 
 ---
 
@@ -585,19 +585,21 @@ parse_simple            time:   [48.234 µs 48.567 µs 48.912 µs]
 
 ```
 Benchmark: parse
-  Small (< 1KB)       50 μs     ████████████████████
-  Medium (10KB)       5 ms      ████████████████████
-  Large (1MB)         500 ms    ████████████████████
+  Tiny (< 1KB)        11 μs     ████████████████████
+  Small (10KB)        142 μs    ████████████████████
+  Medium (100KB)      1.54 ms   ████████████████████
 
 Benchmark: convert
-  to_json             75 μs     ████████████████████████
-  to_yaml             100 μs    ████████████████████████████
-  to_xml              120 μs    ████████████████████████████████
+  to_json             292 μs    ████████████████████████
+  to_yaml             1,834 μs  ████████████████████████████
+  from_json           442 μs    ████████████████████████████████
 
 Throughput:
-  Parse               2 GB/s
-  JSON convert        1.5 GB/s
-  YAML convert        1 GB/s
+  Parse               54.6 MB/s
+  JSON convert        1,549 MB/s (HEDL→JSON), 2,883 MB/s (JSON→HEDL)
+  YAML convert        246 MB/s (HEDL→YAML), 377 MB/s (YAML→HEDL)
+  XML convert         2,964 MB/s (HEDL→XML), 953 MB/s (XML→HEDL)
+  Linting             72-931 MB/s
 ```
 
 ### Performance Comparison

@@ -148,7 +148,3 @@ Key highlights:
 ## License
 
 HEDL is licensed under the [Apache License 2.0](https://github.com/dweve-ai/hedl/blob/master/LICENSE).
-
----
-
-*Documentation generated with comprehensive codebase analysis*

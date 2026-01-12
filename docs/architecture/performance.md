@@ -14,13 +14,29 @@ HEDL is designed for high-performance data processing with multiple optimization
 
 Based on benchmark suite (`hedl-bench`):
 
+**Core Operations:**
+
 | Operation | Throughput | Latency | Memory |
 |-----------|------------|---------|--------|
-| **Lexing** | 500+ MB/s | <1ms (small) | O(1) streaming |
-| **Parsing** | 200+ MB/s | 1-5ms (small) | O(n) heap |
-| **JSON Export** | 150+ MB/s | 2-10ms | O(n) |
-| **CSV Parsing** | 400+ MB/s | <2ms | O(1) streaming |
-| **Validation** | 300+ MB/s | <3ms | O(n) |
+| Parsing | 54.6 MB/s | 142 µs (small doc) | O(n) |
+| Canonicalization | N/A | 30 µs (small doc) | O(n) |
+| Linting | 72-931 MB/s | 3.67 µs (1K entities) | O(n) |
+
+**Format Conversion (HEDL → Other):**
+
+| Target Format | Throughput | Latency |
+|---------------|------------|---------|
+| JSON | 1,549 MB/s | 292 µs |
+| YAML | 246 MB/s | 1,834 µs |
+| XML | 2,964 MB/s | 153 µs |
+
+**Format Conversion (Other → HEDL):**
+
+| Source Format | Throughput | Latency |
+|---------------|------------|---------|
+| JSON | 2,883 MB/s | 442 µs |
+| YAML | 377 MB/s | 3,011 µs |
+| XML | 953 MB/s | 1,130 µs |
 
 ## Optimization Layers
 

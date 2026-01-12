@@ -1,25 +1,12 @@
 # Security Practices
 
-Security guidelines for HEDL development.
+Security guidelines for HEDL development and deployment.
 
-## Dependency Auditing
+---
 
-```bash
-# Install
-cargo install cargo-audit
+## Security Limits
 
-# Run audit
-cargo audit
-
-# Fix vulnerabilities
-cargo update
-```
-
-Run on every PR via CI.
-
-## Input Validation
-
-Always enforce limits:
+HEDL enforces 11 security limits to prevent DoS attacks:
 
 ```rust
 pub struct Limits {
@@ -33,21 +20,95 @@ pub struct Limits {
     pub max_block_string_size: usize, // 10 MB default
     pub max_object_keys: usize,       // 10,000 per object
     pub max_total_keys: usize,        // 10 million total
+    pub timeout: Option<Duration>,    // 30 seconds default (TODO: implement checking)
 }
 ```
 
-## Fuzz Testing
+**Note**: Timeout field exists but parser implementation is TODO. Track at: TIMEOUT-IMPLEMENTATION issue.
+
+---
+
+## Dependency Auditing
 
 ```bash
-cd crates/hedl-core
-cargo fuzz run parse -- -max_len=10000
+# Install cargo-audit
+cargo install cargo-audit
+
+# Run audit
+cargo audit
+
+# Fix vulnerabilities
+cargo update
 ```
+
+**CI Integration**: Now automated via `.github/workflows/ci.yml` (security job).
+
+---
+
+## Fuzz Testing
+
+HEDL has 15 fuzz targets across 4 crates.
+
+```bash
+# Run specific fuzz target
+cd crates/hedl-core
+cargo +nightly fuzz run fuzz_parse -- -max_total_time=300
+
+# Run all targets
+for target in $(cargo +nightly fuzz list); do
+    cargo +nightly fuzz run $target -- -max_total_time=300
+done
+```
+
+See: [Fuzz Testing Guide](../testing-fuzz.md) for complete documentation.
+
+---
+
+## SPEC Conformance
+
+64 conformance tests verify SPEC § 14 security requirements:
+
+```bash
+cargo test --package hedl-core conformance
+```
+
+See: [Conformance Guide](../testing-conformance.md) for details.
+
+---
+
+## Security Metrics
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Unsafe Code | 5.6% (20/359 files) | ✅ Excellent |
+| Open CVEs | 0 | ✅ Pass |
+| Fuzz Crashes | 0 open | ✅ Pass |
+| SPEC Compliance | 100% (64/64 tests) | ✅ Pass |
+
+---
 
 ## Security Disclosures
 
-Report vulnerabilities to: security@dweve.ai
+**IMPORTANT**: Report vulnerabilities privately.
 
-Do not create public issues for security vulnerabilities.
+- **Email**: security@dweve.com (private)
+- **Do NOT**: Create public GitHub issues for vulnerabilities
+
+---
+
+## TODO: Critical Security Work
+
+1. **Implement timeout checking in parser** (Issue: TIMEOUT-IMPLEMENTATION)
+   - Timeout field exists in Limits struct
+   - Parser implementation needs to check elapsed time
+   - Requires tests and validation
+
+2. **Enable CI/CD** (READY - `.github/workflows/ci.yml` created)
+   - Automated testing on every commit
+   - Security audit in CI
+   - Coverage tracking
+
+---
 
 ## Related
 

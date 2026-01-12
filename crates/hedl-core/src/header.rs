@@ -20,7 +20,7 @@
 use crate::error::HedlResult;
 use crate::errors::messages;
 use crate::lex::{is_valid_key_token, is_valid_type_name, strip_comment};
-use crate::limits::Limits;
+use crate::limits::{Limits, TimeoutContext};
 use std::collections::BTreeMap;
 
 /// Parsed header data.
@@ -42,7 +42,11 @@ pub struct Header {
 /// Parse the header section from preprocessed lines.
 ///
 /// Returns the header data and the index where the body starts.
-pub fn parse_header(lines: &[(usize, &str)], limits: &Limits) -> HedlResult<(Header, usize)> {
+pub fn parse_header(
+    lines: &[(usize, &str)],
+    limits: &Limits,
+    timeout_ctx: &TimeoutContext,
+) -> HedlResult<(Header, usize)> {
     let mut version: Option<(u32, u32)> = None;
     let mut aliases: BTreeMap<String, String> = BTreeMap::new();
     let mut structs: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -51,6 +55,11 @@ pub fn parse_header(lines: &[(usize, &str)], limits: &Limits) -> HedlResult<(Hea
     let mut first_directive = true;
 
     for (idx, &(line_num, line)) in lines.iter().enumerate() {
+        // Periodic timeout check (every 10,000 iterations to minimize overhead)
+        if idx % 10_000 == 0 {
+            timeout_ctx.check_timeout(line_num)?;
+        }
+
         let trimmed = line.trim();
 
         // Check for separator
@@ -353,7 +362,7 @@ mod tests {
     fn test_parse_minimal_header() {
         let input = "%VERSION: 1.0\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
     }
 
@@ -361,7 +370,7 @@ mod tests {
     fn test_header_returns_body_start_index() {
         let input = "%VERSION: 1.0\n---";
         let lines = make_lines(input);
-        let (_, body_idx) = parse_header(&lines, &default_limits()).unwrap();
+        let (_, body_idx) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(body_idx, 2); // Index after separator
     }
 
@@ -369,7 +378,7 @@ mod tests {
     fn test_header_with_comment() {
         let input = "%VERSION: 1.0\n# This is a comment\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
     }
 
@@ -377,7 +386,7 @@ mod tests {
     fn test_header_with_blank_lines() {
         let input = "%VERSION: 1.0\n\n  \n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
     }
 
@@ -385,7 +394,7 @@ mod tests {
     fn test_separator_with_comment() {
         let input = "%VERSION: 1.0\n---# comment after separator";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
     }
 
@@ -393,7 +402,7 @@ mod tests {
     fn test_separator_with_space_comment() {
         let input = "%VERSION: 1.0\n--- # comment";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
     }
 
@@ -403,7 +412,7 @@ mod tests {
     fn test_version_zero_zero() {
         let input = "%VERSION: 0.0\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (0, 0));
     }
 
@@ -411,7 +420,7 @@ mod tests {
     fn test_version_high_numbers() {
         let input = "%VERSION: 999.999\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (999, 999));
     }
 
@@ -419,7 +428,7 @@ mod tests {
     fn test_version_leading_zero_error() {
         let input = "%VERSION: 01.0\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("leading zeros"));
     }
@@ -428,7 +437,7 @@ mod tests {
     fn test_version_minor_leading_zero_error() {
         let input = "%VERSION: 1.01\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
     }
 
@@ -436,7 +445,7 @@ mod tests {
     fn test_version_invalid_format_error() {
         let input = "%VERSION: 1\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -448,7 +457,7 @@ mod tests {
     fn test_version_three_parts_error() {
         let input = "%VERSION: 1.0.0\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
     }
 
@@ -456,7 +465,7 @@ mod tests {
     fn test_version_non_numeric_error() {
         let input = "%VERSION: a.b\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("invalid major"));
     }
@@ -465,7 +474,7 @@ mod tests {
     fn test_version_not_first_error() {
         let input = "%STRUCT: User: [id,name]\n%VERSION: 1.0\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("must be the first"));
     }
@@ -476,7 +485,7 @@ mod tests {
     fn test_parse_struct() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name,email]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(
             header.structs.get("User"),
             Some(&vec![
@@ -491,7 +500,7 @@ mod tests {
     fn test_parse_struct_single_column() {
         let input = "%VERSION: 1.0\n%STRUCT: Point: [x]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.structs.get("Point"), Some(&vec!["x".to_string()]));
     }
 
@@ -499,7 +508,7 @@ mod tests {
     fn test_parse_multiple_structs() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,title]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert!(header.structs.contains_key("User"));
         assert!(header.structs.contains_key("Post"));
     }
@@ -508,7 +517,7 @@ mod tests {
     fn test_struct_identical_redefinition_ok() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: User: [id,name]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_ok());
     }
 
@@ -516,7 +525,7 @@ mod tests {
     fn test_struct_different_redefinition_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: User: [id, email]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -528,7 +537,7 @@ mod tests {
     fn test_struct_invalid_type_name_error() {
         let input = "%VERSION: 1.0\n%STRUCT: user: [id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("invalid type name"));
     }
@@ -537,7 +546,7 @@ mod tests {
     fn test_struct_invalid_column_name_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [Id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("invalid column name"));
     }
@@ -546,7 +555,7 @@ mod tests {
     fn test_struct_duplicate_column_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id, name, id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("duplicate column"));
     }
@@ -555,7 +564,7 @@ mod tests {
     fn test_struct_empty_columns_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: []\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("cannot be empty"));
     }
@@ -564,7 +573,7 @@ mod tests {
     fn test_struct_missing_brackets_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: id, name\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("enclosed in []"));
     }
@@ -577,7 +586,7 @@ mod tests {
         };
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name,email]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &limits);
+        let result = parse_header(&lines, &limits, &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("too many columns"));
     }
@@ -588,7 +597,7 @@ mod tests {
     fn test_parse_alias() {
         let input = "%VERSION: 1.0\n%ALIAS: %active: \"true\"\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.aliases.get("active"), Some(&"true".to_string()));
     }
 
@@ -596,7 +605,7 @@ mod tests {
     fn test_parse_alias_empty_value() {
         let input = "%VERSION: 1.0\n%ALIAS: %empty: \"\"\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.aliases.get("empty"), Some(&String::new()));
     }
 
@@ -604,7 +613,7 @@ mod tests {
     fn test_parse_alias_escaped_quotes() {
         let input = "%VERSION: 1.0\n%ALIAS: %quote: \"say \"\"hello\"\"\"\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(
             header.aliases.get("quote"),
             Some(&"say \"hello\"".to_string())
@@ -615,7 +624,7 @@ mod tests {
     fn test_parse_multiple_aliases() {
         let input = "%VERSION: 1.0\n%ALIAS: %a: \"1\"\n%ALIAS: %b: \"2\"\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.aliases.get("a"), Some(&"1".to_string()));
         assert_eq!(header.aliases.get("b"), Some(&"2".to_string()));
     }
@@ -624,7 +633,7 @@ mod tests {
     fn test_alias_duplicate_error() {
         let input = "%VERSION: 1.0\n%ALIAS: %key: \"a\"\n%ALIAS: %key: \"b\"\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("already defined"));
     }
@@ -633,7 +642,7 @@ mod tests {
     fn test_alias_missing_percent_error() {
         let input = "%VERSION: 1.0\n%ALIAS: key: \"value\"\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("must start with '%'"));
     }
@@ -642,7 +651,7 @@ mod tests {
     fn test_alias_unquoted_value_error() {
         let input = "%VERSION: 1.0\n%ALIAS: %key: value\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("quoted string"));
     }
@@ -655,7 +664,7 @@ mod tests {
         };
         let input = "%VERSION: 1.0\n%ALIAS: %a: \"1\"\n%ALIAS: %b: \"2\"\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &limits);
+        let result = parse_header(&lines, &limits, &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("too many aliases"));
     }
@@ -667,7 +676,7 @@ mod tests {
         let input =
             "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,title]\n%NEST: User > Post\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.nests.get("User"), Some(&"Post".to_string()));
     }
 
@@ -675,7 +684,7 @@ mod tests {
     fn test_nest_undefined_parent_error() {
         let input = "%VERSION: 1.0\n%STRUCT: Post: [id,title]\n%NEST: User > Post\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("not defined"));
     }
@@ -684,7 +693,7 @@ mod tests {
     fn test_nest_undefined_child_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%NEST: User > Post\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("not defined"));
     }
@@ -693,7 +702,7 @@ mod tests {
     fn test_nest_multiple_for_parent_error() {
         let input = "%VERSION: 1.0\n%STRUCT: A: [id]\n%STRUCT: B: [id]\n%STRUCT: C: [id]\n%NEST: A > B\n%NEST: A > C\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("multiple NEST rules"));
     }
@@ -702,7 +711,7 @@ mod tests {
     fn test_nest_invalid_format_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%NEST: User\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("Parent > Child"));
     }
@@ -712,7 +721,7 @@ mod tests {
         let input =
             "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,title]\n%NEST: user > Post\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("invalid parent type"));
     }
@@ -723,7 +732,7 @@ mod tests {
     fn test_missing_version_error() {
         let input = "%STRUCT: User: [id,name]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("VERSION"));
     }
@@ -732,7 +741,7 @@ mod tests {
     fn test_missing_separator_error() {
         let input = "%VERSION: 1.0\na: 1";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         // Error is "expected directive starting with '%'" since 'a: 1' is not a directive
         assert!(result.unwrap_err().message.contains("directive"));
@@ -742,7 +751,7 @@ mod tests {
     fn test_indented_separator_error() {
         let input = "%VERSION: 1.0\n  ---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("leading whitespace"));
     }
@@ -751,7 +760,7 @@ mod tests {
     fn test_unknown_directive_error() {
         let input = "%VERSION: 1.0\n%UNKNOWN: foo\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("unknown directive"));
     }
@@ -760,7 +769,7 @@ mod tests {
     fn test_directive_missing_colon_error() {
         let input = "%VERSION 1.0\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("missing ':'"));
     }
@@ -769,7 +778,7 @@ mod tests {
     fn test_directive_missing_space_after_colon_error() {
         let input = "%VERSION:1.0\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("followed by space"));
     }
@@ -778,7 +787,7 @@ mod tests {
     fn test_non_directive_in_header_error() {
         let input = "%VERSION: 1.0\nsome text\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("expected directive"));
     }
@@ -789,7 +798,7 @@ mod tests {
     fn test_header_clone() {
         let input = "%VERSION: 1.0\n%ALIAS: %x: \"1\"\n%STRUCT: User: [id,name]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         let cloned = header.clone();
         assert_eq!(cloned.version, header.version);
         assert_eq!(cloned.aliases, header.aliases);
@@ -800,7 +809,7 @@ mod tests {
     fn test_header_debug() {
         let input = "%VERSION: 1.0\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         let debug = format!("{:?}", header);
         assert!(debug.contains("version"));
         assert!(debug.contains("aliases"));
@@ -811,7 +820,7 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let lines: Vec<(usize, &str)> = vec![];
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
     }
 
@@ -819,7 +828,7 @@ mod tests {
     fn test_comment_with_directive() {
         let input = "%VERSION: 1.0 # version comment\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
     }
 
@@ -827,7 +836,7 @@ mod tests {
     fn test_struct_with_comment() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name] # columns\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert!(header.structs.contains_key("User"));
     }
 
@@ -835,7 +844,7 @@ mod tests {
     fn test_all_directives_combined() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,title]\n%ALIAS: %active: \"true\"\n%NEST: User > Post\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.version, (1, 0));
         assert_eq!(header.structs.len(), 2);
         assert_eq!(header.aliases.len(), 1);
@@ -848,7 +857,7 @@ mod tests {
     fn test_struct_with_count() {
         let input = "%VERSION: 1.0\n%STRUCT: Company (1): [id, name, founded, industry]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(
             header.structs.get("Company"),
             Some(&vec![
@@ -865,7 +874,7 @@ mod tests {
     fn test_struct_with_higher_count() {
         let input = "%VERSION: 1.0\n%STRUCT: Division (3): [id, name, head, budget]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(
             header.structs.get("Division"),
             Some(&vec![
@@ -882,7 +891,7 @@ mod tests {
     fn test_struct_with_zero_count() {
         let input = "%VERSION: 1.0\n%STRUCT: Empty (0): [id]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.struct_counts.get("Empty"), Some(&0));
     }
 
@@ -890,7 +899,7 @@ mod tests {
     fn test_struct_without_count() {
         let input = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(
             header.structs.get("User"),
             Some(&vec!["id".to_string(), "name".to_string()])
@@ -903,7 +912,7 @@ mod tests {
         let input =
             "%VERSION: 1.0\n%STRUCT: User (5): [id, name]\n%STRUCT: Post: [id,title]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.struct_counts.get("User"), Some(&5));
         assert_eq!(header.struct_counts.get("Post"), None);
     }
@@ -912,7 +921,7 @@ mod tests {
     fn test_struct_count_leading_zero_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User (01): [id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("leading zeros"));
     }
@@ -921,7 +930,7 @@ mod tests {
     fn test_struct_count_invalid_number_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User (abc): [id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("invalid count"));
     }
@@ -930,7 +939,7 @@ mod tests {
     fn test_struct_count_negative_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User (-1): [id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("invalid count"));
     }
@@ -939,7 +948,7 @@ mod tests {
     fn test_struct_count_extra_content_after_paren_error() {
         let input = "%VERSION: 1.0\n%STRUCT: User (5) extra: [id]\n---";
         let lines = make_lines(input);
-        let result = parse_header(&lines, &default_limits());
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -951,7 +960,7 @@ mod tests {
     fn test_struct_count_whitespace_before_paren() {
         let input = "%VERSION: 1.0\n%STRUCT: Company (10): [id, name]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.struct_counts.get("Company"), Some(&10));
     }
 
@@ -959,7 +968,7 @@ mod tests {
     fn test_struct_count_whitespace_inside_paren() {
         let input = "%VERSION: 1.0\n%STRUCT: Company ( 10 ): [id, name]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.struct_counts.get("Company"), Some(&10));
     }
 
@@ -967,7 +976,7 @@ mod tests {
     fn test_struct_count_large_number() {
         let input = "%VERSION: 1.0\n%STRUCT: BigList (999999): [id]\n---";
         let lines = make_lines(input);
-        let (header, _) = parse_header(&lines, &default_limits()).unwrap();
+        let (header, _) = parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
         assert_eq!(header.struct_counts.get("BigList"), Some(&999999));
     }
 }

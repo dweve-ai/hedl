@@ -690,7 +690,8 @@ fn bench_json_streaming_comparison(c: &mut Criterion) {
     }
     result.streaming_times_ns = hedl_times;
 
-                // Measure JSON streaming times    let mut json_times = Vec::new();
+    // Measure JSON streaming times
+    let mut json_times = Vec::new();
     for _ in 0..10 {
         let start = Instant::now();
         let stream = JsonDeserializer::from_reader(json.as_bytes()).into_iter::<JsonValue>();

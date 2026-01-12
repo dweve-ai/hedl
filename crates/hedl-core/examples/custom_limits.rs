@@ -78,6 +78,7 @@ users:
         max_block_string_size: 1024 * 1024, // 1 MB
         max_object_keys: 1_000,              // 1k keys per object
         max_total_keys: 100_000,             // 100k total keys
+        timeout: Some(std::time::Duration::from_secs(10)), // 10 second timeout
     };
 
     let hedl_small = br#"%VERSION: 1.0
