@@ -258,10 +258,7 @@ impl NodeBuilder {
 
     /// Adds a single child node under a relationship name.
     pub fn child(mut self, rel_name: impl Into<String>, node: Node) -> Self {
-        self.children
-            .entry(rel_name.into())
-            .or_default()
-            .push(node);
+        self.children.entry(rel_name.into()).or_default().push(node);
         self
     }
 
@@ -395,12 +392,11 @@ pub mod quick {
     /// ]);
     /// ```
     pub fn simple_user_list(users: Vec<(&str, &str, &str)>) -> Document {
-        let mut list = MatrixListBuilder::new("User")
-            .schema(vec![
-                "id".to_string(),
-                "name".to_string(),
-                "email".to_string(),
-            ]);
+        let mut list = MatrixListBuilder::new("User").schema(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "email".to_string(),
+        ]);
 
         for (id, name, email) in users {
             let node = NodeBuilder::new("User", id)
@@ -413,11 +409,10 @@ pub mod quick {
         }
 
         DocumentBuilder::new()
-            .struct_def("User", vec![
-                "id".to_string(),
-                "name".to_string(),
-                "email".to_string(),
-            ])
+            .struct_def(
+                "User",
+                vec!["id".to_string(), "name".to_string(), "email".to_string()],
+            )
             .list("users", list.build())
             .build()
     }
@@ -438,8 +433,8 @@ pub mod quick {
         users: Vec<(&str, &str)>,
         posts: Vec<(&str, &str, &str)>, // (id, title, author_id)
     ) -> Document {
-        let mut users_list = MatrixListBuilder::new("User")
-            .schema(vec!["id".to_string(), "name".to_string()]);
+        let mut users_list =
+            MatrixListBuilder::new("User").schema(vec!["id".to_string(), "name".to_string()]);
 
         for (id, name) in users {
             let node = NodeBuilder::new("User", id)
@@ -450,12 +445,11 @@ pub mod quick {
             users_list = users_list.row(node);
         }
 
-        let mut posts_list = MatrixListBuilder::new("Post")
-            .schema(vec![
-                "id".to_string(),
-                "title".to_string(),
-                "author".to_string(),
-            ]);
+        let mut posts_list = MatrixListBuilder::new("Post").schema(vec![
+            "id".to_string(),
+            "title".to_string(),
+            "author".to_string(),
+        ]);
 
         for (id, title, author_id) in posts {
             let node = NodeBuilder::new("Post", id)
@@ -469,11 +463,10 @@ pub mod quick {
 
         DocumentBuilder::new()
             .struct_def("User", vec!["id".to_string(), "name".to_string()])
-            .struct_def("Post", vec![
-                "id".to_string(),
-                "title".to_string(),
-                "author".to_string(),
-            ])
+            .struct_def(
+                "Post",
+                vec!["id".to_string(), "title".to_string(), "author".to_string()],
+            )
             .list("users", users_list.build())
             .list("posts", posts_list.build())
             .build()
@@ -502,10 +495,14 @@ mod tests {
     fn test_matrix_list_builder() {
         let list = MatrixListBuilder::new("User")
             .schema(vec!["id".to_string(), "name".to_string()])
-            .row(Node::new("User", "alice", vec![
-                Value::String("alice".to_string()),
-                Value::String("Alice".to_string()),
-            ]))
+            .row(Node::new(
+                "User",
+                "alice",
+                vec![
+                    Value::String("alice".to_string()),
+                    Value::String("Alice".to_string()),
+                ],
+            ))
             .build();
 
         assert_eq!(list.type_name, "User");
@@ -544,10 +541,7 @@ mod tests {
 
     #[test]
     fn test_quick_simple_scalars() {
-        let doc = quick::simple_scalars(vec![
-            ("name", "Alice"),
-            ("city", "NYC"),
-        ]);
+        let doc = quick::simple_scalars(vec![("name", "Alice"), ("city", "NYC")]);
 
         assert_eq!(doc.root.len(), 2);
         assert!(doc.root.contains_key("name"));

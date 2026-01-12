@@ -115,7 +115,11 @@ pub trait DocumentVisitor {
     type Error;
 
     /// Called at the start of document traversal.
-    fn begin_document(&mut self, _doc: &Document, _ctx: &VisitorContext) -> Result<(), Self::Error> {
+    fn begin_document(
+        &mut self,
+        _doc: &Document,
+        _ctx: &VisitorContext,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -133,20 +137,12 @@ pub trait DocumentVisitor {
     ) -> Result<(), Self::Error>;
 
     /// Called at the start of an object (before visiting children).
-    fn begin_object(
-        &mut self,
-        _key: &str,
-        _ctx: &VisitorContext,
-    ) -> Result<(), Self::Error> {
+    fn begin_object(&mut self, _key: &str, _ctx: &VisitorContext) -> Result<(), Self::Error> {
         Ok(())
     }
 
     /// Called at the end of an object (after visiting children).
-    fn end_object(
-        &mut self,
-        _key: &str,
-        _ctx: &VisitorContext,
-    ) -> Result<(), Self::Error> {
+    fn end_object(&mut self, _key: &str, _ctx: &VisitorContext) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -201,10 +197,7 @@ pub trait DocumentVisitor {
 ///
 /// This function handles the recursive structure of documents, freeing
 /// format converters from duplicating traversal logic.
-pub fn traverse<V: DocumentVisitor>(
-    doc: &Document,
-    visitor: &mut V,
-) -> Result<(), V::Error> {
+pub fn traverse<V: DocumentVisitor>(doc: &Document, visitor: &mut V) -> Result<(), V::Error> {
     let ctx = VisitorContext::new(doc);
     visitor.begin_document(doc, &ctx)?;
 
@@ -305,11 +298,7 @@ impl DocumentVisitor for StatsCollector {
         Ok(())
     }
 
-    fn begin_object(
-        &mut self,
-        _key: &str,
-        ctx: &VisitorContext,
-    ) -> Result<(), Self::Error> {
+    fn begin_object(&mut self, _key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
         self.object_count += 1;
         self.max_depth = self.max_depth.max(ctx.depth);
         Ok(())
@@ -418,17 +407,31 @@ mod tests {
         impl DocumentVisitor for PathCollector {
             type Error = std::convert::Infallible;
 
-            fn visit_scalar(&mut self, _key: &str, _value: &Value, ctx: &VisitorContext) -> Result<(), Self::Error> {
+            fn visit_scalar(
+                &mut self,
+                _key: &str,
+                _value: &Value,
+                ctx: &VisitorContext,
+            ) -> Result<(), Self::Error> {
                 self.paths.push(ctx.path_string());
                 Ok(())
             }
 
-            fn begin_object(&mut self, _key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
+            fn begin_object(
+                &mut self,
+                _key: &str,
+                ctx: &VisitorContext,
+            ) -> Result<(), Self::Error> {
                 self.paths.push(ctx.path_string());
                 Ok(())
             }
 
-            fn visit_node(&mut self, _node: &Node, _schema: &[String], ctx: &VisitorContext) -> Result<(), Self::Error> {
+            fn visit_node(
+                &mut self,
+                _node: &Node,
+                _schema: &[String],
+                ctx: &VisitorContext,
+            ) -> Result<(), Self::Error> {
                 self.paths.push(ctx.path_string());
                 Ok(())
             }

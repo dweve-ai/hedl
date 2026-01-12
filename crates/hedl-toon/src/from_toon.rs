@@ -38,16 +38,10 @@ use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use std::collections::BTreeMap;
 
 /// Configuration for TOON parsing
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FromToonConfig {
     /// Expected indentation width (default: 0 for auto-detection)
     pub indent_width: usize,
-}
-
-impl Default for FromToonConfig {
-    fn default() -> Self {
-        Self { indent_width: 0 }
-    }
 }
 
 /// Parse TOON string to HEDL Document
@@ -324,7 +318,11 @@ impl ToonParser {
         Ok(list)
     }
 
-    fn parse_expanded_item(&mut self, item_indent: usize, depth: usize) -> Result<(Node, Vec<String>)> {
+    fn parse_expanded_item(
+        &mut self,
+        item_indent: usize,
+        depth: usize,
+    ) -> Result<(Node, Vec<String>)> {
         if depth > MAX_NESTING_DEPTH {
             return Err(ToonError::MaxDepthExceeded {
                 depth,
@@ -390,7 +388,11 @@ impl ToonParser {
         Ok((node, schema))
     }
 
-    fn parse_object_children(&mut self, base_indent: usize, depth: usize) -> Result<BTreeMap<String, Item>> {
+    fn parse_object_children(
+        &mut self,
+        base_indent: usize,
+        depth: usize,
+    ) -> Result<BTreeMap<String, Item>> {
         let mut children = BTreeMap::new();
 
         while self.pos < self.lines.len() {
@@ -436,7 +438,12 @@ impl ToonParser {
         Ok((key, value))
     }
 
-    fn parse_delimited_row(&self, content: &str, delimiter: char, line_num: usize) -> Result<Vec<Value>> {
+    fn parse_delimited_row(
+        &self,
+        content: &str,
+        delimiter: char,
+        line_num: usize,
+    ) -> Result<Vec<Value>> {
         let mut values = Vec::new();
         let mut pos = 0;
         let chars: Vec<char> = content.chars().collect();
@@ -462,7 +469,13 @@ impl ToonParser {
         Ok(values)
     }
 
-    fn parse_row_value(&self, chars: &[char], start: usize, delimiter: char, line_num: usize) -> Result<(Value, usize)> {
+    fn parse_row_value(
+        &self,
+        chars: &[char],
+        start: usize,
+        delimiter: char,
+        line_num: usize,
+    ) -> Result<(Value, usize)> {
         if start >= chars.len() {
             return Ok((Value::Null, start));
         }
@@ -761,8 +774,14 @@ local: "@item1""#;
         let doc = from_toon(toon).unwrap();
 
         assert!(matches!(&doc.root["empty"], Item::Scalar(Value::Null)));
-        assert!(matches!(&doc.root["active"], Item::Scalar(Value::Bool(true))));
-        assert!(matches!(&doc.root["disabled"], Item::Scalar(Value::Bool(false))));
+        assert!(matches!(
+            &doc.root["active"],
+            Item::Scalar(Value::Bool(true))
+        ));
+        assert!(matches!(
+            &doc.root["disabled"],
+            Item::Scalar(Value::Bool(false))
+        ));
     }
 
     #[test]

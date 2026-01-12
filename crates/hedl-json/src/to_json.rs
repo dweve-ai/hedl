@@ -17,8 +17,8 @@
 
 //! HEDL to JSON conversion
 
-use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use serde_json::{json, Map, Number, Value as JsonValue};
 use std::collections::BTreeMap;
 
@@ -195,7 +195,10 @@ fn matrix_list_to_json(
         // Include count_hint if present
         if let Some(count) = list.count_hint {
             if let Some(obj) = metadata.as_object_mut() {
-                obj.insert("__count_hint__".to_string(), JsonValue::Number(count.into()));
+                obj.insert(
+                    "__count_hint__".to_string(),
+                    JsonValue::Number(count.into()),
+                );
             }
         }
 

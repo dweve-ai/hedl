@@ -47,10 +47,7 @@ async fn connect() -> Arc<Graph> {
         .build()
         .expect("Failed to build config");
 
-    Arc::new(
-        Graph::connect(config)
-            .expect("Failed to connect to Neo4j"),
-    )
+    Arc::new(Graph::connect(config).expect("Failed to connect to Neo4j"))
 }
 
 /// Helper to clean up test data.

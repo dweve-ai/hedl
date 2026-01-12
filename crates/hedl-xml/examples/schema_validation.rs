@@ -160,21 +160,19 @@ fn error_handling() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => println!("  Unexpected success"),
         Err(e) => {
             println!("  ✓ Expected error: {}", e);
-            match e {
-                ValidationError::TypeValidationError {
-                    name,
-                    expected_type,
-                    value,
-                    line,
-                } => {
-                    println!("    Element: {}", name);
-                    println!("    Expected: {}", expected_type);
-                    println!("    Found: {}", value);
-                    if let Some(l) = line {
-                        println!("    Line: {}", l);
-                    }
+            if let ValidationError::TypeValidationError {
+                name,
+                expected_type,
+                value,
+                line,
+            } = e
+            {
+                println!("    Element: {}", name);
+                println!("    Expected: {}", expected_type);
+                println!("    Found: {}", value);
+                if let Some(l) = line {
+                    println!("    Line: {}", l);
                 }
-                _ => {}
             }
         }
     }

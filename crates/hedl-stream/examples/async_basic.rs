@@ -86,15 +86,12 @@ users: @User
                     order_count += 1;
                     let amount = node.get_field(1).unwrap();
                     let status = node.get_field(2).unwrap();
-                    println!(
-                        "    📦 Order {}: {} - {}",
-                        node.id,
-                        amount,
-                        status
-                    );
+                    println!("    📦 Order {}: {} - {}", node.id, amount, status);
                 }
             }
-            NodeEvent::ListEnd { type_name, count, .. } => {
+            NodeEvent::ListEnd {
+                type_name, count, ..
+            } => {
                 println!("✓ List of {} ended ({} items)\n", type_name, count);
             }
             _ => {}

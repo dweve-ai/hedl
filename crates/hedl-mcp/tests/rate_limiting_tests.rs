@@ -162,11 +162,7 @@ fn test_server_rejects_requests_exceeding_limit() {
     // First 5 requests should succeed
     for i in 0..5 {
         let response = server.handle_request(ping_request(i + 2));
-        assert!(
-            response.error.is_none(),
-            "Request {} should succeed",
-            i + 1
-        );
+        assert!(response.error.is_none(), "Request {} should succeed", i + 1);
     }
 
     // 6th request should be rate limited (but note: check_rate_limit is called
@@ -344,10 +340,7 @@ fn test_concurrent_request_simulation() {
 fn test_default_config_rate_limits() {
     let config = McpServerConfig::default();
 
-    assert_eq!(
-        config.rate_limit_burst, 200,
-        "Default burst should be 200"
-    );
+    assert_eq!(config.rate_limit_burst, 200, "Default burst should be 200");
     assert_eq!(
         config.rate_limit_per_second, 100,
         "Default rate should be 100/sec"
@@ -395,7 +388,11 @@ fn test_rate_limiter_edge_cases() {
         }
     }
     // Should consume at least the initial burst
-    assert!(consumed >= 10000, "Should consume at least burst capacity, got {}", consumed);
+    assert!(
+        consumed >= 10000,
+        "Should consume at least burst capacity, got {}",
+        consumed
+    );
     // And should eventually hit the limit
     assert!(!limiter.check_limit(), "Should eventually be rate limited");
 }

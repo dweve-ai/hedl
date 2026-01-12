@@ -148,7 +148,9 @@ mod tests {
             .filter(|d| matches!(d.kind(), DiagnosticKind::IdNaming))
             .collect();
         assert_eq!(short_id_hints.len(), 2);
-        assert!(short_id_hints.iter().all(|d| d.severity() == Severity::Hint));
+        assert!(short_id_hints
+            .iter()
+            .all(|d| d.severity() == Severity::Hint));
     }
 
     #[test]

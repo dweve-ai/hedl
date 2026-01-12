@@ -181,16 +181,29 @@ mod tests {
     #[test]
     fn test_reasonable_limits() {
         // Sanity checks for configured limits
-        assert!(DEBOUNCE_MS >= 50, "Debounce too short, will cause excessive CPU");
+        assert!(
+            DEBOUNCE_MS >= 50,
+            "Debounce too short, will cause excessive CPU"
+        );
         assert!(DEBOUNCE_MS <= 500, "Debounce too long, will feel laggy");
 
-        assert!(DEFAULT_MAX_CACHE_SIZE >= 100, "Cache too small for normal usage");
-        assert!(DEFAULT_MAX_CACHE_SIZE <= 10000, "Cache too large, excessive memory");
+        assert!(
+            DEFAULT_MAX_CACHE_SIZE >= 100,
+            "Cache too small for normal usage"
+        );
+        assert!(
+            DEFAULT_MAX_CACHE_SIZE <= 10000,
+            "Cache too large, excessive memory"
+        );
 
-        assert!(DEFAULT_MAX_DOCUMENT_SIZE >= 1 * BYTES_PER_MEGABYTE,
-                "Document limit too small for real files");
-        assert!(DEFAULT_MAX_DOCUMENT_SIZE <= 2048 * BYTES_PER_MEGABYTE,
-                "Document limit too large, risk of OOM");
+        assert!(
+            DEFAULT_MAX_DOCUMENT_SIZE >= 1 * BYTES_PER_MEGABYTE,
+            "Document limit too small for real files"
+        );
+        assert!(
+            DEFAULT_MAX_DOCUMENT_SIZE <= 2048 * BYTES_PER_MEGABYTE,
+            "Document limit too large, risk of OOM"
+        );
     }
 
     #[test]
@@ -199,14 +212,19 @@ mod tests {
         assert!(DIAGNOSTIC_LINE_END_CHAR >= 100, "Too small for long lines");
         assert!(DIAGNOSTIC_LINE_END_CHAR <= 10000, "Unnecessarily large");
 
-        assert_eq!(SYMBOL_LINE_END_CHAR, DIAGNOSTIC_LINE_END_CHAR,
-                   "Should be consistent across LSP features");
+        assert_eq!(
+            SYMBOL_LINE_END_CHAR, DIAGNOSTIC_LINE_END_CHAR,
+            "Should be consistent across LSP features"
+        );
     }
 
     #[test]
     fn test_position_constants() {
         // Verify position-related constants
-        assert_eq!(LINE_NUMBER_OFFSET, 1, "LSP uses 0-based, parser uses 1-based");
+        assert_eq!(
+            LINE_NUMBER_OFFSET, 1,
+            "LSP uses 0-based, parser uses 1-based"
+        );
         assert_eq!(POSITION_ZERO, 0, "LSP positions are 0-indexed");
     }
 }

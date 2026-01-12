@@ -204,7 +204,10 @@ pub struct BatchResults<T> {
 impl<T> BatchResults<T> {
     /// Create new batch results from a vector of file results.
     pub fn new(results: Vec<FileResult<T>>, elapsed_ms: u128) -> Self {
-        Self { results, elapsed_ms }
+        Self {
+            results,
+            elapsed_ms,
+        }
     }
 
     /// Get the total number of files processed.
@@ -698,8 +701,7 @@ impl BatchOperation for ValidationOperation {
     fn process_file(&self, path: &Path) -> Result<Self::Output, CliError> {
         use hedl_core::{parse_with_limits, ParseOptions};
 
-        let content =
-            std::fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))?;
+        let content = std::fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))?;
 
         let options = ParseOptions {
             strict_refs: self.strict,
@@ -738,8 +740,7 @@ impl BatchOperation for FormatOperation {
         use hedl_c14n::{canonicalize_with_config, CanonicalConfig};
         use hedl_core::parse;
 
-        let content =
-            std::fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))?;
+        let content = std::fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))?;
 
         let mut doc = parse(content.as_bytes()).map_err(|e| CliError::parse(e.to_string()))?;
 
@@ -748,8 +749,7 @@ impl BatchOperation for FormatOperation {
             add_count_hints(&mut doc);
         }
 
-        let config = CanonicalConfig::new()
-            .with_ditto(self.ditto);
+        let config = CanonicalConfig::new().with_ditto(self.ditto);
 
         let canonical = canonicalize_with_config(&doc, &config)
             .map_err(|e| CliError::canonicalization(e.to_string()))?;
@@ -786,8 +786,7 @@ impl BatchOperation for LintOperation {
         use hedl_core::parse;
         use hedl_lint::lint;
 
-        let content =
-            std::fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))?;
+        let content = std::fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))?;
 
         let doc = parse(content.as_bytes()).map_err(|e| CliError::parse(e.to_string()))?;
 
@@ -811,8 +810,6 @@ impl BatchOperation for LintOperation {
 
 /// Recursively add count hints to all matrix lists in the document
 fn add_count_hints(doc: &mut hedl_core::Document) {
-    
-
     for item in doc.root.values_mut() {
         add_count_hints_to_item(item);
     }
@@ -1016,7 +1013,9 @@ mod tests {
             ..Default::default()
         });
 
-        let files: Vec<PathBuf> = (0..20).map(|i| PathBuf::from(format!("file{}.hedl", i))).collect();
+        let files: Vec<PathBuf> = (0..20)
+            .map(|i| PathBuf::from(format!("file{}.hedl", i)))
+            .collect();
 
         let results = processor
             .process(&files, MockOperation { should_fail: false }, false)

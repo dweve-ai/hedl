@@ -30,7 +30,9 @@
 //! - Position calculations are bounds-checked
 
 use crate::analysis::AnalyzedDocument;
-use crate::constants::{HEADER_SELECTION_CHAR, LINE_NUMBER_OFFSET, POSITION_ZERO, SYMBOL_LINE_END_CHAR};
+use crate::constants::{
+    HEADER_SELECTION_CHAR, LINE_NUMBER_OFFSET, POSITION_ZERO, SYMBOL_LINE_END_CHAR,
+};
 use tower_lsp::lsp_types::*;
 use tracing::{debug, warn};
 

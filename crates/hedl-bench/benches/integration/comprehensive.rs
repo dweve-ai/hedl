@@ -750,7 +750,8 @@ fn create_component_breakdown_table(results: &[ComponentResult], report: &mut Be
             .map(|r| r.throughput_mbs)
             .unwrap_or(0.0);
 
-                    let pct_of_total = 0.0;        let rating = if avg_us < 100.0 {
+        let pct_of_total = 0.0;
+        let rating = if avg_us < 100.0 {
             "Excellent"
         } else if avg_us < 1000.0 {
             "Good"
@@ -956,7 +957,6 @@ fn create_scaling_analysis_table(report: &mut BenchmarkReport) {
 
     report.add_custom_table(table);
 }
-
 
 fn create_input_size_table(results: &[WorkflowResult], report: &mut BenchmarkReport) {
     let mut table = CustomTable {
@@ -1204,7 +1204,6 @@ fn generate_insights(workflow_results: &[WorkflowResult], report: &mut Benchmark
         })
         .sum::<f64>()
         / workflow_results.len().max(1) as f64;
-
 
     // Find slowest component
     let max_parse_pct = workflow_results

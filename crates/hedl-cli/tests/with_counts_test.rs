@@ -47,7 +47,11 @@ teams: @Team
     fs::write(temp_file.path(), input).unwrap();
 
     let output = Command::new(get_hedl_binary())
-        .args(["format", temp_file.path().to_str().unwrap(), "--with-counts"])
+        .args([
+            "format",
+            temp_file.path().to_str().unwrap(),
+            "--with-counts",
+        ])
         .output()
         .expect("Failed to execute hedl");
 
@@ -74,7 +78,11 @@ teams(5): @Team
     fs::write(temp_file.path(), input).unwrap();
 
     let output = Command::new(get_hedl_binary())
-        .args(["format", temp_file.path().to_str().unwrap(), "--with-counts"])
+        .args([
+            "format",
+            temp_file.path().to_str().unwrap(),
+            "--with-counts",
+        ])
         .output()
         .expect("Failed to execute hedl");
 
@@ -100,7 +108,11 @@ teams: @Team
     fs::write(temp_file.path(), input).unwrap();
 
     let output = Command::new(get_hedl_binary())
-        .args(["format", temp_file.path().to_str().unwrap(), "--with-counts"])
+        .args([
+            "format",
+            temp_file.path().to_str().unwrap(),
+            "--with-counts",
+        ])
         .output()
         .expect("Failed to execute hedl");
 
@@ -131,7 +143,11 @@ sports:
     fs::write(temp_file.path(), input).unwrap();
 
     let output = Command::new(get_hedl_binary())
-        .args(["format", temp_file.path().to_str().unwrap(), "--with-counts"])
+        .args([
+            "format",
+            temp_file.path().to_str().unwrap(),
+            "--with-counts",
+        ])
         .output()
         .expect("Failed to execute hedl");
 
@@ -191,7 +207,11 @@ players: @Player
     fs::write(temp_file.path(), input).unwrap();
 
     let output = Command::new(get_hedl_binary())
-        .args(["format", temp_file.path().to_str().unwrap(), "--with-counts"])
+        .args([
+            "format",
+            temp_file.path().to_str().unwrap(),
+            "--with-counts",
+        ])
         .output()
         .expect("Failed to execute hedl");
 
@@ -221,7 +241,11 @@ teams: @Team[id,name]
     fs::write(temp_file.path(), input).unwrap();
 
     let output = Command::new(get_hedl_binary())
-        .args(["format", temp_file.path().to_str().unwrap(), "--with-counts"])
+        .args([
+            "format",
+            temp_file.path().to_str().unwrap(),
+            "--with-counts",
+        ])
         .output()
         .expect("Failed to execute hedl");
 

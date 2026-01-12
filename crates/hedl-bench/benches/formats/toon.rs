@@ -112,7 +112,6 @@ struct ConversionMetrics {
     conversion_fidelity: f64,
 }
 
-
 // ============================================================================
 // Data Collection Functions
 // ============================================================================
@@ -166,7 +165,6 @@ fn collect_conversion_metrics() -> Vec<ConversionMetrics> {
 
     metrics
 }
-
 
 // ============================================================================
 // Criterion Benchmarks

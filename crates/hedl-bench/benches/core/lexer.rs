@@ -22,8 +22,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
-    generate_users, generate_products, generate_blog, sizes,
-    BenchmarkReport, PerfResult,
+    generate_blog, generate_products, generate_users, sizes, BenchmarkReport, PerfResult,
 };
 use hedl_core::lex::{parse_expression, parse_reference, scan_regions};
 use std::cell::RefCell;
@@ -80,7 +79,10 @@ fn bench_parse_reference(c: &mut Criterion) {
         ("simple", "User:123"),
         ("complex", "BlogPost:abc-123-xyz-789"),
         ("nested_type", "Company.Department:eng-001"),
-        ("long_id", "Organization:xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"),
+        (
+            "long_id",
+            "Organization:xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx",
+        ),
     ];
 
     for (name, input) in &test_cases {
@@ -208,7 +210,12 @@ fn bench_scan_documents(c: &mut Criterion) {
             let _ = scan_regions(&hedl);
             total_ns += start.elapsed().as_nanos() as u64;
         }
-        record_perf(&format!("scan_documents_users_{}", size), iterations, total_ns, Some(bytes));
+        record_perf(
+            &format!("scan_documents_users_{}", size),
+            iterations,
+            total_ns,
+            Some(bytes),
+        );
     }
 
     group.finish();
@@ -238,7 +245,12 @@ fn bench_scan_complex_documents(c: &mut Criterion) {
             let _ = scan_regions(&hedl);
             total_ns += start.elapsed().as_nanos() as u64;
         }
-        record_perf(&format!("scan_complex_products_{}", size), iterations, total_ns, Some(bytes));
+        record_perf(
+            &format!("scan_complex_products_{}", size),
+            iterations,
+            total_ns,
+            Some(bytes),
+        );
     }
 
     // Blog (nested structures)
@@ -301,7 +313,9 @@ fn export_reports(c: &mut Criterion) {
             println!("2. Expression parsing time should scale linearly with expression complexity");
             println!("3. Region scanning throughput should exceed 100 MB/s for simple documents");
             println!("4. Consider optimizing reference/expression parsing if avg time >500ns");
-            println!("5. Profile string allocation overhead if scanning throughput is below 50 MB/s");
+            println!(
+                "5. Profile string allocation overhead if scanning throughput is below 50 MB/s"
+            );
         }
     });
 }

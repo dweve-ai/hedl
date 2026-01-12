@@ -105,7 +105,7 @@ mod error;
 mod from_toon;
 mod to_toon;
 
-pub use error::{ToonError, Result, MAX_NESTING_DEPTH};
+pub use error::{Result, ToonError, MAX_NESTING_DEPTH};
 pub use from_toon::{from_toon, from_toon_with_config, FromToonConfig};
 pub use to_toon::{to_toon, Delimiter, ToToonConfig, ToToonConfigBuilder};
 

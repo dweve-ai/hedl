@@ -175,9 +175,9 @@ pub fn execute_hedl_convert_from(args: Option<JsonValue>) -> McpResult<CallToolR
                 has_headers: true,
                 trim: true,
                 max_rows: usize::MAX,
-                infer_schema: true,  // Enable auto-schema inference
-                sample_rows: 100,    // Default sample size
-                list_key: None,      // Use default pluralized list key
+                infer_schema: true, // Enable auto-schema inference
+                sample_rows: 100,   // Default sample size
+                list_key: None,     // Use default pluralized list key
             };
             hedl_csv::from_csv_with_config(&args.content, type_name, &schema_strs, config)
                 .map_err(|e| McpError::InvalidArguments(format!("CSV conversion failed: {}", e)))?

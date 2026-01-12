@@ -51,7 +51,7 @@ arrow = { version = "53", optional = true }
 flate2 = "1.0"  # For compression benchmarks
 
 # WASM runtime for real WASM benchmarks
-wasmtime = { version = "27", optional = true }
+wasmtime = { version = "38", optional = true }
 anyhow = { version = "1.0", optional = true }
 
 [dependencies.dhat]

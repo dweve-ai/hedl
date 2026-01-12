@@ -107,11 +107,7 @@ impl MatrixList {
     }
 
     /// Create a new matrix list with rows.
-    pub fn with_rows(
-        type_name: impl Into<String>,
-        schema: Vec<String>,
-        rows: Vec<Node>,
-    ) -> Self {
+    pub fn with_rows(type_name: impl Into<String>, schema: Vec<String>, rows: Vec<Node>) -> Self {
         Self {
             type_name: type_name.into(),
             schema,

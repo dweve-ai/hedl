@@ -214,10 +214,10 @@ impl LexConfig {
     #[inline]
     pub fn strict() -> Self {
         Self {
-            max_string_length: 64 * 1024,     // 64 KB
-            max_recursion_depth: 32,          // 32 levels
-            max_field_count: 1_000,           // 1,000 fields
-            max_paren_depth: 16,              // 16 levels
+            max_string_length: 64 * 1024, // 64 KB
+            max_recursion_depth: 32,      // 32 levels
+            max_field_count: 1_000,       // 1,000 fields
+            max_paren_depth: 16,          // 16 levels
         }
     }
 
@@ -237,9 +237,9 @@ impl LexConfig {
     pub fn permissive() -> Self {
         Self {
             max_string_length: 100 * 1024 * 1024, // 100 MB
-            max_recursion_depth: 1_000,            // 1,000 levels
-            max_field_count: 1_000_000,            // 1 million fields
-            max_paren_depth: 256,                  // 256 levels
+            max_recursion_depth: 1_000,           // 1,000 levels
+            max_field_count: 1_000_000,           // 1 million fields
+            max_paren_depth: 256,                 // 256 levels
         }
     }
 
@@ -288,8 +288,14 @@ mod tests {
     #[test]
     fn test_config_new() {
         let config = LexConfig::new();
-        assert_eq!(config.max_string_length(), LexConfig::DEFAULT_MAX_STRING_LENGTH);
-        assert_eq!(config.max_recursion_depth(), LexConfig::DEFAULT_MAX_RECURSION_DEPTH);
+        assert_eq!(
+            config.max_string_length(),
+            LexConfig::DEFAULT_MAX_STRING_LENGTH
+        );
+        assert_eq!(
+            config.max_recursion_depth(),
+            LexConfig::DEFAULT_MAX_RECURSION_DEPTH
+        );
         assert_eq!(config.max_field_count(), LexConfig::DEFAULT_MAX_FIELD_COUNT);
         assert_eq!(config.max_paren_depth(), LexConfig::DEFAULT_MAX_PAREN_DEPTH);
     }
@@ -528,9 +534,9 @@ mod tests {
         // Demonstrate configuring very high limits for trusted data
         let config = LexConfig::new()
             .with_max_string_length(500 * 1024 * 1024) // 500 MB
-            .with_max_recursion_depth(50_000)           // 50K levels
-            .with_max_field_count(100_000_000)          // 100M fields
-            .with_max_paren_depth(10_000);              // 10K levels
+            .with_max_recursion_depth(50_000) // 50K levels
+            .with_max_field_count(100_000_000) // 100M fields
+            .with_max_paren_depth(10_000); // 10K levels
 
         assert_eq!(config.max_string_length(), 500 * 1024 * 1024);
         assert_eq!(config.max_recursion_depth(), 50_000);
@@ -569,18 +575,18 @@ mod tests {
         // Configuration for processing large trusted datasets
         let config = LexConfig::new()
             .with_max_string_length(1024 * 1024 * 1024) // 1 GB strings
-            .with_max_field_count(50_000_000);           // 50M fields
+            .with_max_field_count(50_000_000); // 50M fields
 
         assert!(config.check_string_length(500 * 1024 * 1024)); // 500 MB ok
-        assert!(config.check_field_count(30_000_000));           // 30M ok
+        assert!(config.check_field_count(30_000_000)); // 30M ok
     }
 
     #[test]
     fn test_use_case_deep_nesting() {
         // Configuration for deeply nested trusted structures
         let config = LexConfig::new()
-            .with_max_recursion_depth(100_000)  // 100K levels
-            .with_max_paren_depth(100_000);     // 100K parens
+            .with_max_recursion_depth(100_000) // 100K levels
+            .with_max_paren_depth(100_000); // 100K parens
 
         assert!(config.check_recursion_depth(75_000));
         assert!(config.check_paren_depth(75_000));

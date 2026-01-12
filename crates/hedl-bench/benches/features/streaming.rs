@@ -51,7 +51,6 @@ use hedl_json::ToJsonConfig;
 #[cfg(feature = "json")]
 use serde_json::{Deserializer as JsonDeserializer, Value as JsonValue};
 
-
 // ============================================================================
 // Constants
 // ============================================================================
@@ -704,7 +703,6 @@ fn bench_json_streaming_comparison(c: &mut Criterion) {
     record_result(result);
     group.finish();
 }
-
 
 // ============================================================================
 // Original Benchmarks (kept for baseline)

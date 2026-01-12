@@ -29,7 +29,10 @@
 //! ```
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hedl_bench::{generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell};
+use hedl_bench::{
+    generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult,
+    TableCell,
+};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -108,11 +111,13 @@ impl WasmBenchContext {
         let mut store = Store::new(&engine, ());
         let instance = Instance::new(&mut store, &module, &[])?;
 
-        let memory = instance.get_memory(&mut store, "memory")
+        let memory = instance
+            .get_memory(&mut store, "memory")
             .ok_or_else(|| anyhow::anyhow!("memory export not found"))?;
 
         let alloc_fn = instance.get_typed_func::<i32, i32>(&mut store, "__wbindgen_malloc")?;
-        let dealloc_fn = instance.get_typed_func::<(i32, i32), ()>(&mut store, "__wbindgen_free")?;
+        let dealloc_fn =
+            instance.get_typed_func::<(i32, i32), ()>(&mut store, "__wbindgen_free")?;
         let parse_fn = instance.get_typed_func::<(i32, i32), i32>(&mut store, "parse")?;
 
         Ok(Self {
@@ -132,7 +137,8 @@ impl WasmBenchContext {
         let ptr = self.alloc_fn.call(&mut self.store, len)?;
 
         // Write input to WASM memory
-        self.memory.write(&mut self.store, ptr as usize, input_bytes)?;
+        self.memory
+            .write(&mut self.store, ptr as usize, input_bytes)?;
 
         // Call parse function
         let result = self.parse_fn.call(&mut self.store, (ptr, len))?;
@@ -207,7 +213,11 @@ fn bench_wasm_parse(c: &mut Criterion) {
     let wasm_size = wasm_bytes.len();
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            report.add_note(&format!("WASM binary size: {} bytes ({:.1} KB)", wasm_size, wasm_size as f64 / 1024.0));
+            report.add_note(&format!(
+                "WASM binary size: {} bytes ({:.1} KB)",
+                wasm_size,
+                wasm_size as f64 / 1024.0
+            ));
         }
     });
 
@@ -289,7 +299,12 @@ fn bench_wasm_instantiation(c: &mut Criterion) {
         let _ = Module::new(&engine, &wasm_bytes);
         total_ns += start.elapsed().as_nanos() as u64;
     }
-    add_perf_result("wasm_compile", total_ns, iterations, Some(wasm_bytes.len() as u64));
+    add_perf_result(
+        "wasm_compile",
+        total_ns,
+        iterations,
+        Some(wasm_bytes.len() as u64),
+    );
 
     // Benchmark instantiation (with pre-compiled module)
     let module = Module::new(&engine, &wasm_bytes).unwrap();
@@ -347,7 +362,11 @@ fn create_comparison_table(report: &mut BenchmarkReport) {
         if let (Some(n), Some(w)) = (native, wasm) {
             let native_ms = n.avg_time_ns.unwrap_or(0) as f64 / 1_000_000.0;
             let wasm_ms = w.avg_time_ns.unwrap_or(0) as f64 / 1_000_000.0;
-            let slowdown = if native_ms > 0.0 { wasm_ms / native_ms } else { 0.0 };
+            let slowdown = if native_ms > 0.0 {
+                wasm_ms / native_ms
+            } else {
+                0.0
+            };
 
             table.rows.push(vec![
                 TableCell::Integer(size as i64),
@@ -414,8 +433,12 @@ fn generate_insights(report: &mut BenchmarkReport) {
     // Calculate average slowdown
     let mut slowdowns = Vec::new();
     for size in [sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
-        let native = results.iter().find(|r| r.name == format!("native_parse_{}", size));
-        let wasm = results.iter().find(|r| r.name == format!("wasm_parse_{}", size));
+        let native = results
+            .iter()
+            .find(|r| r.name == format!("native_parse_{}", size));
+        let wasm = results
+            .iter()
+            .find(|r| r.name == format!("wasm_parse_{}", size));
 
         if let (Some(n), Some(w)) = (native, wasm) {
             let native_ns = n.avg_time_ns.unwrap_or(1);
@@ -433,10 +456,14 @@ fn generate_insights(report: &mut BenchmarkReport) {
             category: "finding".to_string(),
             title: format!("WASM is {:.2}x slower than native on average", avg_slowdown),
             description: "Measured slowdown factor from real WASM execution".to_string(),
-            data_points: slowdowns.iter().enumerate().map(|(i, s)| {
-                let size = [sizes::SMALL, sizes::MEDIUM, sizes::LARGE][i];
-                format!("Size {}: {:.2}x slowdown", size, s)
-            }).collect(),
+            data_points: slowdowns
+                .iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    let size = [sizes::SMALL, sizes::MEDIUM, sizes::LARGE][i];
+                    format!("Size {}: {:.2}x slowdown", size, s)
+                })
+                .collect(),
         });
 
         let recommendation = if avg_slowdown < 2.0 {

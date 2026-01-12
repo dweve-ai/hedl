@@ -33,7 +33,9 @@
 //! 4. No panics or undefined behavior occurs
 
 use hedl_core::{Document, HedlErrorKind, Item, MatrixList, Node, Value};
-use hedl_parquet::{from_parquet_bytes, to_parquet_bytes, to_parquet_bytes_with_config, ToParquetConfig};
+use hedl_parquet::{
+    from_parquet_bytes, to_parquet_bytes, to_parquet_bytes_with_config, ToParquetConfig,
+};
 use parquet::basic::Compression;
 use std::sync::Arc;
 
@@ -62,7 +64,10 @@ fn test_decompression_bomb_protection() {
     let result = from_parquet_bytes(&malicious_parquet);
 
     // Should fail due to column count limit (which is part of decompression bomb protection)
-    assert!(result.is_err(), "Decompression bomb (excessive columns) should be rejected");
+    assert!(
+        result.is_err(),
+        "Decompression bomb (excessive columns) should be rejected"
+    );
 
     let err = result.unwrap_err();
     assert_eq!(err.kind, HedlErrorKind::Security);

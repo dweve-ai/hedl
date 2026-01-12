@@ -17,8 +17,8 @@
 
 //! Security limits for HEDL parsing.
 
-use std::time::{Duration, Instant};
 use crate::error::{HedlError, HedlResult};
+use std::time::{Duration, Instant};
 
 /// Configurable limits for parser security.
 ///
@@ -67,8 +67,8 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            max_file_size: 1024 * 1024 * 1024,      // 1GB
-            max_line_length: 1024 * 1024,           // 1MB
+            max_file_size: 1024 * 1024 * 1024, // 1GB
+            max_line_length: 1024 * 1024,      // 1MB
             max_indent_depth: 50,
             max_nodes: 10_000_000,
             max_aliases: 10_000,
@@ -347,9 +347,12 @@ mod tests {
     #[test]
     fn test_max_total_keys_greater_than_max_object_keys() {
         let limits = Limits::default();
-        assert!(limits.max_total_keys > limits.max_object_keys,
+        assert!(
+            limits.max_total_keys > limits.max_object_keys,
             "max_total_keys ({}) should be greater than max_object_keys ({})",
-            limits.max_total_keys, limits.max_object_keys);
+            limits.max_total_keys,
+            limits.max_object_keys
+        );
     }
 
     // ==================== Timeout tests ====================

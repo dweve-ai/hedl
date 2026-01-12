@@ -106,12 +106,10 @@
 //! }
 //! ```
 
-use crate::{from_xml, to_xml, FromXmlConfig, ToXmlConfig};
 use crate::streaming::{StreamConfig, StreamItem};
+use crate::{from_xml, to_xml, FromXmlConfig, ToXmlConfig};
 use hedl_core::Document;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
 // ============================================================================
 // Async File I/O Functions
@@ -323,6 +321,7 @@ pub struct AsyncXmlStream<R: AsyncRead + Unpin> {
     reader: R,
     config: StreamConfig,
     buffer: Vec<u8>,
+    #[allow(dead_code)]
     position: usize,
     chunk_size: usize,
     parser_state: ParserState,
@@ -331,7 +330,10 @@ pub struct AsyncXmlStream<R: AsyncRead + Unpin> {
 #[derive(Debug)]
 enum ParserState {
     FindingRoot,
-    ParsingRoot { root_name: String },
+    #[allow(dead_code)]
+    ParsingRoot {
+        root_name: String,
+    },
     Exhausted,
 }
 
@@ -700,12 +702,15 @@ mod tests {
     #[tokio::test]
     async fn test_to_xml_writer_async_valid() {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("val".to_string(), Item::Scalar(Value::Int(42)));
+        doc.root
+            .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 
         let mut buffer = Vec::new();
         let config = ToXmlConfig::default();
 
-        to_xml_writer_async(&doc, &mut buffer, &config).await.unwrap();
+        to_xml_writer_async(&doc, &mut buffer, &config)
+            .await
+            .unwrap();
 
         let xml = String::from_utf8(buffer).unwrap();
         assert!(xml.contains("<val>42</val>"));
@@ -717,7 +722,9 @@ mod tests {
         let mut buffer = Vec::new();
         let config = ToXmlConfig::default();
 
-        to_xml_writer_async(&doc, &mut buffer, &config).await.unwrap();
+        to_xml_writer_async(&doc, &mut buffer, &config)
+            .await
+            .unwrap();
 
         let xml = String::from_utf8(buffer).unwrap();
         assert!(xml.contains("<?xml"));
@@ -750,7 +757,8 @@ mod tests {
     #[tokio::test]
     async fn test_to_xml_async_valid() {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("val".to_string(), Item::Scalar(Value::Int(123)));
+        doc.root
+            .insert("val".to_string(), Item::Scalar(Value::Int(123)));
 
         let config = ToXmlConfig::default();
         let xml = to_xml_async(&doc, &config).await.unwrap();
@@ -823,8 +831,10 @@ mod tests {
     #[tokio::test]
     async fn test_round_trip_async() {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("bool_val".to_string(), Item::Scalar(Value::Bool(true)));
-        doc.root.insert("int_val".to_string(), Item::Scalar(Value::Int(42)));
+        doc.root
+            .insert("bool_val".to_string(), Item::Scalar(Value::Bool(true)));
+        doc.root
+            .insert("int_val".to_string(), Item::Scalar(Value::Int(42)));
         doc.root.insert(
             "string_val".to_string(),
             Item::Scalar(Value::String("hello".to_string())),
@@ -887,17 +897,16 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_generation() {
         let mut doc1 = Document::new((1, 0));
-        doc1.root.insert("id".to_string(), Item::Scalar(Value::Int(1)));
+        doc1.root
+            .insert("id".to_string(), Item::Scalar(Value::Int(1)));
 
         let mut doc2 = Document::new((1, 0));
-        doc2.root.insert("id".to_string(), Item::Scalar(Value::Int(2)));
+        doc2.root
+            .insert("id".to_string(), Item::Scalar(Value::Int(2)));
 
         let config = ToXmlConfig::default();
 
-        let (r1, r2) = tokio::join!(
-            to_xml_async(&doc1, &config),
-            to_xml_async(&doc2, &config)
-        );
+        let (r1, r2) = tokio::join!(to_xml_async(&doc1, &config), to_xml_async(&doc2, &config));
 
         assert!(r1.is_ok());
         assert!(r2.is_ok());

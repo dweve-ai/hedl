@@ -87,10 +87,7 @@ fn test_position_preservation_large_dataset() {
         list.add_row(Node::new(
             "Row",
             format!("row_{:03}", i),
-            vec![
-                Value::String(format!("row_{:03}", i)),
-                Value::Int(i as i64),
-            ],
+            vec![Value::String(format!("row_{:03}", i)), Value::Int(i as i64)],
         ));
     }
 
@@ -203,10 +200,7 @@ fn test_position_preservation_identical_values() {
                 list.rows[i].fields[0],
                 Value::String(expected_id.to_string())
             );
-            assert_eq!(
-                list.rows[i].fields[1],
-                Value::String("active".to_string())
-            );
+            assert_eq!(list.rows[i].fields[1], Value::String("active".to_string()));
         }
     } else {
         panic!("Expected records list");
@@ -269,7 +263,10 @@ fn test_explicit_position_column_preservation() {
             assert_eq!(list.rows[i].id, *expected_id);
 
             // Verify explicit position column
-            assert_eq!(list.rows[i].fields[0], Value::String(expected_id.to_string()));
+            assert_eq!(
+                list.rows[i].fields[0],
+                Value::String(expected_id.to_string())
+            );
             assert_eq!(list.rows[i].fields[1], Value::Int(*expected_position));
             assert_eq!(
                 list.rows[i].fields[2],
@@ -435,11 +432,7 @@ fn test_position_preservation_with_nulls() {
     let mut doc = Document::new((1, 0));
     let mut list = MatrixList::new(
         "Record",
-        vec![
-            "id".to_string(),
-            "value1".to_string(),
-            "value2".to_string(),
-        ],
+        vec!["id".to_string(), "value1".to_string(), "value2".to_string()],
     );
 
     // Add rows with some null values
@@ -605,7 +598,10 @@ fn test_position_preservation_unicode_ids() {
         list.add_row(Node::new(
             "Item",
             *id,
-            vec![Value::String(id.to_string()), Value::String(name.to_string())],
+            vec![
+                Value::String(id.to_string()),
+                Value::String(name.to_string()),
+            ],
         ));
     }
 

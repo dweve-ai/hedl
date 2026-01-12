@@ -113,7 +113,9 @@ impl BenchConfig {
     pub fn with_sizes(mut self, sizes: &[usize]) -> Self {
         self.sizes = sizes.to_vec();
         for &size in sizes {
-            self.iterations.entry(size).or_insert_with(|| Self::default_iterations_for_size(size));
+            self.iterations
+                .entry(size)
+                .or_insert_with(|| Self::default_iterations_for_size(size));
         }
         self
     }

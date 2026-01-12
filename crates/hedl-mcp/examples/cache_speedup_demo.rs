@@ -100,7 +100,10 @@ fn benchmark_validate() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!("  Uncached: {} ops in {:?} ({} µs/op)", iterations, uncached_duration, uncached_per_op);
+    println!(
+        "  Uncached: {} ops in {:?} ({} µs/op)",
+        iterations, uncached_duration, uncached_per_op
+    );
 
     // Cached performance
     let cache = Arc::new(OperationCache::new(1000));
@@ -118,7 +121,10 @@ fn benchmark_validate() {
     let cached_duration = start.elapsed();
     let cached_per_op = cached_duration.as_micros() / iterations as u128;
 
-    println!("  Cached:   {} ops in {:?} ({} µs/op)", iterations, cached_duration, cached_per_op);
+    println!(
+        "  Cached:   {} ops in {:?} ({} µs/op)",
+        iterations, cached_duration, cached_per_op
+    );
 
     let speedup = uncached_per_op as f64 / cached_per_op.max(1) as f64;
     println!("  Speedup:  {:.1}x faster", speedup);
@@ -141,7 +147,10 @@ fn benchmark_query() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!("  Uncached: {} ops in {:?} ({} µs/op)", iterations, uncached_duration, uncached_per_op);
+    println!(
+        "  Uncached: {} ops in {:?} ({} µs/op)",
+        iterations, uncached_duration, uncached_per_op
+    );
 
     // Cached performance
     let cache = Arc::new(OperationCache::new(1000));
@@ -159,7 +168,10 @@ fn benchmark_query() {
     let cached_duration = start.elapsed();
     let cached_per_op = cached_duration.as_micros() / iterations as u128;
 
-    println!("  Cached:   {} ops in {:?} ({} µs/op)", iterations, cached_duration, cached_per_op);
+    println!(
+        "  Cached:   {} ops in {:?} ({} µs/op)",
+        iterations, cached_duration, cached_per_op
+    );
 
     let speedup = uncached_per_op as f64 / cached_per_op.max(1) as f64;
     println!("  Speedup:  {:.1}x faster", speedup);
@@ -182,7 +194,10 @@ fn benchmark_stats() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!("  Uncached: {} ops in {:?} ({} µs/op)", iterations, uncached_duration, uncached_per_op);
+    println!(
+        "  Uncached: {} ops in {:?} ({} µs/op)",
+        iterations, uncached_duration, uncached_per_op
+    );
 
     // Cached performance
     let cache = Arc::new(OperationCache::new(1000));
@@ -200,7 +215,10 @@ fn benchmark_stats() {
     let cached_duration = start.elapsed();
     let cached_per_op = cached_duration.as_micros() / iterations as u128;
 
-    println!("  Cached:   {} ops in {:?} ({} µs/op)", iterations, cached_duration, cached_per_op);
+    println!(
+        "  Cached:   {} ops in {:?} ({} µs/op)",
+        iterations, cached_duration, cached_per_op
+    );
 
     let speedup = uncached_per_op as f64 / cached_per_op.max(1) as f64;
     println!("  Speedup:  {:.1}x faster", speedup);
@@ -220,7 +238,8 @@ fn benchmark_mixed_workload() {
         .map(|i| {
             format!(
                 "%VERSION: 1.0\n%STRUCT: Item: [id, value]\n---\nitems: @Item\n  | item{}, {}\n",
-                i, i * 100
+                i,
+                i * 100
             )
         })
         .collect();
@@ -254,7 +273,10 @@ fn benchmark_mixed_workload() {
     let mixed_duration = start.elapsed();
     let mixed_per_op = mixed_duration.as_micros() / iterations as u128;
 
-    println!("  Mixed:    {} ops in {:?} ({} µs/op)", iterations, mixed_duration, mixed_per_op);
+    println!(
+        "  Mixed:    {} ops in {:?} ({} µs/op)",
+        iterations, mixed_duration, mixed_per_op
+    );
 
     // Compare to uncached baseline
     let start = Instant::now();
@@ -267,7 +289,10 @@ fn benchmark_mixed_workload() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!("  Uncached: {} ops in {:?} ({} µs/op)", iterations, uncached_duration, uncached_per_op);
+    println!(
+        "  Uncached: {} ops in {:?} ({} µs/op)",
+        iterations, uncached_duration, uncached_per_op
+    );
 
     let speedup = uncached_per_op as f64 / mixed_per_op as f64;
     println!("  Speedup:  {:.1}x faster", speedup);

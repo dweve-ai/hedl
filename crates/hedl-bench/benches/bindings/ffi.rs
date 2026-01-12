@@ -1276,7 +1276,7 @@ fn create_memory_management_overhead_table(
 }
 
 // Tables 5-15 implementations would follow similar pattern...
-    // Benchmark baseline tables
+// Benchmark baseline tables
 fn create_remaining_tables(report: &mut BenchmarkReport) {
     // Table 5: Error Handling Performance - USE REAL DATA
     create_error_handling_table(report);
@@ -1990,7 +1990,6 @@ fn generate_insights(results: &[FFICallResult], report: &mut BenchmarkReport) {
         });
     }
 
-
     report.add_insight(Insight {
         category: "strength".to_string(),
         title: "C ABI Provides Universal Compatibility".to_string(),
@@ -2001,7 +2000,6 @@ fn generate_insights(results: &[FFICallResult], report: &mut BenchmarkReport) {
             "Industry standard: Works with all major FFI frameworks".to_string(),
         ],
     });
-
 
     report.add_insight(Insight {
         category: "recommendation".to_string(),
@@ -2027,7 +2025,6 @@ fn generate_insights(results: &[FFICallResult], report: &mut BenchmarkReport) {
             "Mitigation: Use RAII wrappers in C++, context managers in Python".to_string(),
         ],
     });
-
 }
 
 fn export_reports(c: &mut Criterion) {

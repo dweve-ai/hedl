@@ -131,8 +131,14 @@ products: @Product
 
     // Access fields by index
     use hedl_core::Value;
-    assert_eq!(nodes[0].get_field(0), Some(&Value::String("prod1".to_string())));
-    assert_eq!(nodes[0].get_field(1), Some(&Value::String("Widget".to_string())));
+    assert_eq!(
+        nodes[0].get_field(0),
+        Some(&Value::String("prod1".to_string()))
+    );
+    assert_eq!(
+        nodes[0].get_field(1),
+        Some(&Value::String("Widget".to_string()))
+    );
     assert_eq!(nodes[0].get_field(2), Some(&Value::Float(19.99)));
     assert_eq!(nodes[0].get_field(3), Some(&Value::Bool(true)));
 
@@ -530,20 +536,44 @@ data: @Data
     use hedl_core::Value;
 
     // row1: original values
-    assert_eq!(nodes[0].get_field(1), Some(&Value::String("CategoryA".to_string())));
-    assert_eq!(nodes[0].get_field(2), Some(&Value::String("Active".to_string())));
+    assert_eq!(
+        nodes[0].get_field(1),
+        Some(&Value::String("CategoryA".to_string()))
+    );
+    assert_eq!(
+        nodes[0].get_field(2),
+        Some(&Value::String("Active".to_string()))
+    );
 
     // row2: both ditto'd from row1
-    assert_eq!(nodes[1].get_field(1), Some(&Value::String("CategoryA".to_string())));
-    assert_eq!(nodes[1].get_field(2), Some(&Value::String("Active".to_string())));
+    assert_eq!(
+        nodes[1].get_field(1),
+        Some(&Value::String("CategoryA".to_string()))
+    );
+    assert_eq!(
+        nodes[1].get_field(2),
+        Some(&Value::String("Active".to_string()))
+    );
 
     // row3: category ditto'd, status changed
-    assert_eq!(nodes[2].get_field(1), Some(&Value::String("CategoryA".to_string())));
-    assert_eq!(nodes[2].get_field(2), Some(&Value::String("Inactive".to_string())));
+    assert_eq!(
+        nodes[2].get_field(1),
+        Some(&Value::String("CategoryA".to_string()))
+    );
+    assert_eq!(
+        nodes[2].get_field(2),
+        Some(&Value::String("Inactive".to_string()))
+    );
 
     // row4: category changed, status ditto'd from row3
-    assert_eq!(nodes[3].get_field(1), Some(&Value::String("CategoryB".to_string())));
-    assert_eq!(nodes[3].get_field(2), Some(&Value::String("Inactive".to_string())));
+    assert_eq!(
+        nodes[3].get_field(1),
+        Some(&Value::String("CategoryB".to_string()))
+    );
+    assert_eq!(
+        nodes[3].get_field(2),
+        Some(&Value::String("Inactive".to_string()))
+    );
 }
 
 #[test]
@@ -566,8 +596,14 @@ users: @User
     assert_eq!(nodes.len(), 2);
 
     use hedl_core::Value;
-    assert_eq!(nodes[0].get_field(1), Some(&Value::String("Active".to_string())));
-    assert_eq!(nodes[1].get_field(1), Some(&Value::String("Inactive".to_string())));
+    assert_eq!(
+        nodes[0].get_field(1),
+        Some(&Value::String("Active".to_string()))
+    );
+    assert_eq!(
+        nodes[1].get_field(1),
+        Some(&Value::String("Inactive".to_string()))
+    );
 }
 
 // ==================== Inline Schema Tests ====================
@@ -640,7 +676,10 @@ data: @Data
     assert_eq!(nodes.len(), 3);
 
     use hedl_core::Value;
-    assert_eq!(nodes[0].get_field(1), Some(&Value::String("Hello, World!".to_string())));
+    assert_eq!(
+        nodes[0].get_field(1),
+        Some(&Value::String("Hello, World!".to_string()))
+    );
 }
 
 // ==================== Comment Handling Tests ====================

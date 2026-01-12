@@ -424,10 +424,7 @@ mod tests {
     async fn test_single_empty_line() {
         let input = "\n";
         let mut reader = AsyncLineReader::new(Cursor::new(input));
-        assert_eq!(
-            reader.next_line().await.unwrap(),
-            Some((1, "".to_string()))
-        );
+        assert_eq!(reader.next_line().await.unwrap(), Some((1, "".to_string())));
         assert_eq!(reader.next_line().await.unwrap(), None);
     }
 
@@ -555,10 +552,7 @@ mod tests {
     async fn test_long_line() {
         let long_line = "a".repeat(10000);
         let mut reader = AsyncLineReader::new(Cursor::new(long_line.clone()));
-        assert_eq!(
-            reader.next_line().await.unwrap(),
-            Some((1, long_line))
-        );
+        assert_eq!(reader.next_line().await.unwrap(), Some((1, long_line)));
     }
 
     #[tokio::test]

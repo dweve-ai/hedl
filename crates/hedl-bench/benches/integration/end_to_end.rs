@@ -1146,7 +1146,6 @@ fn create_throughput_comparison_table(results: &[WorkflowResult], report: &mut B
     report.add_custom_table(table);
 }
 
-
 fn create_average_latency_table(results: &[WorkflowResult], report: &mut BenchmarkReport) {
     let mut table = CustomTable {
         title: "Average Latency by Size (Parse+Canonicalize)".to_string(),
@@ -1165,7 +1164,10 @@ fn create_average_latency_table(results: &[WorkflowResult], report: &mut Benchma
         ("medium", "Batch processing"),
         ("large", "Bulk data import"),
     ] {
-        if let Some(result) = results.iter().find(|r| r.name == format!("parse_canonicalize_{}", size)) {
+        if let Some(result) = results
+            .iter()
+            .find(|r| r.name == format!("parse_canonicalize_{}", size))
+        {
             let latency_us = result.time_ns as f64 / 1000.0;
             table.rows.push(vec![
                 TableCell::String(size.to_string()),
@@ -1178,7 +1180,6 @@ fn create_average_latency_table(results: &[WorkflowResult], report: &mut Benchma
 
     report.add_custom_table(table);
 }
-
 
 fn create_pipeline_stage_analysis_table(
     breakdowns: &[PipelineBreakdown],
@@ -1206,7 +1207,13 @@ fn create_pipeline_stage_analysis_table(
             breakdowns.iter().map(|b| b.canonicalize_pct).sum::<f64>() / breakdowns.len() as f64;
 
         // Parse - priority based on measured percentage
-        let parse_priority = if avg_parse > 50.0 { "High" } else if avg_parse > 30.0 { "Medium" } else { "Low" };
+        let parse_priority = if avg_parse > 50.0 {
+            "High"
+        } else if avg_parse > 30.0 {
+            "Medium"
+        } else {
+            "Low"
+        };
         table.rows.push(vec![
             TableCell::String("Parse".to_string()),
             TableCell::Float(avg_parse),
@@ -1216,7 +1223,13 @@ fn create_pipeline_stage_analysis_table(
         ]);
 
         // Convert - priority based on measured percentage
-        let convert_priority = if avg_convert > 50.0 { "High" } else if avg_convert > 30.0 { "Medium" } else { "Low" };
+        let convert_priority = if avg_convert > 50.0 {
+            "High"
+        } else if avg_convert > 30.0 {
+            "Medium"
+        } else {
+            "Low"
+        };
         table.rows.push(vec![
             TableCell::String("Convert".to_string()),
             TableCell::Float(avg_convert),
@@ -1226,7 +1239,13 @@ fn create_pipeline_stage_analysis_table(
         ]);
 
         // Canonicalize - priority based on measured percentage
-        let canon_priority = if avg_canon > 50.0 { "High" } else if avg_canon > 30.0 { "Medium" } else { "Low" };
+        let canon_priority = if avg_canon > 50.0 {
+            "High"
+        } else if avg_canon > 30.0 {
+            "Medium"
+        } else {
+            "Low"
+        };
         table.rows.push(vec![
             TableCell::String("Canonicalize".to_string()),
             TableCell::Float(avg_canon),
@@ -1684,16 +1703,30 @@ fn generate_insights(
         })
         .unwrap_or(0.0);
 
-    let throughput_status = if max_throughput > 100.0 { "met" } else { "not met" };
-    let batch_status = if batch_efficiency > 85.0 { "met" } else { "not met" };
+    let throughput_status = if max_throughput > 100.0 {
+        "met"
+    } else {
+        "not met"
+    };
+    let batch_status = if batch_efficiency > 85.0 {
+        "met"
+    } else {
+        "not met"
+    };
 
     report.add_insight(Insight {
         category: "finding".to_string(),
         title: "Production Readiness Assessment".to_string(),
         description: "Performance metrics summary for production evaluation".to_string(),
         data_points: vec![
-            format!("Peak throughput: {:.1} MB/s (target >100 MB/s: {})", max_throughput, throughput_status),
-            format!("Batch efficiency: {:.1}% (target >85%: {})", batch_efficiency, batch_status),
+            format!(
+                "Peak throughput: {:.1} MB/s (target >100 MB/s: {})",
+                max_throughput, throughput_status
+            ),
+            format!(
+                "Batch efficiency: {:.1}% (target >85%: {})",
+                batch_efficiency, batch_status
+            ),
             "Error handling: Fast fail, low overhead".to_string(),
             "Scalability: Linear to 100x batch size".to_string(),
         ],

@@ -55,7 +55,11 @@ impl LintContext {
     /// * `file_path` - Optional path to the file being linted
     /// * `line_number` - Current line number (1-indexed)
     /// * `source_text` - The full source text being linted
-    pub fn new(file_path: Option<PathBuf>, line_number: u32, source_text: impl Into<String>) -> Self {
+    pub fn new(
+        file_path: Option<PathBuf>,
+        line_number: u32,
+        source_text: impl Into<String>,
+    ) -> Self {
         Self {
             file_path,
             line_number,
@@ -103,9 +107,7 @@ impl LintContext {
         if line_num == 0 {
             return None;
         }
-        self.source_text
-            .lines()
-            .nth((line_num - 1) as usize)
+        self.source_text.lines().nth((line_num - 1) as usize)
     }
 
     /// Get the current line from the context
@@ -332,22 +334,20 @@ impl LintRunner {
         // Add limit exceeded warning if applicable
         if limit_exceeded {
             use crate::diagnostic::DiagnosticKind;
-            diagnostics.push(
-                Diagnostic::warning(
-                    DiagnosticKind::Custom("diagnostic-limit-exceeded".to_string()),
-                    format!(
-                        "Diagnostic limit of {} exceeded. Further diagnostics have been suppressed. \
+            diagnostics.push(Diagnostic::warning(
+                DiagnosticKind::Custom("diagnostic-limit-exceeded".to_string()),
+                format!(
+                    "Diagnostic limit of {} exceeded. Further diagnostics have been suppressed. \
                          This typically indicates a systemic issue in the document that should be \
                          addressed before fixing individual diagnostics.",
-                        self.config.max_diagnostics
-                    ),
-                    "lint-runner",
-                )
-            );
+                    self.config.max_diagnostics
+                ),
+                "lint-runner",
+            ));
         }
 
         // Sort by severity (errors first)
-        diagnostics.sort_by(|a, b| b.severity().cmp(&a.severity()));
+        diagnostics.sort_by_key(|b| std::cmp::Reverse(b.severity()));
 
         diagnostics
     }
@@ -847,11 +847,7 @@ mod tests {
         let list = MatrixList::new("Empty", vec!["id".to_string()]);
         doc.root.insert("empty".to_string(), Item::List(list));
 
-        let context = LintContext::new(
-            Some(PathBuf::from("test.hedl")),
-            42,
-            "line1\nline2\nline3",
-        );
+        let context = LintContext::new(Some(PathBuf::from("test.hedl")), 42, "line1\nline2\nline3");
         let diagnostics = runner.run_with_context(&doc, context);
 
         assert!(!diagnostics.is_empty());

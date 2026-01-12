@@ -72,9 +72,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let doc_teeth = from_csv_with_config(csv_teeth, "Tooth", &["type"], config)?;
 
-    println!("  Child -> children: {} items", doc_children.get("children").unwrap().as_list().unwrap().rows.len());
-    println!("  Mouse -> mice: {} items", doc_mice.get("mice").unwrap().as_list().unwrap().rows.len());
-    println!("  Tooth -> teeth: {} items", doc_teeth.get("teeth").unwrap().as_list().unwrap().rows.len());
+    println!(
+        "  Child -> children: {} items",
+        doc_children
+            .get("children")
+            .unwrap()
+            .as_list()
+            .unwrap()
+            .rows
+            .len()
+    );
+    println!(
+        "  Mouse -> mice: {} items",
+        doc_mice.get("mice").unwrap().as_list().unwrap().rows.len()
+    );
+    println!(
+        "  Tooth -> teeth: {} items",
+        doc_teeth
+            .get("teeth")
+            .unwrap()
+            .as_list()
+            .unwrap()
+            .rows
+            .len()
+    );
     println!();
 
     // Example 3: Collective Nouns
@@ -87,7 +108,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let doc_dataset = from_csv_with_config(csv_data, "Data", &["value", "timestamp"], config)?;
 
-    println!("  Data -> dataset: {} items", doc_dataset.get("dataset").unwrap().as_list().unwrap().rows.len());
+    println!(
+        "  Data -> dataset: {} items",
+        doc_dataset
+            .get("dataset")
+            .unwrap()
+            .as_list()
+            .unwrap()
+            .rows
+            .len()
+    );
     println!();
 
     // Example 4: Case-Sensitive Custom Names
@@ -101,7 +131,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let doc_products = from_csv_with_config(csv_items, "Product", &["sku", "price"], config)?;
 
     println!("  Product -> ProductCatalog (case preserved)");
-    println!("  Items: {}", doc_products.get("ProductCatalog").unwrap().as_list().unwrap().rows.len());
+    println!(
+        "  Items: {}",
+        doc_products
+            .get("ProductCatalog")
+            .unwrap()
+            .as_list()
+            .unwrap()
+            .rows
+            .len()
+    );
     println!();
 
     // Example 5: Round-Trip with Custom Plurals
@@ -132,10 +171,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         list_key: Some("event_log_v2".to_string()),
         ..Default::default()
     };
-    let doc_events = from_csv_with_config(csv_events, "Event", &["event_type", "timestamp"], config)?;
+    let doc_events =
+        from_csv_with_config(csv_events, "Event", &["event_type", "timestamp"], config)?;
 
     println!("  Event -> event_log_v2 (custom naming convention)");
-    println!("  Items: {}", doc_events.get("event_log_v2").unwrap().as_list().unwrap().rows.len());
+    println!(
+        "  Items: {}",
+        doc_events
+            .get("event_log_v2")
+            .unwrap()
+            .as_list()
+            .unwrap()
+            .rows
+            .len()
+    );
     println!();
 
     // Example 7: Demonstrating Default Behavior
@@ -145,7 +194,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let doc_users = hedl_csv::from_csv(csv_users, "User", &["username"])?;
 
     println!("  User -> users (default simple pluralization)");
-    println!("  Items: {}", doc_users.get("users").unwrap().as_list().unwrap().rows.len());
+    println!(
+        "  Items: {}",
+        doc_users
+            .get("users")
+            .unwrap()
+            .as_list()
+            .unwrap()
+            .rows
+            .len()
+    );
     println!();
 
     println!("=== Summary ===");

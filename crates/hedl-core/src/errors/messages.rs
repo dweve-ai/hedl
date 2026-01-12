@@ -27,7 +27,10 @@ use crate::error::HedlError;
 /// File exceeds maximum size limit.
 pub fn file_too_large(size: usize, limit: usize, line: usize) -> HedlError {
     HedlError::security(
-        format!("file too large: {} bytes exceeds limit of {} bytes", size, limit),
+        format!(
+            "file too large: {} bytes exceeds limit of {} bytes",
+            size, limit
+        ),
         line,
     )
 }
@@ -35,7 +38,10 @@ pub fn file_too_large(size: usize, limit: usize, line: usize) -> HedlError {
 /// Line exceeds maximum length limit.
 pub fn line_too_long(length: usize, limit: usize, line: usize) -> HedlError {
     HedlError::security(
-        format!("line too long: {} bytes exceeds limit of {} bytes", length, limit),
+        format!(
+            "line too long: {} bytes exceeds limit of {} bytes",
+            length, limit
+        ),
         line,
     )
 }
@@ -96,7 +102,10 @@ pub fn version_not_first(line: usize) -> HedlError {
 /// Unsupported HEDL version.
 pub fn unsupported_version(major: u32, minor: u32, line: usize) -> HedlError {
     HedlError::version(
-        format!("unsupported version {}.{}, only 1.0 is supported", major, minor),
+        format!(
+            "unsupported version {}.{}, only 1.0 is supported",
+            major, minor
+        ),
         line,
     )
 }
@@ -136,15 +145,15 @@ pub fn unknown_directive(directive: &str, line: usize) -> HedlError {
 
 /// Duplicate directive.
 pub fn duplicate_directive(directive: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("duplicate {} directive", directive),
-        line,
-    )
+    HedlError::syntax(format!("duplicate {} directive", directive), line)
 }
 
 /// Invalid STRUCT definition format.
 pub fn invalid_struct_format(line: usize) -> HedlError {
-    HedlError::schema("invalid %STRUCT format, expected %STRUCT: TypeName: [col1, col2, ...]", line)
+    HedlError::schema(
+        "invalid %STRUCT format, expected %STRUCT: TypeName: [col1, col2, ...]",
+        line,
+    )
 }
 
 /// STRUCT directive missing colon after type name.
@@ -154,10 +163,7 @@ pub fn struct_missing_colon(line: usize) -> HedlError {
 
 /// Invalid type name.
 pub fn invalid_type_name(name: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("invalid type name: {}", name),
-        line,
-    )
+    HedlError::syntax(format!("invalid type name: {}", name), line)
 }
 
 /// Struct redefined with different columns.
@@ -198,18 +204,12 @@ pub fn column_list_empty(line: usize) -> HedlError {
 
 /// Invalid column name in schema.
 pub fn invalid_column_name(name: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("invalid column name: {}", name),
-        line,
-    )
+    HedlError::syntax(format!("invalid column name: {}", name), line)
 }
 
 /// Duplicate column name in struct.
 pub fn duplicate_column_name(name: &str, line: usize) -> HedlError {
-    HedlError::schema(
-        format!("duplicate column name: {}", name),
-        line,
-    )
+    HedlError::schema(format!("duplicate column name: {}", name), line)
 }
 
 /// Duplicate struct definition.
@@ -248,10 +248,7 @@ pub fn alias_key_missing_percent(line: usize) -> HedlError {
 
 /// Invalid alias key.
 pub fn invalid_alias_key(key: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("invalid alias key: {}", key),
-        line,
-    )
+    HedlError::syntax(format!("invalid alias key: {}", key), line)
 }
 
 /// Alias value must be a quoted string.
@@ -261,18 +258,12 @@ pub fn alias_value_not_quoted(line: usize) -> HedlError {
 
 /// Alias already defined.
 pub fn alias_already_defined(key: &str, line: usize) -> HedlError {
-    HedlError::alias(
-        format!("alias '%{}' already defined", key),
-        line,
-    )
+    HedlError::alias(format!("alias '%{}' already defined", key), line)
 }
 
 /// Duplicate alias definition.
 pub fn duplicate_alias(key: &str, line: usize) -> HedlError {
-    HedlError::alias(
-        format!("duplicate alias definition for '{}'", key),
-        line,
-    )
+    HedlError::alias(format!("duplicate alias definition for '{}'", key), line)
 }
 
 /// Too many aliases.
@@ -285,7 +276,10 @@ pub fn too_many_aliases(_count: usize, limit: usize, line: usize) -> HedlError {
 
 /// Invalid NEST format.
 pub fn invalid_nest_format(line: usize) -> HedlError {
-    HedlError::syntax("invalid %NEST format, expected %NEST: ParentType: ChildType", line)
+    HedlError::syntax(
+        "invalid %NEST format, expected %NEST: ParentType: ChildType",
+        line,
+    )
 }
 
 /// NEST directive must have format 'Parent > Child'.
@@ -295,34 +289,22 @@ pub fn nest_invalid_syntax(line: usize) -> HedlError {
 
 /// Invalid parent type name in NEST.
 pub fn nest_invalid_parent_type(parent: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("invalid parent type name: {}", parent),
-        line,
-    )
+    HedlError::syntax(format!("invalid parent type name: {}", parent), line)
 }
 
 /// Invalid child type name in NEST.
 pub fn nest_invalid_child_type(child: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("invalid child type name: {}", child),
-        line,
-    )
+    HedlError::syntax(format!("invalid child type name: {}", child), line)
 }
 
 /// NEST parent type not defined.
 pub fn nest_parent_not_defined(parent: &str, line: usize) -> HedlError {
-    HedlError::schema(
-        format!("NEST parent type '{}' not defined", parent),
-        line,
-    )
+    HedlError::schema(format!("NEST parent type '{}' not defined", parent), line)
 }
 
 /// NEST child type not defined.
 pub fn nest_child_not_defined(child: &str, line: usize) -> HedlError {
-    HedlError::schema(
-        format!("NEST child type '{}' not defined", child),
-        line,
-    )
+    HedlError::schema(format!("NEST child type '{}' not defined", child), line)
 }
 
 /// Multiple NEST rules for parent type.
@@ -344,7 +326,10 @@ pub fn nest_undefined_type(type_name: &str, line: usize) -> HedlError {
 /// Duplicate NEST definition.
 pub fn duplicate_nest(parent_type: &str, line: usize) -> HedlError {
     HedlError::schema(
-        format!("duplicate NEST definition for parent type '{}'", parent_type),
+        format!(
+            "duplicate NEST definition for parent type '{}'",
+            parent_type
+        ),
         line,
     )
 }
@@ -371,7 +356,10 @@ pub fn block_string_too_large(size: usize, limit: usize, line: usize) -> HedlErr
 
 /// Invalid indentation (not multiple of base).
 pub fn invalid_indent(line: usize) -> HedlError {
-    HedlError::syntax("indentation is not a consistent multiple of the base indent", line)
+    HedlError::syntax(
+        "indentation is not a consistent multiple of the base indent",
+        line,
+    )
 }
 
 /// Indent depth exceeds maximum.
@@ -389,18 +377,12 @@ pub fn invalid_key_value_format(line: usize) -> HedlError {
 
 /// Invalid key name.
 pub fn invalid_key(key: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("invalid key name: '{}'", key),
-        line,
-    )
+    HedlError::syntax(format!("invalid key name: '{}'", key), line)
 }
 
 /// Duplicate key in object.
 pub fn duplicate_key(key: &str, line: usize) -> HedlError {
-    HedlError::syntax(
-        format!("duplicate key '{}'", key),
-        line,
-    )
+    HedlError::syntax(format!("duplicate key '{}'", key), line)
 }
 
 /// Too many keys in object.
@@ -466,7 +448,10 @@ pub fn node_count_overflow(line: usize) -> HedlError {
 /// NEST hierarchy depth exceeded.
 pub fn nest_depth_exceeded(depth: usize, limit: usize, line: usize) -> HedlError {
     HedlError::security(
-        format!("NEST hierarchy depth {} exceeds maximum allowed depth {}", depth, limit),
+        format!(
+            "NEST hierarchy depth {} exceeds maximum allowed depth {}",
+            depth, limit
+        ),
         line,
     )
 }
@@ -474,7 +459,10 @@ pub fn nest_depth_exceeded(depth: usize, limit: usize, line: usize) -> HedlError
 /// Orphan row (child without NEST).
 pub fn orphan_row(type_name: &str, line: usize) -> HedlError {
     HedlError::orphan_row(
-        format!("row of type '{}' has no parent (missing NEST rule)", type_name),
+        format!(
+            "row of type '{}' has no parent (missing NEST rule)",
+            type_name
+        ),
         line,
     )
 }
@@ -502,10 +490,7 @@ pub fn duplicate_id(type_name: &str, id: &str, prev_line: usize, line: usize) ->
 
 /// Unresolved reference.
 pub fn unresolved_reference(reference: &str, line: usize) -> HedlError {
-    HedlError::reference(
-        format!("unresolved reference: {}", reference),
-        line,
-    )
+    HedlError::reference(format!("unresolved reference: {}", reference), line)
 }
 
 /// Ambiguous unqualified reference.
@@ -524,10 +509,7 @@ pub fn ambiguous_reference(id: &str, types: &[String], line: usize) -> HedlError
 
 /// Unknown alias.
 pub fn unknown_alias(key: &str, line: usize) -> HedlError {
-    HedlError::alias(
-        format!("unknown alias: %{}", key),
-        line,
-    )
+    HedlError::alias(format!("unknown alias: %{}", key), line)
 }
 
 /// Ditto not allowed in non-matrix context.

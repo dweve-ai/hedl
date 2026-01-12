@@ -48,8 +48,8 @@
 //! - **Injection Prevention**: Comprehensive string escaping and quoting
 //! - **Resource Limits**: Bounded recursion prevents DoS attacks
 
+use crate::error::{Result, ToonError, MAX_NESTING_DEPTH};
 use hedl_core::{Document, Item, MatrixList, Node, Value};
-use crate::error::{ToonError, Result, MAX_NESTING_DEPTH};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -198,7 +198,9 @@ fn pluralize(singular: &str) -> String {
     }
 
     // Detect case pattern
-    let is_all_upper = singular.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
+    let is_all_upper = singular
+        .chars()
+        .all(|c| !c.is_alphabetic() || c.is_uppercase());
     let is_capitalized = singular.chars().next().is_some_and(|c| c.is_uppercase());
 
     // Check irregular plurals (case-insensitive)
@@ -591,7 +593,11 @@ fn encode_item(
     match item {
         Item::Scalar(value) => {
             let encoded = encode_value(value, config.delimiter);
-            lines.push(indented(depth, &format!("{}: {}", encode_key(key), encoded), config));
+            lines.push(indented(
+                depth,
+                &format!("{}: {}", encode_key(key), encoded),
+                config,
+            ));
             Ok(())
         }
         Item::Object(map) => {
@@ -601,9 +607,7 @@ fn encode_item(
             }
             Ok(())
         }
-        Item::List(matrix_list) => {
-            encode_matrix_list(key, matrix_list, doc, lines, depth, config)
-        }
+        Item::List(matrix_list) => encode_matrix_list(key, matrix_list, doc, lines, depth, config),
     }
 }
 
@@ -646,16 +650,21 @@ fn encode_matrix_list(
 
     if list.rows.is_empty() {
         // Empty list - simple header without field names
-        let header = format!("{}[0{}]:", encode_key(key), config.delimiter.bracket_suffix());
+        let header = format!(
+            "{}[0{}]:",
+            encode_key(key),
+            config.delimiter.bracket_suffix()
+        );
         lines.push(indented(depth, &header, config));
         return Ok(());
     }
 
     // Check if all values in all rows are primitives AND no children (can use tabular format)
     // Per TOON spec: tabular requires "All values are primitives (no nested arrays/objects)"
-    let all_primitive = list.rows.iter().all(|node| {
-        node.fields.iter().all(is_primitive_value) && node.children.is_empty()
-    });
+    let all_primitive = list
+        .rows
+        .iter()
+        .all(|node| node.fields.iter().all(is_primitive_value) && node.children.is_empty());
 
     if all_primitive {
         // Pure tabular format - all values are primitives with no children
@@ -675,7 +684,11 @@ fn encode_matrix_list(
                 .iter()
                 .map(|v| encode_value(v, config.delimiter))
                 .collect();
-            lines.push(indented(depth + 1, &values.join(config.delimiter.str()), config));
+            lines.push(indented(
+                depth + 1,
+                &values.join(config.delimiter.str()),
+                config,
+            ));
         }
         Ok(())
     } else {
@@ -735,10 +748,18 @@ fn encode_node_expanded(
         let encoded_value = encode_value(value, config.delimiter);
         if i == 0 {
             // First field with list item prefix
-            lines.push(indented(depth, &format!("- {}: {}", encode_key(field_name), encoded_value), config));
+            lines.push(indented(
+                depth,
+                &format!("- {}: {}", encode_key(field_name), encoded_value),
+                config,
+            ));
         } else {
             // Subsequent fields without prefix
-            lines.push(indented(depth + 1, &format!("{}: {}", encode_key(field_name), encoded_value), config));
+            lines.push(indented(
+                depth + 1,
+                &format!("{}: {}", encode_key(field_name), encoded_value),
+                config,
+            ));
         }
     }
 
@@ -746,7 +767,15 @@ fn encode_node_expanded(
     for (child_type, children) in &node.children {
         // Use pluralized lowercase as field name (e.g., "Child" -> "children", "Person" -> "people")
         let field_name = pluralize(&child_type.to_lowercase());
-        encode_child_nodes_as_field(&field_name, child_type, children, doc, lines, depth + 1, config)?;
+        encode_child_nodes_as_field(
+            &field_name,
+            child_type,
+            children,
+            doc,
+            lines,
+            depth + 1,
+            config,
+        )?;
     }
 
     Ok(())
@@ -785,7 +814,11 @@ fn encode_child_nodes_as_field(
     config: &ToToonConfig,
 ) -> Result<()> {
     if nodes.is_empty() {
-        let header = format!("{}[0{}]:", encode_key(field_name), config.delimiter.bracket_suffix());
+        let header = format!(
+            "{}[0{}]:",
+            encode_key(field_name),
+            config.delimiter.bracket_suffix()
+        );
         lines.push(indented(depth, &header, config));
         return Ok(());
     }
@@ -808,9 +841,9 @@ fn encode_child_nodes_as_field(
     let field_names: Vec<String> = schema_vec.iter().map(|f| encode_key(f)).collect();
 
     // Check if all children are primitive (can use tabular)
-    let all_primitive = nodes.iter().all(|n| {
-        n.fields.iter().all(is_primitive_value) && n.children.is_empty()
-    });
+    let all_primitive = nodes
+        .iter()
+        .all(|n| n.fields.iter().all(is_primitive_value) && n.children.is_empty());
 
     // For child nodes, always use actual length (no count_hint available in Vec<Node>)
     let count = nodes.len();
@@ -832,7 +865,11 @@ fn encode_child_nodes_as_field(
                 .iter()
                 .map(|v| encode_value(v, config.delimiter))
                 .collect();
-            lines.push(indented(depth + 1, &values.join(config.delimiter.str()), config));
+            lines.push(indented(
+                depth + 1,
+                &values.join(config.delimiter.str()),
+                config,
+            ));
         }
         Ok(())
     } else {
@@ -880,7 +917,12 @@ fn encode_child_nodes_as_field(
 fn is_primitive_value(value: &Value) -> bool {
     matches!(
         value,
-        Value::Null | Value::Bool(_) | Value::Int(_) | Value::Float(_) | Value::String(_) | Value::Reference(_)
+        Value::Null
+            | Value::Bool(_)
+            | Value::Int(_)
+            | Value::Float(_)
+            | Value::String(_)
+            | Value::Reference(_)
     )
 }
 
@@ -1064,7 +1106,10 @@ fn needs_quoting(s: &str, delimiter: Delimiter) -> bool {
     }
 
     // Check first char for structural/escape chars
-    if matches!(first, ':' | '[' | ']' | '{' | '}' | '"' | '\\' | '\n' | '\r' | '\t') {
+    if matches!(
+        first,
+        ':' | '[' | ']' | '{' | '}' | '"' | '\\' | '\n' | '\r' | '\t'
+    ) {
         return true;
     }
 
@@ -1296,9 +1341,9 @@ fn is_valid_unquoted_key(key: &str) -> bool {
     }
 
     // Rest can be alphanumeric, underscore, or dot
-    bytes[1..].iter().all(|&b| {
-        b.is_ascii_alphanumeric() || b == b'_' || b == b'.'
-    })
+    bytes[1..]
+        .iter()
+        .all(|&b| b.is_ascii_alphanumeric() || b == b'_' || b == b'.')
 }
 
 /// Create indented string
@@ -1336,8 +1381,8 @@ fn indented(depth: usize, content: &str, config: &ToToonConfig) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hedl_core::Reference;
     use hedl_core::lex::Tensor;
+    use hedl_core::Reference;
     use std::collections::BTreeMap;
 
     fn default_config() -> ToToonConfig {
@@ -1353,7 +1398,10 @@ mod tests {
         assert_eq!(encode_value(&Value::Int(42), config.delimiter), "42");
         assert_eq!(encode_value(&Value::Int(-123), config.delimiter), "-123");
         assert_eq!(encode_value(&Value::Float(3.15), config.delimiter), "3.15");
-        assert_eq!(encode_value(&Value::String("hello".to_string()), config.delimiter), "hello");
+        assert_eq!(
+            encode_value(&Value::String("hello".to_string()), config.delimiter),
+            "hello"
+        );
     }
 
     #[test]
@@ -1362,11 +1410,20 @@ mod tests {
         let config = default_config();
 
         // NaN becomes null
-        assert_eq!(encode_value(&Value::Float(f64::NAN), config.delimiter), "null");
+        assert_eq!(
+            encode_value(&Value::Float(f64::NAN), config.delimiter),
+            "null"
+        );
 
         // Infinity becomes null
-        assert_eq!(encode_value(&Value::Float(f64::INFINITY), config.delimiter), "null");
-        assert_eq!(encode_value(&Value::Float(f64::NEG_INFINITY), config.delimiter), "null");
+        assert_eq!(
+            encode_value(&Value::Float(f64::INFINITY), config.delimiter),
+            "null"
+        );
+        assert_eq!(
+            encode_value(&Value::Float(f64::NEG_INFINITY), config.delimiter),
+            "null"
+        );
 
         // -0 becomes 0
         assert_eq!(encode_value(&Value::Float(-0.0), config.delimiter), "0");
@@ -1385,7 +1442,10 @@ mod tests {
 
         // Qualified reference
         let ref_val = Value::Reference(Reference::qualified("User", "user123"));
-        assert_eq!(encode_value(&ref_val, config.delimiter), "\"@User:user123\"");
+        assert_eq!(
+            encode_value(&ref_val, config.delimiter),
+            "\"@User:user123\""
+        );
 
         // Local reference
         let local_ref = Value::Reference(Reference::local("item1"));
@@ -1397,26 +1457,45 @@ mod tests {
         let config = default_config();
 
         // Simple string - no quoting
-        assert_eq!(encode_value(&Value::String("hello".to_string()), config.delimiter), "hello");
+        assert_eq!(
+            encode_value(&Value::String("hello".to_string()), config.delimiter),
+            "hello"
+        );
 
         // Empty string - needs quoting
-        assert_eq!(encode_value(&Value::String("".to_string()), config.delimiter), "\"\"");
+        assert_eq!(
+            encode_value(&Value::String("".to_string()), config.delimiter),
+            "\"\""
+        );
 
         // String with colon - needs quoting
-        assert_eq!(encode_value(&Value::String("foo:bar".to_string()), config.delimiter), "\"foo:bar\"");
+        assert_eq!(
+            encode_value(&Value::String("foo:bar".to_string()), config.delimiter),
+            "\"foo:bar\""
+        );
 
         // Boolean-like string - needs quoting
-        assert_eq!(encode_value(&Value::String("true".to_string()), config.delimiter), "\"true\"");
+        assert_eq!(
+            encode_value(&Value::String("true".to_string()), config.delimiter),
+            "\"true\""
+        );
 
         // Numeric-like string - needs quoting
-        assert_eq!(encode_value(&Value::String("123".to_string()), config.delimiter), "\"123\"");
+        assert_eq!(
+            encode_value(&Value::String("123".to_string()), config.delimiter),
+            "\"123\""
+        );
     }
 
     #[test]
     fn test_simple_document() {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("name".to_string(), Item::Scalar(Value::String("test".to_string())));
-        doc.root.insert("count".to_string(), Item::Scalar(Value::Int(42)));
+        doc.root.insert(
+            "name".to_string(),
+            Item::Scalar(Value::String("test".to_string())),
+        );
+        doc.root
+            .insert("count".to_string(), Item::Scalar(Value::Int(42)));
 
         let config = default_config();
         let result = to_toon(&doc, &config).unwrap();
@@ -1428,19 +1507,33 @@ mod tests {
     #[test]
     fn test_matrix_list_tabular() {
         let mut doc = Document::new((1, 0));
-        doc.structs.insert("User".to_string(), vec!["id".to_string(), "name".to_string(), "age".to_string()]);
+        doc.structs.insert(
+            "User".to_string(),
+            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        );
 
-        let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string(), "age".to_string()]);
-        list.add_row(Node::new("User", "u1", vec![
-            Value::String("u1".to_string()),
-            Value::String("Alice".to_string()),
-            Value::Int(30),
-        ]));
-        list.add_row(Node::new("User", "u2", vec![
-            Value::String("u2".to_string()),
-            Value::String("Bob".to_string()),
-            Value::Int(25),
-        ]));
+        let mut list = MatrixList::new(
+            "User",
+            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        );
+        list.add_row(Node::new(
+            "User",
+            "u1",
+            vec![
+                Value::String("u1".to_string()),
+                Value::String("Alice".to_string()),
+                Value::Int(30),
+            ],
+        ));
+        list.add_row(Node::new(
+            "User",
+            "u2",
+            vec![
+                Value::String("u2".to_string()),
+                Value::String("Bob".to_string()),
+                Value::Int(25),
+            ],
+        ));
 
         doc.root.insert("users".to_string(), Item::List(list));
 
@@ -1457,22 +1550,30 @@ mod tests {
     #[test]
     fn test_matrix_list_with_count_hint() {
         let mut doc = Document::new((1, 0));
-        doc.structs.insert("Team".to_string(), vec!["id".to_string(), "name".to_string()]);
+        doc.structs.insert(
+            "Team".to_string(),
+            vec!["id".to_string(), "name".to_string()],
+        );
 
         // Create list with count_hint of 5, but only 2 actual rows
-        let mut list = MatrixList::with_count_hint(
+        let mut list =
+            MatrixList::with_count_hint("Team", vec!["id".to_string(), "name".to_string()], 5);
+        list.add_row(Node::new(
             "Team",
-            vec!["id".to_string(), "name".to_string()],
-            5
-        );
-        list.add_row(Node::new("Team", "t1", vec![
-            Value::String("t1".to_string()),
-            Value::String("Alpha".to_string()),
-        ]));
-        list.add_row(Node::new("Team", "t2", vec![
-            Value::String("t2".to_string()),
-            Value::String("Beta".to_string()),
-        ]));
+            "t1",
+            vec![
+                Value::String("t1".to_string()),
+                Value::String("Alpha".to_string()),
+            ],
+        ));
+        list.add_row(Node::new(
+            "Team",
+            "t2",
+            vec![
+                Value::String("t2".to_string()),
+                Value::String("Beta".to_string()),
+            ],
+        ));
 
         doc.root.insert("teams".to_string(), Item::List(list));
 
@@ -1488,14 +1589,24 @@ mod tests {
     #[test]
     fn test_matrix_list_with_references() {
         let mut doc = Document::new((1, 0));
-        doc.structs.insert("Order".to_string(), vec!["id".to_string(), "user".to_string(), "amount".to_string()]);
+        doc.structs.insert(
+            "Order".to_string(),
+            vec!["id".to_string(), "user".to_string(), "amount".to_string()],
+        );
 
-        let mut list = MatrixList::new("Order", vec!["id".to_string(), "user".to_string(), "amount".to_string()]);
-        list.add_row(Node::new("Order", "o1", vec![
-            Value::String("o1".to_string()),
-            Value::Reference(Reference::qualified("User", "u1")),
-            Value::Float(99.99),
-        ]));
+        let mut list = MatrixList::new(
+            "Order",
+            vec!["id".to_string(), "user".to_string(), "amount".to_string()],
+        );
+        list.add_row(Node::new(
+            "Order",
+            "o1",
+            vec![
+                Value::String("o1".to_string()),
+                Value::Reference(Reference::qualified("User", "u1")),
+                Value::Float(99.99),
+            ],
+        ));
 
         doc.root.insert("orders".to_string(), Item::List(list));
 
@@ -1535,7 +1646,10 @@ mod tests {
         assert!(is_primitive_value(&Value::Reference(Reference::local("x"))));
 
         // Tensors are NOT primitives
-        assert!(!is_primitive_value(&Value::Tensor(Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]))));
+        assert!(!is_primitive_value(&Value::Tensor(Tensor::Array(vec![
+            Tensor::Scalar(1.0),
+            Tensor::Scalar(2.0)
+        ]))));
     }
 
     #[test]
@@ -1553,7 +1667,10 @@ mod tests {
     #[test]
     fn test_special_characters_in_strings() {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("message".to_string(), Item::Scalar(Value::String("Hello\nWorld".to_string())));
+        doc.root.insert(
+            "message".to_string(),
+            Item::Scalar(Value::String("Hello\nWorld".to_string())),
+        );
 
         let config = default_config();
         let result = to_toon(&doc, &config).unwrap();
@@ -1608,7 +1725,7 @@ mod tests {
     fn test_invalid_indent_config() {
         let doc = Document::new((1, 0));
         let config = ToToonConfig {
-            indent: 0,  // Invalid!
+            indent: 0, // Invalid!
             delimiter: Delimiter::Comma,
         };
 
@@ -1856,29 +1973,48 @@ mod tests {
     fn test_pluralize_in_document_context() {
         // Test pluralization in actual TOON conversion
         let mut doc = Document::new((1, 0));
-        doc.structs.insert("Child".to_string(), vec!["id".to_string(), "name".to_string()]);
+        doc.structs.insert(
+            "Child".to_string(),
+            vec!["id".to_string(), "name".to_string()],
+        );
 
         // Create parent with children
         let mut parent_list = MatrixList::new("Parent", vec!["id".to_string(), "name".to_string()]);
-        let mut parent_node = Node::new("Parent", "p1", vec![
-            Value::String("p1".to_string()),
-            Value::String("John".to_string()),
-        ]);
+        let mut parent_node = Node::new(
+            "Parent",
+            "p1",
+            vec![
+                Value::String("p1".to_string()),
+                Value::String("John".to_string()),
+            ],
+        );
 
         // Add children to parent
-        parent_node.children.insert("Child".to_string(), vec![
-            Node::new("Child", "c1", vec![
-                Value::String("c1".to_string()),
-                Value::String("Alice".to_string()),
-            ]),
-            Node::new("Child", "c2", vec![
-                Value::String("c2".to_string()),
-                Value::String("Bob".to_string()),
-            ]),
-        ]);
+        parent_node.children.insert(
+            "Child".to_string(),
+            vec![
+                Node::new(
+                    "Child",
+                    "c1",
+                    vec![
+                        Value::String("c1".to_string()),
+                        Value::String("Alice".to_string()),
+                    ],
+                ),
+                Node::new(
+                    "Child",
+                    "c2",
+                    vec![
+                        Value::String("c2".to_string()),
+                        Value::String("Bob".to_string()),
+                    ],
+                ),
+            ],
+        );
 
         parent_list.add_row(parent_node);
-        doc.root.insert("parents".to_string(), Item::List(parent_list));
+        doc.root
+            .insert("parents".to_string(), Item::List(parent_list));
 
         let config = default_config();
         let result = to_toon(&doc, &config).unwrap();
@@ -1891,25 +2027,43 @@ mod tests {
     #[test]
     fn test_pluralize_person_in_document() {
         let mut doc = Document::new((1, 0));
-        doc.structs.insert("Person".to_string(), vec!["id".to_string(), "name".to_string()]);
+        doc.structs.insert(
+            "Person".to_string(),
+            vec!["id".to_string(), "name".to_string()],
+        );
 
         let mut team_list = MatrixList::new("Team", vec!["id".to_string(), "name".to_string()]);
-        let mut team_node = Node::new("Team", "t1", vec![
-            Value::String("t1".to_string()),
-            Value::String("Alpha Team".to_string()),
-        ]);
+        let mut team_node = Node::new(
+            "Team",
+            "t1",
+            vec![
+                Value::String("t1".to_string()),
+                Value::String("Alpha Team".to_string()),
+            ],
+        );
 
         // Add people to team
-        team_node.children.insert("Person".to_string(), vec![
-            Node::new("Person", "p1", vec![
-                Value::String("p1".to_string()),
-                Value::String("Alice".to_string()),
-            ]),
-            Node::new("Person", "p2", vec![
-                Value::String("p2".to_string()),
-                Value::String("Bob".to_string()),
-            ]),
-        ]);
+        team_node.children.insert(
+            "Person".to_string(),
+            vec![
+                Node::new(
+                    "Person",
+                    "p1",
+                    vec![
+                        Value::String("p1".to_string()),
+                        Value::String("Alice".to_string()),
+                    ],
+                ),
+                Node::new(
+                    "Person",
+                    "p2",
+                    vec![
+                        Value::String("p2".to_string()),
+                        Value::String("Bob".to_string()),
+                    ],
+                ),
+            ],
+        );
 
         team_list.add_row(team_node);
         doc.root.insert("teams".to_string(), Item::List(team_list));

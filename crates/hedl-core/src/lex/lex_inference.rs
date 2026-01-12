@@ -142,7 +142,10 @@ fn detect_value_type(
         if has_prev_value {
             return Ok(ValueType::Ditto);
         } else {
-            return Err(LexError::InvalidToken { message: "ditto operator (^) used without previous row value".to_string(), pos: SourcePos::default() });
+            return Err(LexError::InvalidToken {
+                message: "ditto operator (^) used without previous row value".to_string(),
+                pos: SourcePos::default(),
+            });
         }
     }
 
@@ -219,10 +222,9 @@ fn construct_value(
 /// Check if a string represents a valid number.
 fn is_number(s: &str) -> bool {
     // Try integer first
-    if !s.contains('.')
-        && s.parse::<i64>().is_ok() {
-            return true;
-        }
+    if !s.contains('.') && s.parse::<i64>().is_ok() {
+        return true;
+    }
 
     // Try float
     s.parse::<f64>().is_ok()
@@ -244,7 +246,10 @@ fn parse_number(s: &str) -> Result<Value, LexError> {
         return Ok(Value::Float(f));
     }
 
-    Err(LexError::InvalidToken { message: format!("invalid number: {}", s), pos: SourcePos::default() })
+    Err(LexError::InvalidToken {
+        message: format!("invalid number: {}", s),
+        pos: SourcePos::default(),
+    })
 }
 
 /// Parse a tensor literal.
@@ -337,8 +342,9 @@ fn parse_tensor_element(s: &str) -> Result<TensorValue, LexError> {
         Ok(TensorValue::Array(nested))
     } else {
         // Scalar number
-        let num = trimmed.parse::<f64>().map_err(|_| {
-            LexError::InvalidToken { message: format!("invalid number in tensor: {}", trimmed), pos: SourcePos::default() }
+        let num = trimmed.parse::<f64>().map_err(|_| LexError::InvalidToken {
+            message: format!("invalid number in tensor: {}", trimmed),
+            pos: SourcePos::default(),
         })?;
         Ok(TensorValue::Number(num))
     }

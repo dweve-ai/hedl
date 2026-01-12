@@ -21,8 +21,7 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 
 fn hedl_bin() -> String {
-    std::env::var("CARGO_BIN_EXE_hedl")
-        .unwrap_or_else(|_| env!("CARGO_BIN_EXE_hedl").to_string())
+    std::env::var("CARGO_BIN_EXE_hedl").unwrap_or_else(|_| env!("CARGO_BIN_EXE_hedl").to_string())
 }
 
 #[test]
@@ -96,7 +95,9 @@ fn test_completion_invalid_shell() {
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("Unsupported shell"))
-        .stderr(predicate::str::contains("bash, zsh, fish, powershell, elvish"));
+        .stderr(predicate::str::contains(
+            "bash, zsh, fish, powershell, elvish",
+        ));
 }
 
 #[test]
@@ -136,7 +137,9 @@ fn test_completion_install_powershell() {
     cmd.arg("completion").arg("powershell").arg("--install");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("PowerShell completion installation"))
+        .stdout(predicate::str::contains(
+            "PowerShell completion installation",
+        ))
         .stdout(predicate::str::contains("$PROFILE"));
 }
 
@@ -156,8 +159,12 @@ fn test_completion_help() {
     cmd.arg("completion").arg("--help");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Generate shell completion scripts"))
-        .stdout(predicate::str::contains("bash, zsh, fish, powershell, elvish"));
+        .stdout(predicate::str::contains(
+            "Generate shell completion scripts",
+        ))
+        .stdout(predicate::str::contains(
+            "bash, zsh, fish, powershell, elvish",
+        ));
 }
 
 #[test]

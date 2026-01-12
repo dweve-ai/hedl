@@ -17,8 +17,8 @@
 
 //! Fixtures for expression-based values.
 
-use hedl_core::{Document, ExprLiteral, Expression, Item, Value};
 use hedl_core::lex::Span;
+use hedl_core::{Document, ExprLiteral, Expression, Item, Value};
 use std::collections::BTreeMap;
 
 /// Document with expression values.

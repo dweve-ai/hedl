@@ -216,7 +216,6 @@ fn create_request_latency_distribution_table(results: &[LintResult], report: &mu
         ]);
     }
 
-
     report.add_custom_table(table);
 }
 
@@ -273,7 +272,6 @@ fn create_throughput_analysis_table(results: &[LintResult], report: &mut Benchma
             TableCell::String("Linear".to_string()),
         ]);
     }
-
 
     report.add_custom_table(table);
 }
@@ -387,7 +385,6 @@ fn create_memory_usage_profiling_table(results: &[LintResult], report: &mut Benc
         ]);
     }
 
-
     report.add_custom_table(table);
 }
 
@@ -434,10 +431,7 @@ fn create_cold_vs_warm_start_table(_results: &[LintResult], report: &mut Benchma
     // via the incremental_linting benchmark group
     let table = CustomTable {
         title: "Cold vs Warm Start Performance".to_string(),
-        headers: vec![
-            "Scenario".to_string(),
-            "Time (ms)".to_string(),
-        ],
+        headers: vec!["Scenario".to_string(), "Time (ms)".to_string()],
         rows: Vec::new(),
         footer: None, // Run incremental_linting benchmarks for cold/warm measurements
     };
@@ -583,10 +577,7 @@ fn create_error_recovery_performance_table(_results: &[LintResult], report: &mut
     // Error recovery timing requires specialized instrumentation
     let table = CustomTable {
         title: "Error Recovery Performance".to_string(),
-        headers: vec![
-            "Error Type".to_string(),
-            "Count".to_string(),
-        ],
+        headers: vec!["Error Type".to_string(), "Count".to_string()],
         rows: Vec::new(),
         footer: None, // Requires error recovery instrumentation
     };
@@ -601,10 +592,7 @@ fn create_protocol_overhead_table(_results: &[LintResult], report: &mut Benchmar
     // Phase-level breakdown requires internal profiling instrumentation
     let table = CustomTable {
         title: "Linting Overhead Analysis".to_string(),
-        headers: vec![
-            "Phase".to_string(),
-            "Time (ms)".to_string(),
-        ],
+        headers: vec!["Phase".to_string(), "Time (ms)".to_string()],
         rows: Vec::new(),
         footer: None, // Requires phase-level profiling instrumentation
     };
@@ -618,10 +606,7 @@ fn create_protocol_overhead_table(_results: &[LintResult], report: &mut Benchmar
 fn create_comparison_with_alternatives_table(results: &[LintResult], report: &mut BenchmarkReport) {
     let mut table = CustomTable {
         title: "HEDL Lint Performance Summary".to_string(),
-        headers: vec![
-            "Metric".to_string(),
-            "Value".to_string(),
-        ],
+        headers: vec!["Metric".to_string(), "Value".to_string()],
         rows: Vec::new(),
         footer: None,
     };
@@ -656,10 +641,7 @@ fn create_resource_utilization_table(_results: &[LintResult], report: &mut Bench
     // Resource monitoring requires OS-level instrumentation
     let table = CustomTable {
         title: "Resource Utilization".to_string(),
-        headers: vec![
-            "Resource".to_string(),
-            "Usage".to_string(),
-        ],
+        headers: vec!["Resource".to_string(), "Usage".to_string()],
         rows: Vec::new(),
         footer: None, // Requires OS-level resource monitoring
     };
@@ -677,10 +659,7 @@ fn create_parallelization_effectiveness_table(
     // Parallelization benchmarks require multi-threaded test runs
     let table = CustomTable {
         title: "Parallelization Effectiveness".to_string(),
-        headers: vec![
-            "Operation".to_string(),
-            "Time (ms)".to_string(),
-        ],
+        headers: vec!["Operation".to_string(), "Time (ms)".to_string()],
         rows: Vec::new(),
         footer: None, // Requires parallel benchmark implementation
     };
@@ -695,10 +674,7 @@ fn create_real_world_scenarios_table(_results: &[LintResult], report: &mut Bench
     // Real-world scenario benchmarks require dedicated integration tests
     let table = CustomTable {
         title: "Real-World Scenarios".to_string(),
-        headers: vec![
-            "Scenario".to_string(),
-            "Time (ms)".to_string(),
-        ],
+        headers: vec!["Scenario".to_string(), "Time (ms)".to_string()],
         rows: Vec::new(),
         footer: None, // Requires real-world scenario integration tests
     };
@@ -715,10 +691,7 @@ fn create_performance_regression_detection_table(
 ) {
     let mut table = CustomTable {
         title: "Current Run Metrics".to_string(),
-        headers: vec![
-            "Metric".to_string(),
-            "Value".to_string(),
-        ],
+        headers: vec!["Metric".to_string(), "Value".to_string()],
         rows: Vec::new(),
         footer: None, // Compare with previous runs to detect regressions
     };
@@ -825,7 +798,8 @@ fn generate_lint_insights(results: &[LintResult], report: &mut BenchmarkReport) 
         report.add_insight(Insight {
             category: "finding".to_string(),
             title: format!("Incremental Linting Support: {:.0}%", inc_rate),
-            description: "Percentage of lint checks eligible for incremental processing".to_string(),
+            description: "Percentage of lint checks eligible for incremental processing"
+                .to_string(),
             data_points: vec![
                 format!("Incremental eligible: {}", incremental_count),
                 format!("Total checks: {}", results.len()),

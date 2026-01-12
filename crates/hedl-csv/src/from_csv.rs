@@ -18,9 +18,9 @@
 //! Convert CSV files to HEDL documents.
 
 use crate::error::{CsvError, Result};
-use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_core::lex::parse_expression_token;
 use hedl_core::lex::parse_tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use std::io::Read;
 
 /// Default maximum number of rows to prevent memory exhaustion.
@@ -512,11 +512,7 @@ pub fn from_csv_with_config(
 ///
 /// - `from_csv_reader_with_config` - For custom delimiters and limits
 /// - `from_csv` - For parsing CSV strings
-pub fn from_csv_reader<R: Read>(
-    reader: R,
-    type_name: &str,
-    schema: &[&str],
-) -> Result<Document> {
+pub fn from_csv_reader<R: Read>(reader: R, type_name: &str, schema: &[&str]) -> Result<Document> {
     from_csv_reader_with_config(reader, type_name, schema, FromCsvConfig::default())
 }
 
@@ -808,16 +804,14 @@ pub fn from_csv_reader_with_config<R: Read>(
             // Security: Limit row count to prevent memory exhaustion
             if record_idx >= config.max_rows {
                 return Err(CsvError::SecurityLimit {
-                limit: config.max_rows,
-                actual: record_idx + 1,
-            });
+                    limit: config.max_rows,
+                    actual: record_idx + 1,
+                });
             }
 
-            let record = result.map_err(|e| {
-                CsvError::ParseError {
+            let record = result.map_err(|e| CsvError::ParseError {
                 line: record_idx + 1,
                 message: e.to_string(),
-            }
             })?;
 
             if record.is_empty() {
@@ -835,14 +829,14 @@ pub fn from_csv_reader_with_config<R: Read>(
         // Process all records with inferred types
         for (record_idx, row) in all_records.iter().enumerate() {
             // First column is the ID
-            let id = row.first().ok_or_else(|| {
-                CsvError::MissingColumn("id".to_string())
-            })?;
+            let id = row
+                .first()
+                .ok_or_else(|| CsvError::MissingColumn("id".to_string()))?;
 
             if id.is_empty() {
                 return Err(CsvError::EmptyId {
-                row: record_idx + 1,
-            });
+                    row: record_idx + 1,
+                });
             }
 
             // Parse ALL fields (including ID) with inferred types
@@ -862,10 +856,10 @@ pub fn from_csv_reader_with_config<R: Read>(
             // Check field count matches full schema (including ID)
             if fields.len() != full_schema.len() {
                 return Err(CsvError::WidthMismatch {
-                expected: full_schema.len(),
-                actual: fields.len(),
-                row: record_idx + 1,
-            });
+                    expected: full_schema.len(),
+                    actual: fields.len(),
+                    row: record_idx + 1,
+                });
             }
 
             let node = Node::new(type_name, id, fields);
@@ -879,16 +873,14 @@ pub fn from_csv_reader_with_config<R: Read>(
             // Security: Limit row count to prevent memory exhaustion
             if record_idx >= config.max_rows {
                 return Err(CsvError::SecurityLimit {
-                limit: config.max_rows,
-                actual: record_idx + 1,
-            });
+                    limit: config.max_rows,
+                    actual: record_idx + 1,
+                });
             }
 
-            let record = result.map_err(|e| {
-                CsvError::ParseError {
+            let record = result.map_err(|e| CsvError::ParseError {
                 line: record_idx + 1,
                 message: e.to_string(),
-            }
             })?;
 
             if record.is_empty() {
@@ -896,14 +888,14 @@ pub fn from_csv_reader_with_config<R: Read>(
             }
 
             // First column is the ID
-            let id = record.get(0).ok_or_else(|| {
-                CsvError::MissingColumn("id".to_string())
-            })?;
+            let id = record
+                .get(0)
+                .ok_or_else(|| CsvError::MissingColumn("id".to_string()))?;
 
             if id.is_empty() {
                 return Err(CsvError::EmptyId {
-                row: record_idx + 1,
-            });
+                    row: record_idx + 1,
+                });
             }
 
             // Parse ALL fields (including ID) per SPEC
@@ -922,10 +914,10 @@ pub fn from_csv_reader_with_config<R: Read>(
             // Check field count matches full schema (including ID)
             if fields.len() != full_schema.len() {
                 return Err(CsvError::WidthMismatch {
-                expected: full_schema.len(),
-                actual: fields.len(),
-                row: record_idx + 1,
-            });
+                    expected: full_schema.len(),
+                    actual: fields.len(),
+                    row: record_idx + 1,
+                });
             }
 
             let node = Node::new(type_name, id, fields);
@@ -986,11 +978,9 @@ fn parse_csv_value(field: &str) -> Result<Value> {
 
     // Expression
     if trimmed.starts_with("$(") && trimmed.ends_with(')') {
-        let expr = parse_expression_token(trimmed).map_err(|e| {
-            CsvError::ParseError {
-                line: 0,
-                message: format!("Invalid expression: {}", e),
-            }
+        let expr = parse_expression_token(trimmed).map_err(|e| CsvError::ParseError {
+            line: 0,
+            message: format!("Invalid expression: {}", e),
         })?;
         return Ok(Value::Expression(expr));
     }
@@ -1028,9 +1018,9 @@ fn parse_reference(s: &str) -> Result<Value> {
 
         if type_name.is_empty() || id.is_empty() {
             return Err(CsvError::ParseError {
-            line: 0,
-            message: format!("Invalid reference format: {}", s),
-        });
+                line: 0,
+                message: format!("Invalid reference format: {}", s),
+            });
         }
 
         Ok(Value::Reference(hedl_core::Reference::qualified(
@@ -1040,9 +1030,9 @@ fn parse_reference(s: &str) -> Result<Value> {
         // Local reference: @id
         if without_at.is_empty() {
             return Err(CsvError::ParseError {
-            line: 0,
-            message: "Empty reference ID".to_string(),
-        });
+                line: 0,
+                message: "Empty reference ID".to_string(),
+            });
         }
 
         Ok(Value::Reference(hedl_core::Reference::local(without_at)))

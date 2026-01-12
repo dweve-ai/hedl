@@ -33,9 +33,9 @@ use hedl_core::parse;
 use hedl_csv::{from_csv as csv_to_hedl, to_csv as hedl_to_csv};
 use hedl_json::{from_json as json_to_hedl, to_json_value, FromJsonConfig, ToJsonConfig};
 use hedl_parquet::{from_parquet as parquet_to_hedl, to_parquet as hedl_to_parquet};
+use hedl_toon::{hedl_to_toon, toon_to_hedl};
 use hedl_xml::{from_xml as xml_to_hedl, to_xml as hedl_to_xml, FromXmlConfig, ToXmlConfig};
 use hedl_yaml::{from_yaml as yaml_to_hedl, to_yaml as hedl_to_yaml, FromYamlConfig, ToYamlConfig};
-use hedl_toon::{hedl_to_toon, toon_to_hedl};
 use std::path::Path;
 
 // JSON conversion
@@ -94,7 +94,8 @@ pub fn to_json(
     };
 
     // P0 OPTIMIZATION: Direct conversion to Value (no double conversion)
-    let value = to_json_value(&doc, &config).map_err(|e| format!("JSON conversion error: {}", e))?;
+    let value =
+        to_json_value(&doc, &config).map_err(|e| format!("JSON conversion error: {}", e))?;
     let output_str = if pretty {
         serde_json::to_string_pretty(&value).map_err(|e| format!("JSON format error: {}", e))?
     } else {

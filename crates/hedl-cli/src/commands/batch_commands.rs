@@ -20,7 +20,9 @@
 //! This module provides batch processing capabilities for validating, formatting,
 //! and linting multiple HEDL files in parallel or sequentially.
 
-use crate::batch::{BatchConfig, BatchProcessor, FormatOperation, LintOperation, ValidationOperation};
+use crate::batch::{
+    BatchConfig, BatchProcessor, FormatOperation, LintOperation, ValidationOperation,
+};
 use crate::error::CliError;
 use colored::Colorize;
 use std::path::PathBuf;
@@ -215,15 +217,10 @@ pub fn batch_format(
 
         for result in results.successes() {
             if let Ok(formatted) = &result.result {
-                let output_path = PathBuf::from(&out_dir).join(
-                    result
-                        .path
-                        .file_name()
-                        .ok_or("Invalid file name")?,
-                );
-                std::fs::write(&output_path, formatted).map_err(|e| {
-                    format!("Failed to write '{}': {}", output_path.display(), e)
-                })?;
+                let output_path = PathBuf::from(&out_dir)
+                    .join(result.path.file_name().ok_or("Invalid file name")?);
+                std::fs::write(&output_path, formatted)
+                    .map_err(|e| format!("Failed to write '{}': {}", output_path.display(), e))?;
             }
         }
     }

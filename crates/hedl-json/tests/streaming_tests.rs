@@ -423,11 +423,10 @@ fn test_jsonl_writer_basic_workflow() {
 
     for i in 1..=5 {
         let mut doc = Document::new((1, 0));
-        doc.root.insert(
-            "id".to_string(),
-            Item::Scalar(Value::String(i.to_string())),
-        );
-        doc.root.insert("value".to_string(), Item::Scalar(Value::Int(i * 10)));
+        doc.root
+            .insert("id".to_string(), Item::Scalar(Value::String(i.to_string())));
+        doc.root
+            .insert("value".to_string(), Item::Scalar(Value::Int(i * 10)));
         writer.write_document(&doc).unwrap();
     }
 
@@ -471,7 +470,8 @@ fn test_jsonl_writer_complex_documents() {
         "string".to_string(),
         Item::Scalar(Value::String("test".to_string())),
     );
-    doc.root.insert("int".to_string(), Item::Scalar(Value::Int(42)));
+    doc.root
+        .insert("int".to_string(), Item::Scalar(Value::Int(42)));
     doc.root
         .insert("float".to_string(), Item::Scalar(Value::Float(3.5)));
     doc.root
@@ -639,9 +639,7 @@ fn test_stream_config_custom_limits() {
 
 #[test]
 fn test_stream_config_unlimited() {
-    let config = StreamConfig::builder()
-        .unlimited_object_size()
-        .build();
+    let config = StreamConfig::builder().unlimited_object_size().build();
 
     assert_eq!(config.max_object_bytes, None);
 }

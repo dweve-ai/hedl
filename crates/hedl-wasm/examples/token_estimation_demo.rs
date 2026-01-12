@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 // Token Estimation Demonstration
 //
 // This example demonstrates the token estimation functionality
@@ -49,21 +48,36 @@ fn estimate_tokens_optimized(text: &str) -> usize {
             punct_count += matches!(
                 b,
                 b'!' | b'"'
-                    | b'#' | b'$'
-                    | b'%' | b'&'
-                    | b'\'' | b'('
-                    | b')' | b'*'
-                    | b'+' | b','
-                    | b'-' | b'.'
-                    | b'/' | b':'
-                    | b';' | b'<'
-                    | b'=' | b'>'
-                    | b'?' | b'@'
-                    | b'[' | b'\\'
-                    | b']' | b'^'
-                    | b'_' | b'`'
-                    | b'{' | b'|'
-                    | b'}' | b'~'
+                    | b'#'
+                    | b'$'
+                    | b'%'
+                    | b'&'
+                    | b'\''
+                    | b'('
+                    | b')'
+                    | b'*'
+                    | b'+'
+                    | b','
+                    | b'-'
+                    | b'.'
+                    | b'/'
+                    | b':'
+                    | b';'
+                    | b'<'
+                    | b'='
+                    | b'>'
+                    | b'?'
+                    | b'@'
+                    | b'['
+                    | b'\\'
+                    | b']'
+                    | b'^'
+                    | b'_'
+                    | b'`'
+                    | b'{'
+                    | b'|'
+                    | b'}'
+                    | b'~'
             ) as usize;
             i += 1;
         } else {
@@ -123,7 +137,11 @@ users: @User
 
     let large_doc = r#"{"id": "user-123", "name": "Alice Smith", "email": "alice@example.com", "tags": ["admin", "verified"], "score": 95.5}"#.repeat(10_000);
 
-    println!("Document size: {} bytes ({:.2} MB)", large_doc.len(), large_doc.len() as f64 / 1_000_000.0);
+    println!(
+        "Document size: {} bytes ({:.2} MB)",
+        large_doc.len(),
+        large_doc.len() as f64 / 1_000_000.0
+    );
     println!();
 
     // Warm up
@@ -161,7 +179,14 @@ users: @User
     let new_result = estimate_tokens_optimized(&large_doc);
     println!("  Multi-pass result: {} tokens", old_result);
     println!("  Single-pass result: {} tokens", new_result);
-    println!("  Match: {}", if old_result == new_result { "✓ YES" } else { "✗ NO" });
+    println!(
+        "  Match: {}",
+        if old_result == new_result {
+            "✓ YES"
+        } else {
+            "✗ NO"
+        }
+    );
     println!();
 
     println!("{}", "=".repeat(70));

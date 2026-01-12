@@ -290,11 +290,7 @@ mod tests {
         let mut limiter = RateLimiter::new(10, 5);
 
         for i in 0..10 {
-            assert!(
-                limiter.check_limit(),
-                "Request {} should be allowed",
-                i + 1
-            );
+            assert!(limiter.check_limit(), "Request {} should be allowed", i + 1);
         }
 
         assert_eq!(limiter.tokens(), 0);
@@ -325,7 +321,11 @@ mod tests {
 
         // Should have refilled approximately 5 tokens
         let tokens = limiter.tokens();
-        assert!(tokens >= 4 && tokens <= 6, "Expected ~5 tokens, got {}", tokens);
+        assert!(
+            tokens >= 4 && tokens <= 6,
+            "Expected ~5 tokens, got {}",
+            tokens
+        );
     }
 
     #[test]

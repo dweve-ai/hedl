@@ -61,8 +61,7 @@ fn identifier() -> impl Strategy<Value = String> {
 
 /// Generate valid HEDL type names (PascalCase identifiers)
 fn type_name() -> impl Strategy<Value = String> {
-    prop::string::string_regex("[A-Z][a-zA-Z0-9]{0,19}")
-        .expect("Failed to create type name regex")
+    prop::string::string_regex("[A-Z][a-zA-Z0-9]{0,19}").expect("Failed to create type name regex")
 }
 
 /// Generate valid HEDL string values (escaped quotes and backslashes)
@@ -160,7 +159,10 @@ fn matrix_list_document() -> impl Strategy<Value = String> {
         prop::collection::vec((identifier(), hedl_string()), 1..5),
     )
         .prop_map(|(type_name, list_name, rows)| {
-            let mut doc = format!("%VERSION: 1.0\n---\n{}: @{}[id, name]\n", list_name, type_name);
+            let mut doc = format!(
+                "%VERSION: 1.0\n---\n{}: @{}[id, name]\n",
+                list_name, type_name
+            );
             let mut used_ids = std::collections::HashSet::new();
             for (id, name) in rows.iter() {
                 // Ensure unique row IDs

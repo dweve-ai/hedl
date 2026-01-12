@@ -506,8 +506,7 @@ fn test_extremely_long_column_name() {
                     for col in &list.schema {
                         // Verify column names are valid after sanitization
                         assert!(
-                            col.chars()
-                                .all(|c| c.is_alphanumeric() || c == '_'),
+                            col.chars().all(|c| c.is_alphanumeric() || c == '_'),
                             "Column name should contain only alphanumeric and underscore: {}",
                             col
                         );
@@ -552,8 +551,7 @@ fn test_invalid_column_name_special_chars() {
                     for col in &list.schema {
                         // Should only contain alphanumeric and underscore
                         assert!(
-                            col.chars()
-                                .all(|c| c.is_alphanumeric() || c == '_'),
+                            col.chars().all(|c| c.is_alphanumeric() || c == '_'),
                             "Column name should be sanitized: {}",
                             col
                         );
@@ -629,10 +627,7 @@ fn test_moderate_rows_moderate_columns() {
     let parquet_bytes = create_parquet_with_dimensions(100, 1000);
     let result = from_parquet_bytes(&parquet_bytes);
 
-    assert!(
-        result.is_ok(),
-        "100 columns × 1000 rows should be accepted"
-    );
+    assert!(result.is_ok(), "100 columns × 1000 rows should be accepted");
 }
 
 #[test]
@@ -667,13 +662,16 @@ fn test_empty_rows_many_columns() {
             if result.is_ok() {
                 let doc = result.unwrap();
                 // Should produce empty or minimal document
-                assert!(doc.root.is_empty() || doc.root.values().all(|item| {
-                    if let Item::List(list) = item {
-                        list.rows.is_empty()
-                    } else {
-                        true
-                    }
-                }));
+                assert!(
+                    doc.root.is_empty()
+                        || doc.root.values().all(|item| {
+                            if let Item::List(list) = item {
+                                list.rows.is_empty()
+                            } else {
+                                true
+                            }
+                        })
+                );
             }
         }
     }
@@ -687,18 +685,24 @@ fn test_empty_rows_many_columns() {
 ///
 /// Note: Using hedl-test builders to eliminate duplication.
 fn create_simple_doc() -> Document {
-    use hedl_test::fixtures::builders::{DocumentBuilder, MatrixListBuilder, NodeBuilder, ValueBuilder};
+    use hedl_test::fixtures::builders::{
+        DocumentBuilder, MatrixListBuilder, NodeBuilder, ValueBuilder,
+    };
 
     let list = MatrixListBuilder::new("Item")
         .schema(vec!["id".to_string(), "value".to_string()])
-        .row(NodeBuilder::new("Item", "i1")
-            .field(ValueBuilder::string("i1"))
-            .field(ValueBuilder::int(100))
-            .build())
-        .row(NodeBuilder::new("Item", "i2")
-            .field(ValueBuilder::string("i2"))
-            .field(ValueBuilder::int(200))
-            .build())
+        .row(
+            NodeBuilder::new("Item", "i1")
+                .field(ValueBuilder::string("i1"))
+                .field(ValueBuilder::int(100))
+                .build(),
+        )
+        .row(
+            NodeBuilder::new("Item", "i2")
+                .field(ValueBuilder::string("i2"))
+                .field(ValueBuilder::int(200))
+                .build(),
+        )
         .build();
 
     DocumentBuilder::new()
@@ -801,8 +805,9 @@ fn create_parquet_with_fixed_binary_column() -> Vec<u8> {
     ]));
 
     let id_array = Arc::new(StringArray::from(vec!["row1"])) as ArrayRef;
-    let fixed_binary_array =
-        Arc::new(FixedSizeBinaryArray::from(vec![b"0123456789abcdef".as_ref()])) as ArrayRef;
+    let fixed_binary_array = Arc::new(FixedSizeBinaryArray::from(vec![
+        b"0123456789abcdef".as_ref()
+    ])) as ArrayRef;
 
     create_parquet_from_batch(schema, vec![id_array, fixed_binary_array])
 }
@@ -893,7 +898,8 @@ fn create_parquet_with_large_binary_column() -> Vec<u8> {
     ]));
 
     let id_array = Arc::new(StringArray::from(vec!["row1"])) as ArrayRef;
-    let large_binary_array = Arc::new(LargeBinaryArray::from(vec![b"large binary".as_ref()])) as ArrayRef;
+    let large_binary_array =
+        Arc::new(LargeBinaryArray::from(vec![b"large binary".as_ref()])) as ArrayRef;
 
     create_parquet_from_batch(schema, vec![id_array, large_binary_array])
 }

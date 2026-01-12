@@ -98,12 +98,15 @@ fn main() {
     println!("------------------------------");
 
     let config = StreamConfig::builder()
-        .buffer_size(128 * 1024)  // 128 KB buffer
-        .max_object_bytes(5 * 1024 * 1024)  // 5 MB max object
+        .buffer_size(128 * 1024) // 128 KB buffer
+        .max_object_bytes(5 * 1024 * 1024) // 5 MB max object
         .build();
 
     println!("  Buffer size: {} KB", config.buffer_size / 1024);
-    println!("  Max object size: {} MB", config.max_object_bytes.unwrap() / 1024 / 1024);
+    println!(
+        "  Max object size: {} MB",
+        config.max_object_bytes.unwrap() / 1024 / 1024
+    );
     println!();
 
     // Example 5: Large Dataset Processing

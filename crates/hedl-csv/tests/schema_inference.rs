@@ -132,10 +132,7 @@ fn test_infer_all_strings() {
 
     // First row
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // id (numeric)
-    assert_eq!(
-        list.rows[0].fields[1],
-        Value::String("Alice".to_string())
-    );
+    assert_eq!(list.rows[0].fields[1], Value::String("Alice".to_string()));
     assert_eq!(
         list.rows[0].fields[2],
         Value::String("alice@example.com".to_string())
@@ -156,19 +153,20 @@ fn test_infer_mixed_types() {
         ..Default::default()
     };
 
-    let doc =
-        from_csv_with_config(csv_data, "Person", &["name", "age", "score", "active"], config)
-            .unwrap();
+    let doc = from_csv_with_config(
+        csv_data,
+        "Person",
+        &["name", "age", "score", "active"],
+        config,
+    )
+    .unwrap();
     let list = doc.get("persons").unwrap().as_list().unwrap();
 
     assert_eq!(list.rows.len(), 3);
 
     // First row - verify each type is correctly inferred
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // id: Int
-    assert_eq!(
-        list.rows[0].fields[1],
-        Value::String("Alice".to_string())
-    ); // name: String
+    assert_eq!(list.rows[0].fields[1], Value::String("Alice".to_string())); // name: String
     assert_eq!(list.rows[0].fields[2], Value::Int(30)); // age: Int
     assert_eq!(list.rows[0].fields[3], Value::Float(95.5)); // score: Float
     assert_eq!(list.rows[0].fields[4], Value::Bool(true)); // active: Bool
@@ -204,10 +202,7 @@ fn test_inference_with_nulls() {
 
     // Row 1: has values
     assert_eq!(list.rows[0].fields[1], Value::Int(30));
-    assert_eq!(
-        list.rows[0].fields[2],
-        Value::String("Alice".to_string())
-    );
+    assert_eq!(list.rows[0].fields[2], Value::String("Alice".to_string()));
 
     // Row 2: missing age
     assert_eq!(list.rows[1].fields[1], Value::Null);
@@ -236,8 +231,7 @@ fn test_inference_all_nulls_column() {
         ..Default::default()
     };
 
-    let doc =
-        from_csv_with_config(csv_data, "Record", &["always_null", "value"], config).unwrap();
+    let doc = from_csv_with_config(csv_data, "Record", &["always_null", "value"], config).unwrap();
     let list = doc.get("records").unwrap().as_list().unwrap();
 
     assert_eq!(list.rows.len(), 3);

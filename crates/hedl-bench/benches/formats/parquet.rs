@@ -652,7 +652,6 @@ fn create_performance_by_dataset_table(results: &[ConversionResult], report: &mu
     report.add_custom_table(table);
 }
 
-
 fn create_position_encoding_table(report: &mut BenchmarkReport) {
     let mut table = CustomTable {
         title: "Position Encoding Preservation".to_string(),
@@ -796,12 +795,7 @@ fn create_comparison_arrow_table(report: &mut BenchmarkReport) {
             "No (Binary)",
             "Edit in text editor",
         ),
-        (
-            "Schema Definition",
-            "Inline",
-            "Separate",
-            "Self-describing",
-        ),
+        ("Schema Definition", "Inline", "Separate", "Self-describing"),
         (
             "File Size",
             "Text (larger)",

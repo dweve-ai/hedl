@@ -18,8 +18,7 @@
 //! Comprehensive tests for partial JSON parsing
 
 use hedl_json::{
-    FromJsonConfig, partial_parse_json, partial_parse_json_value,
-    ErrorTolerance, PartialConfig,
+    partial_parse_json, partial_parse_json_value, ErrorTolerance, FromJsonConfig, PartialConfig,
 };
 use serde_json::json;
 
@@ -60,11 +59,7 @@ fn test_partial_parse_invalid_json_syntax() {
 fn test_partial_parse_stop_on_first_error() {
     let config = PartialConfig::builder()
         .tolerance(ErrorTolerance::StopOnFirst)
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_string_length(10)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_string_length(10).build())
         .build();
 
     let json = r#"{
@@ -83,11 +78,7 @@ fn test_partial_parse_stop_on_first_error() {
 fn test_partial_parse_collect_all_errors() {
     let config = PartialConfig::builder()
         .tolerance(ErrorTolerance::CollectAll)
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_string_length(10)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_string_length(10).build())
         .build();
 
     let json = r#"{
@@ -107,11 +98,7 @@ fn test_partial_parse_collect_all_errors() {
 fn test_partial_parse_max_errors_limit() {
     let config = PartialConfig::builder()
         .tolerance(ErrorTolerance::MaxErrors(2))
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_string_length(5)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_string_length(5).build())
         .build();
 
     let json = r#"{
@@ -172,11 +159,7 @@ fn test_partial_parse_replace_invalid_with_null() {
 #[test]
 fn test_partial_parse_depth_limit_errors() {
     let config = PartialConfig::builder()
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_depth(2)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_depth(2).build())
         .tolerance(ErrorTolerance::CollectAll)
         .build();
 
@@ -192,17 +175,16 @@ fn test_partial_parse_depth_limit_errors() {
 
     // Should have errors about depth limit
     assert!(!result.errors.is_empty());
-    assert!(result.errors.iter().any(|e| e.error.to_string().contains("depth")));
+    assert!(result
+        .errors
+        .iter()
+        .any(|e| e.error.to_string().contains("depth")));
 }
 
 #[test]
 fn test_partial_parse_array_size_limit() {
     let config = PartialConfig::builder()
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_array_size(3)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_array_size(3).build())
         .tolerance(ErrorTolerance::CollectAll)
         .build();
 
@@ -219,11 +201,7 @@ fn test_partial_parse_array_size_limit() {
 #[test]
 fn test_partial_parse_object_size_limit() {
     let config = PartialConfig::builder()
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_object_size(2)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_object_size(2).build())
         .tolerance(ErrorTolerance::CollectAll)
         .build();
 
@@ -358,11 +336,7 @@ fn test_partial_parse_nested_errors() {
 fn test_partial_parse_error_location_tracking() {
     let config = PartialConfig::builder()
         .tolerance(ErrorTolerance::CollectAll)
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_string_length(5)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_string_length(5).build())
         .build();
 
     let json = r#"{
@@ -452,11 +426,7 @@ fn test_partial_result_into_result_success() {
 fn test_partial_result_into_result_with_errors() {
     let config = PartialConfig::builder()
         .tolerance(ErrorTolerance::CollectAll)
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_string_length(5)
-                .build()
-        )
+        .from_json_config(FromJsonConfig::builder().max_string_length(5).build())
         .build();
 
     let json = r#"{"name": "this is too long"}"#;
@@ -560,9 +530,7 @@ fn test_error_tolerance_variants() {
     let json = r#"{"valid": "data"}"#;
 
     for tolerance in tolerances {
-        let config = PartialConfig::builder()
-            .tolerance(tolerance)
-            .build();
+        let config = PartialConfig::builder().tolerance(tolerance).build();
 
         let result = partial_parse_json(json, &config);
         assert!(result.document.is_some());
@@ -576,7 +544,7 @@ fn test_partial_config_builder_chaining() {
             FromJsonConfig::builder()
                 .max_depth(100)
                 .max_array_size(1000)
-                .build()
+                .build(),
         )
         .tolerance(ErrorTolerance::CollectAll)
         .include_partial_on_fatal(true)

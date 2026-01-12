@@ -1145,7 +1145,7 @@ fn export_reports() {
                     create_tensor_operation_performance_table(&results, &mut new_report);
                     create_shape_transformation_table(&results, &mut new_report);
                     create_memory_layout_table(&results, &mut new_report);
-                    
+
                     create_memory_bandwidth_table(&results, &mut new_report);
                     create_cache_efficiency_table(&results, &mut new_report);
                     create_production_recommendations_table(&results, &mut new_report);

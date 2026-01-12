@@ -1484,7 +1484,10 @@ fn create_memory_layout_comparison_table(results: &[RowResult], report: &mut Ben
     };
 
     // Only show actual measured results
-    for result in results.iter().filter(|r| r.dataset.starts_with("wide_") && r.mb_per_sec > 0.0) {
+    for result in results
+        .iter()
+        .filter(|r| r.dataset.starts_with("wide_") && r.mb_per_sec > 0.0)
+    {
         let recommended = if result.column_count <= 10 {
             "Row-oriented (AoS)"
         } else if result.column_count <= 50 {

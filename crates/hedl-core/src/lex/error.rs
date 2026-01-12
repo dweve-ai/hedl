@@ -251,7 +251,10 @@ mod tests {
     fn test_error_position_extraction() {
         let pos = SourcePos::new(10, 20);
 
-        assert_eq!(LexError::InvalidIndentation { spaces: 3, pos }.position(), Some(pos));
+        assert_eq!(
+            LexError::InvalidIndentation { spaces: 3, pos }.position(),
+            Some(pos)
+        );
         assert_eq!(LexError::TabInIndentation { pos }.position(), Some(pos));
         assert_eq!(LexError::UnclosedQuote { pos }.position(), Some(pos));
 
@@ -265,10 +268,30 @@ mod tests {
     fn test_is_resource_limit() {
         let pos = SourcePos::new(1, 1);
 
-        assert!(LexError::StringTooLong { length: 100, max: 50, pos }.is_resource_limit());
-        assert!(LexError::RecursionTooDeep { depth: 10, max: 5, pos }.is_resource_limit());
-        assert!(LexError::TooManyFields { count: 100, max: 50, pos }.is_resource_limit());
-        assert!(LexError::IndentTooDeep { depth: 10, max: 5, pos }.is_resource_limit());
+        assert!(LexError::StringTooLong {
+            length: 100,
+            max: 50,
+            pos
+        }
+        .is_resource_limit());
+        assert!(LexError::RecursionTooDeep {
+            depth: 10,
+            max: 5,
+            pos
+        }
+        .is_resource_limit());
+        assert!(LexError::TooManyFields {
+            count: 100,
+            max: 50,
+            pos
+        }
+        .is_resource_limit());
+        assert!(LexError::IndentTooDeep {
+            depth: 10,
+            max: 5,
+            pos
+        }
+        .is_resource_limit());
 
         assert!(!LexError::TrailingComma.is_resource_limit());
         assert!(!LexError::EmptyTensor.is_resource_limit());
@@ -283,7 +306,10 @@ mod tests {
         assert!(LexError::UnexpectedChar('x').is_tensor_error());
 
         assert!(!LexError::TrailingComma.is_tensor_error());
-        assert!(!LexError::UnclosedQuote { pos: SourcePos::new(1, 1) }.is_tensor_error());
+        assert!(!LexError::UnclosedQuote {
+            pos: SourcePos::new(1, 1)
+        }
+        .is_tensor_error());
     }
 
     #[test]
@@ -291,8 +317,14 @@ mod tests {
         assert!(LexError::TrailingComma.is_csv_error());
         assert!(LexError::ExpectedCommaAfterQuote('x').is_csv_error());
         assert!(LexError::QuoteInUnquotedField("test".to_string()).is_csv_error());
-        assert!(LexError::UnclosedQuote { pos: SourcePos::new(1, 1) }.is_csv_error());
-        assert!(LexError::UnclosedExpression { pos: SourcePos::new(1, 1) }.is_csv_error());
+        assert!(LexError::UnclosedQuote {
+            pos: SourcePos::new(1, 1)
+        }
+        .is_csv_error());
+        assert!(LexError::UnclosedExpression {
+            pos: SourcePos::new(1, 1)
+        }
+        .is_csv_error());
 
         assert!(!LexError::EmptyTensor.is_csv_error());
         assert!(!LexError::UnbalancedBrackets.is_csv_error());
@@ -309,7 +341,10 @@ mod tests {
         assert!(msg.contains("3 spaces"));
 
         let err = LexError::TrailingComma;
-        assert_eq!(format!("{}", err), "trailing comma not allowed in matrix row");
+        assert_eq!(
+            format!("{}", err),
+            "trailing comma not allowed in matrix row"
+        );
 
         let err = LexError::EmptyTensor;
         assert_eq!(format!("{}", err), "empty tensor not allowed");
@@ -347,6 +382,8 @@ mod tests {
         fn accepts_error<E: std::error::Error>(_: E) {}
         accepts_error(LexError::TrailingComma);
         accepts_error(LexError::EmptyTensor);
-        accepts_error(LexError::UnclosedQuote { pos: SourcePos::new(1, 1) });
+        accepts_error(LexError::UnclosedQuote {
+            pos: SourcePos::new(1, 1),
+        });
     }
 }

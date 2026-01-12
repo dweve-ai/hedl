@@ -144,15 +144,19 @@ pub fn query(doc: &Document, path: &str, config: &QueryConfig) -> QueryResult<Ve
     let json_value = to_json_value(doc, &json_config).map_err(QueryError::ConversionError)?;
 
     // Parse JSONPath expression
-    let json_path = JsonPath::from_str(path)
-        .map_err(|e| QueryError::InvalidExpression(format!("{}", e)))?;
+    let json_path =
+        JsonPath::from_str(path).map_err(|e| QueryError::InvalidExpression(format!("{}", e)))?;
 
     // Execute query
     let node_list = json_path.query(&json_value);
 
     // Collect results with optional limit
     let results: Vec<JsonValue> = if config.max_results > 0 {
-        node_list.into_iter().take(config.max_results).cloned().collect()
+        node_list
+            .into_iter()
+            .take(config.max_results)
+            .cloned()
+            .collect()
     } else {
         node_list.all().into_iter().cloned().collect()
     };
@@ -374,7 +378,13 @@ mod tests {
             // Has directives but no VERSION - add VERSION and ensure separator
             let (header, body) = if input.contains("---") {
                 let parts: Vec<&str> = input.splitn(2, "---").collect();
-                (parts[0].trim().to_string(), parts.get(1).map(|s| s.trim().to_string()).unwrap_or_default())
+                (
+                    parts[0].trim().to_string(),
+                    parts
+                        .get(1)
+                        .map(|s| s.trim().to_string())
+                        .unwrap_or_default(),
+                )
             } else {
                 // Extract directives to header
                 let mut header_lines = Vec::new();
@@ -573,7 +583,10 @@ mod tests {
 
         let result = query(&doc, "$$invalid", &config);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), QueryError::InvalidExpression(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            QueryError::InvalidExpression(_)
+        ));
     }
 
     #[test]
@@ -617,10 +630,7 @@ mod tests {
         let results = query(&doc, "$.*", &config).unwrap();
         assert_eq!(results.len(), 3);
 
-        let sum: i64 = results
-            .iter()
-            .filter_map(|v| v.as_i64())
-            .sum();
+        let sum: i64 = results.iter().filter_map(|v| v.as_i64()).sum();
         assert_eq!(sum, 6);
     }
 

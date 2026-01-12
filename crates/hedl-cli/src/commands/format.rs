@@ -184,9 +184,21 @@ mod tests {
     #[test]
     fn test_add_count_hints_to_list_with_rows() {
         let mut list = MatrixList::new("Team", vec!["id".to_string(), "name".to_string()]);
-        list.add_row(Node::new("Team", "t1", vec![Value::String("Team 1".into())]));
-        list.add_row(Node::new("Team", "t2", vec![Value::String("Team 2".into())]));
-        list.add_row(Node::new("Team", "t3", vec![Value::String("Team 3".into())]));
+        list.add_row(Node::new(
+            "Team",
+            "t1",
+            vec![Value::String("Team 1".into())],
+        ));
+        list.add_row(Node::new(
+            "Team",
+            "t2",
+            vec![Value::String("Team 2".into())],
+        ));
+        list.add_row(Node::new(
+            "Team",
+            "t3",
+            vec![Value::String("Team 3".into())],
+        ));
         assert_eq!(list.count_hint, None);
 
         let mut item = Item::List(list);
@@ -202,13 +214,18 @@ mod tests {
 
     #[test]
     fn test_add_count_hints_overwrites_existing() {
-        let mut list = MatrixList::with_count_hint(
+        let mut list =
+            MatrixList::with_count_hint("Team", vec!["id".to_string(), "name".to_string()], 5);
+        list.add_row(Node::new(
             "Team",
-            vec!["id".to_string(), "name".to_string()],
-            5,
-        );
-        list.add_row(Node::new("Team", "t1", vec![Value::String("Team 1".into())]));
-        list.add_row(Node::new("Team", "t2", vec![Value::String("Team 2".into())]));
+            "t1",
+            vec![Value::String("Team 1".into())],
+        ));
+        list.add_row(Node::new(
+            "Team",
+            "t2",
+            vec![Value::String("Team 2".into())],
+        ));
         assert_eq!(list.count_hint, Some(5)); // Old value
 
         let mut item = Item::List(list);

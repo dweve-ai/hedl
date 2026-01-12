@@ -30,15 +30,9 @@ use super::span::{SourcePos, Span};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// A literal value: number, string, or boolean.
-    Literal {
-        value: ExprLiteral,
-        span: Span,
-    },
+    Literal { value: ExprLiteral, span: Span },
     /// An identifier: `foo`, `bar_baz`.
-    Identifier {
-        name: String,
-        span: Span,
-    },
+    Identifier { name: String, span: Span },
     /// A function call: `func(arg1, arg2)`.
     Call {
         name: String,
@@ -126,10 +120,13 @@ pub fn parse_expression(s: &str) -> Result<Expression, LexError> {
     let expr = parser.parse_expr()?;
     parser.skip_whitespace();
     if parser.pos < parser.chars.len() {
-        return Err(LexError::InvalidToken { message: format!(
-            "unexpected character '{}' at position {}",
-            parser.chars[parser.pos], parser.pos
-        ), pos: SourcePos::default() });
+        return Err(LexError::InvalidToken {
+            message: format!(
+                "unexpected character '{}' at position {}",
+                parser.chars[parser.pos], parser.pos
+            ),
+            pos: SourcePos::default(),
+        });
     }
     Ok(expr)
 }
@@ -139,7 +136,10 @@ pub fn parse_expression(s: &str) -> Result<Expression, LexError> {
 /// This extracts the content between `$(` and `)` and parses it.
 pub fn parse_expression_token(s: &str) -> Result<Expression, LexError> {
     if !s.starts_with("$(") {
-        return Err(LexError::InvalidToken { message: "expression must start with $(".to_string(), pos: SourcePos::default() });
+        return Err(LexError::InvalidToken {
+            message: "expression must start with $(".to_string(),
+            pos: SourcePos::default(),
+        });
     }
 
     // Find matching closing paren
@@ -150,7 +150,10 @@ pub fn parse_expression_token(s: &str) -> Result<Expression, LexError> {
 /// Extract expression content from `$(...)`, handling nested parens and quotes.
 fn extract_expression_content(s: &str) -> Result<String, LexError> {
     if !s.starts_with("$(") {
-        return Err(LexError::InvalidToken { message: "expression must start with $(".to_string(), pos: SourcePos::default() });
+        return Err(LexError::InvalidToken {
+            message: "expression must start with $(".to_string(),
+            pos: SourcePos::default(),
+        });
     }
 
     let mut in_quotes = false;
@@ -185,10 +188,14 @@ fn extract_expression_content(s: &str) -> Result<String, LexError> {
     }
 
     if depth != 0 {
-        return Err(LexError::UnclosedExpression { pos: SourcePos::default() });
+        return Err(LexError::UnclosedExpression {
+            pos: SourcePos::default(),
+        });
     }
 
-    let content_end = content_end.ok_or(LexError::UnclosedExpression { pos: SourcePos::default() })?;
+    let content_end = content_end.ok_or(LexError::UnclosedExpression {
+        pos: SourcePos::default(),
+    })?;
     let content: String = chars[2..content_end].iter().collect();
     Ok(content)
 }
@@ -244,7 +251,10 @@ impl ExprParser {
                     let name = match expr {
                         Expression::Identifier { name, .. } => name,
                         _ => {
-                            return Err(LexError::InvalidToken { message: "function call on non-identifier".to_string(), pos: SourcePos::default() });
+                            return Err(LexError::InvalidToken {
+                                message: "function call on non-identifier".to_string(),
+                                pos: SourcePos::default(),
+                            });
                         }
                     };
                     self.advance(); // consume '('
@@ -313,16 +323,22 @@ impl ExprParser {
                 let expr = self.parse_expr()?;
                 self.skip_whitespace();
                 if self.peek() != Some(')') {
-                    return Err(LexError::InvalidToken { message: "expected ')' after parenthesized expression".to_string(), pos: SourcePos::default() });
+                    return Err(LexError::InvalidToken {
+                        message: "expected ')' after parenthesized expression".to_string(),
+                        pos: SourcePos::default(),
+                    });
                 }
                 self.advance(); // consume ')'
                 Ok(expr)
             }
-            Some(ch) => Err(LexError::InvalidToken { message: format!(
-                "unexpected character '{}' in expression",
-                ch
-            ), pos: SourcePos::default() }),
-            None => Err(LexError::InvalidToken { message: "unexpected end of expression".to_string(), pos: SourcePos::default() }),
+            Some(ch) => Err(LexError::InvalidToken {
+                message: format!("unexpected character '{}' in expression", ch),
+                pos: SourcePos::default(),
+            }),
+            None => Err(LexError::InvalidToken {
+                message: "unexpected end of expression".to_string(),
+                pos: SourcePos::default(),
+            }),
         }
     }
 
@@ -334,11 +350,17 @@ impl ExprParser {
                 if let Some(c) = self.advance() {
                     ident.push(c);
                 } else {
-                    return Err(LexError::InvalidToken { message: "unexpected end of input while parsing identifier".to_string(), pos: SourcePos::default() });
+                    return Err(LexError::InvalidToken {
+                        message: "unexpected end of input while parsing identifier".to_string(),
+                        pos: SourcePos::default(),
+                    });
                 }
             }
             _ => {
-                return Err(LexError::InvalidToken { message: "expected identifier".to_string(), pos: SourcePos::default() });
+                return Err(LexError::InvalidToken {
+                    message: "expected identifier".to_string(),
+                    pos: SourcePos::default(),
+                });
             }
         }
 
@@ -380,7 +402,11 @@ impl ExprParser {
                     }
                 }
                 Some(ch) => result.push(ch),
-                None => return Err(LexError::UnclosedQuote { pos: SourcePos::default() }),
+                None => {
+                    return Err(LexError::UnclosedQuote {
+                        pos: SourcePos::default(),
+                    })
+                }
             }
         }
     }
@@ -394,7 +420,10 @@ impl ExprParser {
             if let Some(c) = self.advance() {
                 num_str.push(c);
             } else {
-                return Err(LexError::InvalidToken { message: "unexpected end of input while parsing number".to_string(), pos: SourcePos::default() });
+                return Err(LexError::InvalidToken {
+                    message: "unexpected end of input while parsing number".to_string(),
+                    pos: SourcePos::default(),
+                });
             }
         }
 
@@ -427,17 +456,19 @@ impl ExprParser {
         }
 
         if has_dot {
-            let f: f64 = num_str
-                .parse()
-                .map_err(|_| LexError::InvalidToken { message: format!("invalid float: {}", num_str), pos: SourcePos::default() })?;
+            let f: f64 = num_str.parse().map_err(|_| LexError::InvalidToken {
+                message: format!("invalid float: {}", num_str),
+                pos: SourcePos::default(),
+            })?;
             Ok(Expression::Literal {
                 value: ExprLiteral::Float(f),
                 span: Span::default(), // TODO: Track actual span
             })
         } else {
-            let i: i64 = num_str
-                .parse()
-                .map_err(|_| LexError::InvalidToken { message: format!("invalid integer: {}", num_str), pos: SourcePos::default() })?;
+            let i: i64 = num_str.parse().map_err(|_| LexError::InvalidToken {
+                message: format!("invalid integer: {}", num_str),
+                pos: SourcePos::default(),
+            })?;
             Ok(Expression::Literal {
                 value: ExprLiteral::Int(i),
                 span: Span::default(), // TODO: Track actual span
@@ -503,13 +534,25 @@ mod tests {
     #[test]
     fn test_parse_integer() {
         let expr = parse_expression("42").unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::Int(42), .. }));
+        assert!(matches!(
+            expr,
+            Expression::Literal {
+                value: ExprLiteral::Int(42),
+                ..
+            }
+        ));
     }
 
     #[test]
     fn test_parse_negative_integer() {
         let expr = parse_expression("-123").unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::Int(-123), .. }));
+        assert!(matches!(
+            expr,
+            Expression::Literal {
+                value: ExprLiteral::Int(-123),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -523,7 +566,9 @@ mod tests {
     #[test]
     fn test_parse_string() {
         let expr = parse_expression(r#""hello""#).unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "hello"));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "hello")
+        );
     }
 
     #[test]
@@ -537,7 +582,13 @@ mod tests {
     #[test]
     fn test_parse_bool_true() {
         let expr = parse_expression("true").unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::Bool(true), .. }));
+        assert!(matches!(
+            expr,
+            Expression::Literal {
+                value: ExprLiteral::Bool(true),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -545,7 +596,10 @@ mod tests {
         let expr = parse_expression("false").unwrap();
         assert!(matches!(
             expr,
-            Expression::Literal { value: ExprLiteral::Bool(false), .. }
+            Expression::Literal {
+                value: ExprLiteral::Bool(false),
+                ..
+            }
         ));
     }
 
@@ -644,7 +698,9 @@ mod tests {
                         field: inner_field,
                         ..
                     } => {
-                        assert!(matches!(*inner, Expression::Identifier { name, .. } if name == "a"));
+                        assert!(
+                            matches!(*inner, Expression::Identifier { name, .. } if name == "a")
+                        );
                         assert_eq!(inner_field, "b");
                     }
                     _ => panic!("expected nested Access"),
@@ -682,7 +738,10 @@ mod tests {
 
     #[test]
     fn test_display_identifier() {
-        let expr = Expression::Identifier { name: "foo".to_string(), span: Span::default() };
+        let expr = Expression::Identifier {
+            name: "foo".to_string(),
+            span: Span::default(),
+        };
         assert_eq!(format!("{}", expr), "foo");
     }
 
@@ -691,8 +750,14 @@ mod tests {
         let expr = Expression::Call {
             name: "func".to_string(),
             args: vec![
-                Expression::Identifier { name: "x".to_string(), span: Span::default() },
-                Expression::Literal { value: ExprLiteral::Int(42), span: Span::default() },
+                Expression::Identifier {
+                    name: "x".to_string(),
+                    span: Span::default(),
+                },
+                Expression::Literal {
+                    value: ExprLiteral::Int(42),
+                    span: Span::default(),
+                },
             ],
             span: Span::default(),
         };
@@ -702,7 +767,10 @@ mod tests {
     #[test]
     fn test_display_access() {
         let expr = Expression::Access {
-            target: Box::new(Expression::Identifier { name: "user".to_string(), span: Span::default() }),
+            target: Box::new(Expression::Identifier {
+                name: "user".to_string(),
+                span: Span::default(),
+            }),
             field: "name".to_string(),
             span: Span::default(),
         };
@@ -711,7 +779,10 @@ mod tests {
 
     #[test]
     fn test_display_string_with_quotes() {
-        let expr = Expression::Literal { value: ExprLiteral::String("say \"hi\"".to_string()), span: Span::default() };
+        let expr = Expression::Literal {
+            value: ExprLiteral::String("say \"hi\"".to_string()),
+            span: Span::default(),
+        };
         assert_eq!(format!("{}", expr), "\"say \"\"hi\"\"\"");
     }
 
@@ -752,7 +823,13 @@ mod tests {
     #[test]
     fn test_parse_zero() {
         let expr = parse_expression("0").unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::Int(0), .. }));
+        assert!(matches!(
+            expr,
+            Expression::Literal {
+                value: ExprLiteral::Int(0),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -760,7 +837,10 @@ mod tests {
         let expr = parse_expression("9223372036854775807").unwrap();
         assert!(matches!(
             expr,
-            Expression::Literal { value: ExprLiteral::Int(9223372036854775807), .. }
+            Expression::Literal {
+                value: ExprLiteral::Int(9223372036854775807),
+                ..
+            }
         ));
     }
 
@@ -768,13 +848,21 @@ mod tests {
     fn test_parse_negative_zero() {
         // -0 is valid and should parse as -0 (which equals 0)
         let expr = parse_expression("-0").unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::Int(0), .. }));
+        assert!(matches!(
+            expr,
+            Expression::Literal {
+                value: ExprLiteral::Int(0),
+                ..
+            }
+        ));
     }
 
     #[test]
     fn test_parse_float_zero() {
         let expr = parse_expression("0.0").unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::Float(f), .. } if f == 0.0));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::Float(f), .. } if f == 0.0)
+        );
     }
 
     #[test]
@@ -796,31 +884,41 @@ mod tests {
     #[test]
     fn test_parse_string_empty() {
         let expr = parse_expression(r#""""#).unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s.is_empty()));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s.is_empty())
+        );
     }
 
     #[test]
     fn test_parse_string_with_spaces() {
         let expr = parse_expression(r#""hello world""#).unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "hello world"));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "hello world")
+        );
     }
 
     #[test]
     fn test_parse_string_with_special_chars() {
         let expr = parse_expression(r#""hello!@#$%""#).unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "hello!@#$%"));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "hello!@#$%")
+        );
     }
 
     #[test]
     fn test_parse_string_unicode() {
         let expr = parse_expression(r#""日本語 🎉""#).unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s.contains('🎉')));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s.contains('🎉'))
+        );
     }
 
     #[test]
     fn test_parse_string_multiple_escaped_quotes() {
         let expr = parse_expression(r#""""""""#).unwrap();
-        assert!(matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "\"\""));
+        assert!(
+            matches!(expr, Expression::Literal { value: ExprLiteral::String(s), .. } if s == "\"\"")
+        );
     }
 
     // ==================== Additional identifier tests ====================
@@ -864,14 +962,26 @@ mod tests {
             Expression::Call { name, args, .. } => {
                 assert_eq!(name, "func");
                 assert_eq!(args.len(), 3);
-                assert!(matches!(args[0], Expression::Literal { value: ExprLiteral::Int(42), .. }));
+                assert!(matches!(
+                    args[0],
+                    Expression::Literal {
+                        value: ExprLiteral::Int(42),
+                        ..
+                    }
+                ));
                 assert!(matches!(
                     args[1],
-                    Expression::Literal { value: ExprLiteral::Float(_), .. }
+                    Expression::Literal {
+                        value: ExprLiteral::Float(_),
+                        ..
+                    }
                 ));
                 assert!(matches!(
                     args[2],
-                    Expression::Literal { value: ExprLiteral::Bool(true), .. }
+                    Expression::Literal {
+                        value: ExprLiteral::Bool(true),
+                        ..
+                    }
                 ));
             }
             _ => panic!("expected Call"),
@@ -1048,7 +1158,10 @@ mod tests {
             name: "outer".to_string(),
             args: vec![Expression::Call {
                 name: "inner".to_string(),
-                args: vec![Expression::Literal { value: ExprLiteral::Int(42), span: Span::default() }],
+                args: vec![Expression::Literal {
+                    value: ExprLiteral::Int(42),
+                    span: Span::default(),
+                }],
                 span: Span::default(),
             }],
             span: Span::default(),
@@ -1060,7 +1173,10 @@ mod tests {
     fn test_display_access_chain() {
         let expr = Expression::Access {
             target: Box::new(Expression::Access {
-                target: Box::new(Expression::Identifier { name: "a".to_string(), span: Span::default() }),
+                target: Box::new(Expression::Identifier {
+                    name: "a".to_string(),
+                    span: Span::default(),
+                }),
                 field: "b".to_string(),
                 span: Span::default(),
             }),
@@ -1126,8 +1242,14 @@ mod tests {
 
     #[test]
     fn test_expression_equality() {
-        let a = Expression::Identifier { name: "foo".to_string(), span: Span::default() };
-        let b = Expression::Identifier { name: "foo".to_string(), span: Span::default() };
+        let a = Expression::Identifier {
+            name: "foo".to_string(),
+            span: Span::default(),
+        };
+        let b = Expression::Identifier {
+            name: "foo".to_string(),
+            span: Span::default(),
+        };
         assert_eq!(a, b);
     }
 
@@ -1135,7 +1257,10 @@ mod tests {
     fn test_expression_clone() {
         let original = Expression::Call {
             name: "func".to_string(),
-            args: vec![Expression::Literal { value: ExprLiteral::Int(42), span: Span::default() }],
+            args: vec![Expression::Literal {
+                value: ExprLiteral::Int(42),
+                span: Span::default(),
+            }],
             span: Span::default(),
         };
         let cloned = original.clone();

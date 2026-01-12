@@ -20,9 +20,9 @@
 use crate::error::YamlError;
 use crate::DEFAULT_SCHEMA;
 use hedl_core::convert::parse_reference;
-use hedl_core::{Document, Item, MatrixList, Node, Value};
-use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
 use hedl_core::lex::Tensor;
+use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use serde_yaml::{Mapping, Value as YamlValue};
 use std::collections::BTreeMap;
 
@@ -503,13 +503,12 @@ fn yaml_value_to_item(
                     }
 
                     // Extract type_name from wrapper metadata if present
-                    let mut list = yaml_sequence_to_matrix_list(
-                        seq, key, config, structs, depth,
-                    )?;
+                    let mut list = yaml_sequence_to_matrix_list(seq, key, config, structs, depth)?;
 
                     // Override type_name with wrapper metadata if present
                     if let Some(YamlValue::String(wrapper_type)) =
-                        map.get(YamlValue::String("__type__".to_string())) {
+                        map.get(YamlValue::String("__type__".to_string()))
+                    {
                         list.type_name = wrapper_type.clone();
                         // Re-register with correct type name
                         structs.insert(wrapper_type.clone(), list.schema.clone());
@@ -588,7 +587,7 @@ fn infer_row_schema(seq: &[YamlValue]) -> Vec<String> {
             keys.push(key_str.to_string());
         }
 
-        keys.sort_unstable();  // OPTIMIZATION: Use unstable sort (faster for strings)
+        keys.sort_unstable(); // OPTIMIZATION: Use unstable sort (faster for strings)
 
         // Ensure "id" is first if present
         if let Some(pos) = keys.iter().position(|k| k == "id") {
@@ -671,8 +670,8 @@ fn build_matrix_columns(
 fn extract_row_id(map: &Mapping, schema: &[String]) -> String {
     map.get(YamlValue::String(schema[0].clone()))
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())  // Explicitly convert &str to String
-        .unwrap_or_else(String::new)  // Use String::new() instead of "".to_string()
+        .map(|s| s.to_string()) // Explicitly convert &str to String
+        .unwrap_or_default()
 }
 
 /// Processes nested child sequences within a mapping.
@@ -923,7 +922,9 @@ fn yaml_sequence_to_matrix_list(
     // Try to extract type_name from metadata (__type__ field in first row)
     // This preserves type_name during YAML roundtrip when include_metadata is used
     let type_name = if let Some(YamlValue::Mapping(first_map)) = seq.first() {
-        if let Some(YamlValue::String(type_str)) = first_map.get(YamlValue::String("__type__".to_string())) {
+        if let Some(YamlValue::String(type_str)) =
+            first_map.get(YamlValue::String("__type__".to_string()))
+        {
             type_str.clone()
         } else {
             // Fallback to inferring from key
@@ -2340,7 +2341,9 @@ a:
 
     #[test]
     fn test_builder_custom_array_length() {
-        let config = FromYamlConfig::builder().max_array_length(5_000_000).build();
+        let config = FromYamlConfig::builder()
+            .max_array_length(5_000_000)
+            .build();
         assert_eq!(config.max_array_length, 5_000_000);
         // Other values should be defaults
         assert_eq!(config.max_document_size, DEFAULT_MAX_DOCUMENT_SIZE);

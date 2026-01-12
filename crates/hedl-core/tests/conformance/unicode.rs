@@ -100,7 +100,8 @@ fn test_rtl_arabic_quoted() {
 /// Test RTL text in keys (should work for valid identifiers)
 #[test]
 fn test_rtl_in_matrix_list() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, text]\n---\ndata: @T\n  | item1, مرحبا\n  | item2, שלום\n";
+    let doc =
+        "%VERSION: 1.0\n%STRUCT: T: [id, text]\n---\ndata: @T\n  | item1, مرحبا\n  | item2, שלום\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();

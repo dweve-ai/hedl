@@ -54,7 +54,8 @@ fn test_parse_10k_rows() {
 
 #[test]
 fn test_parse_50k_rows() {
-    let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Record: [id, value, count]\n---\ndata: @Record\n");
+    let mut doc =
+        String::from("%VERSION: 1.0\n%STRUCT: Record: [id, value, count]\n---\ndata: @Record\n");
 
     // Generate 50,000 rows
     for i in 0..50_000 {
@@ -163,7 +164,13 @@ fn test_nested_objects_at_limit() {
     doc.push_str(&" ".repeat(10 * 2));
     doc.push_str("value: 42\n");
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_ok());
 }
 
@@ -182,7 +189,13 @@ fn test_nested_objects_exceeds_limit() {
         doc.push_str(&format!("level{}:\n", i));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
@@ -247,7 +260,13 @@ fn test_nested_hierarchy_at_limit() {
         doc.push_str(&format!("{}| node-{}\n", indent, level));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_ok());
 }
 
@@ -302,9 +321,18 @@ fn test_nest_depth_limit_enforced() {
     }
 
     // Parse should fail with Security error
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_err(), "Expected parsing to fail due to depth limit");
+    assert!(
+        result.is_err(),
+        "Expected parsing to fail due to depth limit"
+    );
 
     let err = result.unwrap_err();
     assert!(
@@ -355,9 +383,18 @@ fn test_nest_depth_within_limit_succeeds() {
     }
 
     // Parse should succeed
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_ok(), "Expected parsing to succeed within depth limit");
+    assert!(
+        result.is_ok(),
+        "Expected parsing to succeed within depth limit"
+    );
 
     let parsed = result.unwrap();
     let mut stats = StatsCollector::default();
@@ -385,9 +422,18 @@ fn test_nest_depth_limit_minimal() {
     doc.push_str("  | parent-1\n");
     doc.push_str("    | child-1\n"); // Depth 2 - should fail
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_err(), "Expected parsing to fail with depth limit of 1");
+    assert!(
+        result.is_err(),
+        "Expected parsing to fail with depth limit of 1"
+    );
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
 
@@ -431,9 +477,18 @@ fn test_max_object_keys_limit_enforced() {
         doc.push_str(&format!("  setting{}: value{}\n", i, i));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_err(), "Expected parsing to fail due to max_object_keys limit");
+    assert!(
+        result.is_err(),
+        "Expected parsing to fail due to max_object_keys limit"
+    );
     let err = result.unwrap_err();
     assert!(
         matches!(err.kind, HedlErrorKind::Security),
@@ -486,9 +541,18 @@ fn test_max_total_keys_limit_enforced() {
         }
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_err(), "Expected parsing to fail due to max_total_keys limit");
+    assert!(
+        result.is_err(),
+        "Expected parsing to fail due to max_total_keys limit"
+    );
 
     let err = result.unwrap_err();
     assert!(
@@ -526,7 +590,13 @@ fn test_max_total_keys_within_limit_succeeds() {
         }
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
     assert!(result.is_ok(), "Expected parsing to succeed within limits");
 
@@ -570,9 +640,18 @@ fn test_max_total_keys_nested_objects() {
         doc.push_str(&format!("  nested3_key{}: value{}\n", i, i));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_err(), "Expected parsing to fail due to total keys limit across nesting");
+    assert!(
+        result.is_err(),
+        "Expected parsing to fail due to total keys limit across nesting"
+    );
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
 
@@ -584,7 +663,7 @@ fn test_max_total_keys_nested_objects() {
 fn test_max_total_keys_at_exact_limit() {
     let limits = Limits {
         max_object_keys: 11,
-        max_total_keys: 110,  // 10 objects + 100 nested keys
+        max_total_keys: 110, // 10 objects + 100 nested keys
         ..Limits::default()
     };
 
@@ -592,13 +671,19 @@ fn test_max_total_keys_at_exact_limit() {
 
     // Create exactly 110 total keys: 10 object keys + 100 nested keys
     for obj_idx in 0..10 {
-        doc.push_str(&format!("object{}:\n", obj_idx));  // This counts as 1 key
+        doc.push_str(&format!("object{}:\n", obj_idx)); // This counts as 1 key
         for key_idx in 0..10 {
-            doc.push_str(&format!("  key{}: value{}\n", key_idx, key_idx));  // Each counts as 1 key
+            doc.push_str(&format!("  key{}: value{}\n", key_idx, key_idx)); // Each counts as 1 key
         }
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
     assert!(result.is_ok(), "Expected parsing to succeed at exact limit");
 }
@@ -624,9 +709,18 @@ fn test_max_total_keys_overflow_protection() {
         doc.push_str(&format!("key{}: value{}\n", i, i));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_ok(), "Expected parsing to succeed with overflow protection");
+    assert!(
+        result.is_ok(),
+        "Expected parsing to succeed with overflow protection"
+    );
 }
 
 /// Test that max_total_keys doesn't count keys in matrix list schemas.
@@ -638,7 +732,7 @@ fn test_max_total_keys_overflow_protection() {
 fn test_max_total_keys_excludes_matrix_schemas() {
     let limits = Limits {
         max_object_keys: 20,
-        max_total_keys: 20,  // 15 scalar keys + 1 list key "data" = 16 total
+        max_total_keys: 20, // 15 scalar keys + 1 list key "data" = 16 total
         ..Limits::default()
     };
 
@@ -652,14 +746,23 @@ fn test_max_total_keys_excludes_matrix_schemas() {
     }
 
     // Add a matrix list - the key "data" counts, but schema columns don't
-    doc.push_str("data: @Record\n");  // "data" counts as 1 key (total: 16)
+    doc.push_str("data: @Record\n"); // "data" counts as 1 key (total: 16)
     doc.push_str("  | rec1, Alice, 30, NYC, USA\n");
     doc.push_str("  | rec2, Bob, 25, LA, USA\n");
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
 
     // Should succeed because we only have 16 object keys (within limit of 20)
-    assert!(result.is_ok(), "Matrix schema columns should not count toward max_total_keys");
+    assert!(
+        result.is_ok(),
+        "Matrix schema columns should not count toward max_total_keys"
+    );
 }
 
 /// Test max_total_keys with block strings.
@@ -688,15 +791,33 @@ fn test_max_total_keys_includes_block_strings() {
     doc.push_str("with multiple lines\n");
     doc.push_str("\"\"\"\n");
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits: limits.clone(), strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits: limits.clone(),
+            strict_refs: true,
+        },
+    );
 
-    assert!(result.is_ok(), "Block string keys should count toward total, but 5 is at limit");
+    assert!(
+        result.is_ok(),
+        "Block string keys should count toward total, but 5 is at limit"
+    );
 
     // Now try to add one more key (should fail)
     doc.push_str("extra: value\n");
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
-    assert!(result.is_err(), "Should fail when exceeding limit with extra key");
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
+    assert!(
+        result.is_err(),
+        "Should fail when exceeding limit with extra key"
+    );
 }
 
 #[test]
@@ -732,7 +853,13 @@ fn test_aliases_at_limit() {
 
     doc.push_str("---\ndata: 1\n");
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_ok());
 }
 
@@ -751,7 +878,13 @@ fn test_aliases_exceeds_limit() {
 
     doc.push_str("---\ndata: 1\n");
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
@@ -785,7 +918,8 @@ fn test_concurrent_parsing_small_docs() {
 #[test]
 fn test_concurrent_parsing_large_docs() {
     // Generate a larger document
-    let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Record: [id, value, count]\n---\ndata: @Record\n");
+    let mut doc =
+        String::from("%VERSION: 1.0\n%STRUCT: Record: [id, value, count]\n---\ndata: @Record\n");
 
     for i in 0..5_000 {
         doc.push_str(&format!("  | record-{}, value-{}, {}\n", i, i, i % 100));
@@ -831,17 +965,26 @@ fn test_concurrent_parsing_with_different_limits() {
             max_nodes: 100,
             ..Limits::default()
         };
-        let result = parse_with_limits(doc2.as_bytes(), ParseOptions { limits, strict_refs: true });
+        let result = parse_with_limits(
+            doc2.as_bytes(),
+            ParseOptions {
+                limits,
+                strict_refs: true,
+            },
+        );
         assert!(result.is_ok());
     }));
 
     // Thread with unlimited
     let doc3 = Arc::clone(&doc);
     handles.push(thread::spawn(move || {
-        let result = parse_with_limits(doc3.as_bytes(), ParseOptions {
-            limits: Limits::unlimited(),
-            strict_refs: true,
-        });
+        let result = parse_with_limits(
+            doc3.as_bytes(),
+            ParseOptions {
+                limits: Limits::unlimited(),
+                strict_refs: true,
+            },
+        );
         assert!(result.is_ok());
     }));
 
@@ -882,7 +1025,13 @@ fn test_block_string_at_limit() {
         content, content
     );
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_ok());
 }
 
@@ -894,12 +1043,15 @@ fn test_block_string_exceeds_limit() {
     };
 
     let content = "x".repeat(200);
-    let doc = format!(
-        "%VERSION: 1.0\n---\ndata: \"\"\"\n{}\n\"\"\"\n",
-        content
-    );
+    let doc = format!("%VERSION: 1.0\n---\ndata: \"\"\"\n{}\n\"\"\"\n", content);
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
@@ -908,10 +1060,18 @@ fn test_block_string_exceeds_limit() {
 fn test_many_small_allocations() {
     // Test with many small values to stress allocator
     // Note: First column must be a valid ID (cannot start with digit)
-    let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Tiny: [id, b, c, d, e]\n---\ndata: @Tiny\n");
+    let mut doc =
+        String::from("%VERSION: 1.0\n%STRUCT: Tiny: [id, b, c, d, e]\n---\ndata: @Tiny\n");
 
     for i in 0..10_000 {
-        doc.push_str(&format!("  | id-{}, {}, {}, {}, {}\n", i, i+1, i+2, i+3, i+4));
+        doc.push_str(&format!(
+            "  | id-{}, {}, {}, {}, {}\n",
+            i,
+            i + 1,
+            i + 2,
+            i + 3,
+            i + 4
+        ));
     }
 
     let result = parse(doc.as_bytes());
@@ -936,7 +1096,13 @@ fn test_node_limit_enforcement() {
         doc.push_str(&format!("  | node-{}\n", i));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
@@ -958,7 +1124,13 @@ fn test_column_limit_enforcement() {
         schema.join(", ")
     );
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
@@ -973,7 +1145,13 @@ fn test_unlimited_limits() {
         doc.push_str(&format!("  | record-{}, value-{}\n", i, i));
     }
 
-    let result = parse_with_limits(doc.as_bytes(), ParseOptions { limits, strict_refs: true });
+    let result = parse_with_limits(
+        doc.as_bytes(),
+        ParseOptions {
+            limits,
+            strict_refs: true,
+        },
+    );
     assert!(result.is_ok());
 }
 
@@ -1080,8 +1258,8 @@ data:
     assert!(result.is_ok());
 
     assert_eq!(stats.object_count, 3); // config, nested, data
-    assert_eq!(stats.list_count, 1);   // users
-    assert_eq!(stats.node_count, 5);   // 2 users + 3 posts
+    assert_eq!(stats.list_count, 1); // users
+    assert_eq!(stats.node_count, 5); // 2 users + 3 posts
     assert!(stats.scalar_count > 0);
 }
 
@@ -1200,14 +1378,17 @@ fn test_alternating_structure() {
 #[test]
 fn test_unicode_stress() {
     // Test with various unicode characters
-    let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Unicode: [id, name, emoji]\n---\ndata: @Unicode\n");
+    let mut doc =
+        String::from("%VERSION: 1.0\n%STRUCT: Unicode: [id, name, emoji]\n---\ndata: @Unicode\n");
 
     let emojis = ["🎉", "🚀", "🌟", "💎", "🔥", "⚡", "🌈", "🎨", "🎯", "🎪"];
 
     for i in 0..100 {
         doc.push_str(&format!(
             "  | user-{}, 名前-{}, {}\n",
-            i, i, emojis[i % emojis.len()]
+            i,
+            i,
+            emojis[i % emojis.len()]
         ));
     }
 
@@ -1232,9 +1413,9 @@ users: @User
 
     // Verify different value types
     let alice = &list.rows[0];
-    assert!(alice.fields[0].as_str().is_some());  // String
-    assert!(alice.fields[1].is_null());           // Null
-    assert!(alice.fields[2].as_int().is_some());  // Int
+    assert!(alice.fields[0].as_str().is_some()); // String
+    assert!(alice.fields[1].is_null()); // Null
+    assert!(alice.fields[2].as_int().is_some()); // Int
     assert!(alice.fields[3].as_float().is_some()); // Float
     assert!(alice.fields[4].as_bool().is_some()); // Bool
 
@@ -1245,12 +1426,25 @@ users: @User
 #[test]
 fn test_stress_reference_resolution() {
     // Create many cross-references
-    let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Node: [id, ref1, ref2, ref3]\n---\ndata: @Node\n");
+    let mut doc =
+        String::from("%VERSION: 1.0\n%STRUCT: Node: [id, ref1, ref2, ref3]\n---\ndata: @Node\n");
 
     for i in 0..1_000 {
-        let ref1 = if i > 0 { format!("@node-{}", i - 1) } else { "~".to_string() };
-        let ref2 = if i > 100 { format!("@node-{}", i - 100) } else { "~".to_string() };
-        let ref3 = if i > 500 { format!("@node-{}", i - 500) } else { "~".to_string() };
+        let ref1 = if i > 0 {
+            format!("@node-{}", i - 1)
+        } else {
+            "~".to_string()
+        };
+        let ref2 = if i > 100 {
+            format!("@node-{}", i - 100)
+        } else {
+            "~".to_string()
+        };
+        let ref3 = if i > 500 {
+            format!("@node-{}", i - 500)
+        } else {
+            "~".to_string()
+        };
 
         doc.push_str(&format!("  | node-{}, {}, {}, {}\n", i, ref1, ref2, ref3));
     }

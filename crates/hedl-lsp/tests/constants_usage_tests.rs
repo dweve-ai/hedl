@@ -24,7 +24,9 @@
 //! 4. LSP protocol constants are appropriate for real-world usage
 
 use hedl_lsp::constants::*;
-use hedl_lsp::document_manager::{DocumentManager, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE};
+use hedl_lsp::document_manager::{
+    DocumentManager, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE,
+};
 use tower_lsp::lsp_types::{Position, Range, Url};
 
 #[test]
@@ -42,13 +44,19 @@ fn test_debounce_constant_is_reasonable() {
     );
 
     // The chosen value should be exactly 200ms
-    assert_eq!(DEBOUNCE_MS, 200, "Debounce delay changed from documented 200ms");
+    assert_eq!(
+        DEBOUNCE_MS, 200,
+        "Debounce delay changed from documented 200ms"
+    );
 }
 
 #[test]
 fn test_memory_limit_constants() {
     // Verify megabyte conversion is standard binary MiB
-    assert_eq!(BYTES_PER_MEGABYTE, 1048576, "Binary megabyte should be 1024 * 1024");
+    assert_eq!(
+        BYTES_PER_MEGABYTE, 1048576,
+        "Binary megabyte should be 1024 * 1024"
+    );
 
     // Verify default document size is 500 MB
     assert_eq!(

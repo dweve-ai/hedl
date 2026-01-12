@@ -918,8 +918,8 @@ fn create_large_dataset_performance_table(
                 .count()
                 .max(1) as f64;
 
-        let avg_input_bytes = size_results.iter().map(|r| r.input_bytes).sum::<usize>()
-            / size_results.len().max(1);
+        let avg_input_bytes =
+            size_results.iter().map(|r| r.input_bytes).sum::<usize>() / size_results.len().max(1);
 
         table.rows.push(vec![
             TableCell::Integer(size as i64),
@@ -978,8 +978,22 @@ fn create_compression_compatibility_table(
         TableCell::Float(hedl_gzip_pct),
         TableCell::Float(yaml_gzip_pct),
         TableCell::Float(gzip_ratio),
-        TableCell::String(if hedl_gzip_pct < yaml_gzip_pct { "HEDL" } else { "YAML" }.to_string()),
-        TableCell::String(if hedl_gzip_bytes.len() < yaml_gzip_bytes.len() { "HEDL" } else { "YAML" }.to_string()),
+        TableCell::String(
+            if hedl_gzip_pct < yaml_gzip_pct {
+                "HEDL"
+            } else {
+                "YAML"
+            }
+            .to_string(),
+        ),
+        TableCell::String(
+            if hedl_gzip_bytes.len() < yaml_gzip_bytes.len() {
+                "HEDL"
+            } else {
+                "YAML"
+            }
+            .to_string(),
+        ),
     ]);
 
     report.add_custom_table(table);
@@ -1539,10 +1553,7 @@ fn generate_insights(
     });
 
     // Round-trip stability
-    let byte_equal_count = roundtrip_results
-        .iter()
-        .filter(|r| r.byte_equal)
-        .count();
+    let byte_equal_count = roundtrip_results.iter().filter(|r| r.byte_equal).count();
     let total_roundtrips = roundtrip_results.len().max(1);
     let byte_equal_rate = (byte_equal_count as f64 / total_roundtrips as f64) * 100.0;
 

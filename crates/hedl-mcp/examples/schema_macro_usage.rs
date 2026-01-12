@@ -194,14 +194,23 @@ fn example_multi_field_macros() {
     let (limit, offset) = pagination_args!();
     println!("Pagination Args:");
     println!("limit: {}", serde_json::to_string_pretty(&limit).unwrap());
-    println!("offset: {}\n", serde_json::to_string_pretty(&offset).unwrap());
+    println!(
+        "offset: {}\n",
+        serde_json::to_string_pretty(&offset).unwrap()
+    );
 
     // File write arguments
     let (validate, format, backup) = file_write_args!();
     println!("File Write Args:");
-    println!("validate: {}", serde_json::to_string_pretty(&validate).unwrap());
+    println!(
+        "validate: {}",
+        serde_json::to_string_pretty(&validate).unwrap()
+    );
     println!("format: {}", serde_json::to_string_pretty(&format).unwrap());
-    println!("backup: {}\n", serde_json::to_string_pretty(&backup).unwrap());
+    println!(
+        "backup: {}\n",
+        serde_json::to_string_pretty(&backup).unwrap()
+    );
 }
 
 /// Example 11: Conversion Tool Schema (To Format)

@@ -86,7 +86,8 @@ pub fn validate_string_length(s: &str, property: &str, config: &ToCypherConfig) 
 /// special character found, making it very fast for clean strings.
 #[inline]
 fn needs_escaping(s: &str) -> bool {
-    s.chars().any(|ch| matches!(ch, '\\' | '\'' | '"' | '\n' | '\r' | '\t' | '\x00'))
+    s.chars()
+        .any(|ch| matches!(ch, '\\' | '\'' | '"' | '\n' | '\r' | '\t' | '\x00'))
 }
 
 /// Escape a string value for use in Cypher queries.
@@ -120,7 +121,7 @@ fn needs_escaping(s: &str) -> bool {
 pub fn escape_string(s: &str) -> Cow<'_, str> {
     // Fast path: check if escaping is needed
     if !needs_escaping(s) {
-        return Cow::Borrowed(s);  // Zero allocation!
+        return Cow::Borrowed(s); // Zero allocation!
     }
 
     // Slow path: allocate and escape
@@ -536,7 +537,10 @@ mod tests {
 
     #[test]
     fn test_escape_string_null() {
-        assert_eq!(escape_string("before\x00after").as_ref(), r"before\u0000after");
+        assert_eq!(
+            escape_string("before\x00after").as_ref(),
+            r"before\u0000after"
+        );
         assert!(matches!(escape_string("before\x00after"), Cow::Owned(_)));
     }
 
@@ -558,13 +562,13 @@ mod tests {
         assert!(!needs_escaping("0123456789"));
 
         // Strings with special characters - escaping needed
-        assert!(needs_escaping("it's"));              // single quote
-        assert!(needs_escaping(r#"say "hello""#));    // double quote
-        assert!(needs_escaping(r"path\to\file"));     // backslash
-        assert!(needs_escaping("line1\nline2"));      // newline
-        assert!(needs_escaping("line1\r\nline2"));    // carriage return
-        assert!(needs_escaping("col1\tcol2"));        // tab
-        assert!(needs_escaping("before\x00after"));   // null byte
+        assert!(needs_escaping("it's")); // single quote
+        assert!(needs_escaping(r#"say "hello""#)); // double quote
+        assert!(needs_escaping(r"path\to\file")); // backslash
+        assert!(needs_escaping("line1\nline2")); // newline
+        assert!(needs_escaping("line1\r\nline2")); // carriage return
+        assert!(needs_escaping("col1\tcol2")); // tab
+        assert!(needs_escaping("before\x00after")); // null byte
     }
 
     #[test]
@@ -584,8 +588,11 @@ mod tests {
 
         for case in clean_cases {
             let result = escape_string(case);
-            assert!(matches!(result, Cow::Borrowed(_)),
-                "Expected Borrowed for '{}' but got Owned", case);
+            assert!(
+                matches!(result, Cow::Borrowed(_)),
+                "Expected Borrowed for '{}' but got Owned",
+                case
+            );
             assert_eq!(result.as_ref(), case);
         }
 
@@ -602,8 +609,11 @@ mod tests {
 
         for (input, expected) in dirty_cases {
             let result = escape_string(input);
-            assert!(matches!(result, Cow::Owned(_)),
-                "Expected Owned for '{}' but got Borrowed", input);
+            assert!(
+                matches!(result, Cow::Owned(_)),
+                "Expected Owned for '{}' but got Borrowed",
+                input
+            );
             assert_eq!(result.as_ref(), expected);
         }
     }
@@ -734,10 +744,10 @@ mod tests {
     fn test_normalize_unicode_with_diacritics() {
         // Various diacritical marks
         let tests = vec![
-            ("naïve", "naïve"),       // i with diaeresis
-            ("résumé", "résumé"),     // e with acute
-            ("über", "über"),         // u with umlaut
-            ("señor", "señor"),       // n with tilde
+            ("naïve", "naïve"),   // i with diaeresis
+            ("résumé", "résumé"), // e with acute
+            ("über", "über"),     // u with umlaut
+            ("señor", "señor"),   // n with tilde
         ];
 
         for (input, expected) in tests {
@@ -870,7 +880,12 @@ mod tests {
         let result = validate_string_length(&too_long, "description", &config);
         assert!(result.is_err());
 
-        if let Err(Neo4jError::StringLengthExceeded { length, max_length, property }) = result {
+        if let Err(Neo4jError::StringLengthExceeded {
+            length,
+            max_length,
+            property,
+        }) = result
+        {
             assert_eq!(length, 1001);
             assert_eq!(max_length, 1000);
             assert_eq!(property, "description");
@@ -883,7 +898,7 @@ mod tests {
     fn test_validate_string_length_no_limit() {
         let config = crate::config::ToCypherConfig::default().without_string_length_limit();
         let huge_string = "x".repeat(100_000_000); // 100MB
-        // This should succeed because there's no limit
+                                                   // This should succeed because there's no limit
         assert!(validate_string_length(&huge_string, "field", &config).is_ok());
     }
 
@@ -906,7 +921,7 @@ mod tests {
     fn test_validate_string_length_multibyte() {
         let config = crate::config::ToCypherConfig::default().with_max_string_length(50);
         let multibyte = "café".repeat(10); // é is 2 bytes in UTF-8
-        // "café" is 5 bytes (c=1, a=1, f=1, é=2), so 10 * 5 = 50 bytes
+                                           // "café" is 5 bytes (c=1, a=1, f=1, é=2), so 10 * 5 = 50 bytes
         assert!(validate_string_length(&multibyte, "text", &config).is_ok());
 
         let too_long = "café".repeat(11); // 55 bytes

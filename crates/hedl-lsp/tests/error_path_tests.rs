@@ -144,7 +144,10 @@ fn test_malformed_references() {
 fn test_completion_with_utf8_content() {
     let content = "%VERSION: 1.0\n%STRUCT: 用户: [id, 名字]\n---\n用户: u1: \"测试\"\n";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 3, character: 0 };
+    let position = Position {
+        line: 3,
+        character: 0,
+    };
 
     let items = get_completions(&analysis, content, position);
     // Should not panic on UTF-8 boundaries
@@ -156,7 +159,10 @@ fn test_completion_with_utf8_content() {
 fn test_hover_with_emoji() {
     let content = "%VERSION: 1.0\n---\nEntity: e1: \"Hello 👋 World 🌍\"";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 2, character: 25 };
+    let position = Position {
+        line: 2,
+        character: 25,
+    };
 
     let hover = get_hover(&analysis, content, position);
     // Should handle without panic
@@ -170,7 +176,10 @@ fn test_position_mid_utf8_character() {
     let analysis = AnalyzedDocument::analyze(content);
 
     // Position in middle of multi-byte character
-    let position = Position { line: 2, character: 100 };
+    let position = Position {
+        line: 2,
+        character: 100,
+    };
     let hover = get_hover(&analysis, content, position);
 
     // Should handle gracefully
@@ -307,7 +316,10 @@ fn test_cache_clear_operation() {
 fn test_completion_beyond_document() {
     let content = "%VERSION: 1.0\n---\n";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 100, character: 50 };
+    let position = Position {
+        line: 100,
+        character: 50,
+    };
 
     let items = get_completions(&analysis, content, position);
     // Should return empty or handle gracefully
@@ -319,7 +331,10 @@ fn test_completion_beyond_document() {
 fn test_hover_at_invalid_position() {
     let content = "%VERSION: 1.0\n---\n";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 100, character: 50 };
+    let position = Position {
+        line: 100,
+        character: 50,
+    };
 
     let hover = get_hover(&analysis, content, position);
     // Should return None
@@ -331,7 +346,10 @@ fn test_hover_at_invalid_position() {
 fn test_completion_no_schemas() {
     let content = "%VERSION: 1.0\n---\n";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 1, character: 0 };
+    let position = Position {
+        line: 1,
+        character: 0,
+    };
 
     let items = get_completions(&analysis, &content, position);
     // Should not panic - may or may not offer completions
@@ -343,7 +361,10 @@ fn test_completion_no_schemas() {
 fn test_hover_on_empty_line() {
     let content = "%VERSION: 1.0\n---\n\nEntity: e1: \"test\"";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 2, character: 0 };
+    let position = Position {
+        line: 2,
+        character: 0,
+    };
 
     let hover = get_hover(&analysis, content, position);
     assert!(hover.is_none());
@@ -400,7 +421,10 @@ fn test_partial_parse_errors() {
 fn test_completion_after_parse_error() {
     let content = "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n@@@broken\n";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 4, character: 0 };
+    let position = Position {
+        line: 4,
+        character: 0,
+    };
 
     let items = get_completions(&analysis, content, position);
     // Should still offer completions
@@ -412,7 +436,10 @@ fn test_completion_after_parse_error() {
 fn test_hover_with_malformed_entities() {
     let content = "%VERSION: 1.0\n---\nBroken: : : \"test\"";
     let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line: 2, character: 5 };
+    let position = Position {
+        line: 2,
+        character: 5,
+    };
 
     let hover = get_hover(&analysis, content, position);
     // Should not panic
@@ -481,8 +508,14 @@ fn test_reference_lookup_no_references() {
     let analysis = AnalyzedDocument::analyze(content);
 
     // Try to find reference at various positions
-    let position = Position { line: 2, character: 15 };
-    assert!(analysis.reference_index_v2.find_reference_at(position).is_none());
+    let position = Position {
+        line: 2,
+        character: 15,
+    };
+    assert!(analysis
+        .reference_index_v2
+        .find_reference_at(position)
+        .is_none());
 }
 
 /// Test definition lookup for non-existent entity.
@@ -491,7 +524,10 @@ fn test_definition_lookup_nonexistent() {
     let content = "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n";
     let analysis = AnalyzedDocument::analyze(content);
 
-    assert!(analysis.reference_index_v2.find_definition("User", "nonexistent").is_none());
+    assert!(analysis
+        .reference_index_v2
+        .find_definition("User", "nonexistent")
+        .is_none());
 }
 
 /// Test reference finding with malformed reference string.
@@ -546,11 +582,17 @@ fn test_completion_header_vs_body_distinction() {
     let analysis = AnalyzedDocument::analyze(&content);
 
     // Header position
-    let header_pos = Position { line: 1, character: 0 };
+    let header_pos = Position {
+        line: 1,
+        character: 0,
+    };
     let header_items = get_completions(&analysis, &content, header_pos);
 
     // Body position
-    let body_pos = Position { line: 3, character: 0 };
+    let body_pos = Position {
+        line: 3,
+        character: 0,
+    };
     let body_items = get_completions(&analysis, &content, body_pos);
 
     // Should offer different completions
@@ -589,7 +631,8 @@ fn test_document_only_errors() {
 #[test]
 fn test_diagnostics_all_severity_levels() {
     // This will depend on what the linter can produce
-    let content = "%VERSION: 1.0\n%STRUCT: User: [id, id]\n---\nUser: u1: \"test\"\nUnknown: x: \"y\"";
+    let content =
+        "%VERSION: 1.0\n%STRUCT: User: [id, id]\n---\nUser: u1: \"test\"\nUnknown: x: \"y\"";
     let analysis = AnalyzedDocument::analyze(content);
 
     let diagnostics = analysis.to_lsp_diagnostics();

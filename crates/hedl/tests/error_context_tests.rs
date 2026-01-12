@@ -42,9 +42,7 @@ fn test_context_does_not_affect_ok() {
 #[test]
 fn test_context_with_string() {
     let result: Result<(), HedlError> = Err(HedlError::reference("undefined @User:1", 15));
-    let err = result
-        .context("in users section".to_string())
-        .unwrap_err();
+    let err = result.context("in users section".to_string()).unwrap_err();
 
     assert_eq!(err.context, Some("in users section".to_string()));
 }
@@ -184,7 +182,11 @@ fn test_with_context_captures_environment() {
 fn test_with_context_expensive_computation() {
     fn expensive_debug_info(data: &[u8]) -> String {
         // Simulate expensive operation
-        format!("data length: {}, checksum: {}", data.len(), data.iter().map(|&b| b as u32).sum::<u32>())
+        format!(
+            "data length: {}, checksum: {}",
+            data.len(),
+            data.iter().map(|&b| b as u32).sum::<u32>()
+        )
     }
 
     let data = vec![1, 2, 3, 4, 5];
@@ -224,9 +226,8 @@ fn test_map_err_to_hedl_io_error() {
     use std::fs;
 
     let result = fs::read_to_string("/path/that/does/not/exist");
-    let hedl_result = result.map_err_to_hedl(|e| {
-        HedlError::io(format!("Failed to read configuration: {}", e))
-    });
+    let hedl_result =
+        result.map_err_to_hedl(|e| HedlError::io(format!("Failed to read configuration: {}", e)));
 
     let err = hedl_result.unwrap_err();
     assert_eq!(err.kind, HedlErrorKind::IO);
@@ -372,9 +373,7 @@ fn test_context_with_unicode() {
 #[test]
 fn test_context_with_special_characters() {
     let result: Result<(), HedlError> = Err(HedlError::syntax("error", 1));
-    let err = result
-        .context("special chars: \n\t\r\\\"'")
-        .unwrap_err();
+    let err = result.context("special chars: \n\t\r\\\"'").unwrap_err();
 
     let ctx = err.context.unwrap();
     assert!(ctx.contains("\\"));

@@ -145,9 +145,8 @@ pub fn to_parquet_with_config(
 ) -> Result<(), HedlError> {
     let bytes = to_parquet_bytes_with_config(doc, config)?;
 
-    std::fs::write(path, bytes).map_err(|e| {
-        HedlError::io(format!("Failed to write Parquet file: {}", e))
-    })
+    std::fs::write(path, bytes)
+        .map_err(|e| HedlError::io(format!("Failed to write Parquet file: {}", e)))
 }
 
 /// Convert a HEDL document to Parquet bytes.
@@ -226,18 +225,16 @@ fn write_matrix_list_to_buffer(
     let props = props_builder.build();
 
     // Write to buffer
-    let mut writer =
-        ArrowWriter::try_new(buffer, Arc::clone(&schema), Some(props)).map_err(|e| {
-            HedlError::io(format!("Failed to create Parquet writer: {}", e))
-        })?;
+    let mut writer = ArrowWriter::try_new(buffer, Arc::clone(&schema), Some(props))
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet writer: {}", e)))?;
 
-    writer.write(&record_batch).map_err(|e| {
-        HedlError::io(format!("Failed to write record batch: {}", e))
-    })?;
+    writer
+        .write(&record_batch)
+        .map_err(|e| HedlError::io(format!("Failed to write record batch: {}", e)))?;
 
-    writer.close().map_err(|e| {
-        HedlError::io(format!("Failed to close Parquet writer: {}", e))
-    })?;
+    writer
+        .close()
+        .map_err(|e| HedlError::io(format!("Failed to close Parquet writer: {}", e)))?;
 
     Ok(())
 }
@@ -458,18 +455,16 @@ fn write_metadata_to_buffer(
         .build();
 
     // Write to buffer
-    let mut writer =
-        ArrowWriter::try_new(buffer, Arc::clone(&schema), Some(props)).map_err(|e| {
-            HedlError::io(format!("Failed to create metadata Parquet writer: {}", e))
-        })?;
+    let mut writer = ArrowWriter::try_new(buffer, Arc::clone(&schema), Some(props))
+        .map_err(|e| HedlError::io(format!("Failed to create metadata Parquet writer: {}", e)))?;
 
-    writer.write(&record_batch).map_err(|e| {
-        HedlError::io(format!("Failed to write metadata record batch: {}", e))
-    })?;
+    writer
+        .write(&record_batch)
+        .map_err(|e| HedlError::io(format!("Failed to write metadata record batch: {}", e)))?;
 
-    writer.close().map_err(|e| {
-        HedlError::io(format!("Failed to close metadata Parquet writer: {}", e))
-    })?;
+    writer
+        .close()
+        .map_err(|e| HedlError::io(format!("Failed to close metadata Parquet writer: {}", e)))?;
 
     Ok(())
 }

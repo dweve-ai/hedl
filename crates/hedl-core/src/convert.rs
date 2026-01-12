@@ -105,7 +105,10 @@ pub fn parse_reference(s: &str) -> Result<Reference, String> {
             Ok(Reference::local(stripped))
         }
     } else {
-        Err(format!("Invalid reference format: expected '@' prefix, got '{}'", s))
+        Err(format!(
+            "Invalid reference format: expected '@' prefix, got '{}'",
+            s
+        ))
     }
 }
 

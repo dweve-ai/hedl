@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Comprehensive error path testing for expression parser failures.
 //!
 //! This test suite validates that the expression parser correctly handles all error conditions
@@ -32,7 +31,10 @@ fn test_empty_expression() {
     if let Err(LexError::InvalidToken { .. }) = result {
         // Expected - empty input is invalid
     } else {
-        panic!("Expected InvalidToken for empty expression, got: {:?}", result);
+        panic!(
+            "Expected InvalidToken for empty expression, got: {:?}",
+            result
+        );
     }
 }
 

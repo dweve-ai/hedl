@@ -1157,10 +1157,7 @@ impl BenchmarkReport {
         for metrics in &self.format_metrics {
             if let Some(complexity) = metrics.complexity {
                 let savings = metrics.token_savings_vs_json();
-                level_stats
-                    .entry(complexity)
-                    .or_default()
-                    .push(savings);
+                level_stats.entry(complexity).or_default().push(savings);
             }
         }
 
@@ -1203,10 +1200,7 @@ impl BenchmarkReport {
         for metrics in &self.format_metrics {
             if let Some(complexity) = metrics.complexity {
                 let savings = metrics.token_savings_vs_json();
-                level_stats
-                    .entry(complexity)
-                    .or_default()
-                    .push(savings);
+                level_stats.entry(complexity).or_default().push(savings);
             }
         }
 

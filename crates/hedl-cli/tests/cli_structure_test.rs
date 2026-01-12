@@ -149,7 +149,13 @@ fn test_conversion_command_args() {
     assert!(result.is_ok());
 
     // Parquet
-    let result = TestCli::try_parse_from(["hedl", "to-parquet", "test.hedl", "--output", "test.parquet"]);
+    let result = TestCli::try_parse_from([
+        "hedl",
+        "to-parquet",
+        "test.hedl",
+        "--output",
+        "test.parquet",
+    ]);
     assert!(result.is_ok());
 
     let result = TestCli::try_parse_from(["hedl", "from-parquet", "test.parquet"]);
@@ -163,7 +169,8 @@ fn test_batch_command_args() {
     let result = TestCli::try_parse_from(["hedl", "batch-validate", "file1.hedl", "file2.hedl"]);
     assert!(result.is_ok());
 
-    let result = TestCli::try_parse_from(["hedl", "batch-validate", "*.hedl", "--strict", "--parallel"]);
+    let result =
+        TestCli::try_parse_from(["hedl", "batch-validate", "*.hedl", "--strict", "--parallel"]);
     assert!(result.is_ok());
 
     // Batch format
@@ -184,7 +191,8 @@ fn test_batch_command_args() {
     let result = TestCli::try_parse_from(["hedl", "batch-lint", "file1.hedl", "file2.hedl"]);
     assert!(result.is_ok());
 
-    let result = TestCli::try_parse_from(["hedl", "batch-lint", "*.hedl", "--warn-error", "--parallel"]);
+    let result =
+        TestCli::try_parse_from(["hedl", "batch-lint", "*.hedl", "--warn-error", "--parallel"]);
     assert!(result.is_ok());
 }
 

@@ -319,6 +319,13 @@ pub fn hedl_to_cypher(doc: &Document) -> Result<String> {
 /// - **Memory complexity**: O(batch_size) instead of O(n)
 /// - **I/O pattern**: Sequential writes, optimal for buffered I/O
 /// - **Throughput**: ~same as `to_cypher()`, limited by conversion not I/O
+///
+/// Type alias for statement writer closure and first-statement flag
+type StatementWriter<'a, W> = (
+    Box<dyn FnMut(&CypherStatement, &mut W) -> Result<()> + 'a>,
+    std::rc::Rc<std::cell::Cell<bool>>,
+);
+
 /// Create a closure for writing statements with proper formatting to the output stream.
 ///
 /// This helper manages:
@@ -326,36 +333,33 @@ pub fn hedl_to_cypher(doc: &Document) -> Result<String> {
 /// - Comment rendering when enabled
 /// - Parameter inlining
 /// - I/O error handling
-fn create_statement_writer<'a, W: Write>(
-    config: &'a ToCypherConfig,
-) -> (
-    Box<dyn FnMut(&CypherStatement, &mut W) -> Result<()> + 'a>,
-    std::rc::Rc<std::cell::Cell<bool>>,
-) {
+fn create_statement_writer<'a, W: Write>(config: &'a ToCypherConfig) -> StatementWriter<'a, W> {
     let first_statement = std::rc::Rc::new(std::cell::Cell::new(true));
     let first_stmt_clone = first_statement.clone();
 
-    let writer_fn = Box::new(move |stmt: &CypherStatement, writer: &mut W| -> Result<()> {
-        // Add separator between statements (but not before first one)
-        if !first_stmt_clone.get() {
-            write!(writer, "\n\n").map_err(|e| Neo4jError::HedlError(e.to_string()))?;
-        }
-        first_stmt_clone.set(false);
-
-        // Write comment if present and enabled
-        if config.include_comments {
-            if let Some(comment) = &stmt.comment {
-                writeln!(writer, "// {}", comment)
-                    .map_err(|e| Neo4jError::HedlError(e.to_string()))?;
+    let writer_fn = Box::new(
+        move |stmt: &CypherStatement, writer: &mut W| -> Result<()> {
+            // Add separator between statements (but not before first one)
+            if !first_stmt_clone.get() {
+                write!(writer, "\n\n").map_err(|e| Neo4jError::HedlError(e.to_string()))?;
             }
-        }
+            first_stmt_clone.set(false);
 
-        // Write the statement with inlined parameters (no trailing newline)
-        write!(writer, "{};", stmt.render_inline())
-            .map_err(|e| Neo4jError::HedlError(e.to_string()))?;
+            // Write comment if present and enabled
+            if config.include_comments {
+                if let Some(comment) = &stmt.comment {
+                    writeln!(writer, "// {}", comment)
+                        .map_err(|e| Neo4jError::HedlError(e.to_string()))?;
+                }
+            }
 
-        Ok(())
-    });
+            // Write the statement with inlined parameters (no trailing newline)
+            write!(writer, "{};", stmt.render_inline())
+                .map_err(|e| Neo4jError::HedlError(e.to_string()))?;
+
+            Ok(())
+        },
+    );
 
     (writer_fn, first_statement)
 }
@@ -703,6 +707,7 @@ fn generate_relationship_query(
 }
 
 /// Stream relationship creation statements for a single batch and label combination.
+#[allow(clippy::too_many_arguments)]
 fn stream_relationship_batch<W: Write, F>(
     chunk: &[&Neo4jRelationship],
     rel_type: &str,
@@ -757,7 +762,10 @@ where
     for (rel_type, rels) in grouped {
         for chunk in rels.chunks(config.batch_size) {
             // Build data for UNWIND
-            let rows: Vec<CypherValue> = chunk.iter().map(|rel| relationship_to_cypher_map(rel)).collect();
+            let rows: Vec<CypherValue> = chunk
+                .iter()
+                .map(|rel| relationship_to_cypher_map(rel))
+                .collect();
 
             // Group by label combination for efficient matching
             let label_groups = group_by_labels(chunk);
@@ -930,14 +938,23 @@ fn generate_relationship_statements(
     for (rel_type, rels) in grouped {
         for chunk in rels.chunks(config.batch_size) {
             // Build data for UNWIND
-            let rows: Vec<CypherValue> = chunk.iter().map(|rel| relationship_to_cypher_map(rel)).collect();
+            let rows: Vec<CypherValue> = chunk
+                .iter()
+                .map(|rel| relationship_to_cypher_map(rel))
+                .collect();
 
             // Group by label combination for efficient matching
             let label_groups = group_by_labels(chunk);
 
             for ((from_label, to_label), _) in label_groups {
                 add_relationship_statement_to_script(
-                    chunk, &rel_type, &from_label, &to_label, rows.clone(), config, script,
+                    chunk,
+                    &rel_type,
+                    &from_label,
+                    &to_label,
+                    rows.clone(),
+                    config,
+                    script,
                 );
             }
         }
@@ -1699,7 +1716,10 @@ mod tests {
         // Verify we have multiple batches
         // With 5000 nodes and batch_size 1000, we should have exactly 5 batches
         let batch_count = streaming_result.matches("UNWIND").count();
-        assert_eq!(batch_count, 5, "Expected 5 batches for 5000 nodes with batch_size 1000");
+        assert_eq!(
+            batch_count, 5,
+            "Expected 5 batches for 5000 nodes with batch_size 1000"
+        );
     }
 
     #[test]

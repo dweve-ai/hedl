@@ -54,7 +54,10 @@ pub fn preprocess(input: &[u8], limits: &Limits) -> HedlResult<PreprocessedInput
     // Check file size (don't reveal exact input size to avoid information disclosure)
     if input.len() > limits.max_file_size {
         return Err(HedlError::security(
-            format!("file too large: exceeds limit of {} bytes", limits.max_file_size),
+            format!(
+                "file too large: exceeds limit of {} bytes",
+                limits.max_file_size
+            ),
             0,
         ));
     }

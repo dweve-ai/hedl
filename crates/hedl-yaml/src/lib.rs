@@ -172,8 +172,8 @@ pub fn yaml_to_hedl(yaml: &str) -> Result<Document, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
     use hedl_core::lex::Tensor;
+    use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
     use std::collections::BTreeMap;
 
     #[test]

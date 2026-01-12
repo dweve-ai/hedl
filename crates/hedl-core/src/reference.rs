@@ -45,12 +45,7 @@ impl TypeRegistry {
     }
 
     /// Register an ID in a type, maintaining both indices
-    pub fn register(
-        &mut self,
-        type_name: &str,
-        id: &str,
-        line_num: usize,
-    ) -> HedlResult<()> {
+    pub fn register(&mut self, type_name: &str, id: &str, line_num: usize) -> HedlResult<()> {
         let type_registry = self.by_type.entry(type_name.to_string()).or_default();
 
         if let Some(&prev_line) = type_registry.get(id) {
@@ -137,7 +132,14 @@ pub fn resolve_references_with_limits(
     collect_node_ids(&doc.root, &mut registries, 0, limits.max_nest_depth)?;
 
     // Validate all references
-    validate_references(&doc.root, &registries, strict, None, 0, limits.max_nest_depth)
+    validate_references(
+        &doc.root,
+        &registries,
+        strict,
+        None,
+        0,
+        limits.max_nest_depth,
+    )
 }
 
 fn collect_node_ids(
@@ -273,9 +275,8 @@ fn validate_value_reference(
                     // SPEC 10.3.1: In Key-Value context, search all types but detect ambiguity
                     // P0 OPTIMIZATION: Use inverted index for O(1) lookup instead of O(m) scan
                     None => {
-                        let matching_types = registries
-                            .lookup_unqualified(&ref_val.id)
-                            .unwrap_or(&[]);
+                        let matching_types =
+                            registries.lookup_unqualified(&ref_val.id).unwrap_or(&[]);
 
                         match matching_types.len() {
                             0 => false, // Not found

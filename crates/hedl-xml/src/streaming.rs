@@ -45,9 +45,9 @@
 //! ```
 
 use hedl_core::convert::parse_reference;
-use hedl_core::{Item, MatrixList, Node, Value};
-use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
 use hedl_core::lex::Tensor;
+use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
+use hedl_core::{Item, MatrixList, Node, Value};
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use std::collections::BTreeMap;
@@ -126,8 +126,7 @@ impl<R: Read> XmlStreamingParser<R> {
             self.buf.clear();
             match self.reader.read_event_into(&mut self.buf) {
                 Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
-                    self.root_element_name =
-                        String::from_utf8_lossy(e.name().as_ref()).to_string();
+                    self.root_element_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     self.root_parsed = true;
                     return Ok(true);
                 }
@@ -585,16 +584,14 @@ fn to_hedl_key(s: &str) -> String {
 }
 
 fn items_are_tensor_elements(items: &[Item]) -> bool {
-    items.iter().all(|item| {
-        match item {
-            Item::Scalar(Value::Int(_)) => true,
-            Item::Scalar(Value::Float(_)) => true,
-            Item::Scalar(Value::Tensor(_)) => true,
-            Item::Object(obj) if obj.len() == 1 => {
-                matches!(obj.get("item"), Some(Item::Scalar(Value::Tensor(_))))
-            }
-            _ => false,
+    items.iter().all(|item| match item {
+        Item::Scalar(Value::Int(_)) => true,
+        Item::Scalar(Value::Float(_)) => true,
+        Item::Scalar(Value::Tensor(_)) => true,
+        Item::Object(obj) if obj.len() == 1 => {
+            matches!(obj.get("item"), Some(Item::Scalar(Value::Tensor(_))))
         }
+        _ => false,
     })
 }
 
@@ -710,14 +707,18 @@ mod tests {
 
     #[test]
     fn test_infer_schema_from_objects() {
-        let items = vec![
-            Item::Object({
-                let mut m = BTreeMap::new();
-                m.insert("id".to_string(), Item::Scalar(Value::String("1".to_string())));
-                m.insert("name".to_string(), Item::Scalar(Value::String("Alice".to_string())));
-                m
-            }),
-        ];
+        let items = vec![Item::Object({
+            let mut m = BTreeMap::new();
+            m.insert(
+                "id".to_string(),
+                Item::Scalar(Value::String("1".to_string())),
+            );
+            m.insert(
+                "name".to_string(),
+                Item::Scalar(Value::String("Alice".to_string())),
+            );
+            m
+        })];
         let schema = infer_schema(&items).unwrap();
         assert!(schema.contains(&"id".to_string()));
         assert!(schema.contains(&"name".to_string()));

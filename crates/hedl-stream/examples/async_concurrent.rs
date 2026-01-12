@@ -27,7 +27,10 @@ use hedl_stream::{AsyncStreamingParser, NodeEvent};
 use std::io::Cursor;
 
 #[cfg(feature = "async")]
-async fn process_stream(name: &str, data: &str) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+async fn process_stream(
+    name: &str,
+    data: &str,
+) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
     println!("[{}] Starting processing...", name);
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(data)).await?;

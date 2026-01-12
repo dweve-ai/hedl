@@ -75,7 +75,12 @@ pub fn execute_hedl_read(args: Option<JsonValue>, root_path: &Path) -> McpResult
         vec![read_hedl_file(&target_path, args.include_json)?]
     } else if target_path.is_dir() {
         // Directory - use parallel processing
-        read_directory_parallel(&target_path, args.recursive, args.include_json, args.num_threads)?
+        read_directory_parallel(
+            &target_path,
+            args.recursive,
+            args.include_json,
+            args.num_threads,
+        )?
     } else {
         return Err(McpError::FileNotFound(args.path));
     };
@@ -126,7 +131,9 @@ fn read_directory_parallel(
         rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build()
-            .map_err(|e| McpError::InvalidArguments(format!("Failed to create thread pool: {}", e)))?
+            .map_err(|e| {
+                McpError::InvalidArguments(format!("Failed to create thread pool: {}", e))
+            })?
             .install(|| process_files_parallel(&files, include_json))
     } else {
         // Default thread pool
@@ -535,7 +542,11 @@ mod tests {
         let results = parsed["results"].as_array().unwrap();
         assert_eq!(results.len(), 10);
         for result in results {
-            assert!(result.get("error").is_none(), "Unexpected error in result: {:?}", result);
+            assert!(
+                result.get("error").is_none(),
+                "Unexpected error in result: {:?}",
+                result
+            );
         }
     }
 
@@ -598,11 +609,22 @@ mod tests {
 
         // Check that we have both successes and errors
         let results = parsed["results"].as_array().unwrap();
-        let errors: Vec<_> = results.iter().filter(|r| r.get("error").is_some()).collect();
-        let successes: Vec<_> = results.iter().filter(|r| r.get("version").is_some()).collect();
+        let errors: Vec<_> = results
+            .iter()
+            .filter(|r| r.get("error").is_some())
+            .collect();
+        let successes: Vec<_> = results
+            .iter()
+            .filter(|r| r.get("version").is_some())
+            .collect();
 
         assert_eq!(errors.len(), 1, "Expected 1 error, got {}", errors.len());
-        assert_eq!(successes.len(), 3, "Expected 3 successes, got {}", successes.len());
+        assert_eq!(
+            successes.len(),
+            3,
+            "Expected 3 successes, got {}",
+            successes.len()
+        );
     }
 
     #[test]

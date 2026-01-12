@@ -18,9 +18,9 @@
 //! XML to HEDL conversion
 
 use hedl_core::convert::parse_reference;
-use hedl_core::{Document, Item, MatrixList, Node, Value};
-use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
 use hedl_core::lex::Tensor;
+use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use std::collections::BTreeMap;

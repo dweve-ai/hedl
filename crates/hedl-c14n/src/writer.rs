@@ -187,7 +187,11 @@ impl CanonicalWriter {
 
             // Extract types from all matrix lists in the body and collect counts
             let mut struct_counts: BTreeMap<String, usize> = BTreeMap::new();
-            Self::collect_matrix_list_types_and_counts(&doc.root, &mut all_structs, &mut struct_counts);
+            Self::collect_matrix_list_types_and_counts(
+                &doc.root,
+                &mut all_structs,
+                &mut struct_counts,
+            );
 
             let mut structs: Vec<_> = all_structs.iter().collect();
             structs.sort_by_key(|(k, _)| *k);
@@ -200,7 +204,9 @@ impl CanonicalWriter {
                         count,
                         columns.join(",")
                     )
-                    .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+                    .map_err(|e| {
+                        HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+                    })?;
                 } else {
                     writeln!(
                         self.output,
@@ -208,7 +214,9 @@ impl CanonicalWriter {
                         type_name,
                         columns.join(",")
                     )
-                    .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+                    .map_err(|e| {
+                        HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+                    })?;
                 }
             }
         }
@@ -217,8 +225,9 @@ impl CanonicalWriter {
         let mut nests: Vec<_> = doc.nests.iter().collect();
         nests.sort_by_key(|(k, v)| (*k, *v));
         for (parent, child) in nests {
-            writeln!(self.output, "%NEST: {} > {}", parent, child)
-                .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+            writeln!(self.output, "%NEST: {} > {}", parent, child).map_err(|e| {
+                HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+            })?;
         }
 
         // Separator
@@ -247,8 +256,9 @@ impl CanonicalWriter {
                         .or_insert_with(|| matrix_list.schema.clone());
 
                     // Sum counts across all lists of the same type
-                    *counts.entry(matrix_list.type_name.clone()).or_insert(INITIAL_STRUCT_COUNT) +=
-                        matrix_list.rows.len();
+                    *counts
+                        .entry(matrix_list.type_name.clone())
+                        .or_insert(INITIAL_STRUCT_COUNT) += matrix_list.rows.len();
                 }
                 Item::Object(child_items) => {
                     // Recurse into nested objects
@@ -301,23 +311,29 @@ impl CanonicalWriter {
                     let (formatted, needs_block) = self.format_value_for_kv(value);
                     if needs_block {
                         // Write block string
-                        writeln!(self.output, "{}{}: \"\"\"", indent_str, key)
-                            .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+                        writeln!(self.output, "{}{}: \"\"\"", indent_str, key).map_err(|e| {
+                            HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+                        })?;
                         for line in formatted.lines() {
                             writeln!(self.output, "{}", line).map_err(|e| {
                                 HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
                             })?;
                         }
-                        writeln!(self.output, "\"\"\"")
-                            .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+                        writeln!(self.output, "\"\"\"").map_err(|e| {
+                            HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+                        })?;
                     } else {
-                        writeln!(self.output, "{}{}: {}", indent_str, key, formatted)
-                            .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+                        writeln!(self.output, "{}{}: {}", indent_str, key, formatted).map_err(
+                            |e| {
+                                HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+                            },
+                        )?;
                     }
                 }
                 Item::Object(child_items) => {
-                    writeln!(self.output, "{}{}:", indent_str, key)
-                        .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+                    writeln!(self.output, "{}{}:", indent_str, key).map_err(|e| {
+                        HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+                    })?;
                     self.write_items(child_items, indent + INDENT_INCREMENT)?;
                 }
                 Item::List(matrix_list) => {
@@ -395,11 +411,18 @@ impl CanonicalWriter {
     ) -> Result<(), HedlError> {
         // Use |[N] prefix if node has child_count, otherwise just |
         if let Some(count) = row_node.child_count {
-            writeln!(self.output, "{}|[{}] {}", indent_str, count, cells.join(","))
-                .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+            writeln!(
+                self.output,
+                "{}|[{}] {}",
+                indent_str,
+                count,
+                cells.join(",")
+            )
+            .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
         } else {
-            writeln!(self.output, "{}|{}", indent_str, cells.join(","))
-                .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+            writeln!(self.output, "{}|{}", indent_str, cells.join(",")).map_err(|e| {
+                HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+            })?;
         }
 
         // Write children if any
@@ -439,8 +462,9 @@ impl CanonicalWriter {
             )
             .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
         } else {
-            writeln!(self.output, "{}{}: @{}", indent_str, key, list.type_name)
-                .map_err(|e| HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN))?;
+            writeln!(self.output, "{}{}: @{}", indent_str, key, list.type_name).map_err(|e| {
+                HedlError::syntax(format!("Write error: {}", e), ERROR_LINE_UNKNOWN)
+            })?;
         }
 
         // Rows with ditto optimization
@@ -456,7 +480,12 @@ impl CanonicalWriter {
             self.format_row_cells(&values, last_values.as_ref(), &mut cells);
 
             // Write the row and its children using common helper
-            self.write_row(row_node, &row_indent, &cells, indent + MATRIX_CHILD_INDENT_OFFSET)?;
+            self.write_row(
+                row_node,
+                &row_indent,
+                &cells,
+                indent + MATRIX_CHILD_INDENT_OFFSET,
+            )?;
 
             last_values = Some(values);
         }
@@ -919,7 +948,8 @@ mod tests {
 
     #[test]
     fn test_format_value_string_always_quote() {
-        let writer = CanonicalWriter::new(CanonicalConfig::new().with_quoting(QuotingStrategy::Always));
+        let writer =
+            CanonicalWriter::new(CanonicalConfig::new().with_quoting(QuotingStrategy::Always));
         assert_eq!(
             writer.format_value(&Value::String("hello".to_string())),
             "\"hello\""
@@ -1061,7 +1091,8 @@ mod tests {
 
     #[test]
     fn test_format_string_always_quoting() {
-        let writer = CanonicalWriter::new(CanonicalConfig::new().with_quoting(QuotingStrategy::Always));
+        let writer =
+            CanonicalWriter::new(CanonicalConfig::new().with_quoting(QuotingStrategy::Always));
 
         assert_eq!(writer.format_string("hello"), "\"hello\"");
         assert_eq!(writer.format_string(""), "\"\"");
@@ -1102,11 +1133,8 @@ mod tests {
             vec!["id".to_string(), "name".to_string()],
         );
 
-        let mut list = MatrixList::with_count_hint(
-            "Team",
-            vec!["id".to_string(), "name".to_string()],
-            3,
-        );
+        let mut list =
+            MatrixList::with_count_hint("Team", vec!["id".to_string(), "name".to_string()], 3);
         list.add_row(Node::new(
             "Team",
             "1",
@@ -1147,7 +1175,10 @@ mod tests {
 
         // Build from inside out
         let mut inner = BTreeMap::new();
-        inner.insert("leaf".to_string(), Item::Scalar(Value::Int(TEST_DEPTH as i64)));
+        inner.insert(
+            "leaf".to_string(),
+            Item::Scalar(Value::Int(TEST_DEPTH as i64)),
+        );
 
         // Wrap in TEST_DEPTH layers
         for i in (0..TEST_DEPTH).rev() {
@@ -1221,11 +1252,8 @@ mod tests {
             vec!["id".to_string(), "name".to_string()],
         );
 
-        let mut list = MatrixList::with_count_hint(
-            "Team",
-            vec!["id".to_string(), "name".to_string()],
-            2,
-        );
+        let mut list =
+            MatrixList::with_count_hint("Team", vec!["id".to_string(), "name".to_string()], 2);
         list.add_row(Node::new(
             "Team",
             "1",

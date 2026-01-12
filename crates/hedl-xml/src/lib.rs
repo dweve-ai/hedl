@@ -142,17 +142,17 @@
 //! ```
 
 mod from_xml;
-mod to_xml;
-pub mod streaming;
 pub mod schema;
+pub mod streaming;
+mod to_xml;
 
 #[cfg(feature = "async")]
 pub mod async_api;
 
 pub use from_xml::{from_xml, FromXmlConfig};
-pub use to_xml::{to_xml, ToXmlConfig};
+pub use schema::{SchemaCache, SchemaValidator, ValidationError};
 pub use streaming::{from_xml_stream, StreamConfig, StreamItem, XmlStreamingParser};
-pub use schema::{SchemaValidator, SchemaCache, ValidationError};
+pub use to_xml::{to_xml, ToXmlConfig};
 
 use hedl_core::Document;
 

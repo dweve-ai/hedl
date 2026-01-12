@@ -22,7 +22,6 @@
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use std::collections::BTreeMap;
 
-
 /// Count nodes in a document.
 pub fn count_nodes(doc: &Document) -> usize {
     let mut count = 0;

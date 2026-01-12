@@ -72,7 +72,12 @@ pub unsafe extern "C" fn hedl_parse(
     if input.is_null() || out_doc.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_parse", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_parse",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 

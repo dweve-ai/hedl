@@ -160,10 +160,7 @@ pub fn group_by_category(results: &[BenchResult]) -> HashMap<Category, Vec<Bench
 
     for result in results {
         let category = infer_category(&result.name);
-        grouped
-            .entry(category)
-            .or_default()
-            .push(result.clone());
+        grouped.entry(category).or_default().push(result.clone());
     }
 
     grouped

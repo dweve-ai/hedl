@@ -213,7 +213,10 @@ pub fn parse_nest(payload: &str) -> Result<NestDirective, LexError> {
 
     if !is_valid_type_name(child_type) {
         return Err(LexError::InvalidToken {
-            message: format!("invalid child type name '{}': must be PascalCase", child_type),
+            message: format!(
+                "invalid child type name '{}': must be PascalCase",
+                child_type
+            ),
             pos: SourcePos::new(1, 1),
         });
     }

@@ -448,10 +448,7 @@ fn create_cold_vs_warm_start_table(_results: &[LSPRequestResult], report: &mut B
     // Cold/warm start requires dedicated initialization benchmarks
     let table = CustomTable {
         title: "Cold vs Warm Start Performance".to_string(),
-        headers: vec![
-            "Scenario".to_string(),
-            "Time (ms)".to_string(),
-        ],
+        headers: vec!["Scenario".to_string(), "Time (ms)".to_string()],
         rows: Vec::new(),
         footer: None, // Requires dedicated cold/warm start benchmarks
     };
@@ -600,10 +597,7 @@ fn create_error_recovery_performance_table(
     // Error recovery timing requires specialized instrumentation
     let table = CustomTable {
         title: "Error Recovery Performance".to_string(),
-        headers: vec![
-            "Error Type".to_string(),
-            "Count".to_string(),
-        ],
+        headers: vec!["Error Type".to_string(), "Count".to_string()],
         rows: Vec::new(),
         footer: None, // Requires error recovery instrumentation
     };
@@ -618,10 +612,7 @@ fn create_protocol_overhead_table(_results: &[LSPRequestResult], report: &mut Be
     // Protocol overhead measurement requires network-level instrumentation
     let table = CustomTable {
         title: "Protocol Overhead".to_string(),
-        headers: vec![
-            "Metric".to_string(),
-            "Value".to_string(),
-        ],
+        headers: vec!["Metric".to_string(), "Value".to_string()],
         rows: Vec::new(),
         footer: None, // Requires network-level protocol instrumentation
     };
@@ -638,10 +629,7 @@ fn create_comparison_with_alternatives_table(
 ) {
     let mut table = CustomTable {
         title: "HEDL LSP Performance Summary".to_string(),
-        headers: vec![
-            "Metric".to_string(),
-            "Value".to_string(),
-        ],
+        headers: vec!["Metric".to_string(), "Value".to_string()],
         rows: Vec::new(),
         footer: None,
     };
@@ -676,10 +664,7 @@ fn create_resource_utilization_table(_results: &[LSPRequestResult], report: &mut
     // Resource monitoring requires OS-level instrumentation
     let table = CustomTable {
         title: "Resource Utilization".to_string(),
-        headers: vec![
-            "Resource".to_string(),
-            "Usage".to_string(),
-        ],
+        headers: vec!["Resource".to_string(), "Usage".to_string()],
         rows: Vec::new(),
         footer: None, // Requires OS-level resource monitoring
     };
@@ -769,9 +754,7 @@ fn create_performance_regression_detection_table(
 
     // Only show metrics we actually measured
     let metrics: Vec<(&str, f64, f64)> = if current_latency > 0.0 {
-        vec![
-            ("Avg Latency (ms)", 5.0, current_latency),
-        ]
+        vec![("Avg Latency (ms)", 5.0, current_latency)]
     } else {
         vec![]
     };

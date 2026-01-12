@@ -21,7 +21,9 @@
 //! of unquoted values based on their textual representation.
 
 use crate::error::{HedlError, HedlResult};
-use crate::lex::{is_tensor_literal, is_valid_id_token, parse_expression_token, parse_reference, parse_tensor};
+use crate::lex::{
+    is_tensor_literal, is_valid_id_token, parse_expression_token, parse_reference, parse_tensor,
+};
 use crate::value::{Reference, Value};
 use std::collections::{BTreeMap, HashMap};
 

@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 // Demonstration of zero-copy string handling optimization in hedl-json
 
 use hedl_json::{from_json, from_json_value_owned, FromJsonConfig};
@@ -48,7 +47,11 @@ fn main() {
     let doc1 = from_json(&json_str, &config).unwrap();
     let elapsed1 = start.elapsed();
     println!("   Time: {:?}", elapsed1);
-    println!("   Result: {} root items, {} structs\n", doc1.root.len(), doc1.structs.len());
+    println!(
+        "   Result: {} root items, {} structs\n",
+        doc1.root.len(),
+        doc1.structs.len()
+    );
 
     // Test 2: Zero-copy path (owned values)
     println!("2. Zero-copy path (from_json_value_owned):");
@@ -57,12 +60,19 @@ fn main() {
     let doc2 = from_json_value_owned(json_value.clone(), &config).unwrap();
     let elapsed2 = start.elapsed();
     println!("   Time: {:?}", elapsed2);
-    println!("   Result: {} root items, {} structs\n", doc2.root.len(), doc2.structs.len());
+    println!(
+        "   Result: {} root items, {} structs\n",
+        doc2.root.len(),
+        doc2.structs.len()
+    );
 
     // Comparison
     let speedup = elapsed1.as_secs_f64() / elapsed2.as_secs_f64();
     println!("Performance Comparison:");
-    println!("- Zero-copy path is {:.2}x the time of regular path", speedup);
+    println!(
+        "- Zero-copy path is {:.2}x the time of regular path",
+        speedup
+    );
     if speedup > 1.0 {
         println!("- Speedup: {:.1}% faster", (speedup - 1.0) * 100.0);
     } else {

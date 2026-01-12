@@ -54,7 +54,9 @@ pub fn execute_hedl_validate(args: Option<JsonValue>) -> McpResult<CallToolResul
                     use hedl_lint::Severity;
 
                     let has_errors = diagnostics.iter().any(|d| d.severity() == Severity::Error);
-                    let has_warnings = diagnostics.iter().any(|d| d.severity() == Severity::Warning);
+                    let has_warnings = diagnostics
+                        .iter()
+                        .any(|d| d.severity() == Severity::Warning);
 
                     result["lint"] = json!({
                         "count": diagnostics.len(),
@@ -70,7 +72,8 @@ pub fn execute_hedl_validate(args: Option<JsonValue>) -> McpResult<CallToolResul
                     if args.strict && has_warnings {
                         result["valid"] = json!(false);
                         result["strict_mode"] = json!(true);
-                        result["strict_validation_failed"] = json!("Lint warnings present in strict mode");
+                        result["strict_validation_failed"] =
+                            json!("Lint warnings present in strict mode");
                     } else if has_errors {
                         // Errors always fail validation, regardless of strict mode
                         result["valid"] = json!(false);
@@ -184,7 +187,10 @@ mod tests {
                 .any(|d| d["severity"].as_str() == Some("Warning"));
 
             if has_warnings {
-                assert_eq!(parsed["valid"], false, "Strict mode should fail on warnings");
+                assert_eq!(
+                    parsed["valid"], false,
+                    "Strict mode should fail on warnings"
+                );
                 assert_eq!(parsed["strict_mode"], true);
                 assert!(parsed.get("strict_validation_failed").is_some());
             }
@@ -214,7 +220,10 @@ mod tests {
                 .any(|d| d["severity"].as_str() == Some("Error"));
 
             if !has_errors {
-                assert_eq!(parsed["valid"], true, "Non-strict mode should pass with only warnings");
+                assert_eq!(
+                    parsed["valid"], true,
+                    "Non-strict mode should pass with only warnings"
+                );
                 assert!(parsed.get("strict_mode").is_none() || parsed["strict_mode"] == false);
             }
         }
@@ -279,7 +288,10 @@ mod tests {
                 .any(|d| d["severity"].as_str() == Some("Warning"));
 
             if has_warnings {
-                assert_eq!(parsed["valid"], false, "Strict mode should fail with unused schema warning");
+                assert_eq!(
+                    parsed["valid"], false,
+                    "Strict mode should fail with unused schema warning"
+                );
             }
         }
 
@@ -303,7 +315,10 @@ mod tests {
         };
 
         if has_only_warnings {
-            assert_eq!(parsed["valid"], true, "Non-strict mode should pass with only warnings");
+            assert_eq!(
+                parsed["valid"], true,
+                "Non-strict mode should pass with only warnings"
+            );
         }
     }
 

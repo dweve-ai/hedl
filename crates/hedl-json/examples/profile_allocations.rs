@@ -102,10 +102,17 @@ fn test_allocation(name: &str, count: usize) {
 
     println!("  from_json:");
     println!("    Input size:      {:>10} bytes", json_size);
-    println!("    Total allocated: {:>10} bytes ({:.2}x input)", allocated, allocated as f64 / json_size as f64);
+    println!(
+        "    Total allocated: {:>10} bytes ({:.2}x input)",
+        allocated,
+        allocated as f64 / json_size as f64
+    );
     println!("    Allocations:     {:>10}", allocs);
     println!("    Deallocations:   {:>10}", deallocs);
-    println!("    Allocs/item:     {:>10.2}", allocs as f64 / count as f64);
+    println!(
+        "    Allocs/item:     {:>10.2}",
+        allocs as f64 / count as f64
+    );
 
     // Test to_json
     reset_stats();
@@ -116,10 +123,17 @@ fn test_allocation(name: &str, count: usize) {
 
     println!("  to_json:");
     println!("    Output size:     {:>10} bytes", output_size);
-    println!("    Total allocated: {:>10} bytes ({:.2}x output)", allocated, allocated as f64 / output_size as f64);
+    println!(
+        "    Total allocated: {:>10} bytes ({:.2}x output)",
+        allocated,
+        allocated as f64 / output_size as f64
+    );
     println!("    Allocations:     {:>10}", allocs);
     println!("    Deallocations:   {:>10}", deallocs);
-    println!("    Allocs/item:     {:>10.2}", allocs as f64 / count as f64);
+    println!(
+        "    Allocs/item:     {:>10.2}",
+        allocs as f64 / count as f64
+    );
 }
 
 fn test_deep_nesting(depth: usize) {
@@ -133,9 +147,16 @@ fn test_deep_nesting(depth: usize) {
 
     println!("  Depth {}:", depth);
     println!("    Input size:      {:>10} bytes", json_size);
-    println!("    Total allocated: {:>10} bytes ({:.2}x input)", allocated, allocated as f64 / json_size as f64);
+    println!(
+        "    Total allocated: {:>10} bytes ({:.2}x input)",
+        allocated,
+        allocated as f64 / json_size as f64
+    );
     println!("    Allocations:     {:>10}", allocs);
-    println!("    Allocs/level:    {:>10.2}", allocs as f64 / depth as f64);
+    println!(
+        "    Allocs/level:    {:>10.2}",
+        allocs as f64 / depth as f64
+    );
 }
 
 fn test_wide_objects(field_count: usize) {
@@ -149,9 +170,16 @@ fn test_wide_objects(field_count: usize) {
 
     println!("  {} fields:", field_count);
     println!("    Input size:      {:>10} bytes", json_size);
-    println!("    Total allocated: {:>10} bytes ({:.2}x input)", allocated, allocated as f64 / json_size as f64);
+    println!(
+        "    Total allocated: {:>10} bytes ({:.2}x input)",
+        allocated,
+        allocated as f64 / json_size as f64
+    );
     println!("    Allocations:     {:>10}", allocs);
-    println!("    Allocs/field:    {:>10.2}", allocs as f64 / field_count as f64);
+    println!(
+        "    Allocs/field:    {:>10.2}",
+        allocs as f64 / field_count as f64
+    );
 }
 
 fn generate_users_json(count: usize) -> String {
@@ -167,7 +195,8 @@ fn generate_users_json(count: usize) -> String {
     }
     serde_json::to_string(&json!({
         "users": users
-    })).unwrap()
+    }))
+    .unwrap()
 }
 
 fn generate_nested_json(depth: usize) -> String {
@@ -188,5 +217,6 @@ fn generate_wide_object_json(field_count: usize) -> String {
     }
     serde_json::to_string(&json!({
         "data": obj
-    })).unwrap()
+    }))
+    .unwrap()
 }

@@ -150,7 +150,9 @@ fn test_idempotency_with_ditto() {
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
 
     let output1 = canonicalize_with_config(&doc, &config).unwrap();
     let doc2 = parse(output1.as_bytes()).unwrap();
@@ -205,7 +207,10 @@ fn test_idempotency_all_value_types() {
     );
     doc.root.insert(
         "expression".to_string(),
-        Item::Scalar(Value::Expression(Expression::Identifier { name: "x".to_string(), span: Default::default() })),
+        Item::Scalar(Value::Expression(Expression::Identifier {
+            name: "x".to_string(),
+            span: Default::default(),
+        })),
     );
 
     let output1 = canonicalize(&doc).unwrap();
@@ -489,16 +494,8 @@ fn test_round_trip_preserves_references() {
         doc2.root.get("local_ref").unwrap().as_scalar().unwrap(),
     );
     assert_eq!(
-        doc.root
-            .get("qualified_ref")
-            .unwrap()
-            .as_scalar()
-            .unwrap(),
-        doc2.root
-            .get("qualified_ref")
-            .unwrap()
-            .as_scalar()
-            .unwrap(),
+        doc.root.get("qualified_ref").unwrap().as_scalar().unwrap(),
+        doc2.root.get("qualified_ref").unwrap().as_scalar().unwrap(),
     );
 }
 
@@ -546,11 +543,7 @@ fn test_round_trip_preserves_matrix_list_structure() {
 
     let mut list = MatrixList::new(
         "User",
-        vec![
-            "id".to_string(),
-            "name".to_string(),
-            "email".to_string(),
-        ],
+        vec!["id".to_string(), "name".to_string(), "email".to_string()],
     );
     list.add_row(Node::new(
         "User",
@@ -766,7 +759,9 @@ fn test_ditto_never_in_first_row() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // First row should never have ditto
@@ -792,7 +787,9 @@ fn test_ditto_never_in_id_column() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // Second row should have ditto for value column only, not ID
@@ -800,10 +797,7 @@ fn test_ditto_never_in_id_column() {
         output.contains("|i2,^"),
         "Second row should use ditto for matching value"
     );
-    assert!(
-        !output.contains("|^,"),
-        "ID column should never use ditto"
-    );
+    assert!(!output.contains("|^,"), "ID column should never use ditto");
 }
 
 #[test]
@@ -811,11 +805,7 @@ fn test_ditto_applied_for_matching_values() {
     let mut doc = Document::new((1, 0));
     let mut list = MatrixList::new(
         "Item",
-        vec![
-            "id".to_string(),
-            "cat".to_string(),
-            "status".to_string(),
-        ],
+        vec!["id".to_string(), "cat".to_string(), "status".to_string()],
     );
     list.add_row(Node::new(
         "Item",
@@ -838,7 +828,9 @@ fn test_ditto_applied_for_matching_values() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // Both columns should use ditto (except ID)
@@ -865,7 +857,9 @@ fn test_ditto_not_applied_for_different_values() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // Different values should not use ditto
@@ -899,11 +893,16 @@ fn test_ditto_disabled() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(false).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(false)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // No ditto when disabled
-    assert!(!output.contains("^"), "Ditto should not be used when disabled");
+    assert!(
+        !output.contains("^"),
+        "Ditto should not be used when disabled"
+    );
 }
 
 #[test]
@@ -924,7 +923,9 @@ fn test_ditto_deep_equality_required() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // Different types should not ditto
@@ -946,11 +947,8 @@ fn test_count_hint_in_struct_declaration() {
         vec!["id".to_string(), "name".to_string()],
     );
 
-    let mut list = MatrixList::with_count_hint(
-        "User",
-        vec!["id".to_string(), "name".to_string()],
-        2,
-    );
+    let mut list =
+        MatrixList::with_count_hint("User", vec!["id".to_string(), "name".to_string()], 2);
     list.add_row(Node::new(
         "User",
         "u1",
@@ -1016,11 +1014,8 @@ fn test_count_hint_round_trip() {
         vec!["id".to_string(), "value".to_string()],
     );
 
-    let mut list = MatrixList::with_count_hint(
-        "Item",
-        vec!["id".to_string(), "value".to_string()],
-        3,
-    );
+    let mut list =
+        MatrixList::with_count_hint("Item", vec!["id".to_string(), "value".to_string()], 3);
     list.add_row(Node::new(
         "Item",
         "i1",
@@ -1138,7 +1133,10 @@ fn test_expression_formatted_correctly() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "expr".to_string(),
-        Item::Scalar(Value::Expression(Expression::Identifier { name: "x".to_string(), span: Default::default() })),
+        Item::Scalar(Value::Expression(Expression::Identifier {
+            name: "x".to_string(),
+            span: Default::default(),
+        })),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1343,8 +1341,7 @@ fn test_complex_document_idempotency() {
 
     // Aliases
     doc.aliases.insert("usr".to_string(), "User".to_string());
-    doc.aliases
-        .insert("pst".to_string(), "Post".to_string());
+    doc.aliases.insert("pst".to_string(), "Post".to_string());
 
     // Structs
     doc.structs.insert(
@@ -1353,11 +1350,7 @@ fn test_complex_document_idempotency() {
     );
     doc.structs.insert(
         "Post".to_string(),
-        vec![
-            "id".to_string(),
-            "title".to_string(),
-            "author".to_string(),
-        ],
+        vec!["id".to_string(), "title".to_string(), "author".to_string()],
     );
 
     // Scalar values
@@ -1371,11 +1364,7 @@ fn test_complex_document_idempotency() {
     // Matrix list
     let mut users = MatrixList::new(
         "User",
-        vec![
-            "id".to_string(),
-            "name".to_string(),
-            "email".to_string(),
-        ],
+        vec!["id".to_string(), "name".to_string(), "email".to_string()],
     );
     users.add_row(Node::new(
         "User",

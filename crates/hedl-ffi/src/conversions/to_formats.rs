@@ -17,14 +17,12 @@
 
 //! Export functions (to_*) for FFI.
 
-use crate::audit::{
-    audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
-};
+use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
 use crate::error::{clear_error, set_error};
 use crate::memory::is_valid_document_ptr;
 use crate::types::{
-    HedlDocument, HEDL_ERR_CSV, HEDL_ERR_JSON, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR,
-    HEDL_ERR_PARQUET, HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
+    HedlDocument, HEDL_ERR_CSV, HEDL_ERR_JSON, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET,
+    HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
 };
 use crate::utils::allocate_output_string;
 use std::os::raw::{c_char, c_int};
@@ -73,7 +71,12 @@ pub unsafe extern "C" fn hedl_to_json(
     if !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_to_json", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_to_json",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -148,7 +151,12 @@ pub unsafe extern "C" fn hedl_to_yaml(
     if !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_to_yaml", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_to_yaml",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -217,7 +225,12 @@ pub unsafe extern "C" fn hedl_to_xml(doc: *const HedlDocument, out_str: *mut *mu
     if !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_to_xml", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_to_xml",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -284,7 +297,12 @@ pub unsafe extern "C" fn hedl_to_csv(doc: *const HedlDocument, out_str: *mut *mu
     if !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_to_csv", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_to_csv",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -358,7 +376,12 @@ pub unsafe extern "C" fn hedl_to_parquet(
     if !is_valid_document_ptr(doc) || out_data.is_null() || out_len.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_to_parquet", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_to_parquet",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -429,7 +452,12 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher(
     if !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_to_neo4j_cypher", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_to_neo4j_cypher",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 

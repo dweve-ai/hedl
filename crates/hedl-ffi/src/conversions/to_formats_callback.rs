@@ -71,7 +71,8 @@ use std::os::raw::{c_char, c_int, c_void};
 /// - Do NOT store the pointer for later use
 /// - The data is not null-terminated
 /// - The callback MUST NOT call back into HEDL functions
-pub type HedlOutputCallback = unsafe extern "C" fn(data: *const c_char, len: usize, user_data: *mut c_void);
+pub type HedlOutputCallback =
+    unsafe extern "C" fn(data: *const c_char, len: usize, user_data: *mut c_void);
 
 // =============================================================================
 // Helper Functions
@@ -79,11 +80,7 @@ pub type HedlOutputCallback = unsafe extern "C" fn(data: *const c_char, len: usi
 
 /// Helper to invoke callback with output data
 #[inline]
-unsafe fn invoke_callback(
-    output: &str,
-    callback: HedlOutputCallback,
-    user_data: *mut c_void,
-) {
+unsafe fn invoke_callback(output: &str, callback: HedlOutputCallback, user_data: *mut c_void) {
     let data = output.as_ptr() as *const c_char;
     let len = output.len();
     callback(data, len, user_data);
@@ -122,22 +119,32 @@ pub unsafe extern "C" fn hedl_to_json_callback(
     callback: HedlOutputCallback,
     user_data: *mut c_void,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
     let start = Instant::now();
     let doc_ptr_str = sanitize_pointer(doc);
     let include_metadata_str = include_metadata.to_string();
-    audit_call_start("hedl_to_json_callback", &[
-        ("doc_ptr", &doc_ptr_str),
-        ("include_metadata", &include_metadata_str),
-    ]);
+    audit_call_start(
+        "hedl_to_json_callback",
+        &[
+            ("doc_ptr", &doc_ptr_str),
+            ("include_metadata", &include_metadata_str),
+        ],
+    );
 
     clear_error();
 
     if !is_valid_document_ptr(doc) {
         set_error("Null or invalid document pointer");
         let duration = start.elapsed();
-        audit_call_failure("hedl_to_json_callback", HEDL_ERR_NULL_PTR, "NULL or invalid pointer", duration);
+        audit_call_failure(
+            "hedl_to_json_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL or invalid pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -196,22 +203,32 @@ pub unsafe extern "C" fn hedl_to_yaml_callback(
     callback: HedlOutputCallback,
     user_data: *mut c_void,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
     let start = Instant::now();
     let doc_ptr_str = sanitize_pointer(doc);
     let include_metadata_str = include_metadata.to_string();
-    audit_call_start("hedl_to_yaml_callback", &[
-        ("doc_ptr", &doc_ptr_str),
-        ("include_metadata", &include_metadata_str),
-    ]);
+    audit_call_start(
+        "hedl_to_yaml_callback",
+        &[
+            ("doc_ptr", &doc_ptr_str),
+            ("include_metadata", &include_metadata_str),
+        ],
+    );
 
     clear_error();
 
     if !is_valid_document_ptr(doc) {
         set_error("Null or invalid document pointer");
         let duration = start.elapsed();
-        audit_call_failure("hedl_to_yaml_callback", HEDL_ERR_NULL_PTR, "NULL or invalid pointer", duration);
+        audit_call_failure(
+            "hedl_to_yaml_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL or invalid pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -268,7 +285,9 @@ pub unsafe extern "C" fn hedl_to_xml_callback(
     callback: HedlOutputCallback,
     user_data: *mut c_void,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
     let start = Instant::now();
     let doc_ptr_str = sanitize_pointer(doc);
@@ -279,7 +298,12 @@ pub unsafe extern "C" fn hedl_to_xml_callback(
     if !is_valid_document_ptr(doc) {
         set_error("Null or invalid document pointer");
         let duration = start.elapsed();
-        audit_call_failure("hedl_to_xml_callback", HEDL_ERR_NULL_PTR, "NULL or invalid pointer", duration);
+        audit_call_failure(
+            "hedl_to_xml_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL or invalid pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -334,7 +358,9 @@ pub unsafe extern "C" fn hedl_to_csv_callback(
     callback: HedlOutputCallback,
     user_data: *mut c_void,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
     let start = Instant::now();
     let doc_ptr_str = sanitize_pointer(doc);
@@ -345,7 +371,12 @@ pub unsafe extern "C" fn hedl_to_csv_callback(
     if !is_valid_document_ptr(doc) {
         set_error("Null or invalid document pointer");
         let duration = start.elapsed();
-        audit_call_failure("hedl_to_csv_callback", HEDL_ERR_NULL_PTR, "NULL or invalid pointer", duration);
+        audit_call_failure(
+            "hedl_to_csv_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL or invalid pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -402,22 +433,29 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher_callback(
     callback: HedlOutputCallback,
     user_data: *mut c_void,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
     let start = Instant::now();
     let doc_ptr_str = sanitize_pointer(doc);
     let use_merge_str = use_merge.to_string();
-    audit_call_start("hedl_to_neo4j_cypher_callback", &[
-        ("doc_ptr", &doc_ptr_str),
-        ("use_merge", &use_merge_str),
-    ]);
+    audit_call_start(
+        "hedl_to_neo4j_cypher_callback",
+        &[("doc_ptr", &doc_ptr_str), ("use_merge", &use_merge_str)],
+    );
 
     clear_error();
 
     if !is_valid_document_ptr(doc) {
         set_error("Null or invalid document pointer");
         let duration = start.elapsed();
-        audit_call_failure("hedl_to_neo4j_cypher_callback", HEDL_ERR_NULL_PTR, "NULL or invalid pointer", duration);
+        audit_call_failure(
+            "hedl_to_neo4j_cypher_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL or invalid pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -439,7 +477,12 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher_callback(
             set_error(&format!("Neo4j conversion error: {}", e));
             let duration = start.elapsed();
             let msg = e.to_string();
-            audit_call_failure("hedl_to_neo4j_cypher_callback", HEDL_ERR_JSON, &msg, duration);
+            audit_call_failure(
+                "hedl_to_neo4j_cypher_callback",
+                HEDL_ERR_JSON,
+                &msg,
+                duration,
+            );
             HEDL_ERR_NEO4J
         }
     }
@@ -472,7 +515,9 @@ pub unsafe extern "C" fn hedl_canonicalize_callback(
     callback: HedlOutputCallback,
     user_data: *mut c_void,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
     let start = Instant::now();
     let doc_ptr_str = sanitize_pointer(doc);
@@ -483,7 +528,12 @@ pub unsafe extern "C" fn hedl_canonicalize_callback(
     if !is_valid_document_ptr(doc) {
         set_error("Null or invalid document pointer");
         let duration = start.elapsed();
-        audit_call_failure("hedl_canonicalize_callback", HEDL_ERR_NULL_PTR, "NULL or invalid pointer", duration);
+        audit_call_failure(
+            "hedl_canonicalize_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL or invalid pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 

@@ -135,7 +135,9 @@ pub fn lint(file: &str, format: &str, warn_error: bool) -> Result<(), String> {
     }
 
     let has_errors = diagnostics.iter().any(|d| d.severity() == Severity::Error);
-    let has_warnings = diagnostics.iter().any(|d| d.severity() == Severity::Warning);
+    let has_warnings = diagnostics
+        .iter()
+        .any(|d| d.severity() == Severity::Warning);
 
     if has_errors || (warn_error && has_warnings) {
         Err("Lint errors found".to_string())

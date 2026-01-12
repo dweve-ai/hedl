@@ -95,7 +95,6 @@ pub enum ToonError {
     // ========================================================================
     // Parsing errors (from_toon)
     // ========================================================================
-
     /// Invalid TOON syntax at a specific line
     #[error("Parse error at line {line}: {message}")]
     ParseError {

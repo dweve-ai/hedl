@@ -31,8 +31,8 @@
 //! 5. **Reference Preservation**: References remain valid after canonicalization
 //! 6. **Schema Stability**: Matrix schemas are preserved through roundtrips
 
-use hedl_core::parse;
 use hedl_c14n::canonicalize;
+use hedl_core::parse;
 use proptest::prelude::*;
 
 proptest! {

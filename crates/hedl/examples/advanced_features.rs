@@ -78,7 +78,11 @@ ml_config:
     // Parse the document
     let doc = parse(hedl_text)?;
     println!("--- Parsing Results ---");
-    println!("✓ Parsed {} structs: {:?}", doc.structs.len(), doc.structs.keys().collect::<Vec<_>>());
+    println!(
+        "✓ Parsed {} structs: {:?}",
+        doc.structs.len(),
+        doc.structs.keys().collect::<Vec<_>>()
+    );
     println!("✓ Parsed {} root items", doc.root.len());
     println!();
 

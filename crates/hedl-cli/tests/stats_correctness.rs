@@ -133,7 +133,14 @@ fn test_large_dataset() {
     for i in 0..100 {
         content.push_str(&format!(
             "id{}: {}\nname{}: \"Product {}\"\nprice{}: {}.99\ncategory{}: \"Category {}\"\n",
-            i, i, i, i, i, i * 10, i, i % 10
+            i,
+            i,
+            i,
+            i,
+            i,
+            i * 10,
+            i,
+            i % 10
         ));
     }
 
@@ -144,7 +151,10 @@ fn test_large_dataset() {
     let output2 = run_stats(&file, true);
 
     // Should be deterministic even with larger data
-    assert_eq!(output1, output2, "Large dataset stats should be deterministic");
+    assert_eq!(
+        output1, output2,
+        "Large dataset stats should be deterministic"
+    );
 }
 
 #[test]
@@ -167,7 +177,10 @@ sales_smb: 8
     let output1 = run_stats(&file, true);
     let output2 = run_stats(&file, true);
 
-    assert_eq!(output1, output2, "Nested structure stats should be deterministic");
+    assert_eq!(
+        output1, output2,
+        "Nested structure stats should be deterministic"
+    );
 }
 
 #[test]
@@ -230,7 +243,10 @@ items: @Data
     let output1 = run_stats(&file, true);
     let output2 = run_stats(&file, true);
 
-    assert_eq!(output1, output2, "Matrix list stats should be deterministic");
+    assert_eq!(
+        output1, output2,
+        "Matrix list stats should be deterministic"
+    );
 }
 
 #[test]

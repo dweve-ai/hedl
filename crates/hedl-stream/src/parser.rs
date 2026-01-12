@@ -59,8 +59,8 @@
 use crate::error::{StreamError, StreamResult};
 use crate::event::{HeaderInfo, NodeEvent, NodeInfo};
 use crate::reader::LineReader;
-use hedl_core::Value;
 use hedl_core::lex::{calculate_indent, is_valid_key_token, is_valid_type_name};
+use hedl_core::Value;
 use std::io::Read;
 use std::time::{Duration, Instant};
 
@@ -597,7 +597,10 @@ impl<R: Read> StreamingParser<R> {
         if let Some(timeout) = self.config.timeout {
             let elapsed = self.start_time.elapsed();
             if elapsed > timeout {
-                return Err(StreamError::Timeout { elapsed, limit: timeout });
+                return Err(StreamError::Timeout {
+                    elapsed,
+                    limit: timeout,
+                });
             }
         }
         Ok(())
@@ -1493,9 +1496,7 @@ pub(crate) fn strip_comment(s: &str) -> &str {
 
         // Verify this '#' is not inside quotes or escaped
         // Scan from last search position to hash position
-        for i in search_start..hash_pos {
-            let c = bytes[i];
-
+        for &c in &bytes[search_start..hash_pos] {
             if escape {
                 escape = false;
                 continue;

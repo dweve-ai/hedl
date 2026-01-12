@@ -58,12 +58,7 @@ employees: @Employee
             let dept = node.get_field(2).unwrap();
             let salary = node.get_field(3).unwrap();
 
-            employees.push((
-                node.id.clone(),
-                name.clone(),
-                dept.clone(),
-                salary.clone(),
-            ));
+            employees.push((node.id.clone(), name.clone(), dept.clone(), salary.clone()));
         }
     }
 

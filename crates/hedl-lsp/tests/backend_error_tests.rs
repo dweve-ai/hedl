@@ -23,7 +23,7 @@
 
 use hedl_lsp::HedlLanguageServer;
 use tower_lsp::lsp_types::*;
-use tower_lsp::{LspService, LanguageServer};
+use tower_lsp::{LanguageServer, LspService};
 
 // Helper macro to create test server inline
 macro_rules! test_server {
@@ -64,7 +64,8 @@ async fn test_initialize_capabilities() {
 
 #[tokio::test]
 async fn test_initialized_notification() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let params = InitializedParams {};
 
     // Should not panic
@@ -73,7 +74,8 @@ async fn test_initialized_notification() {
 
 #[tokio::test]
 async fn test_shutdown() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
 
     let result = server.shutdown().await;
     assert!(result.is_ok());
@@ -85,7 +87,8 @@ async fn test_shutdown() {
 
 #[tokio::test]
 async fn test_did_open_oversized_document() {
-    let service = test_server!(10, 100); let server = service.inner(); // Small size limit
+    let service = test_server!(10, 100);
+    let server = service.inner(); // Small size limit
 
     let uri = Url::parse("file:///test.hedl").unwrap();
     let large_content = "x".repeat(200); // Exceeds limit
@@ -108,7 +111,8 @@ async fn test_did_open_oversized_document() {
 
 #[tokio::test]
 async fn test_did_open_valid_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     let params = DidOpenTextDocumentParams {
@@ -128,7 +132,8 @@ async fn test_did_open_valid_document() {
 
 #[tokio::test]
 async fn test_did_change_nonexistent_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = DidChangeTextDocumentParams {
@@ -149,18 +154,21 @@ async fn test_did_change_nonexistent_document() {
 
 #[tokio::test]
 async fn test_did_change_empty_changes() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document first
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n---\n".to_string(),
+            },
+        })
+        .await;
 
     let params = DidChangeTextDocumentParams {
         text_document: VersionedTextDocumentIdentifier {
@@ -176,7 +184,8 @@ async fn test_did_change_empty_changes() {
 
 #[tokio::test]
 async fn test_did_save_with_text() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     let params = DidSaveTextDocumentParams {
@@ -192,7 +201,8 @@ async fn test_did_save_with_text() {
 
 #[tokio::test]
 async fn test_did_save_without_text() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     let params = DidSaveTextDocumentParams {
@@ -206,25 +216,30 @@ async fn test_did_save_without_text() {
 
 #[tokio::test]
 async fn test_did_close() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n---\n".to_string(),
+            },
+        })
+        .await;
 
     assert_eq!(server.cache_statistics().current_size, 1);
 
     // Close document
-    server.did_close(DidCloseTextDocumentParams {
-        text_document: TextDocumentIdentifier { uri: uri.clone() },
-    }).await;
+    server
+        .did_close(DidCloseTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri: uri.clone() },
+        })
+        .await;
 
     // Document should be removed
     assert_eq!(server.cache_statistics().current_size, 0);
@@ -236,13 +251,17 @@ async fn test_did_close() {
 
 #[tokio::test]
 async fn test_completion_nonexistent_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = CompletionParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 0, character: 0 },
+            position: Position {
+                line: 0,
+                character: 0,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -256,23 +275,29 @@ async fn test_completion_nonexistent_document() {
 
 #[tokio::test]
 async fn test_completion_valid_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n".to_string(),
+            },
+        })
+        .await;
 
     let params = CompletionParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 0, character: 0 },
+            position: Position {
+                line: 0,
+                character: 0,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -290,13 +315,17 @@ async fn test_completion_valid_document() {
 
 #[tokio::test]
 async fn test_hover_nonexistent_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = HoverParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 0, character: 0 },
+            position: Position {
+                line: 0,
+                character: 0,
+            },
         },
         work_done_progress_params: Default::default(),
     };
@@ -308,23 +337,29 @@ async fn test_hover_nonexistent_document() {
 
 #[tokio::test]
 async fn test_hover_valid_position() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n---\n".to_string(),
+            },
+        })
+        .await;
 
     let params = HoverParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 0, character: 5 },
+            position: Position {
+                line: 0,
+                character: 5,
+            },
         },
         work_done_progress_params: Default::default(),
     };
@@ -339,13 +374,17 @@ async fn test_hover_valid_position() {
 
 #[tokio::test]
 async fn test_goto_definition_nonexistent_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = GotoDefinitionParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 0, character: 0 },
+            position: Position {
+                line: 0,
+                character: 0,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -358,23 +397,29 @@ async fn test_goto_definition_nonexistent_document() {
 
 #[tokio::test]
 async fn test_goto_definition_no_reference_at_position() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n---\n".to_string(),
+            },
+        })
+        .await;
 
     let params = GotoDefinitionParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 1, character: 0 },
+            position: Position {
+                line: 1,
+                character: 0,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -387,7 +432,8 @@ async fn test_goto_definition_no_reference_at_position() {
 
 #[tokio::test]
 async fn test_goto_definition_qualified_reference() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document with qualified reference
@@ -403,7 +449,10 @@ async fn test_goto_definition_qualified_reference() {
     let params = GotoDefinitionParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 4, character: 12 }, // On @User:u1
+            position: Position {
+                line: 4,
+                character: 12,
+            }, // On @User:u1
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -416,23 +465,30 @@ async fn test_goto_definition_qualified_reference() {
 
 #[tokio::test]
 async fn test_goto_definition_unqualified_reference() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document with unqualified reference
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\nPost: p1: @u1".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\nPost: p1: @u1"
+                    .to_string(),
+            },
+        })
+        .await;
 
     let params = GotoDefinitionParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 4, character: 11 }, // On @u1
+            position: Position {
+                line: 4,
+                character: 11,
+            }, // On @u1
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -448,13 +504,17 @@ async fn test_goto_definition_unqualified_reference() {
 
 #[tokio::test]
 async fn test_references_nonexistent_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = ReferenceParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 0, character: 0 },
+            position: Position {
+                line: 0,
+                character: 0,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -470,7 +530,8 @@ async fn test_references_nonexistent_document() {
 
 #[tokio::test]
 async fn test_references_with_declaration() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
@@ -486,7 +547,10 @@ async fn test_references_with_declaration() {
     let params = ReferenceParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 4, character: 12 },
+            position: Position {
+                line: 4,
+                character: 12,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -501,7 +565,8 @@ async fn test_references_with_declaration() {
 
 #[tokio::test]
 async fn test_references_without_declaration() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
@@ -517,7 +582,10 @@ async fn test_references_without_declaration() {
     let params = ReferenceParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier { uri: uri.clone() },
-            position: Position { line: 4, character: 12 },
+            position: Position {
+                line: 4,
+                character: 12,
+            },
         },
         work_done_progress_params: Default::default(),
         partial_result_params: Default::default(),
@@ -536,7 +604,8 @@ async fn test_references_without_declaration() {
 
 #[tokio::test]
 async fn test_document_symbol_nonexistent() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = DocumentSymbolParams {
@@ -552,18 +621,21 @@ async fn test_document_symbol_nonexistent() {
 
 #[tokio::test]
 async fn test_document_symbol_valid() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"".to_string(),
+            },
+        })
+        .await;
 
     let params = DocumentSymbolParams {
         text_document: TextDocumentIdentifier { uri: uri.clone() },
@@ -582,7 +654,8 @@ async fn test_document_symbol_valid() {
 
 #[tokio::test]
 async fn test_workspace_symbol_empty_workspace() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
 
     let params = WorkspaceSymbolParams {
         query: "test".to_string(),
@@ -598,19 +671,22 @@ async fn test_workspace_symbol_empty_workspace() {
 
 #[tokio::test]
 async fn test_workspace_symbol_with_documents() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
 
     // Open multiple documents
     for i in 0..3 {
         let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
-        server.did_open(DidOpenTextDocumentParams {
-            text_document: TextDocumentItem {
-                uri: uri.clone(),
-                language_id: "hedl".to_string(),
-                version: 1,
-                text: format!("%VERSION: 1.0\n---\nEntity{}: e{}: \"test\"", i, i),
-            },
-        }).await;
+        server
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "hedl".to_string(),
+                    version: 1,
+                    text: format!("%VERSION: 1.0\n---\nEntity{}: e{}: \"test\"", i, i),
+                },
+            })
+            .await;
     }
 
     let params = WorkspaceSymbolParams {
@@ -631,7 +707,8 @@ async fn test_workspace_symbol_with_documents() {
 
 #[tokio::test]
 async fn test_formatting_nonexistent_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     let params = DocumentFormattingParams {
@@ -651,18 +728,21 @@ async fn test_formatting_nonexistent_document() {
 
 #[tokio::test]
 async fn test_formatting_valid_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n---\nUser: u1:    \"Alice\"   ".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n---\nUser: u1:    \"Alice\"   ".to_string(),
+            },
+        })
+        .await;
 
     let params = DocumentFormattingParams {
         text_document: TextDocumentIdentifier { uri: uri.clone() },
@@ -680,18 +760,21 @@ async fn test_formatting_valid_document() {
 
 #[tokio::test]
 async fn test_formatting_invalid_document() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Open document with parse errors
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "@@@invalid content@@@".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "@@@invalid content@@@".to_string(),
+            },
+        })
+        .await;
 
     let params = DocumentFormattingParams {
         text_document: TextDocumentIdentifier { uri: uri.clone() },
@@ -714,7 +797,8 @@ async fn test_formatting_invalid_document() {
 
 #[tokio::test]
 async fn test_cache_size_configuration() {
-    let service = test_server!(5, 1024 * 1024); let server = service.inner();
+    let service = test_server!(5, 1024 * 1024);
+    let server = service.inner();
 
     assert_eq!(server.max_cache_size(), 5);
 
@@ -725,7 +809,8 @@ async fn test_cache_size_configuration() {
 
 #[tokio::test]
 async fn test_document_size_configuration() {
-    let service = test_server!(100, 1000); let server = service.inner();
+    let service = test_server!(100, 1000);
+    let server = service.inner();
 
     assert_eq!(server.max_document_size(), 1000);
 
@@ -736,7 +821,8 @@ async fn test_document_size_configuration() {
 
 #[tokio::test]
 async fn test_cache_statistics() {
-    let service = test_server!(); let server = service.inner();
+    let service = test_server!();
+    let server = service.inner();
 
     let stats = server.cache_statistics();
     assert_eq!(stats.current_size, 0);
@@ -745,14 +831,16 @@ async fn test_cache_statistics() {
 
     // Open a document
     let uri = Url::parse("file:///test.hedl").unwrap();
-    server.did_open(DidOpenTextDocumentParams {
-        text_document: TextDocumentItem {
-            uri: uri.clone(),
-            language_id: "hedl".to_string(),
-            version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
-        },
-    }).await;
+    server
+        .did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "hedl".to_string(),
+                version: 1,
+                text: "%VERSION: 1.0\n---\n".to_string(),
+            },
+        })
+        .await;
 
     let stats = server.cache_statistics();
     assert_eq!(stats.current_size, 1);

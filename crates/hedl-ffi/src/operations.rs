@@ -17,9 +17,7 @@
 
 //! Operations (canonicalize, lint, validate) for FFI.
 
-use crate::audit::{
-    audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
-};
+use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
 use crate::error::{clear_error, set_error};
 use crate::memory::is_valid_document_ptr;
 use crate::types::{
@@ -134,7 +132,12 @@ pub unsafe extern "C" fn hedl_lint(
     if !is_valid_document_ptr(doc) || out_diag.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_lint", HEDL_ERR_NULL_PTR, "Null pointer argument", duration);
+        audit_call_failure(
+            "hedl_lint",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 

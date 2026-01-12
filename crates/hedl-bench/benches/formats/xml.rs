@@ -698,7 +698,6 @@ fn create_xml_tag_overhead_analysis_table(
     report.add_custom_table(table);
 }
 
-
 fn create_roundtrip_stability_table(results: &[RoundTripResult], report: &mut BenchmarkReport) {
     let mut table = CustomTable {
         title: "Round-Trip Stability".to_string(),
@@ -731,7 +730,6 @@ fn create_roundtrip_stability_table(results: &[RoundTripResult], report: &mut Be
 
     report.add_custom_table(table);
 }
-
 
 fn create_nested_structure_handling_table(
     results: &[ConversionResult],
@@ -837,8 +835,8 @@ fn create_large_dataset_performance_table(
                 .count()
                 .max(1) as f64;
 
-        let avg_input_bytes = size_results.iter().map(|r| r.input_bytes).sum::<usize>()
-            / size_results.len().max(1);
+        let avg_input_bytes =
+            size_results.iter().map(|r| r.input_bytes).sum::<usize>() / size_results.len().max(1);
 
         table.rows.push(vec![
             TableCell::Integer(size as i64),
@@ -950,9 +948,6 @@ fn create_streaming_vs_batch_table(results: &[ConversionResult], report: &mut Be
 
     report.add_custom_table(table);
 }
-
-
-
 
 fn create_conversion_bottleneck_analysis_table(
     results: &[ConversionResult],
@@ -1362,10 +1357,7 @@ fn generate_insights(
     }
 
     // Round-trip stability
-    let byte_equal_count = roundtrip_results
-        .iter()
-        .filter(|r| r.byte_equal)
-        .count();
+    let byte_equal_count = roundtrip_results.iter().filter(|r| r.byte_equal).count();
     let total_roundtrips = roundtrip_results.len().max(1);
     let byte_equal_rate = (byte_equal_count as f64 / total_roundtrips as f64) * 100.0;
 

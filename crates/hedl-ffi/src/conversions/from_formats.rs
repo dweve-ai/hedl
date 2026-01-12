@@ -53,23 +53,30 @@ pub unsafe extern "C" fn hedl_from_json(
     json_len: c_int,
     out_doc: *mut *mut HedlDocument,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
 
     let start = Instant::now();
     let json_ptr_str = sanitize_pointer(json);
     let json_len_str = json_len.to_string();
-    audit_call_start("hedl_from_json", &[
-        ("json_ptr", &json_ptr_str),
-        ("json_len", &json_len_str),
-    ]);
+    audit_call_start(
+        "hedl_from_json",
+        &[("json_ptr", &json_ptr_str), ("json_len", &json_len_str)],
+    );
 
     clear_error();
 
     if json.is_null() || out_doc.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_from_json", HEDL_ERR_NULL_PTR, "NULL pointer", duration);
+        audit_call_failure(
+            "hedl_from_json",
+            HEDL_ERR_NULL_PTR,
+            "NULL pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -127,20 +134,30 @@ pub unsafe extern "C" fn hedl_from_yaml(
     yaml_len: c_int,
     out_doc: *mut *mut HedlDocument,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
 
     let start = Instant::now();
     let yaml_ptr_str = sanitize_pointer(yaml);
     let yaml_len_str = yaml_len.to_string();
-    audit_call_start("hedl_from_yaml", &[("yaml_ptr", &yaml_ptr_str), ("yaml_len", &yaml_len_str)]);
+    audit_call_start(
+        "hedl_from_yaml",
+        &[("yaml_ptr", &yaml_ptr_str), ("yaml_len", &yaml_len_str)],
+    );
 
     clear_error();
 
     if yaml.is_null() || out_doc.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_from_yaml", HEDL_ERR_NULL_PTR, "NULL pointer", duration);
+        audit_call_failure(
+            "hedl_from_yaml",
+            HEDL_ERR_NULL_PTR,
+            "NULL pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 
@@ -198,13 +215,18 @@ pub unsafe extern "C" fn hedl_from_xml(
     xml_len: c_int,
     out_doc: *mut *mut HedlDocument,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
 
     let start = Instant::now();
     let xml_ptr_str = sanitize_pointer(xml);
     let xml_len_str = xml_len.to_string();
-    audit_call_start("hedl_from_xml", &[("xml_ptr", &xml_ptr_str), ("xml_len", &xml_len_str)]);
+    audit_call_start(
+        "hedl_from_xml",
+        &[("xml_ptr", &xml_ptr_str), ("xml_len", &xml_len_str)],
+    );
 
     clear_error();
 
@@ -269,20 +291,30 @@ pub unsafe extern "C" fn hedl_from_parquet(
     len: usize,
     out_doc: *mut *mut HedlDocument,
 ) -> c_int {
-    use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
     use std::time::Instant;
 
     let start = Instant::now();
     let data_ptr_str = sanitize_pointer(data);
     let len_str = len.to_string();
-    audit_call_start("hedl_from_parquet", &[("data_ptr", &data_ptr_str), ("len", &len_str)]);
+    audit_call_start(
+        "hedl_from_parquet",
+        &[("data_ptr", &data_ptr_str), ("len", &len_str)],
+    );
 
     clear_error();
 
     if data.is_null() || out_doc.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
-        audit_call_failure("hedl_from_parquet", HEDL_ERR_NULL_PTR, "NULL pointer", duration);
+        audit_call_failure(
+            "hedl_from_parquet",
+            HEDL_ERR_NULL_PTR,
+            "NULL pointer",
+            duration,
+        );
         return HEDL_ERR_NULL_PTR;
     }
 

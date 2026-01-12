@@ -62,7 +62,12 @@ pub fn generate_completion_for_command<G: Generator>(
     generator: G,
     cmd: &mut Command,
 ) -> Result<(), String> {
-    generate(generator, cmd, cmd.get_name().to_string(), &mut io::stdout());
+    generate(
+        generator,
+        cmd,
+        cmd.get_name().to_string(),
+        &mut io::stdout(),
+    );
     Ok(())
 }
 

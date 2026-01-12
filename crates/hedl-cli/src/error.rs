@@ -64,7 +64,9 @@ pub enum CliError {
     ///
     /// This prevents denial-of-service attacks via memory exhaustion.
     /// The error includes the actual file size and the configured limit.
-    #[error("File '{path}' is too large ({actual} bytes). Maximum allowed: {max} bytes ({max_mb} MB)")]
+    #[error(
+        "File '{path}' is too large ({actual} bytes). Maximum allowed: {max} bytes ({max_mb} MB)"
+    )]
     FileTooLarge {
         /// The file path that exceeded the limit
         path: PathBuf,
@@ -318,15 +320,17 @@ mod tests {
 
     #[test]
     fn test_json_format_error_conversion() {
-        let json_err = serde_json::from_str::<serde_json::Value>("invalid json")
-            .unwrap_err();
+        let json_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
         let cli_err: CliError = json_err.into();
         assert!(matches!(cli_err, CliError::JsonFormat { .. }));
     }
 
     #[test]
     fn test_error_cloning() {
-        let err = CliError::io_error("test.hedl", io::Error::new(io::ErrorKind::NotFound, "not found"));
+        let err = CliError::io_error(
+            "test.hedl",
+            io::Error::new(io::ErrorKind::NotFound, "not found"),
+        );
         let cloned = err.clone();
         assert_eq!(err.to_string(), cloned.to_string());
     }

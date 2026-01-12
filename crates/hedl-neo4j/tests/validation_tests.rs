@@ -20,8 +20,8 @@
 //! These tests verify that the security features like string length limits
 //! properly prevent resource exhaustion attacks.
 
-use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_core::lex::Span;
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_neo4j::{to_cypher, Neo4jError, ToCypherConfig};
 use std::collections::BTreeMap;
 
@@ -82,7 +82,7 @@ fn test_string_length_validation_in_conversion() {
 
 #[test]
 fn test_expression_string_length_validation() {
-    use hedl_core::{Expression, ExprLiteral};
+    use hedl_core::{ExprLiteral, Expression};
 
     // Create a document with an expression containing a large string
     let long_string = "x".repeat(2000);
@@ -311,7 +311,10 @@ fn test_empty_string_always_valid() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![Value::String("alice".to_string()), Value::String("".to_string())],
+                fields: vec![
+                    Value::String("alice".to_string()),
+                    Value::String("".to_string()),
+                ],
                 children: BTreeMap::new(),
                 child_count: None,
             }],

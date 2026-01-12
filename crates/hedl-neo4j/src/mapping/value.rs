@@ -17,8 +17,8 @@
 
 //! Mapping between HEDL values and Cypher values.
 
-use hedl_core::Value;
 use hedl_core::lex::Tensor;
+use hedl_core::Value;
 use std::collections::BTreeMap;
 
 use crate::config::ToCypherConfig;
@@ -76,7 +76,11 @@ pub fn value_to_cypher(
 }
 
 /// Convert a tensor to a Cypher value (as JSON string).
-fn tensor_to_cypher(tensor: &Tensor, property_name: &str, config: &ToCypherConfig) -> Result<CypherValue> {
+fn tensor_to_cypher(
+    tensor: &Tensor,
+    property_name: &str,
+    config: &ToCypherConfig,
+) -> Result<CypherValue> {
     let json = tensor_to_json(tensor)?;
     // Validate the serialized JSON string length
     validate_string_length(&json, property_name, config)?;
@@ -356,7 +360,12 @@ mod tests {
         let long_string = Value::String("x".repeat(101));
         let result = value_to_cypher(&long_string, "description", &config);
         assert!(result.is_err());
-        if let Err(Neo4jError::StringLengthExceeded { length, max_length, property }) = result {
+        if let Err(Neo4jError::StringLengthExceeded {
+            length,
+            max_length,
+            property,
+        }) = result
+        {
             assert_eq!(length, 101);
             assert_eq!(max_length, 100);
             assert_eq!(property, "description");

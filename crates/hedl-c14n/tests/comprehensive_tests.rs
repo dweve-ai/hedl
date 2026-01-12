@@ -133,8 +133,14 @@ fn test_expression_formatting() {
         Item::Scalar(Value::Expression(Expression::Call {
             name: "add".to_string(),
             args: vec![
-                Expression::Identifier { name: "x".to_string(), span: Default::default() },
-                Expression::Identifier { name: "y".to_string(), span: Default::default() },
+                Expression::Identifier {
+                    name: "x".to_string(),
+                    span: Default::default(),
+                },
+                Expression::Identifier {
+                    name: "y".to_string(),
+                    span: Default::default(),
+                },
             ],
             span: Default::default(),
         })),
@@ -381,7 +387,9 @@ fn test_ditto_optimization() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // Second row should use ditto for category
@@ -405,7 +413,9 @@ fn test_no_ditto_in_id_column() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // ID column should NOT use ditto (even if values were same)
@@ -425,7 +435,9 @@ fn test_no_ditto_first_row() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // First row never has ditto
@@ -450,7 +462,9 @@ fn test_ditto_deep_equality() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(true).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(true)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // Boolean values should ditto
@@ -480,7 +494,9 @@ fn test_ditto_disabled() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_ditto(false).with_inline_schemas(true);
+    let config = CanonicalConfig::new()
+        .with_ditto(false)
+        .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // No ditto when disabled
@@ -747,7 +763,9 @@ fn test_empty_last_column_with_ditto() {
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new().with_inline_schemas(true).with_ditto(true);
+    let config = CanonicalConfig::new()
+        .with_inline_schemas(true)
+        .with_ditto(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // First row: empty last column must be quoted

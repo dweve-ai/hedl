@@ -171,8 +171,9 @@ pub use from_csv::{
     from_csv, from_csv_reader, from_csv_reader_with_config, from_csv_with_config, FromCsvConfig,
 };
 pub use to_csv::{
-    to_csv, to_csv_list, to_csv_list_with_config, to_csv_list_writer, to_csv_list_writer_with_config,
-    to_csv_with_config, to_csv_writer, to_csv_writer_with_config, ToCsvConfig,
+    to_csv, to_csv_list, to_csv_list_with_config, to_csv_list_writer,
+    to_csv_list_writer_with_config, to_csv_with_config, to_csv_writer, to_csv_writer_with_config,
+    ToCsvConfig,
 };
 
 #[cfg(test)]

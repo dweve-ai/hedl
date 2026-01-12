@@ -231,7 +231,6 @@ fn create_request_latency_distribution_table(
         ]);
     }
 
-
     report.add_custom_table(table);
 }
 
@@ -289,7 +288,6 @@ fn create_throughput_analysis_table(results: &[MCPRequestResult], report: &mut B
         ]);
     }
 
-
     report.add_custom_table(table);
 }
 
@@ -314,7 +312,6 @@ fn create_incremental_update_performance_table(
         rows: Vec::new(),
         footer: None,
     };
-
 
     report.add_custom_table(table);
 }
@@ -365,7 +362,6 @@ fn create_memory_usage_profiling_table(results: &[MCPRequestResult], report: &mu
             TableCell::String("Good".to_string()),
         ]);
     }
-
 
     report.add_custom_table(table);
 }
@@ -433,7 +429,6 @@ fn create_cold_vs_warm_start_table(_results: &[MCPRequestResult], report: &mut B
         footer: None,
     };
 
-
     report.add_custom_table(table);
 }
 
@@ -467,7 +462,6 @@ fn create_concurrent_request_handling_table(
             .or_default()
             .push(result);
     }
-
 
     report.add_custom_table(table);
 }
@@ -513,7 +507,6 @@ fn create_document_size_impact_table(results: &[MCPRequestResult], report: &mut 
         by_size.entry(size_bucket).or_default().extend(latencies_ms);
     }
 
-
     report.add_custom_table(table);
 }
 
@@ -537,7 +530,6 @@ fn create_tool_invocation_performance_table(
         rows: Vec::new(),
         footer: None,
     };
-
 
     report.add_custom_table(table);
 }
@@ -564,7 +556,6 @@ fn create_error_recovery_performance_table(
     };
 
     let _error_count = results.iter().map(|r| r.error_count).sum::<usize>();
-
 
     report.add_custom_table(table);
 }
@@ -595,7 +586,6 @@ fn create_protocol_overhead_table(results: &[MCPRequestResult], report: &mut Ben
     } else {
         0.15
     };
-
 
     report.add_custom_table(table);
 }
@@ -676,7 +666,6 @@ fn create_resource_utilization_table(_results: &[MCPRequestResult], report: &mut
         footer: None,
     };
 
-
     report.add_custom_table(table);
 }
 
@@ -702,7 +691,6 @@ fn create_parallelization_effectiveness_table(
         footer: None,
     };
 
-
     report.add_custom_table(table);
 }
 
@@ -724,7 +712,6 @@ fn create_real_world_scenarios_table(_results: &[MCPRequestResult], report: &mut
         rows: Vec::new(),
         footer: None,
     };
-
 
     report.add_custom_table(table);
 }
@@ -765,7 +752,6 @@ fn create_performance_regression_detection_table(
     } else {
         2.0
     };
-
 
     report.add_custom_table(table);
 }

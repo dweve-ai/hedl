@@ -50,11 +50,17 @@ posts: @Post
     // Note: Parser may report reference validation errors, but this doesn't prevent
     // entity extraction and index building
     if !analysis.errors.is_empty() {
-        eprintln!("Parse errors (expected for unqualified references): {:?}", analysis.errors);
+        eprintln!(
+            "Parse errors (expected for unqualified references): {:?}",
+            analysis.errors
+        );
     }
 
     // Test definition lookup
-    eprintln!("Definition count: {}", analysis.reference_index_v2.definition_count());
+    eprintln!(
+        "Definition count: {}",
+        analysis.reference_index_v2.definition_count()
+    );
     eprintln!("Entities: {:?}", analysis.entities);
     for ((t, id), loc) in analysis.reference_index_v2.all_definitions() {
         eprintln!("Found definition: {}:{} at line {}", t, id, loc.line);

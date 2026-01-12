@@ -44,7 +44,7 @@ use parking_lot::Mutex;
 use ropey::Rope;
 use std::sync::Arc;
 use tower_lsp::lsp_types::Url;
-use tracing::{debug, warn, error};
+use tracing::{debug, error, warn};
 
 // Re-export constants for backwards compatibility
 pub use crate::constants::{DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE};
@@ -265,7 +265,9 @@ impl DocumentManager {
 
             debug!(
                 "New document registered: {} ({} bytes, {} lines)",
-                uri, content.len(), line_count
+                uri,
+                content.len(),
+                line_count
             );
 
             // Check if we need to evict before inserting
@@ -415,7 +417,10 @@ impl DocumentManager {
     ///
     /// This is useful for workspace-wide operations like workspace symbols.
     pub fn all_uris(&self) -> Vec<Url> {
-        self.documents.iter().map(|entry| entry.key().clone()).collect()
+        self.documents
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     /// Iterate over all documents with a function.
@@ -473,7 +478,12 @@ impl DocumentManager {
                 let state = removed_state.lock();
                 debug!(
                     "Evicted document had {} entities, {} references",
-                    state.analysis.entities.values().map(|m| m.len()).sum::<usize>(),
+                    state
+                        .analysis
+                        .entities
+                        .values()
+                        .map(|m| m.len())
+                        .sum::<usize>(),
                     state.analysis.references.len()
                 );
             }

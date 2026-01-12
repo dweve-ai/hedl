@@ -96,11 +96,8 @@ fn test_canonicalize_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_canonicalize_callback(
-            doc,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result =
+            hedl_canonicalize_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -121,12 +118,8 @@ fn test_json_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_json_callback(
-            doc,
-            0,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result =
+            hedl_to_json_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -149,7 +142,7 @@ fn test_json_callback_with_metadata() {
 
         let result = hedl_to_json_callback(
             doc,
-            1,  // include_metadata
+            1, // include_metadata
             test_callback,
             &mut ctx as *mut _ as *mut c_void,
         );
@@ -172,12 +165,8 @@ fn test_yaml_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_yaml_callback(
-            doc,
-            0,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result =
+            hedl_to_yaml_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -197,11 +186,7 @@ fn test_xml_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_xml_callback(
-            doc,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result = hedl_to_xml_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -242,11 +227,7 @@ fn test_csv_callback() {
 
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_csv_callback(
-            doc,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result = hedl_to_csv_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         // CSV conversion might fail if the document structure isn't suitable
         // Just verify it doesn't crash and returns a valid error code
@@ -269,7 +250,7 @@ fn test_neo4j_callback() {
 
         let result = hedl_to_neo4j_cypher_callback(
             doc,
-            1,  // use_merge
+            1, // use_merge
             test_callback,
             &mut ctx as *mut _ as *mut c_void,
         );
@@ -313,12 +294,8 @@ fn test_json_callback_vs_regular() {
 
         // Test with callback
         let mut ctx = CallbackContext::new();
-        let result_cb = hedl_to_json_callback(
-            doc,
-            0,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result_cb =
+            hedl_to_json_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
         assert_eq!(result_cb, HEDL_OK);
         let json_cb = ctx.as_string();
 
@@ -418,18 +395,18 @@ fn test_large_json_callback() {
         let doc = create_large_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_json_callback(
-            doc,
-            0,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result =
+            hedl_to_json_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
 
         // Verify the output is large (>1MB would be ideal but depends on JSON size)
-        assert!(ctx.data.len() > 10000, "Expected large output, got {} bytes", ctx.data.len());
+        assert!(
+            ctx.data.len() > 10000,
+            "Expected large output, got {} bytes",
+            ctx.data.len()
+        );
 
         hedl_free_document(doc);
     }
@@ -441,11 +418,8 @@ fn test_large_canonicalize_callback() {
         let doc = create_large_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_canonicalize_callback(
-            doc,
-            test_callback,
-            &mut ctx as *mut _ as *mut c_void,
-        );
+        let result =
+            hedl_canonicalize_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -468,7 +442,11 @@ fn test_callback_data_lifetime() {
         static mut STORED_PTR: *const c_char = ptr::null();
         static mut STORED_LEN: usize = 0;
 
-        unsafe extern "C" fn storing_callback(data: *const c_char, len: usize, _user_data: *mut c_void) {
+        unsafe extern "C" fn storing_callback(
+            data: *const c_char,
+            len: usize,
+            _user_data: *mut c_void,
+        ) {
             STORED_PTR = data;
             STORED_LEN = len;
         }
@@ -526,7 +504,11 @@ fn test_callback_thread_safety() {
 
         // Use callback from different thread
         let handle = thread::spawn(move || {
-            unsafe extern "C" fn thread_callback(data: *const c_char, len: usize, user_data: *mut c_void) {
+            unsafe extern "C" fn thread_callback(
+                data: *const c_char,
+                len: usize,
+                user_data: *mut c_void,
+            ) {
                 let ctx_arc = &*(user_data as *const Arc<Mutex<CallbackContext>>);
                 let mut ctx = ctx_arc.lock().unwrap();
                 let slice = slice::from_raw_parts(data as *const u8, len);

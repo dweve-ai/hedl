@@ -162,7 +162,9 @@ data: @Data
     // Should complete successfully without timeout
     let events: Vec<_> = parser.collect();
     assert!(
-        events.iter().all(|e| !matches!(e, Err(StreamError::Timeout { .. }))),
+        events
+            .iter()
+            .all(|e| !matches!(e, Err(StreamError::Timeout { .. }))),
         "Should not timeout when timeout is None"
     );
 

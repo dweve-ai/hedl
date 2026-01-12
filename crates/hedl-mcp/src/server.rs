@@ -632,7 +632,11 @@ impl McpServer {
         }
 
         // Execute tool (cache miss or non-cacheable operation)
-        match execute_tool(&params.name, params.arguments.clone(), &self.config.root_path) {
+        match execute_tool(
+            &params.name,
+            params.arguments.clone(),
+            &self.config.root_path,
+        ) {
             Ok(result) => {
                 let result_value = serde_json::to_value(&result)
                     .expect("CallToolResult serialization cannot fail");

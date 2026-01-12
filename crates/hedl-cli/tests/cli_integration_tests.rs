@@ -45,7 +45,9 @@ fn test_help_output() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("HEDL - Hierarchical Entity Data Language toolkit"))
+        .stdout(predicate::str::contains(
+            "HEDL - Hierarchical Entity Data Language toolkit",
+        ))
         .stdout(predicate::str::contains("Usage:"));
 }
 
@@ -60,9 +62,7 @@ fn test_version_output() {
 
 #[test]
 fn test_no_subcommand_fails() {
-    hedl_cmd()
-        .assert()
-        .failure();
+    hedl_cmd().assert().failure();
 }
 
 // ===== Validate Command Tests =====
@@ -297,10 +297,7 @@ a: 1
     let file = create_temp_file(content, ".hedl");
 
     // Without --warn-error, warnings don't fail
-    let result = hedl_cmd()
-        .arg("lint")
-        .arg(file.path())
-        .assert();
+    let result = hedl_cmd().arg("lint").arg(file.path()).assert();
 
     // Store the exit code for comparison
     let exit_code_without_flag = result.get_output().status.code();
@@ -374,7 +371,7 @@ b: 2
         .arg("--pretty")
         .assert()
         .success()
-        .stdout(predicate::str::contains("  "));  // Indentation indicates pretty print
+        .stdout(predicate::str::contains("  ")); // Indentation indicates pretty print
 }
 
 #[test]
@@ -842,11 +839,7 @@ b: 2
 "#;
     let file = create_temp_file(content, ".hedl");
 
-    hedl_cmd()
-        .arg("stats")
-        .arg(file.path())
-        .assert()
-        .success();
+    hedl_cmd().arg("stats").arg(file.path()).assert().success();
 }
 
 #[test]
@@ -881,29 +874,19 @@ people: @Person
 "#;
     let file = create_temp_file(content, ".hedl");
 
-    hedl_cmd()
-        .arg("stats")
-        .arg(file.path())
-        .assert()
-        .success();
+    hedl_cmd().arg("stats").arg(file.path()).assert().success();
 }
 
 // ===== Error Handling Tests =====
 
 #[test]
 fn test_invalid_subcommand() {
-    hedl_cmd()
-        .arg("invalid-command")
-        .assert()
-        .failure();
+    hedl_cmd().arg("invalid-command").assert().failure();
 }
 
 #[test]
 fn test_missing_required_argument() {
-    hedl_cmd()
-        .arg("validate")
-        .assert()
-        .failure();
+    hedl_cmd().arg("validate").assert().failure();
 }
 
 #[test]
@@ -940,11 +923,7 @@ fn test_format_parse_error() {
     let invalid_hedl = "%VERSION: 1.0\n---\n{{{invalid}}}";
     let file = create_temp_file(invalid_hedl, ".hedl");
 
-    hedl_cmd()
-        .arg("format")
-        .arg(file.path())
-        .assert()
-        .failure();
+    hedl_cmd().arg("format").arg(file.path()).assert().failure();
 }
 
 // ===== Advanced Integration Tests =====
@@ -1081,9 +1060,5 @@ key: value
         .assert()
         .success();
 
-    hedl_cmd()
-        .arg("stats")
-        .arg(file.path())
-        .assert()
-        .success();
+    hedl_cmd().arg("stats").arg(file.path()).assert().success();
 }

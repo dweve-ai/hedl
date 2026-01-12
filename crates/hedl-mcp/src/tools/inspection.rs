@@ -140,7 +140,8 @@ pub fn execute_hedl_stats(args: Option<JsonValue>) -> McpResult<CallToolResult> 
 
     // Convert to JSON for comparison
     let config = ToJsonConfig::default();
-    let json_value = to_json_value(&doc, &config).map_err(crate::error::McpError::InvalidArguments)?;
+    let json_value =
+        to_json_value(&doc, &config).map_err(crate::error::McpError::InvalidArguments)?;
     let json_str = serde_json::to_string(&json_value)?;
     let json_pretty = serde_json::to_string_pretty(&json_value)?;
 

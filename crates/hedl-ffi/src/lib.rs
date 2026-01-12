@@ -221,9 +221,7 @@ pub use types::{
 };
 
 // Error handling
-pub use error::{
-    hedl_clear_error_threadsafe, hedl_get_last_error, hedl_get_last_error_threadsafe,
-};
+pub use error::{hedl_clear_error_threadsafe, hedl_get_last_error, hedl_get_last_error_threadsafe};
 
 // Memory management
 pub use memory::{hedl_free_bytes, hedl_free_diagnostics, hedl_free_document, hedl_free_string};

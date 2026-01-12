@@ -112,9 +112,7 @@ fn check_item_ids_bounded(
 ) {
     if depth > MAX_RECURSION_DEPTH {
         diagnostics.push(Diagnostic::warning(
-            crate::diagnostic::DiagnosticKind::Custom(
-                "max-depth-exceeded".to_string()
-            ),
+            crate::diagnostic::DiagnosticKind::Custom("max-depth-exceeded".to_string()),
             format!(
                 "Maximum nesting depth of {} exceeded during ID checking. \
                  Further nested items will not be checked.",
@@ -184,9 +182,7 @@ fn check_node_children_bounded(
 ) {
     if depth > MAX_RECURSION_DEPTH {
         diagnostics.push(Diagnostic::warning(
-            crate::diagnostic::DiagnosticKind::Custom(
-                "max-depth-exceeded".to_string()
-            ),
+            crate::diagnostic::DiagnosticKind::Custom("max-depth-exceeded".to_string()),
             format!(
                 "Maximum nesting depth of {} exceeded. \
                  Further nested nodes will not be checked.",

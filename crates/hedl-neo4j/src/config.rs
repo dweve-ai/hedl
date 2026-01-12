@@ -259,13 +259,17 @@ impl ToCypherConfigBuilder {
         let defaults = ToCypherConfig::default();
         ToCypherConfig {
             use_merge: self.use_merge.unwrap_or(defaults.use_merge),
-            create_constraints: self.create_constraints.unwrap_or(defaults.create_constraints),
+            create_constraints: self
+                .create_constraints
+                .unwrap_or(defaults.create_constraints),
             reference_naming: self.reference_naming.unwrap_or(defaults.reference_naming),
             nest_naming: self.nest_naming.unwrap_or(defaults.nest_naming),
             object_handling: self.object_handling.unwrap_or(defaults.object_handling),
             id_property: self.id_property.unwrap_or(defaults.id_property),
             batch_size: self.batch_size.unwrap_or(defaults.batch_size),
-            include_type_metadata: self.include_type_metadata.unwrap_or(defaults.include_type_metadata),
+            include_type_metadata: self
+                .include_type_metadata
+                .unwrap_or(defaults.include_type_metadata),
             type_property: self.type_property.unwrap_or(defaults.type_property),
             include_comments: self.include_comments.unwrap_or(defaults.include_comments),
             max_string_length: self.max_string_length.unwrap_or(defaults.max_string_length),
@@ -566,9 +570,13 @@ impl FromNeo4jConfigBuilder {
             id_property: self.id_property.unwrap_or(defaults.id_property),
             infer_nests: self.infer_nests.unwrap_or(defaults.infer_nests),
             type_property: self.type_property.unwrap_or(defaults.type_property),
-            exclude_properties: self.exclude_properties.unwrap_or(defaults.exclude_properties),
+            exclude_properties: self
+                .exclude_properties
+                .unwrap_or(defaults.exclude_properties),
             exclude_labels: self.exclude_labels.unwrap_or(defaults.exclude_labels),
-            reference_relationships: self.reference_relationships.unwrap_or(defaults.reference_relationships),
+            reference_relationships: self
+                .reference_relationships
+                .unwrap_or(defaults.reference_relationships),
             fallback_id: self.fallback_id.unwrap_or(defaults.fallback_id),
         }
     }
@@ -823,14 +831,10 @@ mod tests {
 
     #[test]
     fn test_to_cypher_builder_string_limits() {
-        let config = ToCypherConfig::builder()
-            .max_string_length(1000000)
-            .build();
+        let config = ToCypherConfig::builder().max_string_length(1000000).build();
         assert_eq!(config.max_string_length, Some(1000000));
 
-        let config = ToCypherConfig::builder()
-            .no_string_length_limit()
-            .build();
+        let config = ToCypherConfig::builder().no_string_length_limit().build();
         assert_eq!(config.max_string_length, None);
     }
 
@@ -896,8 +900,12 @@ mod tests {
         assert!(config.exclude_labels.contains(&"System".to_string()));
         assert!(config.exclude_labels.contains(&"Internal".to_string()));
         assert_eq!(config.reference_relationships.len(), 2);
-        assert!(config.reference_relationships.contains(&"AUTHORED_BY".to_string()));
-        assert!(config.reference_relationships.contains(&"CREATED_BY".to_string()));
+        assert!(config
+            .reference_relationships
+            .contains(&"AUTHORED_BY".to_string()));
+        assert!(config
+            .reference_relationships
+            .contains(&"CREATED_BY".to_string()));
         assert_eq!(config.fallback_id, true);
     }
 

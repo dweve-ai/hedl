@@ -66,7 +66,10 @@ fn test_streaming_multiple_scalars() {
     let active_item = items.iter().find(|i| i.key == "active").unwrap();
 
     assert_eq!(id_item.value.as_scalar(), Some(&Value::Int(123)));
-    assert_eq!(name_item.value.as_scalar(), Some(&Value::String("Alice".to_string())));
+    assert_eq!(
+        name_item.value.as_scalar(),
+        Some(&Value::String("Alice".to_string()))
+    );
     assert_eq!(active_item.value.as_scalar(), Some(&Value::Bool(true)));
 }
 

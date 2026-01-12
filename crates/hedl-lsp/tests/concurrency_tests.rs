@@ -440,7 +440,10 @@ fn test_concurrent_cache_access_patterns() {
         }
     }
 
-    println!("Hot documents in cache: {}/{}", hot_docs_present, num_hot_docs);
+    println!(
+        "Hot documents in cache: {}/{}",
+        hot_docs_present, num_hot_docs
+    );
     // Most hot documents should still be present (but not guaranteed due to concurrency)
 }
 
@@ -491,7 +494,10 @@ posts: @Post
                         assert!(refs.len() > 0);
 
                         // Concurrent position-based lookups
-                        let pos = Position { line: 10, character: 7 };
+                        let pos = Position {
+                            line: 10,
+                            character: 7,
+                        };
                         let _ = analysis.reference_index_v2.find_reference_at(pos);
 
                         // Access other analysis data
@@ -766,7 +772,10 @@ fn test_memory_consistency_after_updates() {
 
         // Extract which thread won
         if let Some(start) = content.find("thread_") {
-            let thread_num_str = &content[start + 7..].chars().take_while(|c| c.is_numeric()).collect::<String>();
+            let thread_num_str = &content[start + 7..]
+                .chars()
+                .take_while(|c| c.is_numeric())
+                .collect::<String>();
             if let Ok(thread_num) = thread_num_str.parse::<usize>() {
                 println!("Final document is from thread {}", thread_num);
                 assert!(thread_num < num_threads);
@@ -811,7 +820,9 @@ fn test_analysis_consistency() {
                             let entity_count = analysis.entities.len();
 
                             // All entities in reference_index should be in entities map
-                            for ((type_name, id), _loc) in analysis.reference_index_v2.all_definitions() {
+                            for ((type_name, id), _loc) in
+                                analysis.reference_index_v2.all_definitions()
+                            {
                                 if let Some(entity_map) = analysis.entities.get(type_name) {
                                     if !entity_map.contains_key(id) && entity_count > 0 {
                                         inconsistency_count.fetch_add(1, Ordering::SeqCst);

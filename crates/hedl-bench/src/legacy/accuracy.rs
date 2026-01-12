@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! LLM Accuracy Testing Harness
 //!
 //! Tests how well LLMs can comprehend and extract information from HEDL documents

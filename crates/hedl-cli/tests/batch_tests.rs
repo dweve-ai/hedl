@@ -41,7 +41,9 @@ id: {}
 name: Test {}
 value: {}
 "#,
-            i, i, i * 10
+            i,
+            i,
+            i * 10
         );
         fs::write(&path, content).expect("Failed to write test file");
         paths.push(path.to_str().unwrap().to_string());
@@ -65,7 +67,8 @@ fn create_mixed_test_files() -> (TempDir, Vec<String>, Vec<String>) {
 id: {}
 value: {}
 "#,
-            i, i * 10
+            i,
+            i * 10
         );
         fs::write(&path, content).expect("Failed to write valid file");
         valid_paths.push(path.to_str().unwrap().to_string());
@@ -158,10 +161,7 @@ fn test_batch_validate_mixed_results() {
 
 #[test]
 fn test_batch_validate_empty_file_list() {
-    hedl_cmd()
-        .arg("batch-validate")
-        .assert()
-        .success(); // No files = nothing to validate = success
+    hedl_cmd().arg("batch-validate").assert().success(); // No files = nothing to validate = success
 }
 
 #[test]

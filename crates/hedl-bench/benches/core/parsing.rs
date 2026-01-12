@@ -1246,7 +1246,9 @@ fn create_memory_comparison_table(
             "Memory/File Ratio".to_string(),
         ],
         rows: Vec::new(),
-        footer: Some(vec![TableCell::String("Note: Competitor parser memory not measured".to_string())]),
+        footer: Some(vec![TableCell::String(
+            "Note: Competitor parser memory not measured".to_string(),
+        )]),
     };
 
     // Show HEDL memory by dataset
@@ -1268,7 +1270,6 @@ fn create_memory_comparison_table(
     table
 }
 
-
 fn create_error_recovery_comparison(_hedl_results: &[ComprehensiveParseResult]) -> CustomTable {
     CustomTable {
         title: "Error Recovery Performance".to_string(),
@@ -1278,14 +1279,12 @@ fn create_error_recovery_comparison(_hedl_results: &[ComprehensiveParseResult]) 
             "Recovery Quality".to_string(),
             "Partial Results".to_string(),
         ],
-        rows: vec![
-            vec![
-                TableCell::String("HEDL".to_string()),
-                TableCell::String("All syntax errors".to_string()),
-                TableCell::String("Excellent".to_string()),
-                TableCell::String("Yes".to_string()),
-            ],
-        ],
+        rows: vec![vec![
+            TableCell::String("HEDL".to_string()),
+            TableCell::String("All syntax errors".to_string()),
+            TableCell::String("Excellent".to_string()),
+            TableCell::String("Yes".to_string()),
+        ]],
         footer: None,
     }
 }

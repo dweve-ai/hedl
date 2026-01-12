@@ -1087,8 +1087,7 @@ fn create_cache_statistics_table(results: &[CanonResult], report: &mut Benchmark
             continue;
         }
 
-        let cache_efficiency =
-            (result.cache_hits as f64 / total_cache_ops as f64) * 100.0;
+        let cache_efficiency = (result.cache_hits as f64 / total_cache_ops as f64) * 100.0;
 
         table.rows.push(vec![
             TableCell::String(result.dataset.clone()),
@@ -2077,10 +2076,7 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
         report.add_insight(Insight {
             category: "strength".to_string(),
             title: format!("Caching Effective: {:.1}% Hit Rate", hit_rate),
-            description: format!(
-                "Cache prevented {} redundant canonicalizations",
-                total_hits
-            ),
+            description: format!("Cache prevented {} redundant canonicalizations", total_hits),
             data_points: vec![
                 format!(
                     "Cache hits: {} / {} ({:.1}%)",

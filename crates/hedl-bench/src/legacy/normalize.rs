@@ -227,7 +227,7 @@ fn normalize_integer(s: &str) -> Result<String> {
 /// ```
 fn normalize_number(s: &str, decimals: usize) -> Result<String> {
     // CRITICAL FIX (P0): Check for percentage BEFORE stripping formatting
-        let is_percent = s.contains('%');
+    let is_percent = s.contains('%');
 
     let cleaned = remove_formatting(s);
 
@@ -414,7 +414,6 @@ mod tests {
     #[test]
     fn test_normalize_number_percentage_fix() {
         // P0 BUG FIX VERIFICATION: Percentage normalization
-    
 
         // Basic percentage
         assert_eq!(normalize_number("42%", 2).unwrap(), "0.42");

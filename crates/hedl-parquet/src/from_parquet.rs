@@ -117,9 +117,8 @@ const MAX_COLUMNS: usize = 1000;
 /// let doc = from_parquet(Path::new("input.parquet")).unwrap();
 /// ```
 pub fn from_parquet(path: &Path) -> Result<Document, HedlError> {
-    let file = std::fs::File::open(path).map_err(|e| {
-        HedlError::io(format!("Failed to open Parquet file: {}", e))
-    })?;
+    let file = std::fs::File::open(path)
+        .map_err(|e| HedlError::io(format!("Failed to open Parquet file: {}", e)))?;
 
     read_parquet_from_file(file)
 }
@@ -138,34 +137,32 @@ pub fn from_parquet_bytes(bytes: &[u8]) -> Result<Document, HedlError> {
     // Convert to bytes::Bytes for ChunkReader implementation
     let bytes_data = bytes::Bytes::copy_from_slice(bytes);
 
-    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_data).map_err(|e| {
-        HedlError::io(format!("Failed to create Parquet reader: {}", e))
-    })?;
+    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_data)
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {}", e)))?;
 
     // Extract file metadata before building reader
     let file_metadata = builder.metadata().file_metadata();
     let hedl_metadata = extract_hedl_metadata(file_metadata);
 
-    let arrow_reader = builder.build().map_err(|e| {
-        HedlError::io(format!("Failed to build Parquet reader: {}", e))
-    })?;
+    let arrow_reader = builder
+        .build()
+        .map_err(|e| HedlError::io(format!("Failed to build Parquet reader: {}", e)))?;
 
     read_batches(arrow_reader, hedl_metadata)
 }
 
 /// Read Parquet data from a File.
 fn read_parquet_from_file(file: std::fs::File) -> Result<Document, HedlError> {
-    let builder = ParquetRecordBatchReaderBuilder::try_new(file).map_err(|e| {
-        HedlError::io(format!("Failed to create Parquet reader: {}", e))
-    })?;
+    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {}", e)))?;
 
     // Extract file metadata before building reader
     let file_metadata = builder.metadata().file_metadata();
     let hedl_metadata = extract_hedl_metadata(file_metadata);
 
-    let arrow_reader = builder.build().map_err(|e| {
-        HedlError::io(format!("Failed to build Parquet reader: {}", e))
-    })?;
+    let arrow_reader = builder
+        .build()
+        .map_err(|e| HedlError::io(format!("Failed to build Parquet reader: {}", e)))?;
 
     read_batches(arrow_reader, hedl_metadata)
 }
@@ -235,15 +232,14 @@ fn read_batches(
 
     // Read all record batches
     for batch_result in arrow_reader {
-        let batch = batch_result.map_err(|e| {
-            HedlError::io(format!("Failed to read record batch: {}", e))
-        })?;
+        let batch = batch_result
+            .map_err(|e| HedlError::io(format!("Failed to read record batch: {}", e)))?;
 
         // Security: Track decompressed data size to prevent decompression bombs
         let batch_bytes = estimate_batch_size(&batch);
-        total_bytes = total_bytes.checked_add(batch_bytes).ok_or_else(|| {
-            HedlError::security("decompressed size calculation overflow", 0)
-        })?;
+        total_bytes = total_bytes
+            .checked_add(batch_bytes)
+            .ok_or_else(|| HedlError::security("decompressed size calculation overflow", 0))?;
 
         if total_bytes > MAX_DECOMPRESSED_SIZE {
             return Err(HedlError::security(
@@ -370,7 +366,13 @@ fn convert_to_matrix_list(
             if !is_valid_identifier(name) {
                 // Sanitize invalid identifiers by replacing invalid chars with underscore
                 name.chars()
-                    .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+                    .map(|c| {
+                        if c.is_alphanumeric() || c == '_' {
+                            c
+                        } else {
+                            '_'
+                        }
+                    })
                     .collect::<String>()
                     .trim_matches('_')
                     .to_string()
@@ -474,13 +476,16 @@ fn extract_string_from_array(
 
     match array.data_type() {
         DataType::Utf8 => {
-            let string_array = array.as_any().downcast_ref::<StringArray>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected string array at row {}", idx),
-                    position,
-                )
-            })?;
+            let string_array = array
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected string array at row {}", idx),
+                        position,
+                    )
+                })?;
             Ok(string_array.value(idx).to_string())
         }
         DataType::Int64 => {
@@ -522,13 +527,16 @@ fn extract_value_from_array(
 
     match array.data_type() {
         DataType::Boolean => {
-            let bool_array = array.as_any().downcast_ref::<BooleanArray>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected boolean array at row {}", idx),
-                    position,
-                )
-            })?;
+            let bool_array = array
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected boolean array at row {}", idx),
+                        position,
+                    )
+                })?;
             Ok(Value::Bool(bool_array.value(idx)))
         }
         DataType::Int8 => {
@@ -582,33 +590,42 @@ fn extract_value_from_array(
             Ok(Value::Int(int_array.value(idx) as i64))
         }
         DataType::UInt16 => {
-            let int_array = array.as_any().downcast_ref::<UInt16Array>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected UInt16 array at row {}", idx),
-                    position,
-                )
-            })?;
+            let int_array = array
+                .as_any()
+                .downcast_ref::<UInt16Array>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected UInt16 array at row {}", idx),
+                        position,
+                    )
+                })?;
             Ok(Value::Int(int_array.value(idx) as i64))
         }
         DataType::UInt32 => {
-            let int_array = array.as_any().downcast_ref::<UInt32Array>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected UInt32 array at row {}", idx),
-                    position,
-                )
-            })?;
+            let int_array = array
+                .as_any()
+                .downcast_ref::<UInt32Array>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected UInt32 array at row {}", idx),
+                        position,
+                    )
+                })?;
             Ok(Value::Int(int_array.value(idx) as i64))
         }
         DataType::UInt64 => {
-            let int_array = array.as_any().downcast_ref::<UInt64Array>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected UInt64 array at row {}", idx),
-                    position,
-                )
-            })?;
+            let int_array = array
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected UInt64 array at row {}", idx),
+                        position,
+                    )
+                })?;
             let val = int_array.value(idx);
             // Check for overflow: u64 values > i64::MAX cannot be safely converted
             if val > i64::MAX as u64 {
@@ -624,33 +641,42 @@ fn extract_value_from_array(
             Ok(Value::Int(val as i64))
         }
         DataType::Float32 => {
-            let float_array = array.as_any().downcast_ref::<Float32Array>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected Float32 array at row {}", idx),
-                    position,
-                )
-            })?;
+            let float_array = array
+                .as_any()
+                .downcast_ref::<Float32Array>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected Float32 array at row {}", idx),
+                        position,
+                    )
+                })?;
             Ok(Value::Float(float_array.value(idx) as f64))
         }
         DataType::Float64 => {
-            let float_array = array.as_any().downcast_ref::<Float64Array>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected Float64 array at row {}", idx),
-                    position,
-                )
-            })?;
+            let float_array = array
+                .as_any()
+                .downcast_ref::<Float64Array>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected Float64 array at row {}", idx),
+                        position,
+                    )
+                })?;
             Ok(Value::Float(float_array.value(idx)))
         }
         DataType::Utf8 => {
-            let string_array = array.as_any().downcast_ref::<StringArray>().ok_or_else(|| {
-                HedlError::new(
-                    HedlErrorKind::Syntax,
-                    format!("Expected string array at row {}", idx),
-                    position,
-                )
-            })?;
+            let string_array = array
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .ok_or_else(|| {
+                    HedlError::new(
+                        HedlErrorKind::Syntax,
+                        format!("Expected string array at row {}", idx),
+                        position,
+                    )
+                })?;
             let s = string_array.value(idx);
 
             // Try to detect references

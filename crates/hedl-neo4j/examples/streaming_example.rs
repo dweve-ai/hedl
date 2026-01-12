@@ -50,11 +50,7 @@ fn create_large_document(num_nodes: usize) -> Document {
         "users".to_string(),
         Item::List(MatrixList {
             type_name: "User".to_string(),
-            schema: vec![
-                "id".to_string(),
-                "name".to_string(),
-                "email".to_string(),
-            ],
+            schema: vec!["id".to_string(), "name".to_string(), "email".to_string()],
             rows,
             count_hint: None,
         }),
@@ -85,14 +81,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = std::time::Instant::now();
     let regular_output = to_cypher(&small_doc, &config)?;
     let regular_time = start.elapsed();
-    println!("   Regular API: {} µs, {} bytes", regular_time.as_micros(), regular_output.len());
+    println!(
+        "   Regular API: {} µs, {} bytes",
+        regular_time.as_micros(),
+        regular_output.len()
+    );
 
     // Streaming API
     let start = std::time::Instant::now();
     let mut streaming_output = Vec::new();
     to_cypher_stream(&small_doc, &config, &mut streaming_output)?;
     let streaming_time = start.elapsed();
-    println!("   Streaming API: {} µs, {} bytes", streaming_time.as_micros(), streaming_output.len());
+    println!(
+        "   Streaming API: {} µs, {} bytes",
+        streaming_time.as_micros(),
+        streaming_output.len()
+    );
 
     // Verify identical output
     assert_eq!(regular_output, String::from_utf8(streaming_output)?);
@@ -148,9 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Streaming to stdout (first 5 statements only)
     println!("4. Streaming to stdout (first 5 statements):");
     let small_sample = create_large_document(3); // Just 3 nodes for demo
-    let config_with_comments = ToCypherConfig::new()
-        .with_batch_size(1000)
-        .with_create(); // Use CREATE for variety
+    let config_with_comments = ToCypherConfig::new().with_batch_size(1000).with_create(); // Use CREATE for variety
 
     let stdout = std::io::stdout();
     let mut writer = BufWriter::new(stdout.lock());

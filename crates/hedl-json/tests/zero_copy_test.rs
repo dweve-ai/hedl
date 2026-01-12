@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 // Dweve HEDL - Zero-Copy String Handling Test
 //
 // Tests and documents the zero-copy optimization for string handling in hedl-json.
@@ -121,7 +120,8 @@ fn test_expression_strings_handled_correctly() {
     let config = FromJsonConfig::default();
     let doc = from_json(json_str, &config).unwrap();
 
-    if let Some(hedl_core::Item::Scalar(hedl_core::Value::Expression(_))) = doc.root.get("formula") {
+    if let Some(hedl_core::Item::Scalar(hedl_core::Value::Expression(_))) = doc.root.get("formula")
+    {
         // Correct: expression was parsed
     } else {
         panic!("Expression should be parsed");
@@ -135,7 +135,8 @@ fn test_reference_strings_handled_correctly() {
     let config = FromJsonConfig::default();
     let doc = from_json(json_str, &config).unwrap();
 
-    if let Some(hedl_core::Item::Scalar(hedl_core::Value::Reference(ref_))) = doc.root.get("owner") {
+    if let Some(hedl_core::Item::Scalar(hedl_core::Value::Reference(ref_))) = doc.root.get("owner")
+    {
         assert_eq!(ref_.id, "123");
         assert_eq!(ref_.type_name, Some("User".to_string()));
     } else {

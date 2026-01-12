@@ -24,8 +24,8 @@
 //! for concise test code), while `try_expr()` returns a `Result` for more
 //! explicit error handling.
 
-use hedl_core::{Expression, Value};
 use hedl_core::lex::{parse_expression, LexError};
+use hedl_core::{Expression, Value};
 use std::fmt;
 
 /// Error type for expression parsing failures.
@@ -85,11 +85,7 @@ impl fmt::Display for ExprError {
                 write!(f, "Expression cannot be empty")
             }
             ExprError::ParseFailed { source, input } => {
-                write!(
-                    f,
-                    "Failed to parse expression '{}': {}",
-                    input, source
-                )
+                write!(f, "Failed to parse expression '{}': {}", input, source)
             }
             ExprError::Missing => {
                 write!(f, "Expression is missing or null")
@@ -423,7 +419,9 @@ mod tests {
     fn test_try_expr_preserves_input_in_error() {
         let input = "invalid stuff!!!";
         match try_expr(input) {
-            Err(ExprError::ParseFailed { input: err_input, .. }) => {
+            Err(ExprError::ParseFailed {
+                input: err_input, ..
+            }) => {
                 assert_eq!(err_input, input);
             }
             _ => panic!("Expected ParseFailed with preserved input"),

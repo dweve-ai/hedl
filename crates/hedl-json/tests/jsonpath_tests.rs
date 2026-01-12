@@ -32,7 +32,13 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
         // Has directives but no VERSION - add VERSION and ensure separator
         let (header, body) = if input.contains("---") {
             let parts: Vec<&str> = input.splitn(2, "---").collect();
-            (parts[0].trim().to_string(), parts.get(1).map(|s| s.trim().to_string()).unwrap_or_default())
+            (
+                parts[0].trim().to_string(),
+                parts
+                    .get(1)
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default(),
+            )
         } else {
             // Extract directives to header
             let mut header_lines = Vec::new();

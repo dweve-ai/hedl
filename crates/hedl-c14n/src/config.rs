@@ -553,9 +553,7 @@ mod tests {
 
     #[test]
     fn test_builder_single_option() {
-        let config = CanonicalConfig::builder()
-            .use_ditto(false)
-            .build();
+        let config = CanonicalConfig::builder().use_ditto(false).build();
         assert!(!config.use_ditto);
         assert!(config.sort_keys);
         assert_eq!(config.quoting, QuotingStrategy::Minimal);
@@ -619,40 +617,28 @@ mod tests {
 
     #[test]
     fn test_builder_use_ditto_option() {
-        let config_true = CanonicalConfig::builder()
-            .use_ditto(true)
-            .build();
+        let config_true = CanonicalConfig::builder().use_ditto(true).build();
         assert!(config_true.use_ditto);
 
-        let config_false = CanonicalConfig::builder()
-            .use_ditto(false)
-            .build();
+        let config_false = CanonicalConfig::builder().use_ditto(false).build();
         assert!(!config_false.use_ditto);
     }
 
     #[test]
     fn test_builder_sort_keys_option() {
-        let config_true = CanonicalConfig::builder()
-            .sort_keys(true)
-            .build();
+        let config_true = CanonicalConfig::builder().sort_keys(true).build();
         assert!(config_true.sort_keys);
 
-        let config_false = CanonicalConfig::builder()
-            .sort_keys(false)
-            .build();
+        let config_false = CanonicalConfig::builder().sort_keys(false).build();
         assert!(!config_false.sort_keys);
     }
 
     #[test]
     fn test_builder_inline_schemas_option() {
-        let config_true = CanonicalConfig::builder()
-            .inline_schemas(true)
-            .build();
+        let config_true = CanonicalConfig::builder().inline_schemas(true).build();
         assert!(config_true.inline_schemas);
 
-        let config_false = CanonicalConfig::builder()
-            .inline_schemas(false)
-            .build();
+        let config_false = CanonicalConfig::builder().inline_schemas(false).build();
         assert!(!config_false.inline_schemas);
     }
 

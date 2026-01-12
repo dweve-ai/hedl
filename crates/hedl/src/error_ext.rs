@@ -230,7 +230,6 @@ pub trait HedlResultExt<T> {
     type ErrorType;
 }
 
-
 // Specialized implementation for concrete error types
 impl<T> HedlResultExt<T> for Result<T, HedlError> {
     type ErrorType = HedlError;
@@ -283,41 +282,6 @@ impl<T> HedlResultExt<T> for Result<T, std::io::Error> {
     {
         self.map_err(|e| {
             let mut err = HedlError::io(e.to_string());
-            err.context = Some(f().to_string());
-            err
-        })
-    }
-
-    fn map_err_to_hedl<F>(self, f: F) -> Result<T, HedlError>
-    where
-        F: FnOnce(Self::ErrorType) -> HedlError,
-    {
-        self.map_err(f)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<T> HedlResultExt<T> for Result<T, serde_json::Error> {
-    type ErrorType = serde_json::Error;
-
-    fn context<C>(self, context: C) -> Result<T, HedlError>
-    where
-        C: fmt::Display,
-    {
-        self.map_err(|e| {
-            let mut err = HedlError::conversion(e.to_string());
-            err.context = Some(context.to_string());
-            err
-        })
-    }
-
-    fn with_context<C, F>(self, f: F) -> Result<T, HedlError>
-    where
-        C: fmt::Display,
-        F: FnOnce() -> C,
-    {
-        self.map_err(|e| {
-            let mut err = HedlError::conversion(e.to_string());
             err.context = Some(f().to_string());
             err
         })
@@ -393,9 +357,7 @@ mod tests {
     fn test_context_with_format() {
         let user_id = "alice";
         let result: Result<(), HedlError> = Err(HedlError::collision("duplicate ID", 7));
-        let err = result
-            .context(format!("for user {}", user_id))
-            .unwrap_err();
+        let err = result.context(format!("for user {}", user_id)).unwrap_err();
 
         assert_eq!(err.context, Some("for user alice".to_string()));
     }
@@ -488,8 +450,10 @@ mod tests {
 
     #[test]
     fn test_map_err_to_hedl_io_error() {
-        let io_result: Result<String, std::io::Error> =
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "file not found"));
+        let io_result: Result<String, std::io::Error> = Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
 
         let hedl_result = io_result.map_err_to_hedl(|e: std::io::Error| {
             HedlError::io(format!("Failed to read config: {}", e))
@@ -504,7 +468,8 @@ mod tests {
     #[test]
     fn test_map_err_to_hedl_preserves_ok() {
         let io_result: Result<String, std::io::Error> = Ok("content".to_string());
-        let hedl_result = io_result.map_err_to_hedl(|e: std::io::Error| HedlError::io(e.to_string()));
+        let hedl_result =
+            io_result.map_err_to_hedl(|e: std::io::Error| HedlError::io(e.to_string()));
 
         assert_eq!(hedl_result.unwrap(), "content");
     }
@@ -576,8 +541,7 @@ mod tests {
         use std::fs;
 
         let path = "/nonexistent/path";
-        let result = fs::read_to_string(path)
-            .with_context(|| format!("while reading {}", path));
+        let result = fs::read_to_string(path).with_context(|| format!("while reading {}", path));
 
         let err = result.unwrap_err();
         assert_eq!(err.kind, HedlErrorKind::IO);
@@ -606,9 +570,7 @@ mod tests {
     #[test]
     fn test_context_with_newlines() {
         let result: Result<(), HedlError> = Err(HedlError::syntax("error", 1));
-        let err = result
-            .context("line 1\nline 2\nline 3")
-            .unwrap_err();
+        let err = result.context("line 1\nline 2\nline 3").unwrap_err();
 
         let ctx = err.context.unwrap();
         assert!(ctx.contains("line 1"));

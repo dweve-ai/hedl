@@ -46,7 +46,7 @@ use tokio::time::sleep;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 /// HEDL Language Server backend.
 ///
@@ -107,11 +107,7 @@ impl HedlLanguageServer {
     ///     )
     /// }
     /// ```
-    pub fn with_config(
-        client: Client,
-        max_cache_size: usize,
-        max_document_size: usize,
-    ) -> Self {
+    pub fn with_config(client: Client, max_cache_size: usize, max_document_size: usize) -> Self {
         Self {
             client,
             document_manager: Arc::new(DocumentManager::new(max_cache_size, max_document_size)),
@@ -160,7 +156,10 @@ impl HedlLanguageServer {
         let state_arc = match self.document_manager.get_state(uri) {
             Some(state) => state,
             None => {
-                warn!("Cannot analyze non-existent document: {} (may have been closed/evicted)", uri);
+                warn!(
+                    "Cannot analyze non-existent document: {} (may have been closed/evicted)",
+                    uri
+                );
                 return;
             }
         };
@@ -170,7 +169,11 @@ impl HedlLanguageServer {
             state.rope.to_string()
         };
 
-        debug!("Starting analysis for dirty document: {} ({} bytes)", uri, content.len());
+        debug!(
+            "Starting analysis for dirty document: {} ({} bytes)",
+            uri,
+            content.len()
+        );
         let analysis = Arc::new(AnalyzedDocument::analyze(&content));
 
         // Log analysis results
@@ -190,15 +193,12 @@ impl HedlLanguageServer {
         }
 
         // Update state
-        self.document_manager.update_analysis(uri, Arc::clone(&analysis));
+        self.document_manager
+            .update_analysis(uri, Arc::clone(&analysis));
 
         // Send diagnostics
         let diagnostics = analysis.to_lsp_diagnostics();
-        debug!(
-            "Publishing {} diagnostics for {}",
-            diagnostics.len(),
-            uri
-        );
+        debug!("Publishing {} diagnostics for {}", diagnostics.len(), uri);
         self.client
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
@@ -374,11 +374,20 @@ impl LanguageServer for HedlLanguageServer {
         }
 
         // For did_open, analyze immediately (no debounce) to provide instant feedback
-        if self.document_manager.insert_or_update(uri, &params.text_document.text) {
-            debug!("Document {} successfully registered, starting immediate analysis", uri);
+        if self
+            .document_manager
+            .insert_or_update(uri, &params.text_document.text)
+        {
+            debug!(
+                "Document {} successfully registered, starting immediate analysis",
+                uri
+            );
             self.analyze_if_dirty(uri).await;
         } else {
-            error!("Failed to register document {} (size validation failed)", uri);
+            error!(
+                "Failed to register document {} (size validation failed)",
+                uri
+            );
         }
     }
 
@@ -414,7 +423,8 @@ impl LanguageServer for HedlLanguageServer {
         debug!("Document saved: {}", params.text_document.uri);
         if let Some(text) = params.text {
             // For did_save, analyze immediately to ensure diagnostics are current
-            self.document_manager.insert_or_update(&params.text_document.uri, &text);
+            self.document_manager
+                .insert_or_update(&params.text_document.uri, &text);
             self.analyze_if_dirty(&params.text_document.uri).await;
         }
     }

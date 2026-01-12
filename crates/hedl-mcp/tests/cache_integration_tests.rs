@@ -181,7 +181,8 @@ fn test_cache_enabled() {
 fn test_cache_correctness_validate() {
     let cache = Arc::new(OperationCache::new(100));
 
-    let valid_hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+    let valid_hedl =
+        "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
     let invalid_hedl = "invalid hedl content";
 
     // Execute and cache valid HEDL
@@ -259,7 +260,11 @@ fn test_cache_invalidation_on_content_change() {
     let hedl_v2 = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---";
 
     // Cache v1
-    cache.insert("validate", hedl_v1, json!({"valid": true, "version": "1.0"}));
+    cache.insert(
+        "validate",
+        hedl_v1,
+        json!({"valid": true, "version": "1.0"}),
+    );
 
     // v2 should not hit cache (different content)
     assert!(cache.get("validate", hedl_v2).is_none());
@@ -279,9 +284,21 @@ fn test_cache_parameter_sensitivity() {
     let key_strict_false = format!("{}:{}:{}", hedl, false, true);
     let key_no_lint = format!("{}:{}:{}", hedl, true, false);
 
-    cache.insert("validate", &key_strict_true, json!({"strict": true, "lint": true}));
-    cache.insert("validate", &key_strict_false, json!({"strict": false, "lint": true}));
-    cache.insert("validate", &key_no_lint, json!({"strict": true, "lint": false}));
+    cache.insert(
+        "validate",
+        &key_strict_true,
+        json!({"strict": true, "lint": true}),
+    );
+    cache.insert(
+        "validate",
+        &key_strict_false,
+        json!({"strict": false, "lint": true}),
+    );
+    cache.insert(
+        "validate",
+        &key_no_lint,
+        json!({"strict": true, "lint": false}),
+    );
 
     // Each parameter combination should be cached independently
     assert!(cache.get("validate", &key_strict_true).is_some());

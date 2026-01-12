@@ -50,11 +50,7 @@ fn create_test_files(n: usize) -> TempDir {
             i, i, i * 10,
             i + 1000, i + 1000, (i + 1000) * 10
         );
-        fs::write(
-            temp_dir.path().join(format!("file{:03}.hedl", i)),
-            content,
-        )
-        .unwrap();
+        fs::write(temp_dir.path().join(format!("file{:03}.hedl", i)), content).unwrap();
     }
 
     temp_dir
@@ -89,7 +85,10 @@ fn test_parallel_performance_100_files() {
 
     println!("Sequential time (100 files): {:?}", sequential_time);
     println!("Parallel time (100 files): {:?}", parallel_time);
-    println!("Speedup: {:.2}x (debug mode - see benchmarks for release mode)", speedup);
+    println!(
+        "Speedup: {:.2}x (debug mode - see benchmarks for release mode)",
+        speedup
+    );
 
     // Just verify both modes complete successfully
     // Actual speedup verification is done in release mode benchmarks

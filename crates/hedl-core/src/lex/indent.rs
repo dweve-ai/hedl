@@ -83,11 +83,7 @@ pub fn calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>,
 /// - `info`: Indentation information to validate
 /// - `max_depth`: Maximum allowed indentation depth
 /// - `line_num`: Line number (1-indexed) for error reporting
-pub fn validate_indent(
-    info: IndentInfo,
-    max_depth: usize,
-    line_num: u32,
-) -> Result<(), LexError> {
+pub fn validate_indent(info: IndentInfo, max_depth: usize, line_num: u32) -> Result<(), LexError> {
     if info.level > max_depth {
         return Err(LexError::IndentTooDeep {
             depth: info.level,
@@ -141,10 +137,22 @@ mod tests {
     #[test]
     fn test_calculate_indent_various_content() {
         // Content with special characters
-        assert_eq!(calculate_indent("  key: value", 1).unwrap().unwrap().level, 1);
-        assert_eq!(calculate_indent("  | row, data", 1).unwrap().unwrap().level, 1);
-        assert_eq!(calculate_indent("  @reference", 1).unwrap().unwrap().level, 1);
-        assert_eq!(calculate_indent("  # comment", 1).unwrap().unwrap().level, 1);
+        assert_eq!(
+            calculate_indent("  key: value", 1).unwrap().unwrap().level,
+            1
+        );
+        assert_eq!(
+            calculate_indent("  | row, data", 1).unwrap().unwrap().level,
+            1
+        );
+        assert_eq!(
+            calculate_indent("  @reference", 1).unwrap().unwrap().level,
+            1
+        );
+        assert_eq!(
+            calculate_indent("  # comment", 1).unwrap().unwrap().level,
+            1
+        );
     }
 
     #[test]

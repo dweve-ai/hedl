@@ -518,10 +518,7 @@ impl SchemaValidator {
             })?
             .to_string();
 
-        let type_name = node
-            .attribute("type")
-            .unwrap_or("xs:string")
-            .to_string();
+        let type_name = node.attribute("type").unwrap_or("xs:string").to_string();
 
         let required = node.attribute("use") == Some("required");
 
@@ -604,14 +601,14 @@ impl SchemaValidator {
         let root_name = root.tag_name().name();
 
         // Find schema definition for root element
-        let schema_elem = self
-            .schema
-            .elements
-            .get(root_name)
-            .ok_or_else(|| ValidationError::UnknownElement {
-                element: root_name.to_string(),
-                line: Some(doc.text_pos_at(root.range().start).row as usize),
-            })?;
+        let schema_elem =
+            self.schema
+                .elements
+                .get(root_name)
+                .ok_or_else(|| ValidationError::UnknownElement {
+                    element: root_name.to_string(),
+                    line: Some(doc.text_pos_at(root.range().start).row as usize),
+                })?;
 
         self.validate_element(&root, schema_elem)?;
 
@@ -716,17 +713,13 @@ impl SchemaValidator {
 
             // Validate attribute type if present
             if let Some(value) = node.attribute(attr_def.name.as_str()) {
-                self.validate_simple_type(value, &attr_def.type_name).map_err(|_| {
-                    ValidationError::AttributeValidationError {
+                self.validate_simple_type(value, &attr_def.type_name)
+                    .map_err(|_| ValidationError::AttributeValidationError {
                         element: element_name.to_string(),
                         attribute: attr_def.name.clone(),
-                        message: format!(
-                            "Expected type {}, found '{}'",
-                            attr_def.type_name, value
-                        ),
+                        message: format!("Expected type {}, found '{}'", attr_def.type_name, value),
                         line: Some(line),
-                    }
-                })?;
+                    })?;
             }
         }
 

@@ -169,8 +169,7 @@ fn test_concurrent_parse_operations() {
 
                 for i in 0..ITERATIONS_PER_THREAD {
                     let mut doc: *mut HedlDocument = ptr::null_mut();
-                    let result =
-                        hedl_parse(valid_clone.as_ptr() as *const c_char, -1, 0, &mut doc);
+                    let result = hedl_parse(valid_clone.as_ptr() as *const c_char, -1, 0, &mut doc);
 
                     assert_eq!(
                         result, HEDL_OK,
@@ -590,11 +589,7 @@ fn test_error_state_isolation_stress() {
 
     for handle in handles {
         let (thread_id, error_count, success_count) = handle.join().unwrap();
-        assert!(
-            error_count > 0,
-            "Thread {} should have errors",
-            thread_id
-        );
+        assert!(error_count > 0, "Thread {} should have errors", thread_id);
         assert!(
             success_count > 0,
             "Thread {} should have successes",
@@ -814,8 +809,7 @@ fn test_high_contention_scenario() {
 
                 for _ in 0..ITERATIONS {
                     let mut doc: *mut HedlDocument = ptr::null_mut();
-                    let result =
-                        hedl_parse(valid_clone.as_ptr() as *const c_char, -1, 0, &mut doc);
+                    let result = hedl_parse(valid_clone.as_ptr() as *const c_char, -1, 0, &mut doc);
 
                     assert_eq!(result, HEDL_OK);
                     assert!(!doc.is_null());

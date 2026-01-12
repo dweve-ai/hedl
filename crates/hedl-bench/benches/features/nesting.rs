@@ -62,8 +62,8 @@ struct NestingResult {
     parsing_times_ns: Vec<u64>,
     traversal_times_ns: Vec<u64>,
     serialization_times_ns: Vec<u64>,
-    _memory_usage_kb: usize,     // Reserved for future actual memory profiling
-    _stack_frames_est: usize,    // Reserved for future actual stack profiling
+    _memory_usage_kb: usize,  // Reserved for future actual memory profiling
+    _stack_frames_est: usize, // Reserved for future actual stack profiling
     is_balanced: bool,
     field_count: usize,
     data_type: String, // "array", "object", "mixed"

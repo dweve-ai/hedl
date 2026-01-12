@@ -129,8 +129,7 @@ impl FormatStats {
                 let doc = Arc::clone(&doc);
                 move || {
                     let config = ToYamlConfig::default();
-                    hedl_to_yaml(&doc, &config)
-                        .map_err(|e| format!("YAML conversion error: {}", e))
+                    hedl_to_yaml(&doc, &config).map_err(|e| format!("YAML conversion error: {}", e))
                 }
             }),
             // XML compact
@@ -141,8 +140,7 @@ impl FormatStats {
                         pretty: false,
                         ..Default::default()
                     };
-                    hedl_to_xml(&doc, &config)
-                        .map_err(|e| format!("XML conversion error: {}", e))
+                    hedl_to_xml(&doc, &config).map_err(|e| format!("XML conversion error: {}", e))
                 }
             }),
             // XML pretty
@@ -160,10 +158,7 @@ impl FormatStats {
         ];
 
         // Execute all conversions in parallel
-        let results: Result<Vec<String>, String> = tasks
-            .par_iter()
-            .map(|task| task())
-            .collect();
+        let results: Result<Vec<String>, String> = tasks.par_iter().map(|task| task()).collect();
 
         let mut outputs = results?;
 
@@ -339,10 +334,7 @@ pub fn stats(file: &str, show_tokens: bool) -> Result<(), String> {
             &formats.xml_pretty,
         ];
 
-        let token_counts: Vec<usize> = texts
-            .par_iter()
-            .map(|text| estimate_tokens(text))
-            .collect();
+        let token_counts: Vec<usize> = texts.par_iter().map(|text| estimate_tokens(text)).collect();
 
         let hedl_tokens = token_counts[0];
         let json_tokens = token_counts[1];

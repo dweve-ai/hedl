@@ -372,10 +372,16 @@ mod tests {
             indent: 0,
             total_size: 0,
         };
-        let mut limits = Limits::default();
-        limits.max_block_string_size = 10; // Very small limit
+        let limits = Limits {
+            max_block_string_size: 10, // Very small limit
+            ..Default::default()
+        };
 
-        let result = state.process_line("This is a very long line that exceeds the limit", 2, &limits);
+        let result = state.process_line(
+            "This is a very long line that exceeds the limit",
+            2,
+            &limits,
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("exceeds limit"));
     }
@@ -389,8 +395,10 @@ mod tests {
             indent: 0,
             total_size: 5,
         };
-        let mut limits = Limits::default();
-        limits.max_block_string_size = 10;
+        let limits = Limits {
+            max_block_string_size: 10,
+            ..Default::default()
+        };
 
         let result = state.process_line("Long content before closing\"\"\"", 2, &limits);
         assert!(result.is_err());

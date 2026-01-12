@@ -116,7 +116,8 @@ fn undefined_nest() -> Document {
     );
 
     // NEST references non-existent child type
-    doc.nests.insert("Parent".to_string(), "NonExistentChild".to_string());
+    doc.nests
+        .insert("Parent".to_string(), "NonExistentChild".to_string());
 
     doc
 }
@@ -127,14 +128,10 @@ fn undefined_nest() -> Document {
 fn circular_nest() -> Document {
     let mut doc = Document::new((1, 0));
 
-    doc.structs.insert(
-        "TypeA".to_string(),
-        vec!["id".to_string()],
-    );
-    doc.structs.insert(
-        "TypeB".to_string(),
-        vec!["id".to_string()],
-    );
+    doc.structs
+        .insert("TypeA".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("TypeB".to_string(), vec!["id".to_string()]);
 
     // Circular NEST: A -> B -> A
     doc.nests.insert("TypeA".to_string(), "TypeB".to_string());
@@ -149,10 +146,7 @@ fn circular_nest() -> Document {
 fn dangling_reference() -> Document {
     let mut doc = Document::new((1, 0));
 
-    let mut list = MatrixList::new(
-        "Item",
-        vec!["id".to_string(), "related".to_string()],
-    );
+    let mut list = MatrixList::new("Item", vec!["id".to_string(), "related".to_string()]);
 
     list.add_row(Node::new(
         "Item",
@@ -261,7 +255,8 @@ fn invalid_alias() -> Document {
     let mut doc = Document::new((1, 0));
 
     // Alias points to non-existent root item
-    doc.aliases.insert("my_alias".to_string(), "nonexistent_item".to_string());
+    doc.aliases
+        .insert("my_alias".to_string(), "nonexistent_item".to_string());
 
     doc
 }
@@ -280,10 +275,7 @@ pub fn deeply_nested_document(depth: usize) -> Document {
         let node = Node {
             type_name: "Level".to_string(),
             id: format!("node_{}", i),
-            fields: vec![
-                Value::String(format!("node_{}", i)),
-                Value::Int(i as i64),
-            ],
+            fields: vec![Value::String(format!("node_{}", i)), Value::Int(i as i64)],
             children: current_children.clone(),
             child_count: None,
         };
@@ -323,10 +315,7 @@ pub fn wide_document(width: usize) -> Document {
         list.add_row(Node::new(
             "Item",
             format!("item_{}", i),
-            vec![
-                Value::String(format!("item_{}", i)),
-                Value::Int(i as i64),
-            ],
+            vec![Value::String(format!("item_{}", i)), Value::Int(i as i64)],
         ));
     }
 
@@ -424,7 +413,10 @@ mod tests {
     #[test]
     fn test_invalid_expression_samples_non_empty() {
         let samples = invalid_expression_samples();
-        assert!(!samples.is_empty(), "Should have invalid expression samples");
+        assert!(
+            !samples.is_empty(),
+            "Should have invalid expression samples"
+        );
 
         for (desc, _expr) in samples {
             assert!(!desc.is_empty(), "Description should not be empty");

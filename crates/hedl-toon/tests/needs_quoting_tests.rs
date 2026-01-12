@@ -15,14 +15,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 // Standalone tests for needs_quoting optimization
 //
 // This file tests the needs_quoting function indirectly through encode_string
 // since needs_quoting is private.
 
-use hedl_toon::{to_toon, ToToonConfig, Delimiter};
 use hedl_core::{Document, Item, Value};
+use hedl_toon::{to_toon, Delimiter, ToToonConfig};
 
 #[test]
 fn test_quoting_through_document() {
@@ -55,26 +54,35 @@ fn test_quoting_through_document() {
     let toon = to_toon(&doc, &config).unwrap();
 
     // Verify quoting behavior
-    assert!(toon.contains("empty: \"\""));  // Empty needs quotes
-    assert!(toon.contains("simple: hello"));  // Simple doesn't need quotes
-    assert!(toon.contains("\" hello\""));  // Leading whitespace needs quotes
-    assert!(toon.contains("\"hello \""));  // Trailing whitespace needs quotes
-    assert!(toon.contains("\"true\""));  // Boolean literal needs quotes
-    assert!(toon.contains("\"123\""));  // Numeric needs quotes
-    assert!(toon.contains("\"foo:bar\""));  // Structural char needs quotes
-    assert!(toon.contains("\"hello\\\"world\""));  // Escaped quote needs quotes
-    assert!(toon.contains("\"hello,world\""));  // Delimiter needs quotes
-    assert!(toon.contains("\"@User:123\""));  // Reference needs quotes
-    assert!(toon.contains("\"-item\""));  // Minus needs quotes
-    assert!(toon.contains("\"\u{00A0}hello\""));  // Unicode whitespace needs quotes
+    assert!(toon.contains("empty: \"\"")); // Empty needs quotes
+    assert!(toon.contains("simple: hello")); // Simple doesn't need quotes
+    assert!(toon.contains("\" hello\"")); // Leading whitespace needs quotes
+    assert!(toon.contains("\"hello \"")); // Trailing whitespace needs quotes
+    assert!(toon.contains("\"true\"")); // Boolean literal needs quotes
+    assert!(toon.contains("\"123\"")); // Numeric needs quotes
+    assert!(toon.contains("\"foo:bar\"")); // Structural char needs quotes
+    assert!(toon.contains("\"hello\\\"world\"")); // Escaped quote needs quotes
+    assert!(toon.contains("\"hello,world\"")); // Delimiter needs quotes
+    assert!(toon.contains("\"@User:123\"")); // Reference needs quotes
+    assert!(toon.contains("\"-item\"")); // Minus needs quotes
+    assert!(toon.contains("\"\u{00A0}hello\"")); // Unicode whitespace needs quotes
 }
 
 #[test]
 fn test_delimiter_specific_quoting() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("comma".to_string(), Item::Scalar(Value::String("a,b".to_string())));
-    doc.root.insert("tab".to_string(), Item::Scalar(Value::String("a\tb".to_string())));
-    doc.root.insert("pipe".to_string(), Item::Scalar(Value::String("a|b".to_string())));
+    doc.root.insert(
+        "comma".to_string(),
+        Item::Scalar(Value::String("a,b".to_string())),
+    );
+    doc.root.insert(
+        "tab".to_string(),
+        Item::Scalar(Value::String("a\tb".to_string())),
+    );
+    doc.root.insert(
+        "pipe".to_string(),
+        Item::Scalar(Value::String("a|b".to_string())),
+    );
 
     // Test with comma delimiter (default)
     let config_comma = ToToonConfig {
@@ -82,9 +90,9 @@ fn test_delimiter_specific_quoting() {
         delimiter: Delimiter::Comma,
     };
     let toon_comma = to_toon(&doc, &config_comma).unwrap();
-    assert!(toon_comma.contains("\"a,b\""));  // Comma needs quoting with comma delimiter
-    assert!(toon_comma.contains("\"a\\tb\""));  // Tab is escape sequence, always quoted
-    assert!(!toon_comma.contains("\"a|b\"") || toon_comma.contains("a|b"));  // Pipe doesn't need quoting with comma delimiter
+    assert!(toon_comma.contains("\"a,b\"")); // Comma needs quoting with comma delimiter
+    assert!(toon_comma.contains("\"a\\tb\"")); // Tab is escape sequence, always quoted
+    assert!(!toon_comma.contains("\"a|b\"") || toon_comma.contains("a|b")); // Pipe doesn't need quoting with comma delimiter
 
     // Test with tab delimiter
     let config_tab = ToToonConfig {
@@ -92,8 +100,8 @@ fn test_delimiter_specific_quoting() {
         delimiter: Delimiter::Tab,
     };
     let toon_tab = to_toon(&doc, &config_tab).unwrap();
-    assert!(!toon_tab.contains("\"a,b\"") || toon_tab.contains("comma: a,b"));  // Comma doesn't need quoting with tab delimiter
-    assert!(toon_tab.contains("\"a\\tb\""));  // Tab is escape sequence, always quoted
+    assert!(!toon_tab.contains("\"a,b\"") || toon_tab.contains("comma: a,b")); // Comma doesn't need quoting with tab delimiter
+    assert!(toon_tab.contains("\"a\\tb\"")); // Tab is escape sequence, always quoted
 
     // Test with pipe delimiter
     let config_pipe = ToToonConfig {
@@ -101,8 +109,8 @@ fn test_delimiter_specific_quoting() {
         delimiter: Delimiter::Pipe,
     };
     let toon_pipe = to_toon(&doc, &config_pipe).unwrap();
-    assert!(!toon_pipe.contains("\"a,b\"") || toon_pipe.contains("comma: a,b"));  // Comma doesn't need quoting with pipe delimiter
-    assert!(toon_pipe.contains("\"a|b\""));  // Pipe needs quoting with pipe delimiter
+    assert!(!toon_pipe.contains("\"a,b\"") || toon_pipe.contains("comma: a,b")); // Comma doesn't need quoting with pipe delimiter
+    assert!(toon_pipe.contains("\"a|b\"")); // Pipe needs quoting with pipe delimiter
 }
 
 #[test]
@@ -136,6 +144,10 @@ fn test_no_quoting_needed() {
     for value in test_cases {
         // Check that value appears without quotes
         let pattern = format!(": {}", value);
-        assert!(toon.contains(&pattern), "Expected '{}' to appear unquoted", value);
+        assert!(
+            toon.contains(&pattern),
+            "Expected '{}' to appear unquoted",
+            value
+        );
     }
 }

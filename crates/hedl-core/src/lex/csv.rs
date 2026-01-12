@@ -265,7 +265,10 @@ fn parse_unquoted_field(chars: &[char], start: usize) -> Result<(CsvField, usize
     // Check for quotes in unquoted field (but not if it's an expression)
     if trimmed.contains('"') && !trimmed.starts_with("$(") {
         return Err(LexError::InvalidToken {
-            message: format!("quote character '\"' found in unquoted field: '{}'", trimmed),
+            message: format!(
+                "quote character '\"' found in unquoted field: '{}'",
+                trimmed
+            ),
             pos: SourcePos::new(1, start + 1),
         });
     }

@@ -92,8 +92,8 @@
 //! # }
 //! ```
 
-use hedl_core::{Document, Item, MatrixList, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Value};
 use serde_json::{json, Map, Value as JsonValue};
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -424,24 +424,22 @@ fn value_to_schema(value: &Value, field_name: Option<&str>, config: &SchemaConfi
         }
         Value::Reference(reference) => {
             schema.insert("type".to_string(), json!("string"));
-            schema.insert("pattern".to_string(), json!("^@([A-Z][a-zA-Z0-9]*:)?[a-zA-Z0-9_-]+$"));
+            schema.insert(
+                "pattern".to_string(),
+                json!("^@([A-Z][a-zA-Z0-9]*:)?[a-zA-Z0-9_-]+$"),
+            );
             schema.insert(
                 "description".to_string(),
                 json!(format!(
                     "Reference to {}",
-                    reference
-                        .type_name.as_deref()
-                        .unwrap_or("entity")
+                    reference.type_name.as_deref().unwrap_or("entity")
                 )),
             );
         }
         Value::Expression(_) => {
             schema.insert("type".to_string(), json!("string"));
             schema.insert("pattern".to_string(), json!(r"^\$\(.+\)$"));
-            schema.insert(
-                "description".to_string(),
-                json!("HEDL expression $(...)"),
-            );
+            schema.insert("description".to_string(), json!("HEDL expression $(...)"));
         }
     }
 
@@ -556,11 +554,10 @@ fn infer_string_format(s: &str, field_name: Option<&str>) -> Option<&'static str
     }
 
     // ISO 8601 date-time detection
-    if s.contains('T') && (s.contains('Z') || s.contains('+') || s.contains('-'))
-        && s.len() >= 19 {
-            // Minimum length for ISO 8601
-            return Some("date-time");
-        }
+    if s.contains('T') && (s.contains('Z') || s.contains('+') || s.contains('-')) && s.len() >= 19 {
+        // Minimum length for ISO 8601
+        return Some("date-time");
+    }
 
     // UUID detection
     if s.len() == 36 && s.chars().filter(|&c| c == '-').count() == 4 {
@@ -624,7 +621,10 @@ pub fn validate_schema(schema: &JsonValue) -> Result<(), SchemaError> {
 }
 
 /// Internal validation function with control over $schema field requirement
-fn validate_schema_internal(schema: &JsonValue, require_schema_field: bool) -> Result<(), SchemaError> {
+fn validate_schema_internal(
+    schema: &JsonValue,
+    require_schema_field: bool,
+) -> Result<(), SchemaError> {
     let obj = schema
         .as_object()
         .ok_or_else(|| SchemaError::ValidationError("Schema must be an object".to_string()))?;

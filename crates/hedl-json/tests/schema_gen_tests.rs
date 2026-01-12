@@ -18,7 +18,9 @@
 //! Integration tests for JSON Schema generation
 
 use hedl_core::parse;
-use hedl_json::schema_gen::{generate_schema, generate_schema_value, validate_schema, SchemaConfig};
+use hedl_json::schema_gen::{
+    generate_schema, generate_schema_value, validate_schema, SchemaConfig,
+};
 use serde_json::{json, Value as JsonValue};
 
 /// Helper to parse HEDL from string
@@ -30,7 +32,13 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
         // Has directives but no VERSION - add VERSION and ensure separator
         let (header, body) = if input.contains("---") {
             let parts: Vec<&str> = input.splitn(2, "---").collect();
-            (parts[0].trim().to_string(), parts.get(1).map(|s| s.trim().to_string()).unwrap_or_default())
+            (
+                parts[0].trim().to_string(),
+                parts
+                    .get(1)
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default(),
+            )
         } else {
             // Extract directives to header
             let mut header_lines = Vec::new();
@@ -114,30 +122,15 @@ string_val: "hello"
     let props = schema.get("properties").unwrap().as_object().unwrap();
 
     assert_eq!(
-        props
-            .get("null_val")
-            .unwrap()
-            .get("type")
-            .unwrap()
-            .as_str(),
+        props.get("null_val").unwrap().get("type").unwrap().as_str(),
         Some("null")
     );
     assert_eq!(
-        props
-            .get("bool_val")
-            .unwrap()
-            .get("type")
-            .unwrap()
-            .as_str(),
+        props.get("bool_val").unwrap().get("type").unwrap().as_str(),
         Some("boolean")
     );
     assert_eq!(
-        props
-            .get("int_val")
-            .unwrap()
-            .get("type")
-            .unwrap()
-            .as_str(),
+        props.get("int_val").unwrap().get("type").unwrap().as_str(),
         Some("integer")
     );
     assert_eq!(
@@ -361,9 +354,7 @@ departments: @Department
 fn test_config_title() {
     let hedl = "name: Alice";
     let doc = parse_hedl(hedl);
-    let config = SchemaConfig::builder()
-        .title("User Schema")
-        .build();
+    let config = SchemaConfig::builder().title("User Schema").build();
 
     let schema = generate_schema_value(&doc, &config).unwrap();
     assert_eq!(
@@ -547,7 +538,10 @@ users: @User
     let validation_result = validate_schema(&schema);
     if let Err(e) = &validation_result {
         eprintln!("Validation error: {:?}", e);
-        eprintln!("Generated schema: {}", serde_json::to_string_pretty(&schema).unwrap());
+        eprintln!(
+            "Generated schema: {}",
+            serde_json::to_string_pretty(&schema).unwrap()
+        );
     }
     assert!(validation_result.is_ok());
 }

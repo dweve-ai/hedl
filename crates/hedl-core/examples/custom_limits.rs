@@ -35,10 +35,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 2: Large dataset configuration (50M keys)
     println!("2. Large Dataset Configuration (50M keys):");
-    let mut large_limits = Limits::default();
-    large_limits.max_total_keys = 50_000_000;
-    large_limits.max_nodes = 50_000_000;
-    large_limits.max_file_size = 5 * 1024 * 1024 * 1024; // 5 GB
+    let large_limits = Limits {
+        max_total_keys: 50_000_000,
+        max_nodes: 50_000_000,
+        max_file_size: 5 * 1024 * 1024 * 1024, // 5 GB
+        ..Default::default()
+    };
 
     let hedl_large = br#"%VERSION: 1.0
 ---
@@ -56,28 +58,34 @@ users:
     };
 
     match parse_with_limits(hedl_large, options_large) {
-        Ok(doc) => println!("   Successfully parsed with large limits: {} aliases\n", doc.aliases.len()),
+        Ok(doc) => println!(
+            "   Successfully parsed with large limits: {} aliases\n",
+            doc.aliases.len()
+        ),
         Err(e) => println!("   Error: {}\n", e),
     }
 
     println!("   Configured limits:");
     println!("   max_total_keys: {}", large_limits.max_total_keys);
     println!("   max_nodes: {}", large_limits.max_nodes);
-    println!("   max_file_size: {} GB\n", large_limits.max_file_size / (1024 * 1024 * 1024));
+    println!(
+        "   max_file_size: {} GB\n",
+        large_limits.max_file_size / (1024 * 1024 * 1024)
+    );
 
     // Example 3: Conservative limits for untrusted input (100k keys)
     println!("3. Conservative Limits for Untrusted Input (100k keys):");
     let conservative_limits = Limits {
-        max_file_size: 10 * 1024 * 1024,     // 10 MB
-        max_line_length: 100 * 1024,         // 100 KB
-        max_indent_depth: 20,                // Shallow nesting
-        max_nodes: 50_000,                   // 50k nodes
-        max_aliases: 1_000,                  // 1k aliases
-        max_columns: 50,                     // 50 columns
-        max_nest_depth: 20,                  // Shallow NEST hierarchy
-        max_block_string_size: 1024 * 1024, // 1 MB
-        max_object_keys: 1_000,              // 1k keys per object
-        max_total_keys: 100_000,             // 100k total keys
+        max_file_size: 10 * 1024 * 1024,                   // 10 MB
+        max_line_length: 100 * 1024,                       // 100 KB
+        max_indent_depth: 20,                              // Shallow nesting
+        max_nodes: 50_000,                                 // 50k nodes
+        max_aliases: 1_000,                                // 1k aliases
+        max_columns: 50,                                   // 50 columns
+        max_nest_depth: 20,                                // Shallow NEST hierarchy
+        max_block_string_size: 1024 * 1024,                // 1 MB
+        max_object_keys: 1_000,                            // 1k keys per object
+        max_total_keys: 100_000,                           // 100k total keys
         timeout: Some(std::time::Duration::from_secs(10)), // 10 second timeout
     };
 
@@ -94,14 +102,23 @@ user:
     };
 
     match parse_with_limits(hedl_small, options_conservative) {
-        Ok(doc) => println!("   Successfully parsed with conservative limits: {} items\n", doc.root.len()),
+        Ok(doc) => println!(
+            "   Successfully parsed with conservative limits: {} items\n",
+            doc.root.len()
+        ),
         Err(e) => println!("   Error: {}\n", e),
     }
 
     println!("   Configured limits:");
     println!("   max_total_keys: {}", conservative_limits.max_total_keys);
-    println!("   max_file_size: {} MB", conservative_limits.max_file_size / (1024 * 1024));
-    println!("   max_indent_depth: {}\n", conservative_limits.max_indent_depth);
+    println!(
+        "   max_file_size: {} MB",
+        conservative_limits.max_file_size / (1024 * 1024)
+    );
+    println!(
+        "   max_indent_depth: {}\n",
+        conservative_limits.max_indent_depth
+    );
 
     // Example 4: Demonstrating limit enforcement
     println!("4. Demonstrating Limit Enforcement:");

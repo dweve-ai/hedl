@@ -19,8 +19,8 @@
 //!
 //! Tests bidirectional conversion between HEDL documents and YAML.
 
-use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_test::fixtures;
 use hedl_yaml::{from_yaml, hedl_to_yaml, to_yaml, yaml_to_hedl, FromYamlConfig, ToYamlConfig};
 use std::collections::BTreeMap;

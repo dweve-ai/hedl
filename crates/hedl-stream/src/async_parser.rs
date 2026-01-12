@@ -105,10 +105,10 @@ use crate::async_reader::AsyncLineReader;
 use crate::error::{StreamError, StreamResult};
 use crate::event::{HeaderInfo, NodeEvent, NodeInfo};
 use crate::parser::{strip_comment, StreamingParserConfig};
-use hedl_core::Value;
 use hedl_core::lex::{calculate_indent, is_valid_key_token, is_valid_type_name};
-use tokio::io::AsyncRead;
+use hedl_core::Value;
 use std::time::Instant;
+use tokio::io::AsyncRead;
 
 /// Type alias for list context lookup result: (type_name, schema, optional last_node info)
 type ListContextResult = (String, Vec<String>, Option<(String, String)>);
@@ -325,7 +325,10 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         if let Some(timeout) = self.config.timeout {
             let elapsed = self.start_time.elapsed();
             if elapsed > timeout {
-                return Err(StreamError::Timeout { elapsed, limit: timeout });
+                return Err(StreamError::Timeout {
+                    elapsed,
+                    limit: timeout,
+                });
             }
         }
         Ok(())
@@ -409,7 +412,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         loop {
             // Check timeout periodically (every 100 operations to minimize overhead)
             self.operations_count += 1;
-            if self.operations_count % 100 == 0 {
+            if self.operations_count.is_multiple_of(100) {
                 self.check_timeout()?;
             }
 
@@ -1005,9 +1008,7 @@ mod tests {
 %NEST: User > Order
 ---
 "#;
-        let parser = AsyncStreamingParser::new(Cursor::new(input))
-            .await
-            .unwrap();
+        let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
         let header = parser.header().unwrap();
 
         assert_eq!(header.version, (1, 0));
@@ -1026,9 +1027,7 @@ users: @User
   | alice, Alice Smith
   | bob, Bob Jones
 "#;
-        let mut parser = AsyncStreamingParser::new(Cursor::new(input))
-            .await
-            .unwrap();
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let mut events = Vec::new();
         while let Some(event) = parser.next_event().await.unwrap() {
@@ -1066,9 +1065,7 @@ items: @Item[id, name]
   | item1, First
   | item2, Second
 "#;
-        let mut parser = AsyncStreamingParser::new(Cursor::new(input))
-            .await
-            .unwrap();
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let mut nodes = Vec::new();
         while let Some(event) = parser.next_event().await.unwrap() {
@@ -1088,9 +1085,7 @@ items: @Item[id, name]
 ---
 invalid line without colon
 "#;
-        let mut parser = AsyncStreamingParser::new(Cursor::new(input))
-            .await
-            .unwrap();
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let result = parser.next_event().await;
         assert!(result.is_err());
@@ -1107,9 +1102,7 @@ users: @User
   | 用户1, 张三
   | пользователь, Иван
 "#;
-        let mut parser = AsyncStreamingParser::new(Cursor::new(input))
-            .await
-            .unwrap();
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let mut nodes = Vec::new();
         while let Some(event) = parser.next_event().await.unwrap() {

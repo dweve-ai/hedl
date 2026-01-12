@@ -17,8 +17,8 @@
 
 //! HEDL to XML conversion
 
-use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
 use std::collections::BTreeMap;
@@ -406,8 +406,8 @@ fn escape_attribute_value(value: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hedl_core::{Document, Reference};
     use hedl_core::lex::{Expression, Span};
+    use hedl_core::{Document, Reference};
 
     // ==================== ToXmlConfig tests ====================
 

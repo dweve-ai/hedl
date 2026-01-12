@@ -74,12 +74,7 @@ fn special_chars_string() -> impl Strategy<Value = String> {
 /// Generate strings with only whitespace
 fn whitespace_string() -> impl Strategy<Value = String> {
     prop::collection::vec(
-        prop_oneof![
-            Just(' '),
-            Just('\t'),
-            Just('\n'),
-            Just('\r'),
-        ],
+        prop_oneof![Just(' '), Just('\t'), Just('\n'), Just('\r'),],
         1..20,
     )
     .prop_map(|chars| chars.into_iter().collect())

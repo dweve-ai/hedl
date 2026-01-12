@@ -174,10 +174,7 @@ impl AnalyzedDocument {
                 result.document = Some(doc);
             }
             Err(e) => {
-                warn!(
-                    "Document parse failed at line {}: {}",
-                    e.line, e.message
-                );
+                warn!("Document parse failed at line {}: {}", e.line, e.message);
                 result.errors.push(e);
             }
         }
@@ -226,7 +223,8 @@ impl AnalyzedDocument {
                         // Convert 0-based line_num to 1-based line number for storage
                         let type_name = def.0.clone();
                         let cols_count = def.1.len();
-                        self.schemas.insert(def.0, (def.1, line_num + LINE_NUMBER_OFFSET));
+                        self.schemas
+                            .insert(def.0, (def.1, line_num + LINE_NUMBER_OFFSET));
                         debug!(
                             "Parsed STRUCT directive at line {}: {} with {} columns",
                             line_num + LINE_NUMBER_OFFSET,
@@ -377,10 +375,7 @@ impl AnalyzedDocument {
                 None => format!("@{}", id),
             };
 
-            self.reference_index
-                .entry(ref_str)
-                .or_default()
-                .push(*line);
+            self.reference_index.entry(ref_str).or_default().push(*line);
 
             // Also index by just the ID for flexible lookup
             self.reference_index
@@ -420,12 +415,16 @@ impl AnalyzedDocument {
                         if trimmed.starts_with(id.as_str()) {
                             // Verify it's actually the ID (followed by comma or whitespace)
                             let after_id = &trimmed[id.len()..];
-                            if after_id.starts_with(',') || after_id.starts_with(char::is_whitespace) || after_id.is_empty() {
+                            if after_id.starts_with(',')
+                                || after_id.starts_with(char::is_whitespace)
+                                || after_id.is_empty()
+                            {
                                 let start_char =
                                     (pipe_pos + 1 + (after_pipe.len() - trimmed.len())) as u32;
                                 let end_char = start_char + id.len() as u32;
 
-                                let location = RefLocation::new(line_num as u32, start_char, end_char);
+                                let location =
+                                    RefLocation::new(line_num as u32, start_char, end_char);
                                 self.reference_index_v2.add_definition(
                                     type_name.clone(),
                                     id.clone(),

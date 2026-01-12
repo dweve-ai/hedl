@@ -41,9 +41,12 @@ async fn create_test_file(dir: &TempDir, name: &str, content: &str) -> std::path
 
 fn create_test_document() -> Document {
     let mut doc = Document::new((1, 0));
+    doc.root.insert(
+        "name".to_string(),
+        Item::Scalar(Value::String("test".to_string())),
+    );
     doc.root
-        .insert("name".to_string(), Item::Scalar(Value::String("test".to_string())));
-    doc.root.insert("value".to_string(), Item::Scalar(Value::Int(42)));
+        .insert("value".to_string(), Item::Scalar(Value::Int(42)));
     doc.root
         .insert("active".to_string(), Item::Scalar(Value::Bool(true)));
     doc
@@ -130,7 +133,8 @@ async fn test_async_string_parsing() {
 #[tokio::test]
 async fn test_async_string_generation() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("test".to_string(), Item::Scalar(Value::Int(999)));
+    doc.root
+        .insert("test".to_string(), Item::Scalar(Value::Int(999)));
 
     let config = ToXmlConfig::default();
     let xml = to_xml_async(&doc, &config).await.unwrap();
@@ -202,10 +206,12 @@ async fn test_concurrent_file_writes() {
 
     // Create documents
     let mut doc1 = Document::new((1, 0));
-    doc1.root.insert("id".to_string(), Item::Scalar(Value::Int(1)));
+    doc1.root
+        .insert("id".to_string(), Item::Scalar(Value::Int(1)));
 
     let mut doc2 = Document::new((1, 0));
-    doc2.root.insert("id".to_string(), Item::Scalar(Value::Int(2)));
+    doc2.root
+        .insert("id".to_string(), Item::Scalar(Value::Int(2)));
 
     // Write concurrently
     let path1 = dir.path().join("out1.xml");
@@ -382,7 +388,8 @@ async fn test_concurrent_writes_batch() {
 
     for i in 0..15 {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("id".to_string(), Item::Scalar(Value::Int(i)));
+        doc.root
+            .insert("id".to_string(), Item::Scalar(Value::Int(i)));
         docs.push(doc);
         paths.push(dir.path().join(format!("out{}.xml", i)));
     }
@@ -411,7 +418,8 @@ async fn test_concurrent_writes_batch() {
 #[tokio::test]
 async fn test_async_custom_config() {
     let mut doc = Document::new((2, 5));
-    doc.root.insert("test".to_string(), Item::Scalar(Value::Int(123)));
+    doc.root
+        .insert("test".to_string(), Item::Scalar(Value::Int(123)));
 
     let config = ToXmlConfig {
         pretty: true,
@@ -431,7 +439,8 @@ async fn test_async_custom_config() {
 #[tokio::test]
 async fn test_async_compact_output() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("val".to_string(), Item::Scalar(Value::Int(42)));
+    doc.root
+        .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 
     let config_pretty = ToXmlConfig {
         pretty: true,

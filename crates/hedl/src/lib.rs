@@ -83,10 +83,10 @@ pub use hedl_core::{
     HedlError,
     HedlErrorKind,
     Item,
-    MatrixList,
-    Node,
     // Parser
     Limits,
+    MatrixList,
+    Node,
     ParseOptions,
     Reference,
     // Tensor type
@@ -215,7 +215,7 @@ pub mod neo4j {
 #[cfg(feature = "toon")]
 pub mod toon {
     pub use hedl_toon::{
-        hedl_to_toon, to_toon, Delimiter, ToOnError, ToToonConfig, ToToonConfigBuilder,
+        hedl_to_toon, to_toon, Delimiter, ToToonConfig, ToToonConfigBuilder, ToonError,
     };
 }
 

@@ -569,11 +569,7 @@ impl IncrementalParser {
     }
 
     /// Parse with maximum cache reuse (when no explicit edits are provided).
-    fn parse_with_cache_reuse(
-        &mut self,
-        text: &str,
-        start: std::time::Instant,
-    ) -> ParseResult {
+    fn parse_with_cache_reuse(&mut self, text: &str, start: std::time::Instant) -> ParseResult {
         let lines: Vec<String> = if text.is_empty() {
             Vec::new()
         } else {

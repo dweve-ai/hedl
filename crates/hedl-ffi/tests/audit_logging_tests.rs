@@ -224,10 +224,7 @@ fn test_multithreaded_audit_logging() {
     let threads: Vec<_> = (0..4)
         .map(|i| {
             std::thread::spawn(move || {
-                audit_call_start(
-                    "thread_function",
-                    &[("thread_id", &format!("{}", i))],
-                );
+                audit_call_start("thread_function", &[("thread_id", &format!("{}", i))]);
 
                 std::thread::sleep(Duration::from_millis(10));
 

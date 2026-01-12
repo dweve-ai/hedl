@@ -21,8 +21,8 @@
 //! such as shell completion generation.
 
 use crate::commands;
-use clap::Subcommand;
 use clap::CommandFactory;
+use clap::Subcommand;
 use clap_complete::shells::*;
 
 /// Utility commands.
@@ -103,7 +103,11 @@ fn generate_completion(shell: &str) -> Result<(), String> {
 
     #[derive(Parser)]
     #[command(name = "hedl")]
-    #[command(author, version, about = "HEDL - Hierarchical Entity Data Language toolkit")]
+    #[command(
+        author,
+        version,
+        about = "HEDL - Hierarchical Entity Data Language toolkit"
+    )]
     struct TempCli {
         #[command(subcommand)]
         command: super::Commands,

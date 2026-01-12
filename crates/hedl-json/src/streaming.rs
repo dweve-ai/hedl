@@ -476,10 +476,7 @@ impl<R: Read> Iterator for JsonLinesStreamer<R> {
                     // Check line size if limit configured
                     if let Some(max_bytes) = self.config.max_object_bytes {
                         if line.len() > max_bytes {
-                            return Some(Err(StreamError::ObjectTooLarge(
-                                line.len(),
-                                max_bytes,
-                            )));
+                            return Some(Err(StreamError::ObjectTooLarge(line.len(), max_bytes)));
                         }
                     }
 
@@ -652,9 +649,7 @@ mod tests {
 
     #[test]
     fn test_stream_config_unlimited() {
-        let config = StreamConfig::builder()
-            .unlimited_object_size()
-            .build();
+        let config = StreamConfig::builder().unlimited_object_size().build();
 
         assert_eq!(config.max_object_bytes, None);
     }
@@ -865,11 +860,17 @@ mod tests {
         let mut writer = JsonLinesWriter::new(&mut buffer);
 
         let mut doc1 = Document::new((1, 0));
-        doc1.root.insert("id".to_string(), Item::Scalar(Value::String("1".to_string())));
+        doc1.root.insert(
+            "id".to_string(),
+            Item::Scalar(Value::String("1".to_string())),
+        );
         writer.write_document(&doc1).unwrap();
 
         let mut doc2 = Document::new((1, 0));
-        doc2.root.insert("id".to_string(), Item::Scalar(Value::String("2".to_string())));
+        doc2.root.insert(
+            "id".to_string(),
+            Item::Scalar(Value::String("2".to_string())),
+        );
         writer.write_document(&doc2).unwrap();
 
         writer.flush().unwrap();
@@ -902,14 +903,10 @@ mod tests {
 
         for i in 1..=3 {
             let mut doc = Document::new((1, 0));
-            doc.root.insert(
-                "id".to_string(),
-                Item::Scalar(Value::String(i.to_string())),
-            );
-            doc.root.insert(
-                "value".to_string(),
-                Item::Scalar(Value::Int(i * 10)),
-            );
+            doc.root
+                .insert("id".to_string(), Item::Scalar(Value::String(i.to_string())));
+            doc.root
+                .insert("value".to_string(), Item::Scalar(Value::Int(i * 10)));
             writer.write_document(&doc).unwrap();
         }
         writer.flush().unwrap();

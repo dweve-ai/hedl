@@ -145,11 +145,9 @@ fn example_multithreaded_operations() {
         .map(|i| {
             std::thread::spawn(move || {
                 unsafe {
-                    let input = CString::new(format!(
-                        "%VERSION: 1.0\n---\nthread: {}\ndata: test\n",
-                        i
-                    ))
-                    .unwrap();
+                    let input =
+                        CString::new(format!("%VERSION: 1.0\n---\nthread: {}\ndata: test\n", i))
+                            .unwrap();
 
                     let mut doc: *mut HedlDocument = ptr::null_mut();
 

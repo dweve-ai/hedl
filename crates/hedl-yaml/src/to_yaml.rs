@@ -17,8 +17,8 @@
 
 //! HEDL to YAML conversion
 
-use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use serde_yaml::{Mapping, Value as YamlValue};
 use std::collections::BTreeMap;
 
@@ -243,8 +243,8 @@ fn nodes_to_yaml(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hedl_core::Reference;
     use hedl_core::lex::{Expression, Span};
+    use hedl_core::Reference;
 
     // ==================== ToYamlConfig tests ====================
 

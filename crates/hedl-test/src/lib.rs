@@ -108,9 +108,8 @@ pub mod counts;
 pub use fixtures::*;
 
 // Re-export commonly used utilities
-pub use expr_utils::{expr, expr_value, try_expr, try_expr_value, ExprError};
 pub use counts::{count_nodes, count_references};
-
+pub use expr_utils::{expr, expr_value, try_expr, try_expr_value, ExprError};
 
 #[cfg(test)]
 mod tests {

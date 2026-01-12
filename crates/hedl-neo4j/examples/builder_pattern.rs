@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! Example demonstrating the builder pattern for Neo4j configuration.
 
 use hedl_neo4j::{FromNeo4jConfig, ObjectHandling, RelationshipNaming, ToCypherConfig};
@@ -69,9 +68,7 @@ fn main() {
 
     // Example 4: String length limits
     println!("4. String length limit variations:");
-    let config_with_limit = ToCypherConfig::builder()
-        .max_string_length(5000)
-        .build();
+    let config_with_limit = ToCypherConfig::builder().max_string_length(5000).build();
     println!("   With limit: {:?}", config_with_limit.max_string_length);
 
     let config_no_limit = ToCypherConfig::builder().no_string_length_limit().build();

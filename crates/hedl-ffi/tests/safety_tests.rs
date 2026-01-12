@@ -35,7 +35,8 @@ use std::ptr;
 
 // Test data
 const VALID_HEDL: &[u8] = b"%VERSION: 1.0\n---\nkey: value\0";
-const VALID_HEDL_WITH_SCHEMA: &[u8] = b"%VERSION: 1.0\n%STRUCT: Person: [name,age]\n---\ndata: @Person\n  | Alice, 30\0";
+const VALID_HEDL_WITH_SCHEMA: &[u8] =
+    b"%VERSION: 1.0\n%STRUCT: Person: [name,age]\n---\ndata: @Person\n  | Alice, 30\0";
 
 const INVALID_HEDL: &[u8] = b"not valid hedl\0";
 
@@ -337,7 +338,10 @@ fn test_poison_document_ptr_detection() {
         );
 
         let mut out_str: *mut c_char = ptr::null_mut();
-        assert_eq!(hedl_canonicalize(poisoned_doc, &mut out_str), HEDL_ERR_NULL_PTR);
+        assert_eq!(
+            hedl_canonicalize(poisoned_doc, &mut out_str),
+            HEDL_ERR_NULL_PTR
+        );
 
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         assert_eq!(hedl_lint(poisoned_doc, &mut diag), HEDL_ERR_NULL_PTR);
@@ -452,7 +456,10 @@ fn test_poison_document_ptr_in_conversion_functions() {
         let mut out_str: *mut c_char = ptr::null_mut();
 
         // JSON conversion should reject poison pointer
-        assert_eq!(hedl_to_json(poisoned_doc, 0, &mut out_str), HEDL_ERR_NULL_PTR);
+        assert_eq!(
+            hedl_to_json(poisoned_doc, 0, &mut out_str),
+            HEDL_ERR_NULL_PTR
+        );
         assert!(out_str.is_null());
     }
 }
@@ -467,7 +474,10 @@ fn test_poison_document_ptr_in_yaml_conversion() {
         let mut out_str: *mut c_char = ptr::null_mut();
 
         // YAML conversion should reject poison pointer
-        assert_eq!(hedl_to_yaml(poisoned_doc, 0, &mut out_str), HEDL_ERR_NULL_PTR);
+        assert_eq!(
+            hedl_to_yaml(poisoned_doc, 0, &mut out_str),
+            HEDL_ERR_NULL_PTR
+        );
         assert!(out_str.is_null());
     }
 }
@@ -660,8 +670,8 @@ fn test_hedl_error_cleared_on_success() {
 #[cfg(feature = "json")]
 #[test]
 fn test_hedl_thread_local_errors_in_threads() {
-    use std::thread;
     use std::sync::Arc;
+    use std::thread;
 
     unsafe {
         // Create errors in parallel threads
@@ -756,12 +766,7 @@ fn test_hedl_parse_extremely_large_input() {
         let small_buf = b"test\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let result = hedl_parse(
-            small_buf.as_ptr() as *const c_char,
-            huge_size,
-            0,
-            &mut doc,
-        );
+        let result = hedl_parse(small_buf.as_ptr() as *const c_char, huge_size, 0, &mut doc);
 
         // Should be rejected
         assert_eq!(result, HEDL_ERR_INVALID_UTF8);
@@ -1052,7 +1057,10 @@ fn test_json_roundtrip() {
     unsafe {
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
-        assert_eq!(hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1), HEDL_OK);
+        assert_eq!(
+            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1),
+            HEDL_OK
+        );
 
         // Convert to JSON with metadata
         let mut json_str: *mut c_char = ptr::null_mut();
@@ -1088,7 +1096,10 @@ fn test_yaml_roundtrip() {
     unsafe {
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
-        assert_eq!(hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1), HEDL_OK);
+        assert_eq!(
+            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1),
+            HEDL_OK
+        );
 
         // Convert to YAML with metadata
         let mut yaml_str: *mut c_char = ptr::null_mut();
@@ -1124,7 +1135,10 @@ fn test_xml_roundtrip() {
     unsafe {
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
-        assert_eq!(hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1), HEDL_OK);
+        assert_eq!(
+            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1),
+            HEDL_OK
+        );
 
         // Convert to XML
         let mut xml_str: *mut c_char = ptr::null_mut();
@@ -1162,7 +1176,12 @@ fn test_xml_roundtrip() {
 fn test_hedl_schema_count() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let result = hedl_parse(VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char, -1, 0, &mut doc);
+        let result = hedl_parse(
+            VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char,
+            -1,
+            0,
+            &mut doc,
+        );
         assert_eq!(result, HEDL_OK, "Failed to parse schema document");
         assert!(!doc.is_null());
 
@@ -1177,7 +1196,12 @@ fn test_hedl_schema_count() {
 fn test_hedl_root_item_count() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let result = hedl_parse(VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char, -1, 0, &mut doc);
+        let result = hedl_parse(
+            VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char,
+            -1,
+            0,
+            &mut doc,
+        );
         assert_eq!(result, HEDL_OK, "Failed to parse schema document");
         assert!(!doc.is_null());
 
@@ -1311,12 +1335,18 @@ fn test_hedl_parse_strict_mode() {
         let mut doc: *mut HedlDocument = ptr::null_mut();
 
         // Non-strict
-        assert_eq!(hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc), HEDL_OK);
+        assert_eq!(
+            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc),
+            HEDL_OK
+        );
         hedl_free_document(doc);
 
         // Strict
         doc = ptr::null_mut();
-        assert_eq!(hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 1, &mut doc), HEDL_OK);
+        assert_eq!(
+            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 1, &mut doc),
+            HEDL_OK
+        );
         hedl_free_document(doc);
     }
 }
@@ -1325,8 +1355,14 @@ fn test_hedl_parse_strict_mode() {
 fn test_hedl_validate_strict_mode() {
     unsafe {
         // Valid document should validate in both modes
-        assert_eq!(hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 0), HEDL_OK);
-        assert_eq!(hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 1), HEDL_OK);
+        assert_eq!(
+            hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 0),
+            HEDL_OK
+        );
+        assert_eq!(
+            hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 1),
+            HEDL_OK
+        );
     }
 }
 
@@ -1339,7 +1375,15 @@ fn test_full_workflow() {
     unsafe {
         // 1. Parse
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        assert_eq!(hedl_parse(VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char, -1, 0, &mut doc), HEDL_OK);
+        assert_eq!(
+            hedl_parse(
+                VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char,
+                -1,
+                0,
+                &mut doc
+            ),
+            HEDL_OK
+        );
         assert!(!doc.is_null());
 
         // 2. Get version

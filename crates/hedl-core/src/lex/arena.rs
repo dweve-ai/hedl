@@ -39,9 +39,7 @@ pub struct ExpressionArena {
 impl ExpressionArena {
     /// Create a new expression arena.
     pub fn new() -> Self {
-        Self {
-            bump: Bump::new(),
-        }
+        Self { bump: Bump::new() }
     }
 
     /// Create a new arena with a specified capacity.

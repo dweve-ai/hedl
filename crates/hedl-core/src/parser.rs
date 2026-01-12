@@ -69,12 +69,12 @@ use crate::document::{Document, Item, MatrixList, Node};
 use crate::error::{HedlError, HedlResult};
 use crate::header::parse_header;
 use crate::inference::{infer_quoted_value, infer_value, InferenceContext};
+use crate::lex::row::parse_csv_row;
+use crate::lex::{calculate_indent, is_valid_key_token, is_valid_type_name, strip_comment};
 use crate::limits::{Limits, TimeoutContext};
 use crate::preprocess::{is_blank_line, is_comment_line, preprocess};
 use crate::reference::{register_node, resolve_references, TypeRegistry};
 use crate::value::Value;
-use crate::lex::{calculate_indent, is_valid_key_token, is_valid_type_name, strip_comment};
-use crate::lex::row::parse_csv_row;
 use std::collections::BTreeMap;
 
 /// Parsing options for configuring HEDL document parsing behavior.
@@ -434,7 +434,13 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
     // Phase 3: Parse body
     let body_lines = &lines[body_start_idx..];
     let mut type_registries = TypeRegistry::new();
-    let root = parse_body(body_lines, &header, &options.limits, &mut type_registries, &timeout_ctx)?;
+    let root = parse_body(
+        body_lines,
+        &header,
+        &options.limits,
+        &mut type_registries,
+        &timeout_ctx,
+    )?;
 
     // Build document
     let mut doc = Document::new(header.version);
@@ -495,7 +501,7 @@ fn parse_body(
     for &(line_num, line) in lines {
         // Periodic timeout check (every 10,000 iterations to minimize overhead)
         iteration_count += 1;
-        if iteration_count % 10_000 == 0 {
+        if iteration_count.is_multiple_of(10_000) {
             timeout_ctx.check_timeout(line_num)?;
         }
         // Handle block string accumulation mode
@@ -517,8 +523,8 @@ fn parse_body(
         }
 
         // Calculate indentation
-        let indent_info =
-            calculate_indent(line, line_num as u32).map_err(|e| HedlError::syntax(e.to_string(), line_num))?;
+        let indent_info = calculate_indent(line, line_num as u32)
+            .map_err(|e| HedlError::syntax(e.to_string(), line_num))?;
 
         let indent_info = match indent_info {
             Some(info) => info,
@@ -563,7 +569,15 @@ fn parse_body(
                     block_string = Some(state);
                 }
                 BlockStringResult::NotBlockString => {
-                    parse_non_matrix_line(&mut stack, content, indent, line_num, header, limits, &mut total_keys)?;
+                    parse_non_matrix_line(
+                        &mut stack,
+                        content,
+                        indent,
+                        line_num,
+                        header,
+                        limits,
+                        &mut total_keys,
+                    )?;
                 }
             }
         }
@@ -583,7 +597,6 @@ fn parse_body(
     // Finalize: pop all frames and build result
     finalize_stack(stack)
 }
-
 
 fn pop_frames(stack: &mut Vec<Frame>, current_indent: usize) {
     while stack.len() > 1 {
@@ -792,10 +805,7 @@ fn parse_key_with_count_hint(key: &str, line_num: usize) -> HedlResult<(String, 
 
         // Parse count
         let count = count_str.parse::<usize>().map_err(|_| {
-            HedlError::syntax(
-                format!("invalid count hint: '{}'", count_str),
-                line_num,
-            )
+            HedlError::syntax(format!("invalid count hint: '{}'", count_str), line_num)
         })?;
 
         if count == 0 {
@@ -1024,9 +1034,9 @@ fn parse_matrix_row(
     register_node(type_registries, &type_name, &id, line_num)?;
 
     // Check node count limit with checked arithmetic to prevent overflow
-    *node_count = node_count.checked_add(1).ok_or_else(|| {
-        HedlError::security("node count overflow", line_num)
-    })?;
+    *node_count = node_count
+        .checked_add(1)
+        .ok_or_else(|| HedlError::security("node count overflow", line_num))?;
     if *node_count > limits.max_nodes {
         return Err(HedlError::security(
             format!("too many nodes: exceeds limit of {}", limits.max_nodes),
@@ -1144,13 +1154,17 @@ fn find_list_frame(
                 // SECURITY: Check NEST depth before pushing child frame to prevent DoS
                 // Count current depth by counting List frames in the stack
                 // Each List frame represents one level in the NEST hierarchy
-                let current_depth = stack.iter().filter(|f| matches!(f, Frame::List { .. })).count();
+                let current_depth = stack
+                    .iter()
+                    .filter(|f| matches!(f, Frame::List { .. }))
+                    .count();
 
                 if current_depth >= limits.max_nest_depth {
                     return Err(HedlError::security(
                         format!(
                             "NEST hierarchy depth {} exceeds maximum allowed depth {}",
-                            current_depth + 1, limits.max_nest_depth
+                            current_depth + 1,
+                            limits.max_nest_depth
                         ),
                         line_num,
                     ));
@@ -1216,7 +1230,9 @@ fn validate_nested_list_indent(
     // Check if we're inside a list context
     for (idx, frame) in stack.iter().enumerate().rev() {
         match frame {
-            Frame::List { row_indent, list, .. } => {
+            Frame::List {
+                row_indent, list, ..
+            } => {
                 // Nested list declaration should be at row_indent + 1 (child level)
                 if indent == *row_indent + 1 {
                     // Must have a parent row to attach to
@@ -1234,7 +1250,9 @@ fn validate_nested_list_indent(
                     return Ok(None); // Normal top-level list
                 }
             }
-            Frame::Object { indent: obj_indent, .. } => {
+            Frame::Object {
+                indent: obj_indent, ..
+            } => {
                 if indent == obj_indent + 1 {
                     return Ok(None); // Normal list inside object
                 }
@@ -1243,7 +1261,10 @@ fn validate_nested_list_indent(
     }
 
     Err(HedlError::syntax(
-        format!("invalid indent level {} for nested list declaration", indent),
+        format!(
+            "invalid indent level {} for nested list declaration",
+            indent
+        ),
         line_num,
     ))
 }
@@ -1294,9 +1315,9 @@ fn check_duplicate_key(
         }
 
         // Security: Enforce max_total_keys limit to prevent cumulative memory exhaustion
-        *total_keys = total_keys.checked_add(1).ok_or_else(|| {
-            HedlError::security("total key count overflow", line_num)
-        })?;
+        *total_keys = total_keys
+            .checked_add(1)
+            .ok_or_else(|| HedlError::security("total key count overflow", line_num))?;
 
         if *total_keys > limits.max_total_keys {
             return Err(HedlError::security(
@@ -1385,7 +1406,7 @@ mod tests {
         let builder = ParseOptionsBuilder::new();
         let opts = builder.build();
 
-        assert_eq!(opts.strict_refs, true);
+        assert!(opts.strict_refs);
         assert_eq!(opts.limits.max_indent_depth, 50);
         assert_eq!(opts.limits.max_nodes, 10_000_000);
     }
@@ -1406,53 +1427,43 @@ mod tests {
     #[test]
     fn test_parse_options_builder_method() {
         let opts = ParseOptions::builder().build();
-        assert_eq!(opts.strict_refs, true);
+        assert!(opts.strict_refs);
     }
 
     // ==================== Chainable method tests ====================
 
     #[test]
     fn test_builder_max_depth() {
-        let opts = ParseOptions::builder()
-            .max_depth(100)
-            .build();
+        let opts = ParseOptions::builder().max_depth(100).build();
 
         assert_eq!(opts.limits.max_indent_depth, 100);
     }
 
     #[test]
     fn test_builder_max_array_length() {
-        let opts = ParseOptions::builder()
-            .max_array_length(5000)
-            .build();
+        let opts = ParseOptions::builder().max_array_length(5000).build();
 
         assert_eq!(opts.limits.max_nodes, 5000);
     }
 
     #[test]
     fn test_builder_strict_true() {
-        let opts = ParseOptions::builder()
-            .strict(true)
-            .build();
+        let opts = ParseOptions::builder().strict(true).build();
 
-        assert_eq!(opts.strict_refs, true);
+        assert!(opts.strict_refs);
     }
 
     #[test]
     fn test_builder_strict_false() {
-        let opts = ParseOptions::builder()
-            .strict(false)
-            .build();
+        let opts = ParseOptions::builder().strict(false).build();
 
-        assert_eq!(opts.strict_refs, false);
+        assert!(!opts.strict_refs);
     }
 
     #[test]
     fn test_builder_max_file_size() {
         let size = 500 * 1024 * 1024;
-        let opts = ParseOptions::builder()
-            .max_file_size(size)
-            .build();
+        let opts = ParseOptions::builder().max_file_size(size).build();
 
         assert_eq!(opts.limits.max_file_size, size);
     }
@@ -1460,36 +1471,28 @@ mod tests {
     #[test]
     fn test_builder_max_line_length() {
         let length = 512 * 1024;
-        let opts = ParseOptions::builder()
-            .max_line_length(length)
-            .build();
+        let opts = ParseOptions::builder().max_line_length(length).build();
 
         assert_eq!(opts.limits.max_line_length, length);
     }
 
     #[test]
     fn test_builder_max_aliases() {
-        let opts = ParseOptions::builder()
-            .max_aliases(5000)
-            .build();
+        let opts = ParseOptions::builder().max_aliases(5000).build();
 
         assert_eq!(opts.limits.max_aliases, 5000);
     }
 
     #[test]
     fn test_builder_max_columns() {
-        let opts = ParseOptions::builder()
-            .max_columns(50)
-            .build();
+        let opts = ParseOptions::builder().max_columns(50).build();
 
         assert_eq!(opts.limits.max_columns, 50);
     }
 
     #[test]
     fn test_builder_max_nest_depth() {
-        let opts = ParseOptions::builder()
-            .max_nest_depth(50)
-            .build();
+        let opts = ParseOptions::builder().max_nest_depth(50).build();
 
         assert_eq!(opts.limits.max_nest_depth, 50);
     }
@@ -1497,27 +1500,21 @@ mod tests {
     #[test]
     fn test_builder_max_block_string_size() {
         let size = 5 * 1024 * 1024;
-        let opts = ParseOptions::builder()
-            .max_block_string_size(size)
-            .build();
+        let opts = ParseOptions::builder().max_block_string_size(size).build();
 
         assert_eq!(opts.limits.max_block_string_size, size);
     }
 
     #[test]
     fn test_builder_max_object_keys() {
-        let opts = ParseOptions::builder()
-            .max_object_keys(5000)
-            .build();
+        let opts = ParseOptions::builder().max_object_keys(5000).build();
 
         assert_eq!(opts.limits.max_object_keys, 5000);
     }
 
     #[test]
     fn test_builder_max_total_keys() {
-        let opts = ParseOptions::builder()
-            .max_total_keys(5_000_000)
-            .build();
+        let opts = ParseOptions::builder().max_total_keys(5_000_000).build();
 
         assert_eq!(opts.limits.max_total_keys, 5_000_000);
     }
@@ -1534,7 +1531,7 @@ mod tests {
 
         assert_eq!(opts.limits.max_indent_depth, 100);
         assert_eq!(opts.limits.max_nodes, 5000);
-        assert_eq!(opts.strict_refs, false);
+        assert!(!opts.strict_refs);
     }
 
     #[test]
@@ -1555,7 +1552,7 @@ mod tests {
 
         assert_eq!(opts.limits.max_indent_depth, 75);
         assert_eq!(opts.limits.max_nodes, 2000);
-        assert_eq!(opts.strict_refs, false);
+        assert!(!opts.strict_refs);
         assert_eq!(opts.limits.max_file_size, 100 * 1024 * 1024);
         assert_eq!(opts.limits.max_line_length, 256 * 1024);
         assert_eq!(opts.limits.max_aliases, 1000);
@@ -1570,10 +1567,7 @@ mod tests {
 
     #[test]
     fn test_builder_override_previous_value() {
-        let opts = ParseOptions::builder()
-            .max_depth(50)
-            .max_depth(100)
-            .build();
+        let opts = ParseOptions::builder().max_depth(50).max_depth(100).build();
 
         assert_eq!(opts.limits.max_indent_depth, 100);
     }
@@ -1593,16 +1587,14 @@ mod tests {
 
     #[test]
     fn test_builder_default_keeps_other_defaults() {
-        let opts = ParseOptions::builder()
-            .max_depth(100)
-            .build();
+        let opts = ParseOptions::builder().max_depth(100).build();
 
         assert_eq!(opts.limits.max_indent_depth, 100);
         // Other values should remain at defaults
         assert_eq!(opts.limits.max_file_size, 1024 * 1024 * 1024);
         assert_eq!(opts.limits.max_line_length, 1024 * 1024);
         assert_eq!(opts.limits.max_nodes, 10_000_000);
-        assert_eq!(opts.strict_refs, true);
+        assert!(opts.strict_refs);
     }
 
     // ==================== Edge case tests ====================
@@ -1641,9 +1633,15 @@ mod tests {
         let default_opts = ParseOptions::default();
 
         assert_eq!(builder_opts.strict_refs, default_opts.strict_refs);
-        assert_eq!(builder_opts.limits.max_indent_depth, default_opts.limits.max_indent_depth);
+        assert_eq!(
+            builder_opts.limits.max_indent_depth,
+            default_opts.limits.max_indent_depth
+        );
         assert_eq!(builder_opts.limits.max_nodes, default_opts.limits.max_nodes);
-        assert_eq!(builder_opts.limits.max_file_size, default_opts.limits.max_file_size);
+        assert_eq!(
+            builder_opts.limits.max_file_size,
+            default_opts.limits.max_file_size
+        );
     }
 
     #[test]
@@ -1663,10 +1661,7 @@ mod tests {
     #[test]
     fn test_builder_typical_usage_pattern() {
         // Typical use case: strict parsing with moderate limits
-        let opts = ParseOptions::builder()
-            .max_depth(100)
-            .strict(true)
-            .build();
+        let opts = ParseOptions::builder().max_depth(100).strict(true).build();
 
         assert!(opts.strict_refs);
         assert_eq!(opts.limits.max_indent_depth, 100);
@@ -1748,7 +1743,10 @@ mod tests {
     #[test]
     fn test_default_timeout_is_reasonable() {
         let opts = ParseOptions::default();
-        assert_eq!(opts.limits.timeout, Some(std::time::Duration::from_secs(30)));
+        assert_eq!(
+            opts.limits.timeout,
+            Some(std::time::Duration::from_secs(30))
+        );
     }
 
     #[test]

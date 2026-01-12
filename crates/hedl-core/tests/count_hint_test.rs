@@ -15,7 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use hedl_core::parse;
 
 #[test]
@@ -37,13 +36,20 @@ no_hint: @Team
     // Check teams list has count hint
     let teams_item = doc.get("teams").expect("teams should exist");
     let teams_list = teams_item.as_list().expect("teams should be a list");
-    assert_eq!(teams_list.count_hint, Some(3), "teams should have count hint of 3");
+    assert_eq!(
+        teams_list.count_hint,
+        Some(3),
+        "teams should have count hint of 3"
+    );
     assert_eq!(teams_list.rows.len(), 3, "teams should have 3 rows");
 
     // Check no_hint list doesn't have count hint
     let no_hint_item = doc.get("no_hint").expect("no_hint should exist");
     let no_hint_list = no_hint_item.as_list().expect("no_hint should be a list");
-    assert_eq!(no_hint_list.count_hint, None, "no_hint should have no count hint");
+    assert_eq!(
+        no_hint_list.count_hint, None,
+        "no_hint should have no count hint"
+    );
     assert_eq!(no_hint_list.rows.len(), 1, "no_hint should have 1 row");
 }
 
@@ -60,7 +66,11 @@ players(2): @Player[id,name,position]
 
     let players_item = doc.get("players").expect("players should exist");
     let players_list = players_item.as_list().expect("players should be a list");
-    assert_eq!(players_list.count_hint, Some(2), "players should have count hint of 2");
+    assert_eq!(
+        players_list.count_hint,
+        Some(2),
+        "players should have count hint of 2"
+    );
     assert_eq!(players_list.schema, vec!["id", "name", "position"]);
 }
 
@@ -76,7 +86,9 @@ teams(0): @Team
     let result = parse(input);
     assert!(result.is_err(), "zero count hint should fail");
     let err = result.unwrap_err();
-    assert!(err.to_string().contains("count hint must be greater than zero"));
+    assert!(err
+        .to_string()
+        .contains("count hint must be greater than zero"));
 }
 
 #[test]

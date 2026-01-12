@@ -19,12 +19,12 @@
 //!
 //! Tests bidirectional conversion between HEDL documents and JSON.
 
+use hedl_core::lex::Tensor;
 use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_json::{
     from_json, from_json_value, hedl_to_json, json_to_hedl, to_json, to_json_value, FromJsonConfig,
     ToJsonConfig,
 };
-use hedl_core::lex::Tensor;
 use hedl_test::fixtures;
 use serde_json::{json, Value as JsonValue};
 use std::collections::BTreeMap;

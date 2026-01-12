@@ -59,7 +59,6 @@ struct ComprehensiveValidationResult {
     combined_time_ns: u64,
 }
 
-
 impl ComprehensiveValidationResult {
     fn avg_time_ns(&self) -> u64 {
         if self.validation_times_ns.is_empty() {
@@ -549,7 +548,6 @@ fn bench_parse_and_validate(c: &mut Criterion) {
 
     group.finish();
 }
-
 
 // ============================================================================
 // Comprehensive Table Generation Functions
@@ -1054,7 +1052,11 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
 
         let size_ratio = large_avg_records / small_avg_records;
         let time_ratio = large_avg_time / small_avg_time;
-        let scaling_factor = if size_ratio > 0.0 { time_ratio / size_ratio } else { 1.0 };
+        let scaling_factor = if size_ratio > 0.0 {
+            time_ratio / size_ratio
+        } else {
+            1.0
+        };
 
         insights.push(Insight {
             category: "finding".to_string(),

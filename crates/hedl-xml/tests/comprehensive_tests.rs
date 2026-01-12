@@ -19,8 +19,8 @@
 //!
 //! Tests bidirectional conversion between HEDL documents and XML.
 
-use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_test::fixtures;
 use hedl_xml::{from_xml, hedl_to_xml, to_xml, xml_to_hedl, FromXmlConfig, ToXmlConfig};
 use std::collections::BTreeMap;

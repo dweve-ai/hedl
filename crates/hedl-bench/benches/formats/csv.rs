@@ -34,8 +34,8 @@ use hedl_bench::{
     count_tokens, generate_analytics, generate_orders, generate_products, generate_users, sizes,
     BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
 };
-use hedl_csv::to_csv;
 use hedl_core::lex::parse_csv_row;
+use hedl_csv::to_csv;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Once;
@@ -1797,9 +1797,9 @@ fn generate_insights(
     report.add_insight(Insight {
         category: "finding".to_string(),
         title: "Ditto Marker Expansion Required for CSV Export".to_string(),
-        description:
-            "HEDL ditto markers (^) must be expanded to actual values during CSV export \
-            because CSV has no equivalent concept for referencing previous values.".to_string(),
+        description: "HEDL ditto markers (^) must be expanded to actual values during CSV export \
+            because CSV has no equivalent concept for referencing previous values."
+            .to_string(),
         data_points: vec![
             "Ditto expansion adds overhead to conversion time".to_string(),
             "CSV cannot represent forward/backward references".to_string(),
@@ -1921,8 +1921,7 @@ fn generate_insights(
             .to_string(),
         data_points: vec![
             "Current: Per-row allocations cause allocator overhead".to_string(),
-            "Pool approach: Reuse buffers across rows, reducing allocation count"
-                .to_string(),
+            "Pool approach: Reuse buffers across rows, reducing allocation count".to_string(),
             "Best for: Server workloads with continuous CSV processing".to_string(),
             "Implementation: Arena allocator or buffer pool (e.g., bumpalo, typed-arena)"
                 .to_string(),
@@ -1933,9 +1932,9 @@ fn generate_insights(
     report.add_insight(Insight {
         category: "finding".to_string(),
         title: "SIMD Field Splitting Can Improve Performance".to_string(),
-        description:
-            "Delimiter detection is a significant part of parse time. \
-            SIMD-based field splitting (using SSE2/AVX2) can accelerate this.".to_string(),
+        description: "Delimiter detection is a significant part of parse time. \
+            SIMD-based field splitting (using SSE2/AVX2) can accelerate this."
+            .to_string(),
         data_points: vec![
             "Current: Scalar byte-by-byte delimiter scanning".to_string(),
             "SIMD approach: Process 16-32 bytes per instruction (SSE2/AVX2)".to_string(),
@@ -1950,9 +1949,15 @@ fn generate_insights(
         .collect();
 
     if !hedl_csv_results.is_empty() {
-        let avg_input: usize = hedl_csv_results.iter().map(|r| r.input_bytes).sum::<usize>()
+        let avg_input: usize = hedl_csv_results
+            .iter()
+            .map(|r| r.input_bytes)
+            .sum::<usize>()
             / hedl_csv_results.len();
-        let avg_output: usize = hedl_csv_results.iter().map(|r| r.output_bytes).sum::<usize>()
+        let avg_output: usize = hedl_csv_results
+            .iter()
+            .map(|r| r.output_bytes)
+            .sum::<usize>()
             / hedl_csv_results.len();
         let size_ratio = avg_output as f64 / avg_input.max(1) as f64;
 

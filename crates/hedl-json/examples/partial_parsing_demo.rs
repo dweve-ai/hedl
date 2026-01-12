@@ -52,11 +52,7 @@ fn demo_collect_all_errors() {
     }"#;
 
     let config = PartialConfig::builder()
-        .from_json_config(
-            FromJsonConfig::builder()
-                .max_string_length(20)
-                .build(),
-        )
+        .from_json_config(FromJsonConfig::builder().max_string_length(20).build())
         .tolerance(ErrorTolerance::CollectAll)
         .build();
 
@@ -75,7 +71,10 @@ fn demo_collect_all_errors() {
     }
 
     if let Some(doc) = result.document {
-        println!("Partial document created with {} root fields", doc.root.len());
+        println!(
+            "Partial document created with {} root fields",
+            doc.root.len()
+        );
     }
 
     println!();
@@ -132,7 +131,10 @@ fn demo_max_errors_limit() {
     println!("Parsing completed: {}", result.is_complete());
     println!("Stopped early: {}", result.stopped_early);
     println!("Errors collected: {}", result.errors.len());
-    println!("Max errors reached after encountering {} errors", result.errors.len());
+    println!(
+        "Max errors reached after encountering {} errors",
+        result.errors.len()
+    );
 
     println!();
 }
@@ -165,7 +167,10 @@ fn demo_replace_with_null() {
     }
 
     if let Some(doc) = result.document {
-        println!("Document created with {} fields (bio replaced with null)", doc.root.len());
+        println!(
+            "Document created with {} fields (bio replaced with null)",
+            doc.root.len()
+        );
     }
 
     println!();

@@ -19,9 +19,9 @@
 
 use crate::DEFAULT_SCHEMA;
 use hedl_core::convert::parse_reference;
-use hedl_core::{Document, Item, MatrixList, Node, Value};
-use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
 use hedl_core::lex::Tensor;
+use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use serde_json::{Map, Value as JsonValue};
 use std::collections::{BTreeMap, HashMap};
 
@@ -199,7 +199,6 @@ impl Default for FromJsonConfig {
         }
     }
 }
-
 
 impl FromJsonConfig {
     /// Create a new builder for configuring JSON import
@@ -419,13 +418,10 @@ pub fn from_json_value(
     let mut structs = BTreeMap::new();
     let mut schema_cache = SchemaCache::new();
     let root = match value {
-        JsonValue::Object(map) => json_object_to_root(map, config, &mut structs, &mut schema_cache, 0)?,
-        _ => {
-            return Err(JsonConversionError::InvalidRoot(format!(
-                "{:?}",
-                value
-            )))
+        JsonValue::Object(map) => {
+            json_object_to_root(map, config, &mut structs, &mut schema_cache, 0)?
         }
+        _ => return Err(JsonConversionError::InvalidRoot(format!("{:?}", value))),
     };
 
     Ok(Document {
@@ -475,10 +471,12 @@ pub fn from_json_value_owned(
     let mut structs = BTreeMap::new();
     let mut schema_cache = SchemaCache::new();
     let root = match value {
-        JsonValue::Object(map) => json_object_to_root_owned(map, config, &mut structs, &mut schema_cache, 0)?,
+        JsonValue::Object(map) => {
+            json_object_to_root_owned(map, config, &mut structs, &mut schema_cache, 0)?
+        }
         _ => {
             return Err(JsonConversionError::InvalidRoot(
-                "Root must be an object".to_string()
+                "Root must be an object".to_string(),
             ))
         }
     };
@@ -491,7 +489,6 @@ pub fn from_json_value_owned(
         root,
     })
 }
-
 
 /// Process JSON object into HEDL item map, skipping metadata keys.
 /// This is the shared implementation used by both root and nested objects.
@@ -664,7 +661,8 @@ fn json_value_to_item(
                 Ok(Item::Scalar(Value::Tensor(tensor)))
             } else if is_object_array(arr) {
                 // Convert to matrix list
-                let list = json_array_to_matrix_list(arr, key, config, structs, schema_cache, depth + 1)?;
+                let list =
+                    json_array_to_matrix_list(arr, key, config, structs, schema_cache, depth + 1)?;
                 Ok(Item::List(list))
             } else {
                 // Mixed array - try to convert to tensor
@@ -760,7 +758,8 @@ fn json_value_to_item_owned(
                 Ok(Item::Scalar(Value::Tensor(tensor)))
             } else if is_object_array(&arr) {
                 // Convert to matrix list
-                let list = json_array_to_matrix_list(&arr, key, config, structs, schema_cache, depth + 1)?;
+                let list =
+                    json_array_to_matrix_list(&arr, key, config, structs, schema_cache, depth + 1)?;
                 Ok(Item::List(list))
             } else {
                 // Mixed array - try to convert to tensor
@@ -1062,9 +1061,7 @@ fn json_to_value(value: &JsonValue, config: &FromJsonConfig) -> Result<Value, Js
         }
         JsonValue::Object(obj) => {
             if let Some(JsonValue::String(r)) = obj.get("@ref") {
-                Value::Reference(
-                    parse_reference(r).map_err(JsonConversionError::InvalidReference)?,
-                )
+                Value::Reference(parse_reference(r).map_err(JsonConversionError::InvalidReference)?)
             } else {
                 return Err(JsonConversionError::NestedObject);
             }
@@ -1141,7 +1138,7 @@ mod tests {
             .max_string_length(10 * 1024 * 1024)
             .max_object_size(5_000)
             .build();
-        
+
         assert_eq!(config.max_depth, Some(1_000));
         assert_eq!(config.max_array_size, Some(100_000));
         assert_eq!(config.max_string_length, Some(10 * 1024 * 1024));
@@ -1150,10 +1147,8 @@ mod tests {
 
     #[test]
     fn test_builder_unlimited() {
-        let config = FromJsonConfig::builder()
-            .unlimited()
-            .build();
-        
+        let config = FromJsonConfig::builder().unlimited().build();
+
         assert_eq!(config.max_depth, None);
         assert_eq!(config.max_array_size, None);
         assert_eq!(config.max_string_length, None);
@@ -1166,7 +1161,7 @@ mod tests {
             .default_type_name("CustomType")
             .version(2, 1)
             .build();
-        
+
         assert_eq!(config.default_type_name, "CustomType");
         assert_eq!(config.version, (2, 1));
     }
@@ -1181,7 +1176,7 @@ mod tests {
             .max_string_length(5 * 1024 * 1024)
             .max_object_size(2_500)
             .build();
-        
+
         assert_eq!(config.default_type_name, "Entity");
         assert_eq!(config.version, (1, 5));
         assert_eq!(config.max_depth, Some(500));
@@ -1466,7 +1461,15 @@ mod tests {
         let config = FromJsonConfig::default();
         let mut structs = BTreeMap::new();
         let mut schema_cache = SchemaCache::new();
-        let result = json_value_to_item(&JsonValue::Null, "test", &config, &mut structs, &mut schema_cache, 0).unwrap();
+        let result = json_value_to_item(
+            &JsonValue::Null,
+            "test",
+            &config,
+            &mut structs,
+            &mut schema_cache,
+            0,
+        )
+        .unwrap();
         assert!(matches!(result, Item::Scalar(Value::Null)));
     }
 
@@ -1475,7 +1478,15 @@ mod tests {
         let config = FromJsonConfig::default();
         let mut structs = BTreeMap::new();
         let mut schema_cache = SchemaCache::new();
-        let result = json_value_to_item(&json!(true), "test", &config, &mut structs, &mut schema_cache, 0).unwrap();
+        let result = json_value_to_item(
+            &json!(true),
+            "test",
+            &config,
+            &mut structs,
+            &mut schema_cache,
+            0,
+        )
+        .unwrap();
         assert!(matches!(result, Item::Scalar(Value::Bool(true))));
     }
 
@@ -1484,7 +1495,15 @@ mod tests {
         let config = FromJsonConfig::default();
         let mut structs = BTreeMap::new();
         let mut schema_cache = SchemaCache::new();
-        let result = json_value_to_item(&json!([]), "items", &config, &mut structs, &mut schema_cache, 0).unwrap();
+        let result = json_value_to_item(
+            &json!([]),
+            "items",
+            &config,
+            &mut structs,
+            &mut schema_cache,
+            0,
+        )
+        .unwrap();
         if let Item::List(list) = result {
             assert!(list.rows.is_empty());
             assert_eq!(list.type_name, "Item");
@@ -1526,7 +1545,7 @@ mod tests {
         let config = FromJsonConfig {
             default_type_name: "Item".to_string(),
             version: (1, 0),
-            max_depth: Some(0),  // Fail on any value
+            max_depth: Some(0), // Fail on any value
             max_array_size: Some(100_000),
             max_string_length: Some(10_000_000),
             max_object_size: Some(10_000),
@@ -1620,7 +1639,10 @@ mod tests {
 
         // Test various error types
         let result1 = from_json("not json", &config);
-        assert!(result1.unwrap_err().to_string().contains("JSON parse error"));
+        assert!(result1
+            .unwrap_err()
+            .to_string()
+            .contains("JSON parse error"));
 
         let result2 = from_json("[1,2,3]", &config);
         assert!(result2.unwrap_err().to_string().contains("Root must be"));
@@ -1637,8 +1659,7 @@ mod tests {
 /// Error tolerance strategy for partial parsing
 ///
 /// Determines how the parser should behave when encountering errors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ErrorTolerance {
     /// Stop on the first error encountered
     #[default]
@@ -1653,7 +1674,6 @@ pub enum ErrorTolerance {
     /// Skip invalid items in arrays/objects and continue
     SkipInvalidItems,
 }
-
 
 /// Location information for an error
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1712,8 +1732,7 @@ impl ParseError {
 }
 
 /// Configuration for partial parsing
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PartialConfig {
     /// Base configuration for JSON conversion
     pub from_json_config: FromJsonConfig,
@@ -1728,7 +1747,6 @@ pub struct PartialConfig {
     pub replace_invalid_with_null: bool,
 }
 
-
 impl PartialConfig {
     /// Create a new builder for partial parsing configuration
     pub fn builder() -> PartialConfigBuilder {
@@ -1737,15 +1755,13 @@ impl PartialConfig {
 }
 
 /// Builder for PartialConfig
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PartialConfigBuilder {
     from_json_config: FromJsonConfig,
     tolerance: ErrorTolerance,
     include_partial_on_fatal: bool,
     replace_invalid_with_null: bool,
 }
-
 
 impl PartialConfigBuilder {
     /// Set the base FromJsonConfig
@@ -1834,7 +1850,12 @@ impl ErrorContext {
     }
 
     /// Record an error and determine if parsing should continue
-    fn record_error(&mut self, error: JsonConversionError, location: ErrorLocation, is_fatal: bool) -> bool {
+    fn record_error(
+        &mut self,
+        error: JsonConversionError,
+        location: ErrorLocation,
+        is_fatal: bool,
+    ) -> bool {
         if self.stopped {
             return false;
         }
@@ -2014,6 +2035,7 @@ fn partial_json_object_to_root(
 }
 
 /// Partial parsing version of json_value_to_item
+#[allow(clippy::too_many_arguments)]
 fn partial_json_value_to_item(
     value: &JsonValue,
     key: &str,
@@ -2227,16 +2249,14 @@ fn partial_json_array_to_tensor(
 
         let elem_location = location.index(idx);
         let tensor = match v {
-            JsonValue::Number(n) => {
-                match n.as_f64() {
-                    Some(f) => Ok(Tensor::Scalar(f)),
-                    None => {
-                        let err = JsonConversionError::InvalidNumber(n.to_string());
-                        context.record_error(err.clone(), elem_location, false);
-                        Err(err)
-                    }
+            JsonValue::Number(n) => match n.as_f64() {
+                Some(f) => Ok(Tensor::Scalar(f)),
+                None => {
+                    let err = JsonConversionError::InvalidNumber(n.to_string());
+                    context.record_error(err.clone(), elem_location, false);
+                    Err(err)
                 }
-            }
+            },
             JsonValue::Array(nested) => {
                 partial_json_array_to_tensor(nested, config, depth + 1, &elem_location, context)
             }
@@ -2355,11 +2375,8 @@ fn partial_json_array_to_matrix_list(
                         match partial_json_to_value(v, config, &row_location.child(col), context) {
                             Ok(value) => fields.push(value),
                             Err(_) => {
-                                if context.config.replace_invalid_with_null {
-                                    fields.push(Value::Null);
-                                } else {
-                                    fields.push(Value::Null);
-                                }
+                                // Replace invalid values with null in partial mode
+                                fields.push(Value::Null);
                             }
                         }
                     }

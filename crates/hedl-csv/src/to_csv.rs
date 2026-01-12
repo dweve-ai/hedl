@@ -121,10 +121,8 @@ pub fn to_csv_list_with_config(
     let mut buffer = Vec::with_capacity(estimated_size);
 
     to_csv_list_writer_with_config(doc, list_name, &mut buffer, config)?;
-    String::from_utf8(buffer).map_err(|_| {
-        CsvError::InvalidUtf8 {
-            context: "CSV output".to_string(),
-        }
+    String::from_utf8(buffer).map_err(|_| CsvError::InvalidUtf8 {
+        context: "CSV output".to_string(),
     })
 }
 
@@ -146,11 +144,7 @@ pub fn to_csv_list_with_config(
 /// let file = File::create("output.csv").unwrap();
 /// to_csv_list_writer(&doc, "people", file).unwrap();
 /// ```
-pub fn to_csv_list_writer<W: Write>(
-    doc: &Document,
-    list_name: &str,
-    writer: W,
-) -> Result<()> {
+pub fn to_csv_list_writer<W: Write>(doc: &Document, list_name: &str, writer: W) -> Result<()> {
     to_csv_list_writer_with_config(doc, list_name, writer, ToCsvConfig::default())
 }
 
@@ -202,7 +196,10 @@ pub fn to_csv_list_writer_with_config<W: Write>(
     }
 
     wtr.flush().map_err(|e| {
-        CsvError::Other(format!("Failed to flush CSV writer for list '{}': {}", list_name, e))
+        CsvError::Other(format!(
+            "Failed to flush CSV writer for list '{}': {}",
+            list_name, e
+        ))
     })?;
 
     Ok(())
@@ -217,10 +214,8 @@ pub fn to_csv_with_config(doc: &Document, config: ToCsvConfig) -> Result<String>
     let mut buffer = Vec::with_capacity(estimated_size);
 
     to_csv_writer_with_config(doc, &mut buffer, config)?;
-    String::from_utf8(buffer).map_err(|_| {
-        CsvError::InvalidUtf8 {
-            context: "CSV output".to_string(),
-        }
+    String::from_utf8(buffer).map_err(|_| CsvError::InvalidUtf8 {
+        context: "CSV output".to_string(),
     })
 }
 
@@ -232,9 +227,8 @@ fn estimate_csv_size(doc: &Document) -> usize {
     for item in doc.root.values() {
         if let Some(list) = item.as_list() {
             // Header row: column names + commas + newline
-            let header_size = list.schema.iter().map(|s| s.len()).sum::<usize>()
-                + list.schema.len()
-                + 1;
+            let header_size =
+                list.schema.iter().map(|s| s.len()).sum::<usize>() + list.schema.len() + 1;
 
             // Data rows: conservative estimate of 20 bytes per cell
             let row_count = list.rows.len();
@@ -254,9 +248,8 @@ fn estimate_list_csv_size(doc: &Document, list_name: &str) -> usize {
     if let Some(item) = doc.root.get(list_name) {
         if let Some(list) = item.as_list() {
             // Header row: column names + commas + newline
-            let header_size = list.schema.iter().map(|s| s.len()).sum::<usize>()
-                + list.schema.len()
-                + 1;
+            let header_size =
+                list.schema.iter().map(|s| s.len()).sum::<usize>() + list.schema.len() + 1;
 
             // Data rows: conservative estimate of 20 bytes per cell
             let row_count = list.rows.len();
@@ -304,9 +297,8 @@ pub fn to_csv_writer_with_config<W: Write>(
     // Write header row if requested
     // Per SPEC.md: MatrixList.schema includes all column names with ID first
     if config.include_headers {
-        wtr.write_record(&matrix_list.schema).map_err(|e| {
-            CsvError::Other(format!("Failed to write CSV header: {}", e))
-        })?;
+        wtr.write_record(&matrix_list.schema)
+            .map_err(|e| CsvError::Other(format!("Failed to write CSV header: {}", e)))?;
     }
 
     // Write each row
@@ -315,13 +307,15 @@ pub fn to_csv_writer_with_config<W: Write>(
         let record: Vec<String> = node.fields.iter().map(value_to_csv_string).collect();
 
         wtr.write_record(&record).map_err(|e| {
-            CsvError::Other(format!("Failed to write CSV record for id '{}': {}", node.id, e))
+            CsvError::Other(format!(
+                "Failed to write CSV record for id '{}': {}",
+                node.id, e
+            ))
         })?;
     }
 
-    wtr.flush().map_err(|e| {
-        CsvError::Other(format!("Failed to flush CSV writer: {}", e))
-    })?;
+    wtr.flush()
+        .map_err(|e| CsvError::Other(format!("Failed to flush CSV writer: {}", e)))?;
 
     Ok(())
 }
@@ -345,24 +339,25 @@ fn find_matrix_list_by_name<'a>(doc: &'a Document, list_name: &str) -> Result<&'
             None => Err(CsvError::NotAList {
                 name: list_name.to_string(),
                 actual_type: match item {
-                        hedl_core::Item::Scalar(_) => "scalar",
-                        hedl_core::Item::Object(_) => "object",
-                        hedl_core::Item::List(_) => "list",
-                    }.to_string(),
+                    hedl_core::Item::Scalar(_) => "scalar",
+                    hedl_core::Item::Object(_) => "object",
+                    hedl_core::Item::List(_) => "list",
+                }
+                .to_string(),
             }),
         },
         None => Err(CsvError::ListNotFound {
-                name: list_name.to_string(),
-                available: if doc.root.is_empty() {
-                    "none".to_string()
-                } else {
-                    doc.root
-                        .keys()
-                        .map(|k| format!("'{}'", k))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                },
-            }),
+            name: list_name.to_string(),
+            available: if doc.root.is_empty() {
+                "none".to_string()
+            } else {
+                doc.root
+                    .keys()
+                    .map(|k| format!("'{}'", k))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            },
+        }),
     }
 }
 
@@ -415,8 +410,8 @@ fn tensor_to_json_string(tensor: &Tensor) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
     use hedl_core::lex::{Expression, Span};
+    use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 
     fn create_test_document() -> Document {
         let mut doc = Document::new((1, 0));
@@ -774,7 +769,10 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(matches!(err, CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }));
+        assert!(matches!(
+            err,
+            CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }
+        ));
     }
 
     #[test]
@@ -785,7 +783,10 @@ mod tests {
 
         let result = to_csv(&doc);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }
+        ));
     }
 
     // ==================== to_csv_writer tests ====================
@@ -955,7 +956,10 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(matches!(err, CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }));
+        assert!(matches!(
+            err,
+            CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }
+        ));
         assert!(err.to_string().contains("not found"));
     }
 
@@ -968,7 +972,10 @@ mod tests {
         let result = to_csv_list(&doc, "scalar");
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(matches!(err, CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }));
+        assert!(matches!(
+            err,
+            CsvError::NoLists | CsvError::NotAList { .. } | CsvError::ListNotFound { .. }
+        ));
         assert!(err.to_string().contains("not a matrix list"));
     }
 
@@ -980,7 +987,10 @@ mod tests {
         list.add_row(Node::new(
             "Person",
             "1",
-            vec![Value::String("1".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("Alice".to_string()),
+            ],
         ));
 
         doc.root.insert("people".to_string(), Item::List(list));
@@ -1003,7 +1013,10 @@ mod tests {
         list.add_row(Node::new(
             "Person",
             "1",
-            vec![Value::String("1".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("Alice".to_string()),
+            ],
         ));
 
         doc.root.insert("people".to_string(), Item::List(list));
@@ -1026,7 +1039,10 @@ mod tests {
         list.add_row(Node::new(
             "Person",
             "1",
-            vec![Value::String("1".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("Alice".to_string()),
+            ],
         ));
 
         doc.root.insert("people".to_string(), Item::List(list));
@@ -1074,7 +1090,10 @@ mod tests {
         list.add_row(Node::new(
             "Person",
             "1",
-            vec![Value::String("1".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("Alice".to_string()),
+            ],
         ));
 
         doc.root.insert("people".to_string(), Item::List(list));
@@ -1094,7 +1113,10 @@ mod tests {
         list.add_row(Node::new(
             "Person",
             "1",
-            vec![Value::String("1".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("Alice".to_string()),
+            ],
         ));
 
         doc.root.insert("people".to_string(), Item::List(list));
@@ -1168,7 +1190,10 @@ mod tests {
         let child = Node::new(
             "Address",
             "addr1",
-            vec![Value::String("addr1".to_string()), Value::String("123 Main St".to_string())],
+            vec![
+                Value::String("addr1".to_string()),
+                Value::String("123 Main St".to_string()),
+            ],
         );
         person.add_child("Address", child);
 
@@ -1212,12 +1237,18 @@ mod tests {
         list1.add_row(Node::new(
             "Type1",
             "1",
-            vec![Value::String("1".to_string()), Value::String("alpha".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("alpha".to_string()),
+            ],
         ));
         list1.add_row(Node::new(
             "Type1",
             "2",
-            vec![Value::String("2".to_string()), Value::String("bravo".to_string())],
+            vec![
+                Value::String("2".to_string()),
+                Value::String("bravo".to_string()),
+            ],
         ));
         doc.root.insert("list1".to_string(), Item::List(list1));
 
@@ -1226,17 +1257,26 @@ mod tests {
         list2.add_row(Node::new(
             "Type2",
             "1",
-            vec![Value::String("1".to_string()), Value::String("x_ray".to_string())],
+            vec![
+                Value::String("1".to_string()),
+                Value::String("x_ray".to_string()),
+            ],
         ));
         list2.add_row(Node::new(
             "Type2",
             "2",
-            vec![Value::String("2".to_string()), Value::String("yankee".to_string())],
+            vec![
+                Value::String("2".to_string()),
+                Value::String("yankee".to_string()),
+            ],
         ));
         list2.add_row(Node::new(
             "Type2",
             "3",
-            vec![Value::String("3".to_string()), Value::String("zulu".to_string())],
+            vec![
+                Value::String("3".to_string()),
+                Value::String("zulu".to_string()),
+            ],
         ));
         doc.root.insert("list2".to_string(), Item::List(list2));
 

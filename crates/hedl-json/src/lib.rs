@@ -134,22 +134,34 @@
 //! ```
 //!
 mod from_json;
-mod to_json;
 pub mod jsonpath;
-pub mod streaming;
 pub mod schema_gen;
+pub mod streaming;
+mod to_json;
 // pub mod partial;
 
 // Re-export the shared DEFAULT_SCHEMA from hedl-core for internal use
 pub(crate) use hedl_core::convert::DEFAULT_SCHEMA;
 
 pub use from_json::{
-    from_json, from_json_value, from_json_value_owned, FromJsonConfig, FromJsonConfigBuilder,
-    DEFAULT_MAX_ARRAY_SIZE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OBJECT_SIZE,
-    DEFAULT_MAX_STRING_LENGTH,
+    from_json,
+    from_json_value,
+    from_json_value_owned,
     // Partial parsing exports
-    partial_parse_json, partial_parse_json_value, ErrorTolerance, ErrorLocation,
-    ParseError, PartialConfig, PartialConfigBuilder, PartialResult,
+    partial_parse_json,
+    partial_parse_json_value,
+    ErrorLocation,
+    ErrorTolerance,
+    FromJsonConfig,
+    FromJsonConfigBuilder,
+    ParseError,
+    PartialConfig,
+    PartialConfigBuilder,
+    PartialResult,
+    DEFAULT_MAX_ARRAY_SIZE,
+    DEFAULT_MAX_DEPTH,
+    DEFAULT_MAX_OBJECT_SIZE,
+    DEFAULT_MAX_STRING_LENGTH,
 };
 pub use to_json::{to_json, to_json_value, ToJsonConfig};
 

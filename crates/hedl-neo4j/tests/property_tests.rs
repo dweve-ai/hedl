@@ -513,8 +513,11 @@ fn arb_hedl_value() -> impl Strategy<Value = Value> {
 /// Generate arbitrary HEDL node
 #[allow(dead_code)]
 fn arb_hedl_node(type_name: String, num_fields: usize) -> impl Strategy<Value = Node> {
-    (arb_identifier(), prop::collection::vec(arb_hedl_value(), num_fields)).prop_map(
-        move |(id, mut fields)| {
+    (
+        arb_identifier(),
+        prop::collection::vec(arb_hedl_value(), num_fields),
+    )
+        .prop_map(move |(id, mut fields)| {
             // First field is always the ID
             fields.insert(0, Value::String(id.clone()));
             Node {
@@ -524,8 +527,7 @@ fn arb_hedl_node(type_name: String, num_fields: usize) -> impl Strategy<Value = 
                 children: BTreeMap::new(),
                 child_count: None,
             }
-        },
-    )
+        })
 }
 
 /// Generate arbitrary HEDL node with references
@@ -536,7 +538,10 @@ fn arb_hedl_node_with_refs(
 ) -> impl Strategy<Value = Node> {
     let _num_fields = 2; // ID + 1 reference field
     (arb_identifier(), arb_type_name()).prop_map(move |(id, ref_type)| {
-        let target_id = target_ids.first().cloned().unwrap_or_else(|| "target".to_string());
+        let target_id = target_ids
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "target".to_string());
         Node {
             type_name: type_name.clone(),
             id: id.clone(),
@@ -555,12 +560,12 @@ fn arb_hedl_node_with_refs(
 
 /// Generate arbitrary HEDL node with NEST children
 #[allow(dead_code)]
-fn arb_hedl_node_with_nest(
-    type_name: String,
-    child_type: String,
-) -> impl Strategy<Value = Node> {
-    (arb_identifier(), prop::collection::vec(arb_identifier(), 1..3)).prop_map(
-        move |(id, child_ids)| {
+fn arb_hedl_node_with_nest(type_name: String, child_type: String) -> impl Strategy<Value = Node> {
+    (
+        arb_identifier(),
+        prop::collection::vec(arb_identifier(), 1..3),
+    )
+        .prop_map(move |(id, child_ids)| {
             let mut children = BTreeMap::new();
             let child_nodes: Vec<Node> = child_ids
                 .into_iter()
@@ -582,14 +587,16 @@ fn arb_hedl_node_with_nest(
                 children,
                 child_count: Some(child_count),
             }
-        },
-    )
+        })
 }
 
 /// Generate arbitrary HEDL Document
 fn arb_document() -> impl Strategy<Value = Document> {
-    (arb_type_name(), prop::collection::vec(arb_identifier(), 1..5)).prop_map(
-        |(type_name, node_ids)| {
+    (
+        arb_type_name(),
+        prop::collection::vec(arb_identifier(), 1..5),
+    )
+        .prop_map(|(type_name, node_ids)| {
             let schema = vec!["id".to_string(), "name".to_string()];
             let rows: Vec<Node> = node_ids
                 .into_iter()
@@ -620,14 +627,17 @@ fn arb_document() -> impl Strategy<Value = Document> {
                 nests: BTreeMap::new(),
                 root,
             }
-        },
-    )
+        })
 }
 
 /// Generate arbitrary HEDL Document with NEST hierarchy
 fn arb_document_with_nest() -> impl Strategy<Value = Document> {
-    (arb_type_name(), arb_type_name(), prop::collection::vec(arb_identifier(), 1..3)).prop_map(
-        |(parent_type, child_type, parent_ids)| {
+    (
+        arb_type_name(),
+        arb_type_name(),
+        prop::collection::vec(arb_identifier(), 1..3),
+    )
+        .prop_map(|(parent_type, child_type, parent_ids)| {
             let parent_schema = vec!["id".to_string(), "name".to_string()];
             let child_schema = vec!["id".to_string(), "title".to_string()];
 
@@ -669,7 +679,10 @@ fn arb_document_with_nest() -> impl Strategy<Value = Document> {
             );
 
             let mut structs = BTreeMap::new();
-            structs.insert(parent_type.clone(), vec!["id".to_string(), "name".to_string()]);
+            structs.insert(
+                parent_type.clone(),
+                vec!["id".to_string(), "name".to_string()],
+            );
             structs.insert(child_type.clone(), child_schema.clone());
 
             let mut nests = BTreeMap::new();
@@ -682,8 +695,7 @@ fn arb_document_with_nest() -> impl Strategy<Value = Document> {
                 nests,
                 root,
             }
-        },
-    )
+        })
 }
 
 /// Generate SQL injection attack patterns

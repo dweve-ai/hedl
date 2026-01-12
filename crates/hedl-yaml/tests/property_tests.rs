@@ -25,8 +25,8 @@
 //! - Reference preservation (@User:id format)
 //! - Edge cases (empty objects/arrays, deep nesting, Unicode)
 
-use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_core::lex::Tensor;
+use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_yaml::{from_yaml, to_yaml, FromYamlConfig, ToYamlConfig};
 use proptest::prelude::*;
 use std::collections::BTreeMap;
@@ -84,10 +84,7 @@ fn arb_tensor_value() -> impl Strategy<Value = Value> {
         3,  // max depth
         20, // max nodes
         5,  // items per collection
-        |inner| {
-            prop::collection::vec(inner, 1..6)
-                .prop_map(Tensor::Array)
-        },
+        |inner| prop::collection::vec(inner, 1..6).prop_map(Tensor::Array),
     )
     .prop_map(Value::Tensor)
 }
@@ -115,9 +112,9 @@ fn arb_object(depth: u32) -> impl Strategy<Value = BTreeMap<String, Item>> {
     let leaf = arb_value().prop_map(Item::Scalar);
 
     leaf.prop_recursive(
-        depth,  // max depth
-        50,     // max nodes
-        5,      // items per collection
+        depth, // max depth
+        50,    // max nodes
+        5,     // items per collection
         move |inner| {
             prop_oneof![
                 // Nested object
@@ -144,13 +141,15 @@ fn arb_object(depth: u32) -> impl Strategy<Value = BTreeMap<String, Item>> {
 /// for roundtrip testing.
 fn arb_matrix_list() -> impl Strategy<Value = MatrixList> {
     (
-        "[A-Z][a-zA-Z]{0,10}",                              // type_name
-        prop::collection::vec("[a-z_]{2,10}", 2..5)
-            .prop_filter("schema must have unique column names", |schema| {
+        "[A-Z][a-zA-Z]{0,10}", // type_name
+        prop::collection::vec("[a-z_]{2,10}", 2..5).prop_filter(
+            "schema must have unique column names",
+            |schema| {
                 let unique: std::collections::HashSet<_> = schema.iter().collect();
                 unique.len() == schema.len() // Ensure no duplicates
-            }),        // schema (at least 2 columns, all unique)
-        prop::collection::vec(arb_scalar_value(), 1..3),    // rows (at least 1, to preserve schema)
+            },
+        ), // schema (at least 2 columns, all unique)
+        prop::collection::vec(arb_scalar_value(), 1..3), // rows (at least 1, to preserve schema)
     )
         .prop_map(|(type_name, schema, values)| {
             // Ensure schema has at least "id" column
@@ -167,7 +166,7 @@ fn arb_matrix_list() -> impl Strategy<Value = MatrixList> {
                 // Per SPEC: fields must include ALL schema columns including ID
                 let mut fields = vec![Value::String(id.clone())]; // ID field
                 fields.push(value.clone()); // First data field
-                // Pad with nulls to match schema length
+                                            // Pad with nulls to match schema length
                 while fields.len() < final_schema.len() {
                     fields.push(Value::Null);
                 }
@@ -181,25 +180,21 @@ fn arb_matrix_list() -> impl Strategy<Value = MatrixList> {
 
 /// Strategy for generating documents.
 fn arb_document() -> impl Strategy<Value = Document> {
-    (
-        arb_simple_object(),
-        prop::option::of(arb_matrix_list()),
-    )
-        .prop_map(|(root, maybe_list)| {
-            let mut doc = Document::new((1, 0));
+    (arb_simple_object(), prop::option::of(arb_matrix_list())).prop_map(|(root, maybe_list)| {
+        let mut doc = Document::new((1, 0));
 
-            // Add simple objects to root
-            for (key, item) in root {
-                doc.root.insert(key, item);
-            }
+        // Add simple objects to root
+        for (key, item) in root {
+            doc.root.insert(key, item);
+        }
 
-            // Optionally add a matrix list
-            if let Some(list) = maybe_list {
-                doc.root.insert("items".to_string(), Item::List(list));
-            }
+        // Optionally add a matrix list
+        if let Some(list) = maybe_list {
+            doc.root.insert("items".to_string(), Item::List(list));
+        }
 
-            doc
-        })
+        doc
+    })
 }
 
 // =============================================================================
@@ -228,14 +223,11 @@ fn values_equal(a: &Value, b: &Value) -> bool {
             if flat_a.len() != flat_b.len() {
                 return false;
             }
-            flat_a
-                .iter()
-                .zip(flat_b.iter())
-                .all(|(x, y)| {
-                    let diff = (x - y).abs();
-                    let tolerance = x.abs().max(y.abs()) * 1e-10 + 1e-14;
-                    diff <= tolerance
-                })
+            flat_a.iter().zip(flat_b.iter()).all(|(x, y)| {
+                let diff = (x - y).abs();
+                let tolerance = x.abs().max(y.abs()) * 1e-10 + 1e-14;
+                diff <= tolerance
+            })
         }
         // Handle YAML conversion quirk: Tensor(Scalar(x)) may become Float(x)
         (Value::Tensor(t), Value::Float(f)) | (Value::Float(f), Value::Tensor(t)) => {
@@ -262,9 +254,8 @@ fn items_equal(a: &Item, b: &Item) -> bool {
             if a.len() != b.len() {
                 return false;
             }
-            a.iter().all(|(k, v)| {
-                b.get(k).map_or(false, |bv| items_equal(v, bv))
-            })
+            a.iter()
+                .all(|(k, v)| b.get(k).map_or(false, |bv| items_equal(v, bv)))
         }
         (Item::List(a), Item::List(b)) => {
             // Type name should match for non-empty lists
@@ -306,7 +297,11 @@ fn items_equal(a: &Item, b: &Item) -> bool {
                 a_fields.sort_by(|x, y| format!("{:?}", x).cmp(&format!("{:?}", y)));
                 b_fields.sort_by(|x, y| format!("{:?}", x).cmp(&format!("{:?}", y)));
 
-                if !a_fields.iter().zip(b_fields.iter()).all(|(fa, fb)| values_equal(fa, fb)) {
+                if !a_fields
+                    .iter()
+                    .zip(b_fields.iter())
+                    .all(|(fa, fb)| values_equal(fa, fb))
+                {
                     return false;
                 }
             }
@@ -641,7 +636,8 @@ proptest! {
 #[test]
 fn test_null_roundtrip() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("null".to_string(), Item::Scalar(Value::Null));
+    doc.root
+        .insert("null".to_string(), Item::Scalar(Value::Null));
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
@@ -655,8 +651,10 @@ fn test_null_roundtrip() {
 #[test]
 fn test_zero_values_roundtrip() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("zero_int".to_string(), Item::Scalar(Value::Int(0)));
-    doc.root.insert("zero_float".to_string(), Item::Scalar(Value::Float(0.0)));
+    doc.root
+        .insert("zero_int".to_string(), Item::Scalar(Value::Int(0)));
+    doc.root
+        .insert("zero_float".to_string(), Item::Scalar(Value::Float(0.0)));
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
@@ -675,8 +673,10 @@ fn test_zero_values_roundtrip() {
 #[test]
 fn test_negative_numbers_roundtrip() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("neg_int".to_string(), Item::Scalar(Value::Int(-42)));
-    doc.root.insert("neg_float".to_string(), Item::Scalar(Value::Float(-3.14)));
+    doc.root
+        .insert("neg_int".to_string(), Item::Scalar(Value::Int(-42)));
+    doc.root
+        .insert("neg_float".to_string(), Item::Scalar(Value::Float(-3.14)));
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
@@ -696,8 +696,10 @@ fn test_negative_numbers_roundtrip() {
 #[test]
 fn test_extreme_integers_roundtrip() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("max_int".to_string(), Item::Scalar(Value::Int(i64::MAX)));
-    doc.root.insert("min_int".to_string(), Item::Scalar(Value::Int(i64::MIN)));
+    doc.root
+        .insert("max_int".to_string(), Item::Scalar(Value::Int(i64::MAX)));
+    doc.root
+        .insert("min_int".to_string(), Item::Scalar(Value::Int(i64::MIN)));
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
@@ -715,28 +717,56 @@ fn test_extreme_integers_roundtrip() {
 #[test]
 fn test_special_strings_roundtrip() {
     let mut doc = Document::new((1, 0));
-    doc.root.insert("newline".to_string(), Item::Scalar(Value::String("line1\nline2".to_string())));
-    doc.root.insert("tab".to_string(), Item::Scalar(Value::String("col1\tcol2".to_string())));
-    doc.root.insert("quote".to_string(), Item::Scalar(Value::String("He said \"hello\"".to_string())));
-    doc.root.insert("backslash".to_string(), Item::Scalar(Value::String("path\\to\\file".to_string())));
+    doc.root.insert(
+        "newline".to_string(),
+        Item::Scalar(Value::String("line1\nline2".to_string())),
+    );
+    doc.root.insert(
+        "tab".to_string(),
+        Item::Scalar(Value::String("col1\tcol2".to_string())),
+    );
+    doc.root.insert(
+        "quote".to_string(),
+        Item::Scalar(Value::String("He said \"hello\"".to_string())),
+    );
+    doc.root.insert(
+        "backslash".to_string(),
+        Item::Scalar(Value::String("path\\to\\file".to_string())),
+    );
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
 
     assert_eq!(
-        restored.root.get("newline").and_then(|i| i.as_scalar()).and_then(|v| v.as_str()),
+        restored
+            .root
+            .get("newline")
+            .and_then(|i| i.as_scalar())
+            .and_then(|v| v.as_str()),
         Some("line1\nline2")
     );
     assert_eq!(
-        restored.root.get("tab").and_then(|i| i.as_scalar()).and_then(|v| v.as_str()),
+        restored
+            .root
+            .get("tab")
+            .and_then(|i| i.as_scalar())
+            .and_then(|v| v.as_str()),
         Some("col1\tcol2")
     );
     assert_eq!(
-        restored.root.get("quote").and_then(|i| i.as_scalar()).and_then(|v| v.as_str()),
+        restored
+            .root
+            .get("quote")
+            .and_then(|i| i.as_scalar())
+            .and_then(|v| v.as_str()),
         Some("He said \"hello\"")
     );
     assert_eq!(
-        restored.root.get("backslash").and_then(|i| i.as_scalar()).and_then(|v| v.as_str()),
+        restored
+            .root
+            .get("backslash")
+            .and_then(|i| i.as_scalar())
+            .and_then(|v| v.as_str()),
         Some("path\\to\\file")
     );
 }
@@ -767,7 +797,11 @@ fn test_deeply_nested_object_roundtrip() {
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
 
     // Verify deep access
-    let l1 = restored.root.get("level1").and_then(|i| i.as_object()).unwrap();
+    let l1 = restored
+        .root
+        .get("level1")
+        .and_then(|i| i.as_object())
+        .unwrap();
     let l2 = l1.get("level2").and_then(|i| i.as_object()).unwrap();
     let l3 = l2.get("level3").and_then(|i| i.as_object()).unwrap();
     let l4 = l3.get("level4").and_then(|i| i.as_object()).unwrap();
