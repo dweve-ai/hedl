@@ -14,6 +14,19 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5.27.1
+        env:
+          NEO4J_AUTH: neo4j/testpassword
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p testpassword 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,6 +54,8 @@ jobs:
 
       - name: Run tests (all features)
         run: cargo test --all-features --workspace
+        env:
+          NEO4J_PASSWORD: testpassword
 
       - name: Run doc tests
         run: cargo test --doc --workspace
