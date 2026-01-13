@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       neo4j:
-        image: neo4j:5.27.1
+        image: neo4j:5.15
         env:
           NEO4J_AUTH: neo4j/testpassword
         ports:
