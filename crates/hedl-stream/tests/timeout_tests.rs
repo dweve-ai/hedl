@@ -192,7 +192,7 @@ users: @User
 
     // Should complete successfully
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
-    assert!(events.len() > 0);
+    assert!(!events.is_empty());
 }
 
 // ==================== Edge Case Timeout Tests ====================

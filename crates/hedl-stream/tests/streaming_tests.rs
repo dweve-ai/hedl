@@ -56,9 +56,9 @@ users: @User
     }
 
     // Check nodes
-    for i in 1..=3 {
-        assert!(events[i].is_node());
-        let node = events[i].as_node().unwrap();
+    for event in &events[1..=3] {
+        assert!(event.is_node());
+        let node = event.as_node().unwrap();
         assert_eq!(node.type_name, "User");
         assert_eq!(node.fields.len(), 3);
     }
@@ -287,11 +287,9 @@ data: @Data
 
     // Count nodes as we stream
     let mut node_count = 0;
-    for event in parser {
-        if let Ok(e) = event {
-            if e.is_node() {
-                node_count += 1;
-            }
+    for e in parser.flatten() {
+        if e.is_node() {
+            node_count += 1;
         }
     }
 

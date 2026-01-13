@@ -52,7 +52,7 @@ users: @User
     let result = parse_document(input);
     assert!(result.is_ok());
     let events = result.unwrap();
-    assert!(events.len() > 0);
+    assert!(!events.is_empty());
 }
 
 #[test]
@@ -71,7 +71,7 @@ users: @User  # list of users
     let events = result.unwrap();
 
     // Verify that parsing succeeded and comments were stripped
-    assert!(events.len() > 0);
+    assert!(!events.is_empty());
 }
 
 #[test]
@@ -126,7 +126,7 @@ data: @Data
     let result = parse_document(&input);
     assert!(result.is_ok());
     let events = result.unwrap();
-    assert!(events.len() > 0);
+    assert!(!events.is_empty());
 }
 
 #[test]

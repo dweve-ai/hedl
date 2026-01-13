@@ -265,7 +265,7 @@ fn test_streaming_empty_element() {
 fn test_streaming_numeric_types() {
     let xml = r#"<?xml version="1.0"?><hedl>
         <int>42</int>
-        <float>3.14</float>
+        <float>3.5</float>
         <negative>-100</negative>
     </hedl>"#;
     let config = StreamConfig::default();
@@ -281,7 +281,7 @@ fn test_streaming_numeric_types() {
 
     assert_eq!(int_item.value.as_scalar(), Some(&Value::Int(42)));
     match float_item.value.as_scalar() {
-        Some(Value::Float(f)) => assert!((f - 3.14).abs() < 0.001),
+        Some(Value::Float(f)) => assert!((f - 3.5).abs() < 0.001),
         _ => panic!("Expected float"),
     }
     assert_eq!(negative_item.value.as_scalar(), Some(&Value::Int(-100)));

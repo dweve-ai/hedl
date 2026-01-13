@@ -25,7 +25,6 @@
 use hedl_core::{Document, Item, Value};
 use hedl_xml::async_api::*;
 use hedl_xml::{FromXmlConfig, ToXmlConfig};
-use std::collections::BTreeMap;
 use tempfile::TempDir;
 use tokio::fs;
 

@@ -89,7 +89,7 @@ fn main() {
     test_wide_objects(50);
 }
 
-fn test_allocation(name: &str, count: usize) {
+fn test_allocation(_name: &str, count: usize) {
     // Generate test JSON
     let json = generate_users_json(count);
     let json_size = json.len();
@@ -143,7 +143,7 @@ fn test_deep_nesting(depth: usize) {
     reset_stats();
     let config = FromJsonConfig::default();
     let _doc = from_json(&json, &config).expect("Failed to parse JSON");
-    let (allocated, allocs, deallocs) = get_stats();
+    let (allocated, allocs, _deallocs) = get_stats();
 
     println!("  Depth {}:", depth);
     println!("    Input size:      {:>10} bytes", json_size);
@@ -166,7 +166,7 @@ fn test_wide_objects(field_count: usize) {
     reset_stats();
     let config = FromJsonConfig::default();
     let _doc = from_json(&json, &config).expect("Failed to parse JSON");
-    let (allocated, allocs, deallocs) = get_stats();
+    let (allocated, allocs, _deallocs) = get_stats();
 
     println!("  {} fields:", field_count);
     println!("    Input size:      {:>10} bytes", json_size);

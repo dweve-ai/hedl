@@ -1453,7 +1453,7 @@ mod simd_comment {
             for offset in 0..32 {
                 let mut data = vec![b'a'; offset];
                 data.push(b'#');
-                data.extend_from_slice(&vec![b'b'; 32]);
+                data.extend_from_slice(&[b'b'; 32]);
                 assert_eq!(find_hash_simd(&data), Some(offset));
             }
         }

@@ -434,9 +434,7 @@ fn test_partial_result_into_result_with_errors() {
 
     let result = partial_result.into_result();
     // Should be error because there are parsing errors
-    if !result.is_ok() {
-        assert!(result.is_err());
-    }
+    assert!(result.is_err());
 }
 
 #[test]

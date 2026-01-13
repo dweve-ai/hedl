@@ -124,7 +124,7 @@ fn main() {
     let config = StreamConfig::default();
     let streamer = JsonLinesStreamer::new(reader, config);
 
-    let total = streamer.map(|r| r.unwrap()).count();
+    let total = streamer.filter_map(|r| r.ok()).count();
     println!("  Processed {} documents from large dataset", total);
     println!("  Memory used: Only one document at a time!");
     println!();
