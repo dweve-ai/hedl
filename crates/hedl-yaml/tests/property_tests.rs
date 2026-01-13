@@ -39,7 +39,7 @@ use std::collections::BTreeMap;
 fn arb_finite_f64() -> impl Strategy<Value = f64> {
     prop::num::f64::NORMAL
         .prop_filter("must be finite", |f| f.is_finite())
-        .prop_map(|f| f.max(-1e10).min(1e10))
+        .prop_map(|f| f.clamp(-1e10, 1e10))
 }
 
 /// Strategy for generating scalar values.
@@ -255,7 +255,7 @@ fn items_equal(a: &Item, b: &Item) -> bool {
                 return false;
             }
             a.iter()
-                .all(|(k, v)| b.get(k).map_or(false, |bv| items_equal(v, bv)))
+                .all(|(k, v)| b.get(k).is_some_and(|bv| items_equal(v, bv)))
         }
         (Item::List(a), Item::List(b)) => {
             // Type name should match for non-empty lists
@@ -505,17 +505,17 @@ proptest! {
         // Verify empty object
         let empty_obj = restored.root.get("empty_obj")
             .and_then(|i| i.as_object());
-        prop_assert!(empty_obj.map_or(false, |o| o.is_empty()));
+        prop_assert!(empty_obj.is_some_and(|o| o.is_empty()));
 
         // Verify empty list
         let empty_list = restored.root.get("empty_list")
             .and_then(|i| i.as_list());
-        prop_assert!(empty_list.map_or(false, |l| l.rows.is_empty()));
+        prop_assert!(empty_list.is_some_and(|l| l.rows.is_empty()));
 
         // Verify empty string
         let empty_str = restored.root.get("empty_str")
             .and_then(|i| i.as_scalar());
-        prop_assert!(empty_str.map_or(false, |v| matches!(v, Value::String(s) if s.is_empty())));
+        prop_assert!(empty_str.is_some_and(|v| matches!(v, Value::String(s) if s.is_empty())));
     }
 
     /// Property: Unicode strings are preserved.
@@ -671,6 +671,7 @@ fn test_zero_values_roundtrip() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn test_negative_numbers_roundtrip() {
     let mut doc = Document::new((1, 0));
     doc.root

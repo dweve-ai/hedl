@@ -247,13 +247,12 @@ proptest! {
 
         // Numeric-looking strings must be quoted if they start with digit or minus+digit
         // Note: +0.0 parses as a float, so it doesn't need quoting (it's a valid number)
-        if s.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if s.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             prop_assert!(toon.contains('"'));
-        } else if s.starts_with('-') && s.len() > 1 {
-            if s.chars().nth(1).map_or(false, |c| c.is_ascii_digit()) {
+        } else if s.starts_with('-') && s.len() > 1
+            && s.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
                 prop_assert!(toon.contains('"'));
             }
-        }
         // +0.0 is a valid numeric literal, no quoting needed
     }
 
@@ -354,7 +353,7 @@ proptest! {
         let toon = hedl_to_toon(&doc)?;
 
         // Should produce valid output
-        prop_assert!(toon.len() > 0);
+        prop_assert!(!toon.is_empty());
         prop_assert!(toon.contains("test_field:"));
     }
 
@@ -383,7 +382,7 @@ proptest! {
 
         // Verify basic structure
         prop_assert!(toon.contains("test_field:"));
-        prop_assert!(toon.len() > 0);
+        prop_assert!(!toon.is_empty());
 
         // The string value should appear somewhere in the output
         // (either quoted or unquoted depending on content)

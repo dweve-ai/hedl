@@ -735,9 +735,9 @@ mod tests {
         assert_ne!(norm_latin, norm_cyrillic);
 
         // Verify Latin is still ASCII
-        assert!(norm_latin.chars().all(|c| c.is_ascii()));
+        assert!(norm_latin.is_ascii());
         // Verify Cyrillic still contains non-ASCII
-        assert!(!norm_cyrillic.chars().all(|c| c.is_ascii()));
+        assert!(!norm_cyrillic.is_ascii());
     }
 
     #[test]

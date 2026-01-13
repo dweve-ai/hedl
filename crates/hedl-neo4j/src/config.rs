@@ -779,11 +779,11 @@ mod tests {
     #[test]
     fn test_to_cypher_builder_defaults() {
         let config = ToCypherConfig::builder().build();
-        assert_eq!(config.use_merge, true);
-        assert_eq!(config.create_constraints, true);
+        assert!(config.use_merge);
+        assert!(config.create_constraints);
         assert_eq!(config.id_property, "_hedl_id");
         assert_eq!(config.batch_size, 1000);
-        assert_eq!(config.include_comments, true);
+        assert!(config.include_comments);
         assert_eq!(config.max_string_length, Some(DEFAULT_MAX_STRING_LENGTH));
     }
 
@@ -796,8 +796,8 @@ mod tests {
             .batch_size(500)
             .build();
 
-        assert_eq!(config.use_merge, false);
-        assert_eq!(config.create_constraints, false);
+        assert!(!config.use_merge);
+        assert!(!config.create_constraints);
         assert_eq!(config.id_property, "custom_id");
         assert_eq!(config.batch_size, 500);
     }
@@ -817,14 +817,14 @@ mod tests {
             .max_nodes(10000)
             .build();
 
-        assert_eq!(config.use_merge, true);
-        assert_eq!(config.create_constraints, false);
+        assert!(config.use_merge);
+        assert!(!config.create_constraints);
         assert_eq!(config.reference_naming, RelationshipNaming::Generic);
         assert_eq!(config.nest_naming, RelationshipNaming::TargetType);
         assert_eq!(config.object_handling, ObjectHandling::JsonString);
-        assert_eq!(config.include_type_metadata, true);
+        assert!(config.include_type_metadata);
         assert_eq!(config.type_property, "custom_type");
-        assert_eq!(config.include_comments, false);
+        assert!(!config.include_comments);
         assert_eq!(config.max_string_length, Some(5000));
         assert_eq!(config.max_nodes, Some(10000));
     }
@@ -842,7 +842,7 @@ mod tests {
     fn test_to_cypher_builder_new() {
         let builder = ToCypherConfigBuilder::new();
         let config = builder.build();
-        assert_eq!(config.use_merge, true); // Default value
+        assert!(config.use_merge); // Default value
     }
 
     // FromNeo4jConfigBuilder tests
@@ -851,8 +851,8 @@ mod tests {
         let config = FromNeo4jConfig::builder().build();
         assert_eq!(config.version, (1, 0));
         assert_eq!(config.id_property, "_hedl_id");
-        assert_eq!(config.infer_nests, true);
-        assert_eq!(config.fallback_id, true);
+        assert!(config.infer_nests);
+        assert!(config.fallback_id);
         assert!(config.exclude_properties.is_empty());
         assert!(config.exclude_labels.is_empty());
         assert!(config.reference_relationships.is_empty());
@@ -869,8 +869,8 @@ mod tests {
 
         assert_eq!(config.version, (2, 0));
         assert_eq!(config.id_property, "nodeId");
-        assert_eq!(config.infer_nests, false);
-        assert_eq!(config.fallback_id, false);
+        assert!(!config.infer_nests);
+        assert!(!config.fallback_id);
     }
 
     #[test]
@@ -891,7 +891,7 @@ mod tests {
 
         assert_eq!(config.version, (2, 1));
         assert_eq!(config.id_property, "custom_id");
-        assert_eq!(config.infer_nests, true);
+        assert!(config.infer_nests);
         assert_eq!(config.type_property, "custom_type");
         assert_eq!(config.exclude_properties.len(), 2);
         assert!(config.exclude_properties.contains(&"internal".to_string()));
@@ -906,7 +906,7 @@ mod tests {
         assert!(config
             .reference_relationships
             .contains(&"CREATED_BY".to_string()));
-        assert_eq!(config.fallback_id, true);
+        assert!(config.fallback_id);
     }
 
     #[test]

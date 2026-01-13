@@ -30,6 +30,7 @@ use hedl_lsp::document_manager::{
 use tower_lsp::lsp_types::{Position, Range, Url};
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_debounce_constant_is_reasonable() {
     // Verify debounce delay is within acceptable range for user experience
     assert!(
@@ -51,6 +52,8 @@ fn test_debounce_constant_is_reasonable() {
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
+#[allow(clippy::identity_op)]
 fn test_memory_limit_constants() {
     // Verify megabyte conversion is standard binary MiB
     assert_eq!(
@@ -130,6 +133,7 @@ fn test_document_size_limit_enforcement() {
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_lsp_protocol_constants_are_consistent() {
     // Diagnostic and symbol line end should be the same for consistency
     assert_eq!(
@@ -170,6 +174,7 @@ fn test_position_constants() {
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_header_selection_constant() {
     // Verify header selection is reasonable
     assert!(
@@ -189,6 +194,7 @@ fn test_header_selection_constant() {
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_reference_width_constant() {
     // Verify default reference width is reasonable
     assert!(
@@ -230,7 +236,7 @@ fn test_range_construction_with_constants() {
 #[test]
 fn test_megabyte_conversion_accuracy() {
     // Verify various megabyte conversions
-    assert_eq!(1 * BYTES_PER_MEGABYTE, 1048576);
+    assert_eq!(BYTES_PER_MEGABYTE, 1048576);
     assert_eq!(10 * BYTES_PER_MEGABYTE, 10485760);
     assert_eq!(100 * BYTES_PER_MEGABYTE, 104857600);
     assert_eq!(500 * BYTES_PER_MEGABYTE, 524288000);
@@ -279,7 +285,6 @@ fn test_constants_are_public() {
     let _ = DEFAULT_REFERENCE_WIDTH;
 
     // If this compiles, all constants are accessible
-    assert!(true, "All constants are publicly accessible");
 }
 
 #[test]

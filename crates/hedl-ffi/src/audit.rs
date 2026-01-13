@@ -143,6 +143,11 @@ pub fn sanitize_string(s: &str, max_len: usize) -> String {
 /// Sanitize a C string pointer for logging.
 ///
 /// Safely converts a C string to a Rust string and sanitizes it.
+///
+/// # Safety
+///
+/// The caller must ensure that `ptr` is either null or points to a valid,
+/// null-terminated C string that remains valid for the duration of this call.
 pub unsafe fn sanitize_c_string(ptr: *const c_char, max_len: usize) -> String {
     if ptr.is_null() {
         "NULL".to_string()

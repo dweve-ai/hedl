@@ -321,6 +321,42 @@ mod tests {
     use super::*;
     use crate::{parse, HedlErrorKind};
 
+    // Implementation for serde_json::Error (test-only, since serde_json is dev-dependency)
+    #[cfg(feature = "serde")]
+    impl<T> HedlResultExt<T> for Result<T, serde_json::Error> {
+        type ErrorType = serde_json::Error;
+
+        fn context<C>(self, context: C) -> Result<T, HedlError>
+        where
+            C: std::fmt::Display,
+        {
+            self.map_err(|e| {
+                let mut err = HedlError::conversion(e.to_string());
+                err.context = Some(context.to_string());
+                err
+            })
+        }
+
+        fn with_context<C, F>(self, f: F) -> Result<T, HedlError>
+        where
+            C: std::fmt::Display,
+            F: FnOnce() -> C,
+        {
+            self.map_err(|e| {
+                let mut err = HedlError::conversion(e.to_string());
+                err.context = Some(f().to_string());
+                err
+            })
+        }
+
+        fn map_err_to_hedl<F>(self, f: F) -> Result<T, HedlError>
+        where
+            F: FnOnce(Self::ErrorType) -> HedlError,
+        {
+            self.map_err(f)
+        }
+    }
+
     // ==================== context() tests ====================
 
     #[test]

@@ -211,7 +211,7 @@ fn test_malicious_metadata_identifiers() {
 
     // Check that type names and keys are sanitized
     // Malicious characters should be replaced with underscores
-    for (key, _) in &doc.root {
+    for key in doc.root.keys() {
         assert!(
             is_valid_identifier(key),
             "Key '{}' should be a valid identifier",
@@ -347,7 +347,7 @@ fn create_large_decompressed_data(num_rows: usize) -> Vec<u8> {
     for i in 0..num_rows {
         let node = Node::new(
             "Item",
-            &format!("item{}", i),
+            format!("item{}", i),
             vec![
                 Value::String(format!("item{}", i)),
                 Value::String(format!("data_{}_1", i)),
@@ -368,7 +368,7 @@ fn create_wide_schema_parquet(num_columns: usize) -> Vec<u8> {
     let mut fields = vec![Field::new("id", DataType::Utf8, false)];
 
     for i in 1..num_columns {
-        fields.push(Field::new(&format!("col{}", i), DataType::Int64, true));
+        fields.push(Field::new(format!("col{}", i), DataType::Int64, true));
     }
 
     let schema = Arc::new(Schema::new(fields));
@@ -408,7 +408,7 @@ fn create_large_matrix_parquet(num_columns: usize, num_rows: usize) -> Vec<u8> {
     let mut fields = vec![Field::new("id", DataType::Utf8, false)];
 
     for i in 1..num_columns {
-        fields.push(Field::new(&format!("col{}", i), DataType::Int64, true));
+        fields.push(Field::new(format!("col{}", i), DataType::Int64, true));
     }
 
     let schema = Arc::new(Schema::new(fields));
@@ -501,7 +501,7 @@ fn create_moderate_document(num_rows: usize) -> Document {
     for i in 0..num_rows {
         let node = Node::new(
             "Item",
-            &format!("item{}", i),
+            format!("item{}", i),
             vec![
                 Value::String(format!("item{}", i)),
                 Value::String(format!("Name {}", i)),

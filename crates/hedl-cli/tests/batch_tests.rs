@@ -24,7 +24,7 @@ use tempfile::{tempdir, TempDir};
 
 /// Test helper to create a HEDL command
 fn hedl_cmd() -> Command {
-    Command::cargo_bin("hedl").expect("Failed to find hedl binary")
+    Command::new(assert_cmd::cargo::cargo_bin("hedl"))
 }
 
 /// Create a temporary directory with multiple test HEDL files

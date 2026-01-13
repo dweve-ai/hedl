@@ -702,8 +702,10 @@ fn test_metadata_keys_skipped() {
 #[test]
 fn test_from_json_config_version() {
     let json = r#"{"data": 42}"#;
-    let mut config = FromJsonConfig::default();
-    config.version = (2, 1);
+    let config = FromJsonConfig {
+        version: (2, 1),
+        ..Default::default()
+    };
 
     let doc = from_json(json, &config).unwrap();
     assert_eq!(doc.version, (2, 1));

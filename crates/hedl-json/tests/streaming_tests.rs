@@ -270,7 +270,11 @@ fn test_jsonl_streamer_blank_lines_handling() {
     let config = StreamConfig::default();
     let streamer = JsonLinesStreamer::new(reader, config);
 
-    let count = streamer.map(|r| r.unwrap()).count();
+    let count = streamer
+        .inspect(|r| {
+            r.as_ref().unwrap();
+        })
+        .count();
     assert_eq!(count, 3);
 }
 
@@ -286,7 +290,11 @@ fn test_jsonl_streamer_comment_lines() {
     let config = StreamConfig::default();
     let streamer = JsonLinesStreamer::new(reader, config);
 
-    let count = streamer.map(|r| r.unwrap()).count();
+    let count = streamer
+        .inspect(|r| {
+            r.as_ref().unwrap();
+        })
+        .count();
     assert_eq!(count, 2);
 }
 
@@ -344,7 +352,11 @@ fn test_jsonl_streamer_whitespace_handling() {
     let config = StreamConfig::default();
     let streamer = JsonLinesStreamer::new(reader, config);
 
-    let count = streamer.map(|r| r.unwrap()).count();
+    let count = streamer
+        .inspect(|r| {
+            r.as_ref().unwrap();
+        })
+        .count();
     assert_eq!(count, 3);
 }
 
@@ -552,7 +564,11 @@ fn test_jsonl_roundtrip_large_dataset() {
     let config = StreamConfig::default();
     let streamer = JsonLinesStreamer::new(reader, config);
 
-    let count = streamer.map(|r| r.unwrap()).count();
+    let count = streamer
+        .inspect(|r| {
+            r.as_ref().unwrap();
+        })
+        .count();
     assert_eq!(count, 1000);
 }
 

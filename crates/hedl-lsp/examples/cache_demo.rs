@@ -33,8 +33,9 @@ async fn main() {
     println!("============================\n");
 
     // Create server with small cache for demo purposes
-    let (service, _socket) =
-        LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 10));
+    let (service, _socket) = LspService::new(|client| {
+        HedlLanguageServer::with_config(client, 10, 500 * 1024 * 1024) // 10 docs, 500MB per doc
+    });
     let server = service.inner();
 
     println!(

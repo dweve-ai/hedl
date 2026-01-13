@@ -1280,7 +1280,7 @@ fn test_hedl_diagnostics_all_severities() {
         // Check all diagnostics have valid severities (0=Hint, 1=Warning, 2=Error)
         for i in 0..count {
             let severity = hedl_diagnostics_severity(diag, i);
-            assert!(severity >= 0 && severity <= 2);
+            assert!((0..=2).contains(&severity));
 
             // Also verify we can get the message
             let mut msg_str: *mut c_char = ptr::null_mut();

@@ -165,6 +165,7 @@ fn test_idempotency_with_ditto() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn test_idempotency_all_value_types() {
     let mut doc = Document::new((1, 0));
     doc.root
@@ -382,6 +383,7 @@ fn test_round_trip_preserves_integers() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn test_round_trip_preserves_floats() {
     let mut doc = Document::new((1, 0));
     doc.root
@@ -1098,6 +1100,7 @@ fn test_integer_formatted_correctly() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn test_float_formatted_with_decimal() {
     let mut doc = Document::new((1, 0));
     doc.root

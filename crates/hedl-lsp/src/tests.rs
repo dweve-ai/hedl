@@ -900,8 +900,9 @@ mod cache_tests {
         use tower_lsp::LspService;
 
         // Create server with small cache size for testing
-        let (service, _socket) =
-            LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 5));
+        let (service, _socket) = LspService::new(|client| {
+            HedlLanguageServer::with_config(client, 5, 500 * 1024 * 1024) // 5 docs, 500MB per doc
+        });
 
         let server = service.inner();
 
@@ -955,8 +956,9 @@ mod cache_tests {
     async fn test_cache_statistics_hits() {
         use tower_lsp::LspService;
 
-        let (service, _socket) =
-            LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 10));
+        let (service, _socket) = LspService::new(|client| {
+            HedlLanguageServer::with_config(client, 10, 500 * 1024 * 1024) // 10 docs, 500MB per doc
+        });
 
         let server = service.inner();
 
@@ -1000,8 +1002,9 @@ mod cache_tests {
         use tower_lsp::LspService;
 
         // Test with custom cache size
-        let (service, _socket) =
-            LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 100));
+        let (service, _socket) = LspService::new(|client| {
+            HedlLanguageServer::with_config(client, 100, 500 * 1024 * 1024) // 100 docs, 500MB per doc
+        });
 
         let server = service.inner();
         assert_eq!(server.max_cache_size(), 100);
@@ -1018,8 +1021,9 @@ mod cache_tests {
     async fn test_lru_evicts_oldest_accessed() {
         use tower_lsp::LspService;
 
-        let (service, _socket) =
-            LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 3));
+        let (service, _socket) = LspService::new(|client| {
+            HedlLanguageServer::with_config(client, 3, 500 * 1024 * 1024) // 3 docs, 500MB per doc
+        });
 
         let server = service.inner();
 

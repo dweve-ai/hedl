@@ -24,7 +24,7 @@ use tempfile::NamedTempFile;
 
 // Test helper to create a HEDL command
 fn hedl_cmd() -> Command {
-    Command::cargo_bin("hedl").expect("Failed to find hedl binary")
+    Command::new(assert_cmd::cargo::cargo_bin("hedl"))
 }
 
 // Test helper to create a temporary file with content

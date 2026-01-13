@@ -785,6 +785,7 @@ local: "@item1""#;
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_floats() {
         let toon = "pi: 3.14159\nnegative: -2.5";
         let doc = from_toon(toon).unwrap();

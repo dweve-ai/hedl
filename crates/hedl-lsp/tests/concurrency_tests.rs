@@ -110,7 +110,7 @@ fn test_concurrent_document_inserts() {
 
     // Verify all documents were inserted
     let stats = manager.statistics();
-    assert_eq!(stats.current_size, (num_threads * docs_per_thread) as usize);
+    assert_eq!(stats.current_size, num_threads * docs_per_thread);
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn test_concurrent_document_updates() {
     // Verify the document exists and all updates were processed
     assert_eq!(
         update_count.load(Ordering::SeqCst),
-        (num_threads * updates_per_thread) as usize
+        num_threads * updates_per_thread
     );
     assert!(manager.get(&uri).is_some());
 }
@@ -491,7 +491,7 @@ posts: @Post
 
                         // Concurrent reference lookups
                         let refs = analysis.reference_index_v2.find_references("@User:alice");
-                        assert!(refs.len() > 0);
+                        assert!(!refs.is_empty());
 
                         // Concurrent position-based lookups
                         let pos = Position {

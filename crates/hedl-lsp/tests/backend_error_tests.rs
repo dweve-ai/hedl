@@ -45,7 +45,7 @@ macro_rules! test_server {
 
 #[tokio::test]
 async fn test_initialize_capabilities() {
-    let (service, _socket) = LspService::new(|client| HedlLanguageServer::new(client));
+    let (service, _socket) = LspService::new(HedlLanguageServer::new);
     let server = service.inner();
     let params = InitializeParams::default();
 

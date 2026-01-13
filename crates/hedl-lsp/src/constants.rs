@@ -179,6 +179,8 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
+    #[allow(clippy::identity_op)]
     fn test_reasonable_limits() {
         // Sanity checks for configured limits
         assert!(
@@ -207,6 +209,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_lsp_protocol_constants() {
         // Verify LSP-related constants are reasonable
         assert!(DIAGNOSTIC_LINE_END_CHAR >= 100, "Too small for long lines");

@@ -322,7 +322,7 @@ mod tests {
         // Should have refilled approximately 5 tokens
         let tokens = limiter.tokens();
         assert!(
-            tokens >= 4 && tokens <= 6,
+            (4..=6).contains(&tokens),
             "Expected ~5 tokens, got {}",
             tokens
         );
@@ -391,7 +391,7 @@ mod tests {
         }
 
         assert!(
-            allowed >= 8 && allowed <= 12,
+            (8..=12).contains(&allowed),
             "Expected ~10 requests allowed, got {}",
             allowed
         );

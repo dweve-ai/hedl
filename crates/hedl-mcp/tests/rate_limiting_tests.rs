@@ -88,7 +88,7 @@ fn test_rate_limiter_refill() {
     }
 
     assert!(
-        allowed >= 8 && allowed <= 12,
+        (8..=12).contains(&allowed),
         "Expected ~10 refilled tokens, got {}",
         allowed
     );
@@ -282,7 +282,7 @@ fn test_sustained_rate_enforcement() {
     }
 
     assert!(
-        allowed >= 8 && allowed <= 12,
+        (8..=12).contains(&allowed),
         "Expected ~10 requests allowed after refill, got {}",
         allowed
     );
@@ -330,7 +330,7 @@ fn test_concurrent_request_simulation() {
     }
 
     assert!(
-        refilled_allowed >= 23 && refilled_allowed <= 27,
+        (23..=27).contains(&refilled_allowed),
         "Expected ~25 requests after 1s refill, got {}",
         refilled_allowed
     );

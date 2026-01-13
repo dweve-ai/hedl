@@ -33,7 +33,7 @@ use tower_lsp::{LanguageServer, LspService};
 #[tokio::test]
 async fn test_no_unbounded_memory_growth_1000_documents() {
     // Create server with default cache size (1000)
-    let (service, _socket) = LspService::new(|client| HedlLanguageServer::new(client));
+    let (service, _socket) = LspService::new(HedlLanguageServer::new);
     let server = service.inner();
 
     // Open 1500 documents (exceeds cache limit)

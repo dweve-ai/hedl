@@ -681,6 +681,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_parse_value_float() {
         match parse_value("3.14") {
             Ok(Value::Float(f)) => assert!((f - 3.14).abs() < 0.001),

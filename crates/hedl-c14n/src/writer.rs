@@ -1164,6 +1164,7 @@ mod tests {
     // ==================== Recursion depth limit tests ====================
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_recursion_depth_limit_objects() {
         use std::collections::BTreeMap;
 

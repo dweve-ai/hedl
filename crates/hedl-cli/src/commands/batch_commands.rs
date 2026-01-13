@@ -210,17 +210,19 @@ pub fn batch_format(
         .map_err(|e: CliError| e.to_string())?;
 
     // If not in check mode and output_dir is specified, write formatted files
-    if !check && output_dir.is_some() {
-        let out_dir = output_dir.unwrap();
-        std::fs::create_dir_all(&out_dir)
-            .map_err(|e| format!("Failed to create output directory '{}': {}", out_dir, e))?;
+    if !check {
+        if let Some(out_dir) = output_dir {
+            std::fs::create_dir_all(&out_dir)
+                .map_err(|e| format!("Failed to create output directory '{}': {}", out_dir, e))?;
 
-        for result in results.successes() {
-            if let Ok(formatted) = &result.result {
-                let output_path = PathBuf::from(&out_dir)
-                    .join(result.path.file_name().ok_or("Invalid file name")?);
-                std::fs::write(&output_path, formatted)
-                    .map_err(|e| format!("Failed to write '{}': {}", output_path.display(), e))?;
+            for result in results.successes() {
+                if let Ok(formatted) = &result.result {
+                    let output_path = PathBuf::from(&out_dir)
+                        .join(result.path.file_name().ok_or("Invalid file name")?);
+                    std::fs::write(&output_path, formatted).map_err(|e| {
+                        format!("Failed to write '{}': {}", output_path.display(), e)
+                    })?;
+                }
             }
         }
     }

@@ -45,7 +45,7 @@ fn create_temp_file(content: &str, suffix: &str) -> NamedTempFile {
 
 /// Create a HEDL command builder
 fn hedl_cmd() -> Command {
-    Command::cargo_bin("hedl").expect("Failed to find hedl binary")
+    Command::new(assert_cmd::cargo::cargo_bin("hedl"))
 }
 
 // ===== Property-Based Test Generators =====

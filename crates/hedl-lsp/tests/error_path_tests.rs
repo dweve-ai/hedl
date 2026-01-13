@@ -47,7 +47,7 @@ fn test_empty_document_analysis() {
     let analysis = AnalyzedDocument::analyze(content);
 
     // Should handle gracefully with errors
-    assert!(analysis.document.is_none() || analysis.errors.len() > 0);
+    assert!(analysis.document.is_none() || !analysis.errors.is_empty());
     assert_eq!(analysis.entities.len(), 0);
     assert_eq!(analysis.schemas.len(), 0);
 }
@@ -78,7 +78,7 @@ fn test_severe_syntax_errors() {
 fn test_invalid_utf8_handling() {
     // We can't actually create invalid UTF-8 in a &str, but we can test boundary cases
     let content = "%VERSION: 1.0\n---\n\u{FFFD}\u{FFFD}"; // Replacement characters
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should not panic
     let _diagnostics = analysis.to_lsp_diagnostics();
@@ -99,30 +99,33 @@ fn test_extremely_long_lines() {
 #[test]
 fn test_deeply_broken_nesting() {
     let content = "%VERSION: 1.0\n%NEST: A: B\n%NEST: B: C\n%NEST: C: D\n%NEST: D: E\n---\n";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should track nesting - may or may not capture all based on parser
-    assert!(analysis.nests.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.nests.len();
 }
 
 /// Test document with duplicate schemas.
 #[test]
 fn test_duplicate_schema_definitions() {
     let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: User: [id, email]\n---\n";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should not panic - may or may not generate lint diagnostics
-    assert!(analysis.lint_diagnostics.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.lint_diagnostics.len();
 }
 
 /// Test document with missing required directives.
 #[test]
 fn test_missing_version_directive() {
     let content = "%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should not panic - may or may not generate lint warnings
-    assert!(analysis.lint_diagnostics.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.lint_diagnostics.len();
 }
 
 /// Test document with malformed references.
@@ -151,7 +154,8 @@ fn test_completion_with_utf8_content() {
 
     let items = get_completions(&analysis, content, position);
     // Should not panic on UTF-8 boundaries
-    assert!(items.len() >= 0); // Can be empty or have items
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = items.len();
 }
 
 /// Test hover with emoji and special characters.
@@ -190,10 +194,11 @@ fn test_position_mid_utf8_character() {
 #[test]
 fn test_unicode_categories() {
     let content = "%VERSION: 1.0\n---\nEntity: e1: \"Ħ℮łłø Ŵøřłð\"\nEntity: e2: \"مرحبا بالعالم\"\nEntity: e3: \"你好世界\"";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should handle all Unicode categories without panicking
-    assert!(analysis.entities.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.entities.len();
 }
 
 // ============================================================================
@@ -323,7 +328,8 @@ fn test_completion_beyond_document() {
 
     let items = get_completions(&analysis, content, position);
     // Should return empty or handle gracefully
-    assert!(items.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = items.len();
 }
 
 /// Test hover at invalid position.
@@ -351,9 +357,10 @@ fn test_completion_no_schemas() {
         character: 0,
     };
 
-    let items = get_completions(&analysis, &content, position);
+    let items = get_completions(&analysis, content, position);
     // Should not panic - may or may not offer completions
-    assert!(items.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = items.len();
 }
 
 /// Test hover on empty line.
@@ -378,7 +385,8 @@ fn test_symbols_empty_document() {
 
     let symbols = get_document_symbols(&analysis, content);
     // Should return empty or only header symbols
-    assert!(symbols.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = symbols.len();
 }
 
 /// Test workspace symbols with query.
@@ -395,11 +403,12 @@ fn test_workspace_symbols_no_match() {
 #[test]
 fn test_workspace_symbols_empty_query() {
     let content = "%VERSION: 1.0\n---\nUser: u1: \"Alice\"";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     let symbols = get_workspace_symbols(&analysis, "");
     // Should not panic
-    assert!(symbols.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = symbols.len();
 }
 
 // ============================================================================
@@ -410,10 +419,11 @@ fn test_workspace_symbols_empty_query() {
 #[test]
 fn test_partial_parse_errors() {
     let content = "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\n@@@broken_line\nUser: u2: \"Bob\"";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should not panic - may or may not extract entities from partially broken content
-    assert!(analysis.entities.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.entities.len();
 }
 
 /// Test completion after parse error.
@@ -428,7 +438,8 @@ fn test_completion_after_parse_error() {
 
     let items = get_completions(&analysis, content, position);
     // Should still offer completions
-    assert!(items.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = items.len();
 }
 
 /// Test hover with malformed entities.
@@ -569,36 +580,37 @@ Invalid line without structure
 Post: p2: @User:u2
 "#;
 
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Should not panic - may or may not extract entities from malformed content
-    assert!(analysis.entities.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.entities.len();
 }
 
 /// Test completion in header section vs body section.
 #[test]
 fn test_completion_header_vs_body_distinction() {
     let content = "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"test\"";
-    let analysis = AnalyzedDocument::analyze(&content);
+    let analysis = AnalyzedDocument::analyze(content);
 
     // Header position
     let header_pos = Position {
         line: 1,
         character: 0,
     };
-    let header_items = get_completions(&analysis, &content, header_pos);
+    let header_items = get_completions(&analysis, content, header_pos);
 
     // Body position
     let body_pos = Position {
         line: 3,
         character: 0,
     };
-    let body_items = get_completions(&analysis, &content, body_pos);
+    let body_items = get_completions(&analysis, content, body_pos);
 
     // Should offer different completions
     // Header should have directive completions, body should have entity/reference completions
-    assert!(header_items.len() > 0);
-    assert!(body_items.len() > 0);
+    assert!(!header_items.is_empty());
+    assert!(!body_items.is_empty());
 }
 
 /// Test analysis with extreme nesting levels.
@@ -614,7 +626,8 @@ fn test_extreme_nesting_levels() {
 
     let analysis = AnalyzedDocument::analyze(&content);
     // Should not panic - may capture some or all nests
-    assert!(analysis.nests.len() >= 0);
+    // Note: len() always >= 0, so we just verify no panic occurred
+    let _ = analysis.nests.len();
 }
 
 /// Test document with only errors.
@@ -638,7 +651,7 @@ fn test_diagnostics_all_severity_levels() {
     let diagnostics = analysis.to_lsp_diagnostics();
 
     // Should have various diagnostics
-    assert!(diagnostics.len() > 0);
+    assert!(!diagnostics.is_empty());
 }
 
 /// Test concurrent document access patterns.

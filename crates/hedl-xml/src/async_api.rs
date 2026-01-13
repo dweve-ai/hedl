@@ -653,8 +653,7 @@ where
 mod tests {
     use super::*;
     use hedl_core::{Item, Value};
-    use std::collections::BTreeMap;
-    use tokio::io::Cursor;
+    use std::io::Cursor;
 
     // ==================== File I/O tests ====================
 

@@ -69,7 +69,7 @@ age: 30
 email: "alice@example.com"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$.name", &config).unwrap();
@@ -92,7 +92,7 @@ user:
     theme: "dark"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$.user.profile.name", &config).unwrap();
@@ -113,7 +113,7 @@ c: 3
 d: 4
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$.*", &config).unwrap();
@@ -136,7 +136,7 @@ top:
   name: "Charlie"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     // Find all 'name' fields at any depth
@@ -154,7 +154,7 @@ top:
 #[test]
 fn test_query_first() {
     let hedl = "name: \"Alice\"\nage: 30";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_first(&doc, "$.name", &config).unwrap();
@@ -168,7 +168,7 @@ fn test_query_first() {
 #[test]
 fn test_query_single_success() {
     let hedl = "name: \"Alice\"";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.name", &config).unwrap();
@@ -178,7 +178,7 @@ fn test_query_single_success() {
 #[test]
 fn test_query_single_no_results() {
     let hedl = "name: \"Alice\"";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.missing", &config);
@@ -194,7 +194,7 @@ fn test_query_single_no_results() {
 #[test]
 fn test_query_single_multiple_results() {
     let hedl = "a: 1\nb: 2\nc: 3";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.*", &config);
@@ -210,7 +210,7 @@ fn test_query_single_multiple_results() {
 #[test]
 fn test_query_exists() {
     let hedl = "name: \"Alice\"\nage: 30";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     assert!(query_exists(&doc, "$.name", &config).unwrap());
@@ -221,7 +221,7 @@ fn test_query_exists() {
 #[test]
 fn test_query_count() {
     let hedl = "a: 1\nb: 2\nc: 3\nd: 4\ne: 5";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     assert_eq!(query_count(&doc, "$.*", &config).unwrap(), 5);
@@ -234,7 +234,7 @@ fn test_query_count() {
 #[test]
 fn test_max_results_limit() {
     let hedl = "a: 1\nb: 2\nc: 3\nd: 4\ne: 5";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfigBuilder::new().max_results(3).build();
 
     let results = query(&doc, "$.*", &config).unwrap();
@@ -244,7 +244,7 @@ fn test_max_results_limit() {
 #[test]
 fn test_max_results_unlimited() {
     let hedl = "a: 1\nb: 2\nc: 3\nd: 4\ne: 5";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfigBuilder::new().max_results(0).build();
 
     let results = query(&doc, "$.*", &config).unwrap();
@@ -271,7 +271,7 @@ fn test_config_builder() {
 #[test]
 fn test_query_integers() {
     let hedl = "count: 42\nnegative: -100\nzero: 0";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.count", &config).unwrap();
@@ -287,7 +287,7 @@ fn test_query_integers() {
 #[test]
 fn test_query_floats() {
     let hedl = "price: 19.99\nratio: 0.5\nscientific: 1.23e10";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.price", &config).unwrap();
@@ -300,7 +300,7 @@ fn test_query_floats() {
 #[test]
 fn test_query_booleans() {
     let hedl = "active: true\ndeleted: false";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.active", &config).unwrap();
@@ -313,7 +313,7 @@ fn test_query_booleans() {
 #[test]
 fn test_query_null() {
     let hedl = "value: ~\nother: \"not null\"";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.value", &config).unwrap();
@@ -335,7 +335,7 @@ Line 2
 """
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query_single(&doc, "$.name", &config).unwrap();
@@ -357,7 +357,7 @@ field_with_underscore: "value1"
 field_with_number2: "value2"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$['field_with_underscore']", &config).unwrap();
@@ -376,7 +376,7 @@ level1:
           value: "deep"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$.level1.level2.level3.level4.level5.value", &config).unwrap();
@@ -395,7 +395,7 @@ admin:
   email: "bob@example.com"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     // Get all names at any depth
@@ -412,7 +412,7 @@ admin:
 #[test]
 fn test_invalid_jsonpath_syntax() {
     let hedl = "name: \"Alice\"";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query(&doc, "$$invalid", &config);
@@ -426,7 +426,7 @@ fn test_invalid_jsonpath_syntax() {
 #[test]
 fn test_empty_path() {
     let hedl = "name: \"Alice\"";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let result = query(&doc, "", &config);
@@ -438,7 +438,7 @@ fn test_empty_path() {
 #[test]
 fn test_empty_document() {
     let hedl = "";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$", &config).unwrap();
@@ -449,7 +449,7 @@ fn test_empty_document() {
 #[test]
 fn test_root_query() {
     let hedl = "name: \"Alice\"\nage: 30";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$", &config).unwrap();
@@ -461,7 +461,7 @@ fn test_root_query() {
 fn test_unicode_field_names() {
     // HEDL field names must be ASCII identifiers, but values can contain unicode
     let hedl = "name: \"太郎\"\nage: 25";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$.name", &config).unwrap();
@@ -478,7 +478,7 @@ another_field_name: "value2"
 field123: "value3"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$['field_with_underscores']", &config).unwrap();
@@ -523,7 +523,7 @@ root:
               value: "deep"
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results = query(&doc, "$.root.l0.l1.l2.l3.l4.l5.value", &config).unwrap();
@@ -548,7 +548,7 @@ users:
     active: true
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     // Extract all emails
@@ -575,7 +575,7 @@ cache:
   ttl: 300
 "#;
 
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     // Extract database host
@@ -600,7 +600,7 @@ cache:
 #[test]
 fn test_query_idempotence() {
     let hedl = "name: \"Alice\"\nage: 30";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     let results1 = query(&doc, "$.name", &config).unwrap();
@@ -612,7 +612,7 @@ fn test_query_idempotence() {
 #[test]
 fn test_query_determinism() {
     let hedl = "a: 1\nb: 2\nc: 3";
-    let doc = parse_hedl(&hedl);
+    let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
 
     // Multiple queries should return same results

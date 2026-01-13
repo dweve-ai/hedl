@@ -252,9 +252,9 @@ proptest! {
 // Property: LRU Eviction Correctness
 // ============================================================================
 
-/// Property: LRU evicts least recently accessed documents.
-///
-/// Verifies that the eviction policy correctly maintains LRU ordering.
+// Property: LRU evicts least recently accessed documents.
+//
+// Verifies that the eviction policy correctly maintains LRU ordering.
 proptest! {
     #[test]
     fn prop_lru_evicts_oldest(
@@ -289,9 +289,9 @@ proptest! {
 // Property: Diagnostics Conversion Safety
 // ============================================================================
 
-/// Property: LSP diagnostics conversion never panics.
-///
-/// Tests that converting internal diagnostics to LSP format handles all cases.
+// Property: LSP diagnostics conversion never panics.
+//
+// Tests that converting internal diagnostics to LSP format handles all cases.
 proptest! {
     #[test]
     fn prop_diagnostics_conversion_safe(content in ".*") {
@@ -305,9 +305,9 @@ proptest! {
 // Property: Concurrent Access Safety
 // ============================================================================
 
-/// Property: Concurrent reads don't interfere with each other.
-///
-/// Verifies thread-safety of read operations.
+// Property: Concurrent reads don't interfere with each other.
+//
+// Verifies thread-safety of read operations.
 proptest! {
     #[test]
     fn prop_concurrent_reads_safe(content in ".*") {
@@ -341,9 +341,9 @@ proptest! {
 // Property: Position Bounds Checking
 // ============================================================================
 
-/// Property: Out-of-bounds positions are handled gracefully.
-///
-/// Tests that extreme position values don't cause panics or undefined behavior.
+// Property: Out-of-bounds positions are handled gracefully.
+//
+// Tests that extreme position values don't cause panics or undefined behavior.
 proptest! {
     #[test]
     fn prop_extreme_positions_safe(
@@ -364,9 +364,9 @@ proptest! {
 // Property: Cache Statistics Accuracy
 // ============================================================================
 
-/// Property: Cache statistics are always accurate.
-///
-/// Verifies that hit/miss/eviction counters match actual operations.
+// Property: Cache statistics are always accurate.
+//
+// Verifies that hit/miss/eviction counters match actual operations.
 proptest! {
     #[test]
     fn prop_cache_stats_accurate(
@@ -375,18 +375,8 @@ proptest! {
     ) {
         let manager = DocumentManager::new(max_cache, 1024 * 1024);
 
-        let mut expected_misses = 0;
-        let mut expected_hits = 0;
-
         for i in 0..num_inserts {
             let uri = Url::parse(&format!("file:///test{}.hedl", i % 5)).unwrap();
-
-            if manager.get(&uri).is_none() {
-                expected_misses += 1;
-            } else {
-                expected_hits += 1;
-            }
-
             manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
         }
 
@@ -401,7 +391,7 @@ proptest! {
 // Property: Empty Input Handling
 // ============================================================================
 
-/// Property: Empty and whitespace-only inputs are handled correctly.
+// Property: Empty and whitespace-only inputs are handled correctly.
 proptest! {
     #[test]
     fn prop_whitespace_handling(whitespace in r"[ \t\n\r]*") {
@@ -420,9 +410,9 @@ proptest! {
 // Property: Unicode Robustness
 // ============================================================================
 
-/// Property: All valid Unicode is handled correctly.
-///
-/// Tests that the implementation handles the full range of Unicode characters.
+// Property: All valid Unicode is handled correctly.
+//
+// Tests that the implementation handles the full range of Unicode characters.
 proptest! {
     #[test]
     fn prop_unicode_robustness(text in "\\PC*") {
@@ -436,7 +426,7 @@ proptest! {
 // Property: Reference Index Lookup Consistency
 // ============================================================================
 
-/// Property: Finding a reference and then looking it up should work.
+// Property: Finding a reference and then looking it up should work.
 proptest! {
     #[test]
     fn prop_reference_roundtrip(

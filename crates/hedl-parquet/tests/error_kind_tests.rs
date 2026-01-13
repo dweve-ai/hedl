@@ -107,8 +107,7 @@ fn test_write_to_read_only_directory_returns_io_error() {
         // Try to write again - should fail with IO error
         let result = to_parquet(&doc, &file_path);
 
-        if result.is_err() {
-            let err = result.unwrap_err();
+        if let Err(err) = result {
             assert_eq!(
                 err.kind,
                 HedlErrorKind::IO,

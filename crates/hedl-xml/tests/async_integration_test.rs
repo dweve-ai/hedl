@@ -25,6 +25,7 @@
 use hedl_core::{Document, Item, Value};
 use hedl_xml::async_api::*;
 use hedl_xml::{FromXmlConfig, ToXmlConfig};
+use std::io::Cursor;
 use tempfile::TempDir;
 use tokio::fs;
 
@@ -101,7 +102,7 @@ async fn test_async_reader_writer() {
         .unwrap();
 
     // Read from buffer
-    let cursor = tokio::io::Cursor::new(&buffer);
+    let cursor = Cursor::new(&buffer);
     let config_from = FromXmlConfig::default();
     let doc2 = from_xml_reader_async(cursor, &config_from).await.unwrap();
 

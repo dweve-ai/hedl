@@ -118,15 +118,14 @@ fn test_corrupted_metadata() {
 
     // Corrupt some bytes in the middle (likely metadata/data pages)
     if bytes.len() > 100 {
-        for i in 50..70 {
-            bytes[i] = 0xFF;
+        for byte in bytes.iter_mut().take(70).skip(50) {
+            *byte = 0xFF;
         }
     }
 
     let result = from_parquet_bytes(&bytes);
     // May succeed with corrupted data or fail with IO error
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::IO);
     }
 }
@@ -175,8 +174,7 @@ fn test_unsupported_type_binary() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Binary should be rejected or converted to string
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert!(
             err.kind == HedlErrorKind::Syntax || err.kind == HedlErrorKind::IO,
             "Binary type should produce Syntax or IO error"
@@ -191,8 +189,7 @@ fn test_unsupported_type_date32() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Date types might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -205,8 +202,7 @@ fn test_unsupported_type_timestamp() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Timestamps might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -219,8 +215,7 @@ fn test_unsupported_type_duration() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Durations are not supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -233,8 +228,7 @@ fn test_unsupported_type_decimal() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Decimals might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -247,8 +241,7 @@ fn test_unsupported_type_time() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Time types might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -261,8 +254,7 @@ fn test_unsupported_type_fixed_size_binary() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Fixed size binary might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert!(
             err.kind == HedlErrorKind::Syntax || err.kind == HedlErrorKind::IO,
             "Fixed binary should produce error"
@@ -277,8 +269,7 @@ fn test_unsupported_type_list() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Nested lists might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -291,8 +282,7 @@ fn test_unsupported_type_struct() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // Nested structs might not be supported
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Unsupported"));
     }
@@ -305,8 +295,7 @@ fn test_unsupported_type_large_utf8() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // LargeUtf8 might not be supported or converted to regular strings
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert!(
             err.kind == HedlErrorKind::Syntax || err.kind == HedlErrorKind::IO,
             "LargeUtf8 should produce error if not supported"
@@ -321,8 +310,7 @@ fn test_unsupported_type_large_binary() {
     let result = from_parquet_bytes(&parquet_bytes);
 
     // LargeBinary should be rejected
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert!(
             err.kind == HedlErrorKind::Syntax || err.kind == HedlErrorKind::IO,
             "LargeBinary should produce error"
@@ -357,8 +345,7 @@ fn test_uint64_overflow() {
         result.is_err(),
         "UInt64 overflow should be rejected or handled"
     );
-    if result.is_err() {
-        let err = result.unwrap_err();
+    if let Err(err) = result {
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(
             err.message.contains("exceeds i64::MAX")
@@ -396,8 +383,7 @@ fn test_schema_column_count_zero() {
         if !buffer.is_empty() {
             let result = from_parquet_bytes(&buffer);
             // Should either fail or produce empty document
-            if result.is_ok() {
-                let doc = result.unwrap();
+            if let Ok(doc) = result {
                 // Empty schema should produce empty or minimal document
                 assert!(
                     doc.root.is_empty() || doc.root.len() <= 1,
@@ -460,8 +446,7 @@ fn test_null_in_non_nullable_column() {
         if !buffer.is_empty() {
             let result = from_parquet_bytes(&buffer);
             // Should handle null in ID column gracefully
-            if result.is_ok() {
-                let doc = result.unwrap();
+            if let Ok(doc) = result {
                 // Verify it didn't crash
                 assert!(doc.root.is_empty() || !doc.root.is_empty());
             }
@@ -499,8 +484,7 @@ fn test_extremely_long_column_name() {
         if !buffer.is_empty() {
             let result = from_parquet_bytes(&buffer);
             // Should handle long column names gracefully (sanitize)
-            if result.is_ok() {
-                let doc = result.unwrap();
+            if let Ok(doc) = result {
                 if let Some(Item::List(list)) = doc.root.values().next() {
                     // Column names should be valid identifiers (alphanumeric + underscore)
                     for col in &list.schema {
@@ -544,8 +528,7 @@ fn test_invalid_column_name_special_chars() {
         if !buffer.is_empty() {
             let result = from_parquet_bytes(&buffer);
             // Should sanitize column names
-            if result.is_ok() {
-                let doc = result.unwrap();
+            if let Ok(doc) = result {
                 if let Some(Item::List(list)) = doc.root.values().next() {
                     // Column names should be sanitized to valid identifiers
                     for col in &list.schema {
@@ -659,8 +642,7 @@ fn test_empty_rows_many_columns() {
         if !buffer.is_empty() {
             let result = from_parquet_bytes(&buffer);
             // Empty rows with many columns should still be accepted if under column limit
-            if result.is_ok() {
-                let doc = result.unwrap();
+            if let Ok(doc) = result {
                 // Should produce empty or minimal document
                 assert!(
                     doc.root.is_empty()

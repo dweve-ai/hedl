@@ -86,7 +86,8 @@ proptest! {
         let diagnostics = lint(&doc);
 
         // Linting should not crash, but may return diagnostics
-        prop_assert!(diagnostics.len() >= 0);
+        // Note: len() always >= 0, so we just verify no panic occurred
+        let _ = diagnostics.len();
     }
 
     /// Property: Validate should never panic
