@@ -17,20 +17,9 @@
 
 //! Integration tests for --with-counts flag
 
+use assert_cmd::Command;
 use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
 use tempfile::NamedTempFile;
-
-fn get_hedl_binary() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.pop(); // Go up to workspace root
-    path.pop();
-    path.push("target");
-    path.push("debug");
-    path.push("hedl");
-    path
-}
 
 #[test]
 fn test_with_counts_adds_counts_to_simple_lists() {
@@ -46,7 +35,7 @@ teams: @Team
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -77,7 +66,7 @@ teams(5): @Team
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -107,7 +96,7 @@ teams: @Team
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -142,7 +131,7 @@ sports:
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -175,7 +164,7 @@ teams: @Team
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args(["format", temp_file.path().to_str().unwrap()])
         .output()
         .expect("Failed to execute hedl");
@@ -206,7 +195,7 @@ players: @Player
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -240,7 +229,7 @@ teams: @Team[id,name]
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(get_hedl_binary())
+    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),

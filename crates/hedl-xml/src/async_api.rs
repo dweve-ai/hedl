@@ -746,7 +746,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_from_xml_async_invalid() {
-        let xml = r#"<invalid>xml<"#;
+        let xml = r#"</invalid>"#;
         let config = FromXmlConfig::default();
 
         let result = from_xml_async(xml, &config).await;
