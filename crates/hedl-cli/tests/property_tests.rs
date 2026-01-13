@@ -762,6 +762,8 @@ proptest! {
     /// Invariant: parse(canonicalize(parse(x))) == parse(x) for all valid x
     #[test]
     fn invariant_parse_canonicalize_parse(doc in simple_hedl_document()) {
+        std::env::set_var("HEDL_MAX_FILE_SIZE", "10000");
+
         let file = create_temp_file(&doc, ".hedl");
         let formatted = create_temp_file("", ".hedl");
 
@@ -788,6 +790,8 @@ proptest! {
     /// Invariant: Formatting preserves document version
     #[test]
     fn invariant_format_preserves_version(doc in simple_hedl_document()) {
+        std::env::set_var("HEDL_MAX_FILE_SIZE", "10000");
+
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
 

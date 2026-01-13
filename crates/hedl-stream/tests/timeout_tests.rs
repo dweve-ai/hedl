@@ -316,7 +316,7 @@ fn test_timeout_prevents_infinite_loop_malicious_input() {
     let mut input = String::from("%VERSION: 1.0\n");
 
     // Add many type definitions (could be malicious)
-    for i in 0..100_000 {
+    for i in 0..500_000 {
         input.push_str(&format!("%STRUCT: Type{}: [id]\n", i));
     }
 

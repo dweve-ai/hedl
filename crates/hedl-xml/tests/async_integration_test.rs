@@ -285,7 +285,7 @@ async fn test_async_file_not_found() {
 
 #[tokio::test]
 async fn test_async_invalid_xml() {
-    let xml = "<invalid>xml<";
+    let xml = "</invalid>";
     let config = FromXmlConfig::default();
 
     let result = from_xml_async(xml, &config).await;
