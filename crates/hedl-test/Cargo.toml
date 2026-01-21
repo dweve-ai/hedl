@@ -1,6 +1,5 @@
 # =============================================================================
 # HEDL Test - crates/hedl-test/Cargo.toml
-# Internal crate (not published)
 #
 # Copyright (c) Dweve B.V.
 # IP holder: Dweve IP B.V.
@@ -21,8 +20,6 @@ categories.workspace = true
 
 description = "Shared test fixtures and utilities for HEDL format converters"
 readme = "README.md"
-
-publish = false
 
 include = [
     "Cargo.toml",
