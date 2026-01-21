@@ -23,7 +23,7 @@ authors = [
 ]
 
 homepage = "https://dweve.com"
-repository = "https://github.com/dweve/hedl"
+repository = "https://github.com/dweve-ai/hedl"
 license = "Apache-2.0"
 
 keywords = ["hedl", "data-format", "serialization", "parser", "token-efficient"]

@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.2.1)'
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Build hedl-cli
+        run: cargo build --release --package hedl-cli --target ${{ matrix.target }}
+
+      - name: Build hedl-mcp
+        run: cargo build --release --package hedl-mcp --target ${{ matrix.target }}
+
+      - name: Prepare artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/hedl-cli dist/hedl
+          cp target/${{ matrix.target }}/release/hedl-mcp dist/hedl-mcp
+          chmod +x dist/hedl dist/hedl-mcp
+          cd dist
+          tar -czvf hedl-${{ matrix.target }}.tar.gz hedl hedl-mcp
+          mv hedl-${{ matrix.target }}.tar.gz ..
+
+      - name: Prepare artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item "target/${{ matrix.target }}/release/hedl-cli.exe" "dist/hedl.exe"
+          Copy-Item "target/${{ matrix.target }}/release/hedl-mcp.exe" "dist/hedl-mcp.exe"
+          Compress-Archive -Path dist/* -DestinationPath "hedl-${{ matrix.target }}.zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hedl-${{ matrix.target }}
+          path: hedl-${{ matrix.target }}.${{ matrix.archive }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum hedl-*.* > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: HEDL ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/hedl-x86_64-unknown-linux-gnu.tar.gz
+            artifacts/hedl-x86_64-apple-darwin.tar.gz
+            artifacts/hedl-aarch64-apple-darwin.tar.gz
+            artifacts/hedl-x86_64-pc-windows-msvc.zip
+            artifacts/checksums.txt
+
+  mcpb:
+    name: Build MCPB Bundles
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+
+      - name: Create MCPB bundles
+        run: |
+          mkdir -p mcpb
+
+          # Create manifest for each platform
+          for platform in x86_64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows-msvc; do
+            mkdir -p "mcpb-${platform}"
+
+            # Extract binary
+            if [[ "$platform" == *"windows"* ]]; then
+              cd "artifacts/hedl-${platform}"
+              unzip -o "hedl-${platform}.zip" -d extracted || true
+              cp extracted/hedl-mcp.exe "../mcpb-${platform}/" || cp "hedl-${platform}/hedl-mcp.exe" "../mcpb-${platform}/"
+              cd ..
+            else
+              cd "artifacts/hedl-${platform}"
+              tar -xzf "hedl-${platform}.tar.gz" || true
+              cp hedl-mcp "../mcpb-${platform}/" || true
+              cd ..
+            fi
+
+            # Create manifest.json
+            cat > "mcpb-${platform}/manifest.json" << EOF
+          {
+            "name": "hedl-mcp",
+            "version": "${{ steps.version.outputs.version }}",
+            "description": "HEDL Model Context Protocol server for AI/LLM integration. Provides tools for parsing, validating, converting, and optimizing HEDL documents.",
+            "author": "Dweve B.V.",
+            "license": "Apache-2.0",
+            "homepage": "https://github.com/dweve-ai/hedl",
+            "repository": "https://github.com/dweve-ai/hedl",
+            "platform": "${platform}",
+            "binary": "hedl-mcp$([ "$platform" == *"windows"* ] && echo ".exe" || echo "")",
+            "transport": "stdio",
+            "tools": [
+              "hedl_read",
+              "hedl_query",
+              "hedl_validate",
+              "hedl_optimize",
+              "hedl_stats",
+              "hedl_format",
+              "hedl_write",
+              "hedl_convert_to",
+              "hedl_convert_from",
+              "hedl_stream",
+              "batch"
+            ]
+          }
+          EOF
+
+            # Create .mcpb bundle (ZIP)
+            cd "mcpb-${platform}"
+            if [[ "$platform" == *"windows"* ]]; then
+              zip "../mcpb/hedl-mcp-${platform}.mcpb" manifest.json hedl-mcp.exe 2>/dev/null || true
+            else
+              zip "../mcpb/hedl-mcp-${platform}.mcpb" manifest.json hedl-mcp 2>/dev/null || true
+            fi
+            cd ..
+          done
+
+      - name: Upload MCPB bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-bundles
+          path: mcpb/*.mcpb
+
+      - name: Add MCPB to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: mcpb/*.mcpb
