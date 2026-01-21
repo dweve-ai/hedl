@@ -26,7 +26,8 @@ use neo4rs::{Graph, Query};
 use serial_test::serial;
 
 async fn connect() -> Graph {
-    Graph::new("neo4j://localhost:7687", "neo4j", "password").expect("Failed to connect to Neo4j")
+    let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
+    Graph::new("neo4j://localhost:7687", "neo4j", &password).expect("Failed to connect to Neo4j")
 }
 
 async fn cleanup(graph: &Graph) {
