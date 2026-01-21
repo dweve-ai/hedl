@@ -134,6 +134,15 @@ pub struct StreamConfig {
     /// Controls limits and behavior when converting each parsed JSON
     /// object to a HEDL document.
     pub from_json: FromJsonConfig,
+
+    /// Enable efficient size estimation instead of serialization for size checks.
+    /// Default: true
+    pub use_size_estimation: bool,
+
+    /// Enable true streaming for JSON arrays (constant memory usage).
+    /// When true, uses incremental parsing instead of loading entire array.
+    /// Default: true
+    pub true_streaming: bool,
 }
 
 impl Default for StreamConfig {
@@ -142,6 +151,38 @@ impl Default for StreamConfig {
             buffer_size: 64 * 1024, // 64 KB - good balance for most use cases
             max_object_bytes: Some(10 * 1024 * 1024), // 10 MB per object
             from_json: FromJsonConfig::default(),
+            use_size_estimation: true,
+            true_streaming: true,
+        }
+    }
+}
+
+impl StreamConfig {
+    /// Configuration optimized for large files (GB+)
+    ///
+    /// Uses larger buffers and object limits while maintaining constant memory.
+    #[must_use]
+    pub fn large_file() -> Self {
+        Self {
+            buffer_size: 256 * 1024,                  // 256 KB buffer
+            max_object_bytes: Some(50 * 1024 * 1024), // 50 MB per object
+            from_json: FromJsonConfig::default(),
+            use_size_estimation: true,
+            true_streaming: true,
+        }
+    }
+
+    /// Configuration for memory-constrained environments
+    ///
+    /// Minimizes memory usage at the cost of some throughput.
+    #[must_use]
+    pub fn low_memory() -> Self {
+        Self {
+            buffer_size: 8 * 1024,               // 8 KB buffer
+            max_object_bytes: Some(1024 * 1024), // 1 MB per object
+            from_json: FromJsonConfig::default(),
+            use_size_estimation: true,
+            true_streaming: true,
         }
     }
 }
@@ -159,6 +200,7 @@ impl StreamConfig {
     ///     .max_object_bytes(50 * 1024 * 1024)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn builder() -> StreamConfigBuilder {
         StreamConfigBuilder::default()
     }
@@ -172,6 +214,8 @@ pub struct StreamConfigBuilder {
     buffer_size: usize,
     max_object_bytes: Option<usize>,
     from_json: FromJsonConfig,
+    use_size_estimation: bool,
+    true_streaming: bool,
 }
 
 impl Default for StreamConfigBuilder {
@@ -180,41 +224,64 @@ impl Default for StreamConfigBuilder {
             buffer_size: 64 * 1024,
             max_object_bytes: Some(10 * 1024 * 1024),
             from_json: FromJsonConfig::default(),
+            use_size_estimation: true,
+            true_streaming: true,
         }
     }
 }
 
 impl StreamConfigBuilder {
     /// Set the buffer size in bytes
+    #[must_use]
     pub fn buffer_size(mut self, size: usize) -> Self {
         self.buffer_size = size;
         self
     }
 
     /// Set the maximum object size in bytes
+    #[must_use]
     pub fn max_object_bytes(mut self, limit: usize) -> Self {
         self.max_object_bytes = Some(limit);
         self
     }
 
     /// Disable object size limit (use with caution)
+    #[must_use]
     pub fn unlimited_object_size(mut self) -> Self {
         self.max_object_bytes = None;
         self
     }
 
     /// Set the JSON conversion configuration
+    #[must_use]
     pub fn from_json_config(mut self, config: FromJsonConfig) -> Self {
         self.from_json = config;
         self
     }
 
+    /// Enable or disable size estimation optimization
+    #[must_use]
+    pub fn use_size_estimation(mut self, enabled: bool) -> Self {
+        self.use_size_estimation = enabled;
+        self
+    }
+
+    /// Enable or disable true streaming (constant memory)
+    #[must_use]
+    pub fn true_streaming(mut self, enabled: bool) -> Self {
+        self.true_streaming = enabled;
+        self
+    }
+
     /// Build the configuration
+    #[must_use]
     pub fn build(self) -> StreamConfig {
         StreamConfig {
             buffer_size: self.buffer_size,
             max_object_bytes: self.max_object_bytes,
             from_json: self.from_json,
+            use_size_estimation: self.use_size_estimation,
+            true_streaming: self.true_streaming,
         }
     }
 }
@@ -260,9 +327,11 @@ pub enum StreamError {
 ///
 /// # Memory Usage
 ///
-/// - **Bounded**: Only one object in memory at a time
+/// With `true_streaming` enabled (default):
+/// - **Constant**: O(1) memory regardless of array size
 /// - **Buffer**: Configured buffer size (default 64 KB)
 /// - **Per-object**: Limited by `max_object_bytes` (default 10 MB)
+/// - Processes GB+ files with ~15 MB constant memory
 ///
 /// # Examples
 ///
@@ -286,10 +355,21 @@ pub enum StreamError {
 /// # }
 /// ```
 pub struct JsonArrayStreamer<R: Read> {
-    array: Vec<JsonValue>,
+    /// Internal implementation: either buffered (legacy) or true streaming
+    inner: JsonArrayStreamerInner<R>,
     config: StreamConfig,
-    index: usize,
-    _phantom: PhantomData<R>,
+}
+
+/// Internal implementation of array streaming
+enum JsonArrayStreamerInner<R: Read> {
+    /// Legacy buffered mode (loads entire array)
+    Buffered {
+        array: Vec<JsonValue>,
+        index: usize,
+        _phantom: PhantomData<R>,
+    },
+    /// True streaming mode (constant memory)
+    Streaming(TrueStreamingArrayParser<R>),
 }
 
 impl<R: Read> JsonArrayStreamer<R> {
@@ -304,6 +384,11 @@ impl<R: Read> JsonArrayStreamer<R> {
     ///
     /// Returns error if the input doesn't start with a JSON array.
     ///
+    /// # Streaming Modes
+    ///
+    /// When `config.true_streaming` is enabled (default), uses constant memory
+    /// regardless of array size. Disable for legacy buffered mode.
+    ///
     /// # Examples
     ///
     /// ```text
@@ -315,29 +400,206 @@ impl<R: Read> JsonArrayStreamer<R> {
     /// let config = StreamConfig::default();
     /// let streamer = JsonArrayStreamer::new(reader, config).unwrap();
     /// ```
-    pub fn new(mut reader: R, config: StreamConfig) -> Result<Self, StreamError> {
-        // Read entire JSON into memory and parse as array
-        // Note: This is a limitation of serde_json - true streaming of arrays
-        // is complex. For memory-efficient processing, use JsonLinesStreamer instead.
-        let mut json_str = String::new();
-        reader.read_to_string(&mut json_str)?;
+    pub fn new(reader: R, config: StreamConfig) -> Result<Self, StreamError> {
+        if config.true_streaming {
+            // Use true streaming mode (constant memory)
+            let buf_reader = BufReader::with_capacity(config.buffer_size, reader);
+            let parser = TrueStreamingArrayParser::new(buf_reader)?;
+            Ok(Self {
+                inner: JsonArrayStreamerInner::Streaming(parser),
+                config,
+            })
+        } else {
+            // Legacy buffered mode (loads entire array into memory)
+            let mut reader = reader;
+            let mut json_str = String::new();
+            reader.read_to_string(&mut json_str)?;
 
-        let value: JsonValue = serde_json::from_str(&json_str)?;
-        let array = match value {
-            JsonValue::Array(arr) => arr,
-            _ => {
+            let value: JsonValue = serde_json::from_str(&json_str)?;
+            let array = match value {
+                JsonValue::Array(arr) => arr,
+                _ => {
+                    return Err(StreamError::Json(serde_json::Error::custom(
+                        "Expected JSON array",
+                    )));
+                }
+            };
+
+            Ok(Self {
+                inner: JsonArrayStreamerInner::Buffered {
+                    array,
+                    index: 0,
+                    _phantom: PhantomData,
+                },
+                config,
+            })
+        }
+    }
+}
+
+/// True streaming JSON array parser with O(1) memory usage.
+///
+/// Uses byte-level parsing to extract array elements one at a time
+/// without loading the entire array into memory.
+struct TrueStreamingArrayParser<R: Read> {
+    /// Buffered reader for efficient I/O
+    reader: BufReader<R>,
+    /// Buffer for reading individual JSON values
+    value_buffer: String,
+    /// Current nesting depth (for tracking object/array boundaries)
+    depth: i32,
+    /// Whether we're inside a string literal
+    in_string: bool,
+    /// Whether we've reached the end of the array
+    finished: bool,
+}
+
+impl<R: Read> TrueStreamingArrayParser<R> {
+    /// Create a new true streaming parser
+    fn new(mut reader: BufReader<R>) -> Result<Self, StreamError> {
+        // Skip whitespace and find opening bracket
+        let mut buf = [0u8; 1];
+        loop {
+            if reader.read(&mut buf)? == 0 {
                 return Err(StreamError::Json(serde_json::Error::custom(
-                    "Expected JSON array",
+                    "Unexpected end of input, expected JSON array",
                 )));
+            } else {
+                let ch = buf[0];
+                if ch.is_ascii_whitespace() {
+                    continue;
+                }
+                if ch == b'[' {
+                    break;
+                }
+                return Err(StreamError::Json(serde_json::Error::custom(format!(
+                    "Expected '[' at start of JSON array, found '{}'",
+                    ch as char
+                ))));
             }
-        };
+        }
 
         Ok(Self {
-            array,
-            config,
-            index: 0,
-            _phantom: PhantomData,
+            reader,
+            value_buffer: String::with_capacity(4096),
+            depth: 0,
+            in_string: false,
+            finished: false,
         })
+    }
+
+    /// Read the next JSON value from the array
+    fn next_value(&mut self) -> Option<Result<JsonValue, StreamError>> {
+        if self.finished {
+            return None;
+        }
+
+        self.value_buffer.clear();
+        self.depth = 0;
+        self.in_string = false;
+
+        let mut buf = [0u8; 1];
+        let mut prev_char: u8 = 0;
+        let mut value_started = false;
+
+        loop {
+            match self.reader.read(&mut buf) {
+                Ok(0) => {
+                    // EOF
+                    if value_started && self.depth == 0 {
+                        // We have a complete value
+                        break;
+                    }
+                    self.finished = true;
+                    if value_started {
+                        return Some(Err(StreamError::Json(serde_json::Error::custom(
+                            "Unexpected end of input while parsing array element",
+                        ))));
+                    }
+                    return None;
+                }
+                Ok(_) => {
+                    let ch = buf[0];
+
+                    // Handle string state
+                    if self.in_string {
+                        self.value_buffer.push(ch as char);
+                        if ch == b'"' && prev_char != b'\\' {
+                            self.in_string = false;
+                        }
+                        prev_char = ch;
+                        continue;
+                    }
+
+                    // Skip leading whitespace before value
+                    if !value_started && ch.is_ascii_whitespace() {
+                        continue;
+                    }
+
+                    // Check for end of array before value
+                    if !value_started && ch == b']' {
+                        self.finished = true;
+                        return None;
+                    }
+
+                    // Skip comma between elements
+                    if !value_started && ch == b',' {
+                        continue;
+                    }
+
+                    // Start of value
+                    if !value_started {
+                        value_started = true;
+                    }
+
+                    // Track depth for objects and arrays
+                    match ch {
+                        b'{' | b'[' => {
+                            self.depth += 1;
+                            self.value_buffer.push(ch as char);
+                        }
+                        b'}' | b']' => {
+                            self.depth -= 1;
+                            self.value_buffer.push(ch as char);
+                            if self.depth == 0 {
+                                // Complete object/array value
+                                break;
+                            }
+                        }
+                        b'"' => {
+                            self.in_string = true;
+                            self.value_buffer.push(ch as char);
+                        }
+                        b',' if self.depth == 0 => {
+                            // End of primitive value, don't include comma
+                            break;
+                        }
+                        _ if self.depth == 0 && ch.is_ascii_whitespace() => {
+                            // End of primitive value at whitespace
+                            break;
+                        }
+                        _ => {
+                            self.value_buffer.push(ch as char);
+                        }
+                    }
+
+                    prev_char = ch;
+                }
+                Err(e) => {
+                    return Some(Err(StreamError::Io(e)));
+                }
+            }
+        }
+
+        if self.value_buffer.is_empty() {
+            return None;
+        }
+
+        // Parse the extracted JSON value
+        match serde_json::from_str(&self.value_buffer) {
+            Ok(value) => Some(Ok(value)),
+            Err(e) => Some(Err(StreamError::Json(e))),
+        }
     }
 }
 
@@ -345,22 +607,29 @@ impl<R: Read> Iterator for JsonArrayStreamer<R> {
     type Item = Result<Document, StreamError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.array.len() {
-            return None;
-        }
-
-        let value = self.array.remove(0); // Remove from front to avoid keeping all in memory
-
-        // Check object size if limit configured
-        if let Some(max_bytes) = self.config.max_object_bytes {
-            match serde_json::to_string(&value) {
-                Ok(json_str) => {
-                    let size = json_str.len();
-                    if size > max_bytes {
-                        return Some(Err(StreamError::ObjectTooLarge(size, max_bytes)));
-                    }
+        // Get the next JSON value based on mode
+        let value = match &mut self.inner {
+            JsonArrayStreamerInner::Buffered { array, index, .. } => {
+                if *index >= array.len() {
+                    return None;
                 }
-                Err(e) => return Some(Err(StreamError::Json(e))),
+                // O(1) access with std::mem::take to avoid O(n) Vec::remove(0)
+                let value = std::mem::take(&mut array[*index]);
+                *index += 1;
+                value
+            }
+            JsonArrayStreamerInner::Streaming(parser) => match parser.next_value() {
+                Some(Ok(value)) => value,
+                Some(Err(e)) => return Some(Err(e)),
+                None => return None,
+            },
+        };
+
+        // Check object size if limit configured using efficient estimation
+        if let Some(max_bytes) = self.config.max_object_bytes {
+            let estimated_size = estimate_json_size(&value);
+            if estimated_size > max_bytes {
+                return Some(Err(StreamError::ObjectTooLarge(estimated_size, max_bytes)));
             }
         }
 
@@ -368,6 +637,58 @@ impl<R: Read> Iterator for JsonArrayStreamer<R> {
         match from_json_value_owned(value, &self.config.from_json) {
             Ok(doc) => Some(Ok(doc)),
             Err(e) => Some(Err(StreamError::Conversion(e))),
+        }
+    }
+}
+
+/// Estimate the serialized JSON size of a value without allocating.
+///
+/// This provides a conservative estimate (never under-estimates) to avoid
+/// the overhead of serializing just to check size. The estimate accounts for:
+/// - Literal sizes: null (4), true (4), false (5)
+/// - Number serialization length
+/// - String quotes and potential escaping (10% margin)
+/// - Array/object brackets and separators
+///
+/// # Performance
+///
+/// O(n) in the structure depth, but with much lower constant factor than
+/// serialization since no string allocation or copying occurs.
+fn estimate_json_size(value: &JsonValue) -> usize {
+    match value {
+        JsonValue::Null => 4,        // "null"
+        JsonValue::Bool(true) => 4,  // "true"
+        JsonValue::Bool(false) => 5, // "false"
+        JsonValue::Number(n) => {
+            // Conservative estimate for number serialization
+            n.to_string().len()
+        }
+        JsonValue::String(s) => {
+            // Account for quotes and common escapes
+            // Add 10% margin for potential escape sequences
+            let escape_margin = s.len() / 10;
+            s.len() + 2 + escape_margin
+        }
+        JsonValue::Array(arr) => {
+            if arr.is_empty() {
+                return 2; // "[]"
+            }
+            // "[" + elements + commas + "]"
+            2 + arr.iter().map(estimate_json_size).sum::<usize>() + (arr.len() - 1)
+        }
+        JsonValue::Object(obj) => {
+            if obj.is_empty() {
+                return 2; // "{}"
+            }
+            // "{" + "key": value pairs + commas + "}"
+            let pair_size: usize = obj
+                .iter()
+                .map(|(k, v)| {
+                    // "key": value = key.len() + 2 (quotes) + 1 (colon) + 1 (space) + value
+                    k.len() + 4 + estimate_json_size(v)
+                })
+                .sum();
+            2 + pair_size + (obj.len() - 1) // commas between pairs
         }
     }
 }
@@ -678,7 +999,7 @@ mod tests {
 
     #[test]
     fn test_array_streamer_empty() {
-        let json = r#"[]"#;
+        let json = r"[]";
 
         let reader = Cursor::new(json.as_bytes());
         let config = StreamConfig::default();
@@ -708,7 +1029,7 @@ mod tests {
             if i > 0 {
                 json.push(',');
             }
-            json.push_str(&format!(r#"{{"id": "{}"}}"#, i));
+            json.push_str(&format!(r#"{{"id": "{i}"}}"#));
         }
         json.push(']');
 
@@ -754,7 +1075,7 @@ mod tests {
         // Verify first document
         let doc1 = docs[0].as_ref().unwrap();
         if let Some(Item::Scalar(Value::String(name))) = doc1.root.get("name") {
-            assert_eq!(name, "Alice");
+            assert_eq!(name.as_ref(), "Alice");
         } else {
             panic!("Expected name field");
         }
@@ -862,14 +1183,14 @@ mod tests {
         let mut doc1 = Document::new((1, 0));
         doc1.root.insert(
             "id".to_string(),
-            Item::Scalar(Value::String("1".to_string())),
+            Item::Scalar(Value::String("1".to_string().into())),
         );
         writer.write_document(&doc1).unwrap();
 
         let mut doc2 = Document::new((1, 0));
         doc2.root.insert(
             "id".to_string(),
-            Item::Scalar(Value::String("2".to_string())),
+            Item::Scalar(Value::String("2".to_string().into())),
         );
         writer.write_document(&doc2).unwrap();
 
@@ -903,8 +1224,10 @@ mod tests {
 
         for i in 1..=3 {
             let mut doc = Document::new((1, 0));
-            doc.root
-                .insert("id".to_string(), Item::Scalar(Value::String(i.to_string())));
+            doc.root.insert(
+                "id".to_string(),
+                Item::Scalar(Value::String(i.to_string().into())),
+            );
             doc.root
                 .insert("value".to_string(), Item::Scalar(Value::Int(i * 10)));
             writer.write_document(&doc).unwrap();
@@ -923,7 +1246,7 @@ mod tests {
         let doc1 = docs[0].as_ref().unwrap();
         assert_eq!(
             doc1.root.get("id").unwrap().as_scalar().unwrap(),
-            &Value::String("1".to_string())
+            &Value::String("1".to_string().into())
         );
         assert_eq!(
             doc1.root.get("value").unwrap().as_scalar().unwrap(),

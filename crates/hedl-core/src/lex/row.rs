@@ -95,7 +95,9 @@ fn finalize_unquoted_field(mut field: String) -> Result<String, LexError> {
     let original_len = field.len();
     let trimmed = field.trim();
 
-    if trimmed.contains('"') {
+    // Check for quotes only outside of expression regions
+    // Expressions like $(concat(")", x)) contain valid quotes
+    if contains_quote_outside_expressions(trimmed) {
         return Err(LexError::QuoteInUnquotedField(trimmed.to_string()));
     }
 
@@ -107,6 +109,54 @@ fn finalize_unquoted_field(mut field: String) -> Result<String, LexError> {
     } else {
         Ok(trimmed.to_string())
     }
+}
+
+/// Check if a string contains quotes outside of `$(...)` expression regions.
+fn contains_quote_outside_expressions(s: &str) -> bool {
+    let mut in_expression = false;
+    let mut in_expr_quotes = false;
+    let mut expression_depth = 0;
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let ch = chars[i];
+
+        if in_expression {
+            if ch == '"' {
+                // Check for escaped quote ("") within expression strings
+                if in_expr_quotes && i + 1 < chars.len() && chars[i + 1] == '"' {
+                    i += 2;
+                    continue;
+                }
+                in_expr_quotes = !in_expr_quotes;
+            } else if !in_expr_quotes {
+                if ch == '(' {
+                    expression_depth += 1;
+                } else if ch == ')' {
+                    expression_depth -= 1;
+                    if expression_depth == 0 {
+                        in_expression = false;
+                        in_expr_quotes = false;
+                    }
+                }
+            }
+        } else {
+            // Not in expression
+            if ch == '"' {
+                return true; // Found quote outside expression
+            }
+            if ch == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
+                in_expression = true;
+                expression_depth = 1;
+                i += 1; // Skip the '('
+            }
+        }
+
+        i += 1;
+    }
+
+    false
 }
 
 /// Parses a CSV string into a list of fields.
@@ -171,6 +221,7 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
     let mut state = State::StartField;
     let mut expression_depth: usize = 0;
     let mut bracket_depth: usize = 0;
+    let mut in_expression_quotes = false;
 
     let mut chars = csv_string.chars().peekable();
 
@@ -276,12 +327,25 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
 
             State::InExpression => {
                 current_field.push(ch);
-                if ch == '(' {
-                    expression_depth += 1;
-                } else if ch == ')' {
-                    expression_depth = expression_depth.saturating_sub(1);
-                    if expression_depth == 0 {
-                        state = State::InUnquotedField;
+
+                if ch == '"' {
+                    // Check for escaped quote ("") within expression strings
+                    if in_expression_quotes && chars.peek() == Some(&'"') {
+                        chars.next();
+                        current_field.push('"');
+                    } else {
+                        in_expression_quotes = !in_expression_quotes;
+                    }
+                } else if !in_expression_quotes {
+                    // Only count parens when not inside a quoted string
+                    if ch == '(' {
+                        expression_depth += 1;
+                    } else if ch == ')' {
+                        expression_depth = expression_depth.saturating_sub(1);
+                        if expression_depth == 0 {
+                            in_expression_quotes = false; // Reset for next expression
+                            state = State::InUnquotedField;
+                        }
                     }
                 }
             }
@@ -390,6 +454,37 @@ mod tests {
     fn test_nested_expression() {
         let fields = parse_csv_row("$((a + b))").unwrap();
         assert_eq!(fields[0].value, "$((a + b))");
+    }
+
+    #[test]
+    fn test_expression_with_quoted_paren() {
+        // Test that quoted parens in expressions don't break parsing
+        // This was a bug: $(")") would prematurely close at the first )
+        let fields = parse_csv_row(r#"$(")"), next"#).unwrap();
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0].value, r#"$(")")"#);
+        assert_eq!(fields[1].value, "next");
+    }
+
+    #[test]
+    fn test_expression_with_quoted_string_containing_parens() {
+        // More complex case: $(concat(")", x))
+        let fields = parse_csv_row(r#"$(concat(")", x))"#).unwrap();
+        assert_eq!(fields[0].value, r#"$(concat(")", x))"#);
+    }
+
+    #[test]
+    fn test_expression_with_escaped_quote() {
+        // Test escaped quotes within expression strings: $("a""b")
+        let fields = parse_csv_row(r#"$("a""b")"#).unwrap();
+        assert_eq!(fields[0].value, r#"$("a""b")"#);
+    }
+
+    #[test]
+    fn test_expression_with_multiple_quoted_strings() {
+        // Multiple quoted strings in one expression
+        let fields = parse_csv_row(r#"$(concat("(", ")"))"#).unwrap();
+        assert_eq!(fields[0].value, r#"$(concat("(", ")"))"#);
     }
 
     // ==================== Tensor literal tests ====================

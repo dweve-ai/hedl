@@ -26,13 +26,13 @@ use std::io::Cursor;
 /// Helper to parse a HEDL document and collect all events.
 fn parse_document(input: &str) -> Result<Vec<String>, String> {
     let cursor = Cursor::new(input);
-    let parser = StreamingParser::new(cursor).map_err(|e| format!("{:?}", e))?;
+    let parser = StreamingParser::new(cursor).map_err(|e| format!("{e:?}"))?;
 
     let mut results = Vec::new();
     for event in parser {
         match event {
-            Ok(ev) => results.push(format!("{:?}", ev)),
-            Err(e) => return Err(format!("{:?}", e)),
+            Ok(ev) => results.push(format!("{ev:?}")),
+            Err(e) => return Err(format!("{e:?}")),
         }
     }
     Ok(results)
@@ -40,14 +40,14 @@ fn parse_document(input: &str) -> Result<Vec<String>, String> {
 
 #[test]
 fn test_simd_no_comments() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
 users: @User
   | alice, Alice Smith, alice@example.com
   | bob, Bob Jones, bob@example.com
-"#;
+";
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -57,14 +57,14 @@ users: @User
 
 #[test]
 fn test_simd_inline_comments() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
 users: @User  # list of users
   | alice, Alice Smith, alice@example.com  # first user
   | bob, Bob Jones, bob@example.com  # second user
-"#;
+";
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -95,14 +95,14 @@ fn test_simd_quoted_hashes() {
 
 #[test]
 fn test_simd_escaped_hashes() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
   | row1, value\#1
   | row2, value\#2
-"#;
+";
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -112,15 +112,14 @@ data: @Data
 fn test_simd_long_lines_with_comments() {
     let long_value = "a".repeat(500);
     let input = format!(
-        r#"
+        r"
 %VERSION: 1.0
 %STRUCT: Data: [id, long_field]
 ---
 data: @Data
-  | row1, {} # comment at end of long line
-  | row2, {} # another long line comment
-"#,
-        long_value, long_value
+  | row1, {long_value} # comment at end of long line
+  | row2, {long_value} # another long line comment
+"
     );
 
     let result = parse_document(&input);
@@ -131,14 +130,14 @@ data: @Data
 
 #[test]
 fn test_simd_multiple_hashes() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, field1, field2]
 ---
 data: @Data
   | row1, value1, value2 # comment with # multiple # hashes
   | row2, value3, value4 # # # more hashes
-"#;
+";
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -146,13 +145,13 @@ data: @Data
 
 #[test]
 fn test_simd_hash_at_various_positions() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id]
 ---
 data: @Data
   | # full line comment (should fail as invalid row)
-"#;
+";
 
     // This should fail because "# full line..." is not a valid row
     let result = parse_document(input);
@@ -178,14 +177,14 @@ data: @Data
 
 #[test]
 fn test_simd_empty_fields_with_comments() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, opt1, opt2, opt3]
 ---
 data: @Data
   | row1, ~, value2, ~ # comment
   | row2, value1, ~, value3 # another comment
-"#;
+";
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -193,7 +192,7 @@ data: @Data
 
 #[test]
 fn test_simd_unicode_with_comments() {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
@@ -201,7 +200,7 @@ users: @User
   | user1, 张三 # Chinese name
   | user2, Иван # Russian name
   | user3, José # Spanish name
-"#;
+";
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -211,15 +210,15 @@ users: @User
 fn test_simd_very_long_document() {
     // Generate a large document to stress-test SIMD implementation
     let mut input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
-"#,
+",
     );
 
     for i in 0..10000 {
-        input.push_str(&format!("  | row{}, value{} # comment {}\n", i, i, i));
+        input.push_str(&format!("  | row{i}, value{i} # comment {i}\n"));
     }
 
     let result = parse_document(&input);
@@ -234,17 +233,16 @@ fn test_simd_alignment_edge_cases() {
     for len in 1..100 {
         let padding = "a".repeat(len);
         let input = format!(
-            r#"%VERSION: 1.0
+            r"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
 data: @Data
-  | row1, {} # comment
-"#,
-            padding
+  | row1, {padding} # comment
+"
         );
 
         let result = parse_document(&input);
-        assert!(result.is_ok(), "Failed for padding length {}", len);
+        assert!(result.is_ok(), "Failed for padding length {len}");
     }
 }
 
@@ -252,12 +250,12 @@ data: @Data
 fn test_simd_comment_after_32_bytes() {
     // Ensure SIMD correctly handles comments that appear after the first 32-byte chunk
     let input = format!(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
 data: @Data
   | row1, {} # comment here
-"#,
+",
         "a".repeat(50)
     );
 
@@ -269,12 +267,12 @@ data: @Data
 fn test_simd_no_hash_long_line() {
     // Test long lines without any hash to verify SIMD doesn't false-positive
     let input = format!(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, field1, field2, field3]
 ---
 data: @Data
   | row1, {}, {}, {}
-"#,
+",
         "a".repeat(100),
         "b".repeat(100),
         "c".repeat(100)
@@ -289,13 +287,12 @@ fn test_simd_hash_exactly_at_32_boundary() {
     // Place hash at exactly 32 bytes to test boundary condition
     let prefix = "a".repeat(31);
     let input = format!(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
 data: @Data
-  | row1, {}# comment
-"#,
-        prefix
+  | row1, {prefix}# comment
+"
     );
 
     let result = parse_document(&input);
@@ -317,16 +314,15 @@ fn test_simd_consistency_with_different_patterns() {
 
     for (name, pattern) in patterns {
         let input = format!(
-            r#"%VERSION: 1.0
+            r"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
 data: @Data
-  | row1, {}
-"#,
-            pattern
+  | row1, {pattern}
+"
         );
 
         let result = parse_document(&input);
-        assert!(result.is_ok(), "Pattern '{}' failed", name);
+        assert!(result.is_ok(), "Pattern '{name}' failed");
     }
 }

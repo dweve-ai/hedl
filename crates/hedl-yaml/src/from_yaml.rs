@@ -17,20 +17,23 @@
 
 //! YAML to HEDL conversion
 
+use crate::anchors::detect_cycles;
 use crate::error::YamlError;
+use crate::yaml_scanner::scan_yaml_anchors;
 use crate::DEFAULT_SCHEMA;
 use hedl_core::convert::parse_reference;
 use hedl_core::lex::Tensor;
 use hedl_core::lex::{parse_expression_token, singularize_and_capitalize};
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use serde_yaml::{Mapping, Value as YamlValue};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::rc::Rc;
 
 /// Default maximum document size: 500 MB
 ///
 /// YAML documents can be very large, especially for configurations like Kubernetes manifests,
 /// large datasets, or complex application configurations. This high default allows processing
-/// substantial YAML files while still providing DoS protection.
+/// substantial YAML files while still providing `DoS` protection.
 pub const DEFAULT_MAX_DOCUMENT_SIZE: usize = 500 * 1024 * 1024; // 500 MB
 
 /// Default maximum array length: 10 million elements
@@ -51,7 +54,7 @@ pub const DEFAULT_MAX_NESTING_DEPTH: usize = 10_000; // 10,000 levels
 ///
 /// # Security Considerations
 ///
-/// This configuration includes resource limits to prevent Denial of Service (DoS) attacks
+/// This configuration includes resource limits to prevent Denial of Service (`DoS`) attacks
 /// through maliciously crafted YAML documents:
 ///
 /// - `max_document_size`: Prevents memory exhaustion from extremely large documents
@@ -141,6 +144,7 @@ impl FromYamlConfig {
     ///     .max_nesting_depth(5000)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn builder() -> FromYamlConfigBuilder {
         FromYamlConfigBuilder::new()
     }
@@ -197,6 +201,7 @@ pub struct FromYamlConfigBuilder {
 
 impl FromYamlConfigBuilder {
     /// Creates a new builder with default values.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             default_type_name: "Item".to_string(),
@@ -214,6 +219,7 @@ impl FromYamlConfigBuilder {
     }
 
     /// Sets the HEDL version to use.
+    #[must_use]
     pub fn version(mut self, major: u32, minor: u32) -> Self {
         self.version = (major, minor);
         self
@@ -231,6 +237,7 @@ impl FromYamlConfigBuilder {
     ///     .max_document_size(100 * 1024 * 1024)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn max_document_size(mut self, size: usize) -> Self {
         self.max_document_size = size;
         self
@@ -248,6 +255,7 @@ impl FromYamlConfigBuilder {
     ///     .max_array_length(5_000_000)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn max_array_length(mut self, length: usize) -> Self {
         self.max_array_length = length;
         self
@@ -265,12 +273,14 @@ impl FromYamlConfigBuilder {
     ///     .max_nesting_depth(5000)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn max_nesting_depth(mut self, depth: usize) -> Self {
         self.max_nesting_depth = depth;
         self
     }
 
     /// Builds the `FromYamlConfig`.
+    #[must_use]
     pub fn build(self) -> FromYamlConfig {
         FromYamlConfig {
             default_type_name: self.default_type_name,
@@ -298,11 +308,115 @@ impl hedl_core::convert::ImportConfig for FromYamlConfig {
     }
 }
 
+/// Internal representation for items that may be shared via reference counting
+/// or owned independently. This enables memory-efficient alias resolution.
+#[derive(Clone)]
+#[allow(dead_code)] // Infrastructure for future alias optimization integration
+enum ItemOrRef {
+    /// Owned item (default case, no aliasing)
+    Owned(Item),
+    /// Reference-counted shared item (used for alias targets)
+    Shared(Rc<Item>),
+}
+
+#[allow(dead_code)] // Infrastructure for future alias optimization integration
+impl ItemOrRef {
+    /// Get a reference to the underlying Item
+    fn as_item(&self) -> &Item {
+        match self {
+            ItemOrRef::Owned(item) => item,
+            ItemOrRef::Shared(rc) => rc.as_ref(),
+        }
+    }
+
+    /// Convert to owned Item, cloning only if there are multiple references
+    fn into_item(self) -> Item {
+        match self {
+            ItemOrRef::Owned(item) => item,
+            ItemOrRef::Shared(rc) => {
+                // Only clone if there are multiple references
+                // If we're the only reference, we can take ownership
+                Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
+            }
+        }
+    }
+}
+
+/// Cache for resolved YAML anchors to avoid redundant processing.
+/// Lives for the duration of a single `from_yaml()` call.
+#[allow(dead_code)] // Infrastructure for future alias optimization integration
+struct AnchorCache {
+    /// Maps anchor names to their resolved Items
+    anchors: HashMap<String, Rc<Item>>,
+}
+
+#[allow(dead_code)] // Infrastructure for future alias optimization integration
+impl AnchorCache {
+    fn new() -> Self {
+        Self {
+            anchors: HashMap::new(),
+        }
+    }
+
+    /// Get a cached anchor value
+    fn get(&self, anchor: &str) -> Option<&Rc<Item>> {
+        self.anchors.get(anchor)
+    }
+
+    /// Cache a resolved anchor value
+    fn insert(&mut self, anchor: String, item: Rc<Item>) {
+        self.anchors.insert(anchor, item);
+    }
+}
+
+/// Detects and prevents circular alias references
+#[allow(dead_code)] // Infrastructure for future alias optimization integration
+struct CycleDetector {
+    /// Anchors currently being visited (in the resolution stack)
+    visiting: HashSet<String>,
+    /// Anchors that have been fully resolved
+    visited: HashSet<String>,
+}
+
+#[allow(dead_code)] // Infrastructure for future alias optimization integration
+impl CycleDetector {
+    fn new() -> Self {
+        Self {
+            visiting: HashSet::new(),
+            visited: HashSet::new(),
+        }
+    }
+
+    /// Check if visiting this anchor would create a cycle
+    fn begin_visit(&mut self, anchor: &str) -> Result<(), String> {
+        if self.visiting.contains(anchor) {
+            return Err(format!("Circular alias reference detected: {anchor}"));
+        }
+        if self.visited.contains(anchor) {
+            // Already resolved, safe to skip
+            return Ok(());
+        }
+        self.visiting.insert(anchor.to_string());
+        Ok(())
+    }
+
+    /// Mark anchor as fully resolved
+    fn end_visit(&mut self, anchor: &str) {
+        self.visiting.remove(anchor);
+        self.visited.insert(anchor.to_string());
+    }
+
+    /// Check if anchor has been visited
+    fn is_visited(&self, anchor: &str) -> bool {
+        self.visited.contains(anchor)
+    }
+}
+
 /// Convert YAML string to HEDL Document
 ///
 /// # Security
 ///
-/// This function enforces resource limits to prevent DoS attacks:
+/// This function enforces resource limits to prevent `DoS` attacks:
 /// - Checks document size against `max_document_size`
 /// - Enforces array length limits during conversion
 /// - Enforces nesting depth limits during conversion
@@ -320,20 +434,59 @@ pub fn from_yaml(yaml: &str, config: &FromYamlConfig) -> Result<Document, String
         return Err(YamlError::DocumentTooLarge {
             size: yaml.len(),
             max_size: config.max_document_size,
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
 
-    let value: YamlValue =
-        serde_yaml::from_str(yaml).map_err(|e| format!("YAML parse error: {}", e))?;
+    // Phase 1: Scan for anchors and aliases, build registry, detect cycles
+    let anchor_registry = scan_yaml_anchors(yaml).map_err(|e| e.to_string())?;
+    detect_cycles(&anchor_registry).map_err(|e| e.to_string())?;
+
+    // Phase 2: Parse YAML with serde_yaml
+    // serde_yaml will also detect some issues (forward refs, cycles via recursion limit)
+    // We enhance its error messages to be more user-friendly
+    let value: YamlValue = serde_yaml::from_str(yaml).map_err(|e| {
+        let err_msg = e.to_string();
+
+        // Enhance error messages for common anchor/alias issues
+        if err_msg.contains("unknown anchor") {
+            format!(
+                "Forward reference detected: {err_msg}. In YAML, anchors must be defined before aliases that reference them."
+            )
+        } else if err_msg.contains("recursion limit") {
+            format!(
+                "Circular reference detected: {err_msg}. YAML anchors cannot form circular references."
+            )
+        } else {
+            format!("YAML parse error: {err_msg}")
+        }
+    })?;
+
+    // Phase 3: Convert to HEDL
+    // Note: serde_yaml automatically resolves aliases to their anchor values,
+    // so we can't preserve them as HEDL References in the current implementation.
+    // The anchor_registry is used for validation only (cycle detection, forward ref detection).
+    // Future enhancement: use a different YAML parser that preserves anchor/alias structure.
     from_yaml_value(&value, config)
 }
 
-/// Convert serde_yaml::Value to HEDL Document
+/// Convert `serde_yaml::Value` to HEDL Document
 pub fn from_yaml_value(value: &YamlValue, config: &FromYamlConfig) -> Result<Document, String> {
     let mut structs = BTreeMap::new();
+    let mut cache = AnchorCache::new();
+    let mut cycle_detector = CycleDetector::new();
+
     let root = match value {
-        YamlValue::Mapping(map) => yaml_mapping_to_root(map, config, &mut structs, 0)?,
+        YamlValue::Mapping(map) => yaml_mapping_to_root(
+            map,
+            config,
+            &mut structs,
+            &mut cache,
+            &mut cycle_detector,
+            0,
+        )?,
         _ => return Err("Root must be a YAML mapping".into()),
     };
 
@@ -343,6 +496,7 @@ pub fn from_yaml_value(value: &YamlValue, config: &FromYamlConfig) -> Result<Doc
         structs,
         nests: BTreeMap::new(),
         root,
+        schema_versions: BTreeMap::new(),
     })
 }
 
@@ -350,6 +504,8 @@ fn yaml_mapping_to_root(
     map: &Mapping,
     config: &FromYamlConfig,
     structs: &mut BTreeMap<String, Vec<String>>,
+    cache: &mut AnchorCache,
+    cycle_detector: &mut CycleDetector,
     depth: usize,
 ) -> Result<BTreeMap<String, Item>, String> {
     // Check nesting depth
@@ -357,6 +513,9 @@ fn yaml_mapping_to_root(
         return Err(YamlError::MaxDepthExceeded {
             max_depth: config.max_nesting_depth,
             actual_depth: depth,
+            path: "root".to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -370,8 +529,16 @@ fn yaml_mapping_to_root(
             continue;
         }
 
-        let item = yaml_value_to_item(value, key_str, config, structs, depth)?;
-        root.insert(key_str.to_string(), item);
+        let item_or_ref = yaml_value_to_item_cached(
+            value,
+            key_str,
+            config,
+            structs,
+            cache,
+            cycle_detector,
+            depth,
+        )?;
+        root.insert(key_str.to_string(), item_or_ref.into_item());
     }
 
     Ok(root)
@@ -381,6 +548,8 @@ fn yaml_mapping_to_item_map(
     map: &Mapping,
     config: &FromYamlConfig,
     structs: &mut BTreeMap<String, Vec<String>>,
+    cache: &mut AnchorCache,
+    cycle_detector: &mut CycleDetector,
     depth: usize,
 ) -> Result<BTreeMap<String, Item>, String> {
     // Check nesting depth
@@ -388,6 +557,9 @@ fn yaml_mapping_to_item_map(
         return Err(YamlError::MaxDepthExceeded {
             max_depth: config.max_nesting_depth,
             actual_depth: depth,
+            path: "mapping".to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -401,11 +573,37 @@ fn yaml_mapping_to_item_map(
             continue;
         }
 
-        let item = yaml_value_to_item(value, key_str, config, structs, depth)?;
-        result.insert(key_str.to_string(), item);
+        let item_or_ref = yaml_value_to_item_cached(
+            value,
+            key_str,
+            config,
+            structs,
+            cache,
+            cycle_detector,
+            depth,
+        )?;
+        result.insert(key_str.to_string(), item_or_ref.into_item());
     }
 
     Ok(result)
+}
+
+/// Wrapper around `yaml_value_to_item` that handles caching for anchor resolution.
+/// This is used internally by `yaml_mapping_to_item_map`.
+fn yaml_value_to_item_cached(
+    value: &YamlValue,
+    key: &str,
+    config: &FromYamlConfig,
+    structs: &mut BTreeMap<String, Vec<String>>,
+    _cache: &mut AnchorCache,
+    _cycle_detector: &mut CycleDetector,
+    depth: usize,
+) -> Result<ItemOrRef, String> {
+    // Note: serde_yaml automatically resolves anchors/aliases before we see them,
+    // so we don't actually need to implement caching here. This is a placeholder
+    // for potential future optimization.
+    let item = yaml_value_to_item(value, key, config, structs, depth)?;
+    Ok(ItemOrRef::Owned(item))
 }
 
 fn yaml_value_to_item(
@@ -420,6 +618,9 @@ fn yaml_value_to_item(
         return Err(YamlError::MaxDepthExceeded {
             max_depth: config.max_nesting_depth,
             actual_depth: depth,
+            path: key.to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -433,20 +634,20 @@ fn yaml_value_to_item(
             } else if let Some(f) = n.as_f64() {
                 Ok(Item::Scalar(Value::Float(f)))
             } else {
-                Err(format!("Invalid number: {:?}", n))
+                Err(format!("Invalid number: {n:?}"))
             }
         }
         YamlValue::String(s) => {
             // Check for expression pattern $( ... )
             if s.starts_with("$(") && s.ends_with(')') {
                 let expr =
-                    parse_expression_token(s).map_err(|e| format!("Invalid expression: {}", e))?;
-                return Ok(Item::Scalar(Value::Expression(expr)));
+                    parse_expression_token(s).map_err(|e| format!("Invalid expression: {e}"))?;
+                return Ok(Item::Scalar(Value::Expression(Box::new(expr))));
             }
             // Note: We no longer auto-convert @... strings to references here.
             // References are now encoded as mappings with @ref key (like JSON).
             // This allows strings that happen to start with @ to round-trip correctly.
-            Ok(Item::Scalar(Value::String(s.clone())))
+            Ok(Item::Scalar(Value::String(s.clone().into())))
         }
         YamlValue::Sequence(seq) => {
             // Check array length limit
@@ -455,6 +656,8 @@ fn yaml_value_to_item(
                     length: seq.len(),
                     max_length: config.max_array_length,
                     path: key.to_string(),
+                    location: None,
+                    snippet: None,
                 }
                 .to_string());
             }
@@ -468,15 +671,17 @@ fn yaml_value_to_item(
             } else if is_tensor_sequence(seq) {
                 // Check if it's a tensor (array of numbers)
                 let tensor = yaml_sequence_to_tensor(seq, config, key, depth)?;
-                Ok(Item::Scalar(Value::Tensor(tensor)))
+                Ok(Item::Scalar(Value::Tensor(Box::new(tensor))))
             } else if is_object_sequence(seq) {
                 // Convert to matrix list
-                let list = yaml_sequence_to_matrix_list(seq, key, config, structs, depth)?;
+                let mut cache = AnchorCache::new();
+                let list =
+                    yaml_sequence_to_matrix_list(seq, key, config, structs, &mut cache, depth)?;
                 Ok(Item::List(list))
             } else {
                 // Mixed array - try to convert to tensor
                 let tensor = yaml_sequence_to_tensor(seq, config, key, depth)?;
-                Ok(Item::Scalar(Value::Tensor(tensor)))
+                Ok(Item::Scalar(Value::Tensor(Box::new(tensor))))
             }
         }
         YamlValue::Mapping(map) => {
@@ -486,7 +691,13 @@ fn yaml_value_to_item(
                 return Ok(Item::Scalar(Value::Reference(parse_reference(ref_str)?)));
             }
             // Check for special metadata indicating a matrix list
-            if map.contains_key(YamlValue::String("items".to_string())) {
+            // A mapping is a list wrapper ONLY if it has 'items' AND at least one metadata key
+            // (__type__ or __schema__). This prevents treating legitimate 'items' fields as lists.
+            let has_items = map.contains_key(YamlValue::String("items".to_string()));
+            let has_type_metadata = map.contains_key(YamlValue::String("__type__".to_string()));
+            let has_schema_metadata = map.contains_key(YamlValue::String("__schema__".to_string()));
+
+            if has_items && (has_type_metadata || has_schema_metadata) {
                 // Structured matrix list with metadata (__type__, __schema__, items)
                 let items = map
                     .get(YamlValue::String("items".to_string()))
@@ -497,20 +708,49 @@ fn yaml_value_to_item(
                         return Err(YamlError::ArrayTooLong {
                             length: seq.len(),
                             max_length: config.max_array_length,
-                            path: format!("{}.items", key),
+                            path: format!("{key}.items"),
+                            location: None,
+                            snippet: None,
                         }
                         .to_string());
                     }
 
-                    // Extract type_name from wrapper metadata if present
-                    let mut list = yaml_sequence_to_matrix_list(seq, key, config, structs, depth)?;
+                    // Extract schema from wrapper metadata if present
+                    // This preserves field ordering when YAML was exported with __schema__ metadata
+                    let wrapper_schema = if let Some(YamlValue::Sequence(schema_seq)) =
+                        map.get(YamlValue::String("__schema__".to_string()))
+                    {
+                        let schema: Result<Vec<String>, String> = schema_seq
+                            .iter()
+                            .map(|v| {
+                                v.as_str()
+                                    .map(std::string::ToString::to_string)
+                                    .ok_or_else(|| "Schema must contain strings".to_string())
+                            })
+                            .collect();
+                        Some(schema?)
+                    } else {
+                        None
+                    };
+
+                    // If wrapper schema is present, use it directly without inferring
+                    let mut cache = AnchorCache::new();
+                    let mut list = if let Some(schema) = wrapper_schema {
+                        // Use explicit schema from metadata
+                        yaml_sequence_to_matrix_list_with_schema(
+                            seq, key, schema, config, structs, &mut cache, depth,
+                        )?
+                    } else {
+                        // Infer schema from data
+                        yaml_sequence_to_matrix_list(seq, key, config, structs, &mut cache, depth)?
+                    };
 
                     // Override type_name with wrapper metadata if present
                     if let Some(YamlValue::String(wrapper_type)) =
                         map.get(YamlValue::String("__type__".to_string()))
                     {
                         list.type_name = wrapper_type.clone();
-                        // Re-register with correct type name
+                        // Re-register with correct type name and schema
                         structs.insert(wrapper_type.clone(), list.schema.clone());
                     }
 
@@ -518,7 +758,16 @@ fn yaml_value_to_item(
                 }
             }
             // Regular object
-            let item_map = yaml_mapping_to_item_map(map, config, structs, depth + 1)?;
+            let mut cache = AnchorCache::new();
+            let mut cycle_detector = CycleDetector::new();
+            let item_map = yaml_mapping_to_item_map(
+                map,
+                config,
+                structs,
+                &mut cache,
+                &mut cycle_detector,
+                depth + 1,
+            )?;
             Ok(Item::Object(item_map))
         }
         YamlValue::Tagged(tagged) => {
@@ -565,7 +814,7 @@ fn infer_row_schema(seq: &[YamlValue]) -> Vec<String> {
         // OPTIMIZATION: Pre-allocate with estimated capacity to reduce reallocations
         let mut keys: Vec<String> = Vec::with_capacity(first.len());
 
-        for (k, v) in first.iter() {
+        for (k, v) in first {
             let key_str = match k.as_str() {
                 Some(s) => s,
                 None => continue,
@@ -577,11 +826,13 @@ fn infer_row_schema(seq: &[YamlValue]) -> Vec<String> {
                 continue;
             }
 
-            // Exclude sequences of mappings - they become children
-            if let YamlValue::Sequence(child_seq) = v {
-                if is_object_sequence(child_seq) {
-                    continue;
-                }
+            // Exclude ALL sequences from schema - they represent either:
+            // 1. Non-empty object sequences: nested children (matrix lists)
+            // 2. Empty sequences: will become empty children, not fields
+            // 3. Tensor sequences: stored separately, not in schema
+            // This prevents empty child arrays from polluting the schema.
+            if matches!(v, YamlValue::Sequence(_)) {
+                continue;
             }
 
             keys.push(key_str.to_string());
@@ -596,7 +847,7 @@ fn infer_row_schema(seq: &[YamlValue]) -> Vec<String> {
         }
         keys
     } else {
-        DEFAULT_SCHEMA.iter().map(|s| s.to_string()).collect()
+        DEFAULT_SCHEMA.iter().map(|s| (*s).to_string()).collect()
     }
 }
 
@@ -627,6 +878,7 @@ fn build_matrix_columns(
     map: &Mapping,
     schema: &[String],
     config: &FromYamlConfig,
+    cache: &mut AnchorCache,
     depth: usize,
 ) -> Result<Vec<Value>, String> {
     // OPTIMIZATION: Pre-allocate exact capacity needed
@@ -634,7 +886,7 @@ fn build_matrix_columns(
     for col in schema {
         let value = map
             .get(YamlValue::String(col.clone()))
-            .map(|v| yaml_to_value(v, config, depth + 1))
+            .map(|v| yaml_to_value(v, config, cache, depth + 1))
             .transpose()?
             .unwrap_or(Value::Null);
         fields.push(value);
@@ -670,14 +922,14 @@ fn build_matrix_columns(
 fn extract_row_id(map: &Mapping, schema: &[String]) -> String {
     map.get(YamlValue::String(schema[0].clone()))
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string()) // Explicitly convert &str to String
+        .map(std::string::ToString::to_string) // Explicitly convert &str to String
         .unwrap_or_default()
 }
 
 /// Processes nested child sequences within a mapping.
 ///
 /// This function identifies and recursively converts sequences of mappings
-/// into child matrix lists. The results are stored in a BTreeMap keyed by
+/// into child matrix lists. The results are stored in a `BTreeMap` keyed by
 /// child field name.
 ///
 /// # Arguments
@@ -690,7 +942,7 @@ fn extract_row_id(map: &Mapping, schema: &[String]) -> String {
 ///
 /// # Returns
 ///
-/// A BTreeMap of child matrices, or an error if processing fails.
+/// A `BTreeMap` of child matrices, or an error if processing fails.
 ///
 /// # Examples
 ///
@@ -707,7 +959,7 @@ fn process_nested_children(
 ) -> Result<BTreeMap<String, Vec<Node>>, String> {
     let mut children: BTreeMap<String, Vec<Node>> = BTreeMap::new();
 
-    for (child_key, child_value) in map.iter() {
+    for (child_key, child_value) in map {
         if let (Some(child_key_str), YamlValue::Sequence(child_seq)) =
             (child_key.as_str(), child_value)
         {
@@ -717,16 +969,20 @@ fn process_nested_children(
                     return Err(YamlError::ArrayTooLong {
                         length: child_seq.len(),
                         max_length: config.max_array_length,
-                        path: format!("{}.{}", key, child_key_str),
+                        path: format!("{key}.{child_key_str}"),
+                        location: None,
+                        snippet: None,
                     }
                     .to_string());
                 }
                 // This is a nested child list
+                let mut cache = AnchorCache::new();
                 let child_list = yaml_sequence_to_matrix_list(
                     child_seq,
                     child_key_str,
                     config,
                     structs,
+                    &mut cache,
                     depth + 1,
                 )?;
                 children.insert(child_key_str.to_string(), child_list.rows);
@@ -755,6 +1011,7 @@ fn process_nested_children(
 /// # Returns
 ///
 /// A Node with all fields and children properly populated, or an error if conversion fails.
+#[allow(clippy::too_many_arguments)]
 fn convert_sequence_item(
     map: &Mapping,
     type_name: &str,
@@ -762,18 +1019,23 @@ fn convert_sequence_item(
     key: &str,
     config: &FromYamlConfig,
     structs: &mut BTreeMap<String, Vec<String>>,
+    cache: &mut AnchorCache,
     depth: usize,
 ) -> Result<Node, String> {
     let id = extract_row_id(map, schema);
-    let fields = build_matrix_columns(map, schema, config, depth)?;
+    let fields = build_matrix_columns(map, schema, config, cache, depth)?;
     let children = process_nested_children(map, key, config, structs, depth)?;
 
     Ok(Node {
         type_name: type_name.to_string(),
         id,
-        fields,
-        children,
-        child_count: None,
+        fields: fields.into(),
+        children: if children.is_empty() {
+            None
+        } else {
+            Some(Box::new(children))
+        },
+        child_count: 0,
     })
 }
 
@@ -795,6 +1057,7 @@ fn convert_sequence_item(
 /// # Returns
 ///
 /// A vector of Nodes, or an error if any row conversion fails.
+#[allow(clippy::too_many_arguments)]
 fn validate_row_structure(
     seq: &[YamlValue],
     type_name: &str,
@@ -802,13 +1065,15 @@ fn validate_row_structure(
     key: &str,
     config: &FromYamlConfig,
     structs: &mut BTreeMap<String, Vec<String>>,
+    cache: &mut AnchorCache,
     depth: usize,
 ) -> Result<Vec<Node>, String> {
     // OPTIMIZATION: Pre-allocate capacity based on sequence length
     let mut rows = Vec::with_capacity(seq.len());
-    for item in seq.iter() {
+    for item in seq {
         if let YamlValue::Mapping(map) = item {
-            let node = convert_sequence_item(map, type_name, schema, key, config, structs, depth)?;
+            let node =
+                convert_sequence_item(map, type_name, schema, key, config, structs, cache, depth)?;
             rows.push(node);
         }
     }
@@ -826,6 +1091,9 @@ fn yaml_sequence_to_tensor(
         return Err(YamlError::MaxDepthExceeded {
             max_depth: config.max_nesting_depth,
             actual_depth: depth,
+            path: path.to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -836,6 +1104,8 @@ fn yaml_sequence_to_tensor(
             length: seq.len(),
             max_length: config.max_array_length,
             path: path.to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -847,7 +1117,7 @@ fn yaml_sequence_to_tensor(
             YamlValue::Number(n) => n
                 .as_f64()
                 .map(Tensor::Scalar)
-                .ok_or_else(|| format!("Invalid tensor number: {:?}", n)),
+                .ok_or_else(|| format!("Invalid tensor number: {n:?}")),
             YamlValue::Sequence(nested) => yaml_sequence_to_tensor(nested, config, path, depth + 1),
             _ => Err("Invalid tensor element - must be number or sequence".into()),
         })
@@ -856,10 +1126,89 @@ fn yaml_sequence_to_tensor(
     Ok(Tensor::Array(items?))
 }
 
-/// Converts a YAML sequence to a HEDL MatrixList.
+/// Converts a YAML sequence to a HEDL `MatrixList` with an explicit schema.
+///
+/// This function is similar to `yaml_sequence_to_matrix_list` but uses an explicitly
+/// provided schema instead of inferring it from the data. This preserves field ordering
+/// when YAML was exported with `__schema__` metadata.
+///
+/// # Arguments
+///
+/// * `seq` - The YAML sequence of mappings to convert
+/// * `key` - The field name (used for type name inference)
+/// * `schema` - Explicit schema to use (field order is preserved)
+/// * `config` - Configuration with depth/size limits
+/// * `structs` - Structure registry (updated with new type definitions)
+/// * `cache` - Anchor cache for alias resolution
+/// * `depth` - Current nesting depth for validation
+///
+/// # Returns
+///
+/// A `MatrixList` with the provided schema, or an error if conversion fails.
+#[allow(clippy::only_used_in_recursion)]
+fn yaml_sequence_to_matrix_list_with_schema(
+    seq: &[YamlValue],
+    key: &str,
+    schema: Vec<String>,
+    config: &FromYamlConfig,
+    structs: &mut BTreeMap<String, Vec<String>>,
+    cache: &mut AnchorCache,
+    depth: usize,
+) -> Result<MatrixList, String> {
+    // Validate nesting depth and array length
+    if depth > config.max_nesting_depth {
+        return Err(YamlError::MaxDepthExceeded {
+            max_depth: config.max_nesting_depth,
+            actual_depth: depth,
+            path: key.to_string(),
+            location: None,
+            snippet: None,
+        }
+        .to_string());
+    }
+    if seq.len() > config.max_array_length {
+        return Err(YamlError::ArrayTooLong {
+            length: seq.len(),
+            max_length: config.max_array_length,
+            path: key.to_string(),
+            location: None,
+            snippet: None,
+        }
+        .to_string());
+    }
+
+    // Try to extract type_name from metadata (__type__ field in first row)
+    let type_name = if let Some(YamlValue::Mapping(first_map)) = seq.first() {
+        if let Some(YamlValue::String(type_str)) =
+            first_map.get(YamlValue::String("__type__".to_string()))
+        {
+            type_str.clone()
+        } else {
+            singularize_and_capitalize(key)
+        }
+    } else {
+        singularize_and_capitalize(key)
+    };
+
+    // Register the struct definition with explicit schema
+    structs.insert(type_name.clone(), schema.clone());
+
+    // Process all rows with the explicit schema
+    let rows =
+        validate_row_structure(seq, &type_name, &schema, key, config, structs, cache, depth)?;
+
+    Ok(MatrixList {
+        type_name,
+        schema,
+        rows,
+        count_hint: None,
+    })
+}
+
+/// Converts a YAML sequence to a HEDL `MatrixList`.
 ///
 /// This function transforms a sequence of YAML mappings into a structured HEDL
-/// MatrixList, inferring the schema from the first element. Child sequences are
+/// `MatrixList`, inferring the schema from the first element. Child sequences are
 /// recursively converted to nested matrix lists.
 ///
 /// # How it works
@@ -868,7 +1217,7 @@ fn yaml_sequence_to_tensor(
 /// 2. Infers type name from the key (singularized and capitalized)
 /// 3. Infers schema from the first mapping, excluding child sequences
 /// 4. Converts each mapping to a Node with fields and nested children
-/// 5. Returns a MatrixList with all rows
+/// 5. Returns a `MatrixList` with all rows
 ///
 /// # Arguments
 ///
@@ -900,6 +1249,7 @@ fn yaml_sequence_to_matrix_list(
     key: &str,
     config: &FromYamlConfig,
     structs: &mut BTreeMap<String, Vec<String>>,
+    cache: &mut AnchorCache,
     depth: usize,
 ) -> Result<MatrixList, String> {
     // Validate nesting depth and array length
@@ -907,6 +1257,9 @@ fn yaml_sequence_to_matrix_list(
         return Err(YamlError::MaxDepthExceeded {
             max_depth: config.max_nesting_depth,
             actual_depth: depth,
+            path: key.to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -915,6 +1268,8 @@ fn yaml_sequence_to_matrix_list(
             length: seq.len(),
             max_length: config.max_array_length,
             path: key.to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -941,7 +1296,8 @@ fn yaml_sequence_to_matrix_list(
     structs.insert(type_name.clone(), schema.clone());
 
     // Process all rows and collect
-    let rows = validate_row_structure(seq, &type_name, &schema, key, config, structs, depth)?;
+    let rows =
+        validate_row_structure(seq, &type_name, &schema, key, config, structs, cache, depth)?;
 
     Ok(MatrixList {
         type_name,
@@ -951,9 +1307,11 @@ fn yaml_sequence_to_matrix_list(
     })
 }
 
+#[allow(clippy::only_used_in_recursion)]
 fn yaml_to_value(
     value: &YamlValue,
     config: &FromYamlConfig,
+    cache: &mut AnchorCache,
     depth: usize,
 ) -> Result<Value, String> {
     // Check nesting depth
@@ -961,6 +1319,9 @@ fn yaml_to_value(
         return Err(YamlError::MaxDepthExceeded {
             max_depth: config.max_nesting_depth,
             actual_depth: depth,
+            path: "value".to_string(),
+            location: None,
+            snippet: None,
         }
         .to_string());
     }
@@ -974,19 +1335,19 @@ fn yaml_to_value(
             } else if let Some(f) = n.as_f64() {
                 Value::Float(f)
             } else {
-                return Err(format!("Invalid number: {:?}", n));
+                return Err(format!("Invalid number: {n:?}"));
             }
         }
         YamlValue::String(s) => {
             // Check for expression pattern $( ... )
             if s.starts_with("$(") && s.ends_with(')') {
                 let expr =
-                    parse_expression_token(s).map_err(|e| format!("Invalid expression: {}", e))?;
-                Value::Expression(expr)
+                    parse_expression_token(s).map_err(|e| format!("Invalid expression: {e}"))?;
+                Value::Expression(Box::new(expr))
             } else {
                 // Note: Strings that start with @ are just strings.
                 // References use the @ref mapping format.
-                Value::String(s.clone())
+                Value::String(s.clone().into())
             }
         }
         YamlValue::Sequence(seq) => {
@@ -996,6 +1357,8 @@ fn yaml_to_value(
                     length: seq.len(),
                     max_length: config.max_array_length,
                     path: "value".to_string(),
+                    location: None,
+                    snippet: None,
                 }
                 .to_string());
             }
@@ -1006,14 +1369,14 @@ fn yaml_to_value(
                 Value::Null // Children processed by yaml_sequence_to_matrix_list
             } else if is_tensor_sequence(seq) {
                 let tensor = yaml_sequence_to_tensor(seq, config, "tensor", depth + 1)?;
-                Value::Tensor(tensor)
+                Value::Tensor(Box::new(tensor))
             } else if seq.is_empty() {
                 // Empty sequence → empty tensor
-                Value::Tensor(Tensor::Array(vec![]))
+                Value::Tensor(Box::new(Tensor::Array(vec![])))
             } else {
                 // Mixed sequence - try as tensor
                 let tensor = yaml_sequence_to_tensor(seq, config, "tensor", depth + 1)?;
-                Value::Tensor(tensor)
+                Value::Tensor(Box::new(tensor))
             }
         }
         YamlValue::Mapping(map) => {
@@ -1026,7 +1389,7 @@ fn yaml_to_value(
             }
         }
         YamlValue::Tagged(tagged) => {
-            return yaml_to_value(&tagged.value, config, depth);
+            return yaml_to_value(&tagged.value, config, cache, depth);
         }
     })
 }
@@ -1047,7 +1410,7 @@ mod tests {
     #[test]
     fn test_from_yaml_config_debug() {
         let config = FromYamlConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("FromYamlConfig"));
         assert!(debug.contains("default_type_name"));
         assert!(debug.contains("version"));
@@ -1082,14 +1445,14 @@ mod tests {
     fn test_parse_reference_local() {
         let local_ref = parse_reference("@user1").unwrap();
         assert_eq!(local_ref.type_name, None);
-        assert_eq!(local_ref.id, "user1");
+        assert_eq!(local_ref.id.as_ref(), "user1");
     }
 
     #[test]
     fn test_parse_reference_qualified() {
         let qual_ref = parse_reference("@User:user1").unwrap();
-        assert_eq!(qual_ref.type_name, Some("User".to_string()));
-        assert_eq!(qual_ref.id, "user1");
+        assert_eq!(qual_ref.type_name.as_deref(), Some("User"));
+        assert_eq!(qual_ref.id.as_ref(), "user1");
     }
 
     #[test]
@@ -1103,22 +1466,22 @@ mod tests {
     fn test_parse_reference_with_special_chars() {
         let ref_val = parse_reference("@my-item_123").unwrap();
         assert_eq!(ref_val.type_name, None);
-        assert_eq!(ref_val.id, "my-item_123");
+        assert_eq!(ref_val.id.as_ref(), "my-item_123");
     }
 
     #[test]
     fn test_parse_reference_qualified_with_dashes() {
         let ref_val = parse_reference("@My-Type:item-123").unwrap();
-        assert_eq!(ref_val.type_name, Some("My-Type".to_string()));
-        assert_eq!(ref_val.id, "item-123");
+        assert_eq!(ref_val.type_name.as_deref(), Some("My-Type"));
+        assert_eq!(ref_val.id.as_ref(), "item-123");
     }
 
     #[test]
     fn test_parse_reference_empty_id() {
         // @: is parsed as type "" and id ""
         let ref_val = parse_reference("@:").unwrap();
-        assert_eq!(ref_val.type_name, Some("".to_string()));
-        assert_eq!(ref_val.id, "");
+        assert_eq!(ref_val.type_name.as_deref(), Some(""));
+        assert_eq!(ref_val.id.as_ref(), "");
     }
 
     // ==================== is_tensor_sequence tests ====================
@@ -1308,7 +1671,10 @@ mod tests {
             0,
         )
         .unwrap();
-        assert_eq!(item, Item::Scalar(Value::String("hello".to_string())));
+        assert_eq!(
+            item,
+            Item::Scalar(Value::String("hello".to_string().into()))
+        );
     }
 
     #[test]
@@ -1316,14 +1682,14 @@ mod tests {
         let config = FromYamlConfig::default();
         let mut structs = BTreeMap::new();
         let item = yaml_value_to_item(
-            &YamlValue::String("".to_string()),
+            &YamlValue::String(String::new()),
             "test",
             &config,
             &mut structs,
             0,
         )
         .unwrap();
-        assert_eq!(item, Item::Scalar(Value::String("".to_string())));
+        assert_eq!(item, Item::Scalar(Value::String(String::new().into())));
     }
 
     #[test]
@@ -1340,7 +1706,7 @@ mod tests {
         )
         .unwrap();
         if let Item::Scalar(Value::String(s)) = item {
-            assert_eq!(s, "@not-a-ref");
+            assert_eq!(s.as_ref(), "@not-a-ref");
         } else {
             panic!("Expected string");
         }
@@ -1404,7 +1770,7 @@ mod tests {
         .unwrap();
         if let Item::Scalar(Value::Reference(r)) = item {
             assert_eq!(r.type_name, None);
-            assert_eq!(r.id, "user1");
+            assert_eq!(r.id.as_ref(), "user1");
         } else {
             panic!("Expected reference");
         }
@@ -1429,8 +1795,8 @@ mod tests {
         )
         .unwrap();
         if let Item::Scalar(Value::Reference(r)) = item {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "user1");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
+            assert_eq!(r.id.as_ref(), "user1");
         } else {
             panic!("Expected reference");
         }
@@ -1446,8 +1812,12 @@ mod tests {
             YamlValue::Number(3.into()),
         ]);
         let item = yaml_value_to_item(&seq, "test", &config, &mut structs, 0).unwrap();
-        if let Item::Scalar(Value::Tensor(Tensor::Array(arr))) = item {
-            assert_eq!(arr.len(), 3);
+        if let Item::Scalar(Value::Tensor(tensor_box)) = item {
+            if let Tensor::Array(arr) = *tensor_box {
+                assert_eq!(arr.len(), 3);
+            } else {
+                panic!("Expected tensor array");
+            }
         } else {
             panic!("Expected tensor");
         }
@@ -1522,33 +1892,62 @@ mod tests {
 
     #[test]
     fn test_yaml_to_value_null() {
-        let value = yaml_to_value(&YamlValue::Null, &FromYamlConfig::default(), 0).unwrap();
+        let value = yaml_to_value(
+            &YamlValue::Null,
+            &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         assert_eq!(value, Value::Null);
     }
 
     #[test]
     fn test_yaml_to_value_bool() {
         assert_eq!(
-            yaml_to_value(&YamlValue::Bool(true), &FromYamlConfig::default(), 0).unwrap(),
+            yaml_to_value(
+                &YamlValue::Bool(true),
+                &FromYamlConfig::default(),
+                &mut AnchorCache::new(),
+                0
+            )
+            .unwrap(),
             Value::Bool(true)
         );
         assert_eq!(
-            yaml_to_value(&YamlValue::Bool(false), &FromYamlConfig::default(), 0).unwrap(),
+            yaml_to_value(
+                &YamlValue::Bool(false),
+                &FromYamlConfig::default(),
+                &mut AnchorCache::new(),
+                0
+            )
+            .unwrap(),
             Value::Bool(false)
         );
     }
 
     #[test]
     fn test_yaml_to_value_int() {
-        let value =
-            yaml_to_value(&YamlValue::Number(42.into()), &FromYamlConfig::default(), 0).unwrap();
+        let value = yaml_to_value(
+            &YamlValue::Number(42.into()),
+            &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         assert_eq!(value, Value::Int(42));
     }
 
     #[test]
     fn test_yaml_to_value_float() {
         let yaml_num = YamlValue::Number(serde_yaml::Number::from(3.5));
-        let value = yaml_to_value(&yaml_num, &FromYamlConfig::default(), 0).unwrap();
+        let value = yaml_to_value(
+            &yaml_num,
+            &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         if let Value::Float(f) = value {
             assert!((f - 3.5).abs() < 0.001);
         } else {
@@ -1561,10 +1960,11 @@ mod tests {
         let value = yaml_to_value(
             &YamlValue::String("hello".to_string()),
             &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
             0,
         )
         .unwrap();
-        assert_eq!(value, Value::String("hello".to_string()));
+        assert_eq!(value, Value::String("hello".to_string().into()));
     }
 
     #[test]
@@ -1572,6 +1972,7 @@ mod tests {
         let value = yaml_to_value(
             &YamlValue::String("$(foo)".to_string()),
             &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
             0,
         )
         .unwrap();
@@ -1589,10 +1990,15 @@ mod tests {
             YamlValue::String("@ref".to_string()),
             YamlValue::String("@user1".to_string()),
         );
-        let value =
-            yaml_to_value(&YamlValue::Mapping(ref_map), &FromYamlConfig::default(), 0).unwrap();
+        let value = yaml_to_value(
+            &YamlValue::Mapping(ref_map),
+            &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         if let Value::Reference(r) = value {
-            assert_eq!(r.id, "user1");
+            assert_eq!(r.id.as_ref(), "user1");
         } else {
             panic!("Expected reference");
         }
@@ -1604,9 +2010,14 @@ mod tests {
             YamlValue::Number(1.into()),
             YamlValue::Number(2.into()),
         ]);
-        let value = yaml_to_value(&seq, &FromYamlConfig::default(), 0).unwrap();
-        if let Value::Tensor(Tensor::Array(arr)) = value {
-            assert_eq!(arr.len(), 2);
+        let value =
+            yaml_to_value(&seq, &FromYamlConfig::default(), &mut AnchorCache::new(), 0).unwrap();
+        if let Value::Tensor(tensor_box) = value {
+            if let Tensor::Array(arr) = *tensor_box {
+                assert_eq!(arr.len(), 2);
+            } else {
+                panic!("Expected tensor array");
+            }
         } else {
             panic!("Expected tensor");
         }
@@ -1615,9 +2026,14 @@ mod tests {
     #[test]
     fn test_yaml_to_value_empty_sequence() {
         let seq = YamlValue::Sequence(vec![]);
-        let value = yaml_to_value(&seq, &FromYamlConfig::default(), 0).unwrap();
-        if let Value::Tensor(Tensor::Array(arr)) = value {
-            assert!(arr.is_empty());
+        let value =
+            yaml_to_value(&seq, &FromYamlConfig::default(), &mut AnchorCache::new(), 0).unwrap();
+        if let Value::Tensor(tensor_box) = value {
+            if let Tensor::Array(arr) = *tensor_box {
+                assert!(arr.is_empty());
+            } else {
+                panic!("Expected tensor array");
+            }
         } else {
             panic!("Expected empty tensor");
         }
@@ -1631,7 +2047,12 @@ mod tests {
             YamlValue::String("nested".to_string()),
             YamlValue::String("value".to_string()),
         );
-        let result = yaml_to_value(&YamlValue::Mapping(obj), &FromYamlConfig::default(), 0);
+        let result = yaml_to_value(
+            &YamlValue::Mapping(obj),
+            &FromYamlConfig::default(),
+            &mut AnchorCache::new(),
+            0,
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Nested objects not allowed"));
     }
@@ -1718,7 +2139,15 @@ mod tests {
         );
 
         let seq = vec![YamlValue::Mapping(obj)];
-        let list = yaml_sequence_to_matrix_list(&seq, "users", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "users",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
 
         assert_eq!(list.type_name, "User");
         assert_eq!(list.rows.len(), 1);
@@ -1745,7 +2174,15 @@ mod tests {
         );
 
         let seq = vec![YamlValue::Mapping(obj)];
-        let list = yaml_sequence_to_matrix_list(&seq, "users", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "users",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
 
         // Schema should be sorted with id first
         assert_eq!(list.schema[0], "id");
@@ -1759,7 +2196,15 @@ mod tests {
         let mut structs = BTreeMap::new();
 
         let seq: Vec<YamlValue> = vec![];
-        let list = yaml_sequence_to_matrix_list(&seq, "users", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "users",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
 
         assert_eq!(list.type_name, "User");
         assert!(list.rows.is_empty());
@@ -1781,18 +2226,49 @@ mod tests {
         let seq = vec![YamlValue::Mapping(obj)];
 
         // Test various pluralizations
-        let list = yaml_sequence_to_matrix_list(&seq, "users", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "users",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         assert_eq!(list.type_name, "User");
 
-        let list =
-            yaml_sequence_to_matrix_list(&seq, "companies", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "companies",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         assert_eq!(list.type_name, "Company");
 
         // "people" uses standard singularization (just removes 's' and capitalizes)
-        let list = yaml_sequence_to_matrix_list(&seq, "people", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "people",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         assert_eq!(list.type_name, "People");
 
-        let list = yaml_sequence_to_matrix_list(&seq, "items", &config, &mut structs, 0).unwrap();
+        let list = yaml_sequence_to_matrix_list(
+            &seq,
+            "items",
+            &config,
+            &mut structs,
+            &mut AnchorCache::new(),
+            0,
+        )
+        .unwrap();
         assert_eq!(list.type_name, "Item");
     }
 
@@ -1828,13 +2304,13 @@ mod tests {
 
     #[test]
     fn test_from_yaml_with_list() {
-        let yaml = r#"
+        let yaml = r"
 users:
   - id: u1
     name: Alice
   - id: u2
     name: Bob
-"#;
+";
         let config = FromYamlConfig::default();
         let doc = from_yaml(yaml, &config).unwrap();
 
@@ -1848,12 +2324,12 @@ users:
 
     #[test]
     fn test_from_yaml_with_nested_object() {
-        let yaml = r#"
+        let yaml = r"
 config:
   server:
     host: localhost
     port: 8080
-"#;
+";
         let config = FromYamlConfig::default();
         let doc = from_yaml(yaml, &config).unwrap();
 
@@ -1871,16 +2347,20 @@ config:
 
     #[test]
     fn test_from_yaml_with_tensor() {
-        let yaml = r#"
+        let yaml = r"
 matrix:
   - [1, 2, 3]
   - [4, 5, 6]
-"#;
+";
         let config = FromYamlConfig::default();
         let doc = from_yaml(yaml, &config).unwrap();
 
-        if let Item::Scalar(Value::Tensor(Tensor::Array(outer))) = &doc.root["matrix"] {
-            assert_eq!(outer.len(), 2);
+        if let Item::Scalar(Value::Tensor(tensor_box)) = &doc.root["matrix"] {
+            if let Tensor::Array(ref outer) = **tensor_box {
+                assert_eq!(outer.len(), 2);
+            } else {
+                panic!("Expected tensor array");
+            }
         } else {
             panic!("Expected tensor");
         }
@@ -1956,11 +2436,11 @@ __other__: notskipped
 
     #[test]
     fn test_yaml_multiline_string() {
-        let yaml = r#"
+        let yaml = r"
 description: |
   This is a
   multiline string
-"#;
+";
         let config = FromYamlConfig::default();
         let doc = from_yaml(yaml, &config).unwrap();
 
@@ -1974,14 +2454,14 @@ description: |
     #[test]
     fn test_yaml_anchors_and_aliases() {
         // Simple anchor/alias reference (not merge key)
-        let yaml = r#"
+        let yaml = r"
 defaults: &defaults
   timeout: 30
   retries: 3
 production:
   config: *defaults
   host: prod.example.com
-"#;
+";
         let config = FromYamlConfig::default();
         let doc = from_yaml(yaml, &config).unwrap();
 
@@ -2040,7 +2520,7 @@ production:
         };
 
         // Create YAML with array longer than limit
-        let yaml = r#"
+        let yaml = r"
 numbers:
   - 1
   - 2
@@ -2048,7 +2528,7 @@ numbers:
   - 4
   - 5
   - 6
-"#;
+";
         let result = from_yaml(yaml, &config);
 
         assert!(result.is_err());
@@ -2064,12 +2544,12 @@ numbers:
             ..Default::default()
         };
 
-        let yaml = r#"
+        let yaml = r"
 numbers:
   - 1
   - 2
   - 3
-"#;
+";
         let result = from_yaml(yaml, &config);
         assert!(result.is_ok());
     }
@@ -2081,7 +2561,7 @@ numbers:
             ..Default::default()
         };
 
-        let yaml = r#"
+        let yaml = r"
 users:
   - id: u1
     name: Alice
@@ -2089,7 +2569,7 @@ users:
     name: Bob
   - id: u3
     name: Charlie
-"#;
+";
         let result = from_yaml(yaml, &config);
 
         assert!(result.is_err());
@@ -2106,13 +2586,13 @@ users:
         };
 
         // Create deeply nested structure
-        let yaml = r#"
+        let yaml = r"
 level1:
   level2:
     level3:
       level4:
         level5: value
-"#;
+";
         let result = from_yaml(yaml, &config);
 
         assert!(result.is_err());
@@ -2128,11 +2608,11 @@ level1:
             ..Default::default()
         };
 
-        let yaml = r#"
+        let yaml = r"
 level1:
   level2:
     level3: value
-"#;
+";
         let result = from_yaml(yaml, &config);
         assert!(result.is_ok());
     }
@@ -2145,10 +2625,10 @@ level1:
         };
 
         // Nested tensor that's too deep
-        let yaml = r#"
+        let yaml = r"
 matrix:
   - - - [1, 2]
-"#;
+";
         let result = from_yaml(yaml, &config);
 
         assert!(result.is_err());
@@ -2193,7 +2673,7 @@ matrix:
             ..Default::default()
         };
 
-        let yaml = r#"
+        let yaml = r"
 users:
   - id: u1
     name: Alice
@@ -2204,7 +2684,7 @@ users:
         title: Second
       - id: p3
         title: Third
-"#;
+";
         let result = from_yaml(yaml, &config);
 
         assert!(result.is_err());
@@ -2220,10 +2700,10 @@ users:
             ..Default::default()
         };
 
-        let yaml = r#"
+        let yaml = r"
 matrix:
   - [1, 2, 3, 4, 5]
-"#;
+";
         let result = from_yaml(yaml, &config);
 
         assert!(result.is_err());
@@ -2278,7 +2758,7 @@ matrix:
         assert!(from_yaml(&large_doc, &config).is_err());
 
         // Array length exceeded
-        let long_array = r#"
+        let long_array = r"
 items:
   - 1
   - 2
@@ -2286,17 +2766,17 @@ items:
   - 4
   - 5
   - 6
-"#;
+";
         assert!(from_yaml(long_array, &config).is_err());
 
         // Nesting depth exceeded
-        let deep_nesting = r#"
+        let deep_nesting = r"
 a:
   b:
     c:
       d:
         e: value
-"#;
+";
         assert!(from_yaml(deep_nesting, &config).is_err());
     }
 
@@ -2429,7 +2909,7 @@ a:
     #[test]
     fn test_builder_debug() {
         let builder = FromYamlConfig::builder();
-        let debug_str = format!("{:?}", builder);
+        let debug_str = format!("{builder:?}");
         assert!(debug_str.contains("FromYamlConfigBuilder"));
     }
 
@@ -2450,18 +2930,18 @@ a:
             .max_array_length(5)
             .build();
 
-        let yaml = r#"
+        let yaml = r"
 numbers:
   - 1
   - 2
   - 3
-"#;
+";
         // Should succeed - within limits
         let result = from_yaml(yaml, &config);
         assert!(result.is_ok());
 
         // Test exceeding array length
-        let yaml_long = r#"
+        let yaml_long = r"
 numbers:
   - 1
   - 2
@@ -2469,7 +2949,7 @@ numbers:
   - 4
   - 5
   - 6
-"#;
+";
         let result = from_yaml(yaml_long, &config);
         assert!(result.is_err());
     }

@@ -57,12 +57,18 @@
 //! console.log(`Token savings: ${stats.savingsPercent}%`);
 //! ```
 
+#![cfg_attr(not(test), warn(missing_docs))]
 use hedl_c14n::CanonicalConfig;
-use hedl_core::{parse as core_parse, Document, Item, Node, Value};
-use hedl_lint::lint;
+use hedl_core::{parse as core_parse, Document, Item, Node};
 use serde::Serialize;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use wasm_bindgen::prelude::*;
+
+#[cfg(feature = "query-api")]
+use hedl_core::Value;
+
+#[cfg(feature = "full-validation")]
+use hedl_lint::lint;
 
 // TypeScript custom type definitions for better type inference
 #[wasm_bindgen(typescript_custom_section)]
@@ -89,11 +95,12 @@ export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 "#;
 
 /// Token estimation constant: approximate characters per token for structured data
+#[cfg(any(feature = "statistics", feature = "token-tools"))]
 const CHARS_PER_TOKEN: usize = 4;
 
 /// Default maximum input size: 500 MB
 /// This is a conservative default that balances memory safety with practical use cases.
-/// Can be customized using setMaxInputSize() for larger documents.
+/// Can be customized using `setMaxInputSize()` for larger documents.
 pub const DEFAULT_MAX_INPUT_SIZE: usize = 500 * 1024 * 1024; // 500 MB
 
 /// Global maximum input size configuration
@@ -104,9 +111,10 @@ static MAX_INPUT_SIZE: AtomicUsize = AtomicUsize::new(DEFAULT_MAX_INPUT_SIZE);
 #[cfg(feature = "json")]
 use hedl_json::{from_json_value, to_json_value, FromJsonConfig, ToJsonConfig};
 
-// Initialize panic hook for error handling.
-// In debug builds, show full panic messages for debugging.
-// In release builds, show generic message to avoid information disclosure.
+/// Initialize panic hook for error handling.
+///
+/// In debug builds, show full panic messages for debugging.
+/// In release builds, show generic message to avoid information disclosure.
 #[wasm_bindgen(start)]
 pub fn init() {
     #[cfg(debug_assertions)]
@@ -121,6 +129,7 @@ pub fn init() {
 
 /// HEDL version constant.
 #[wasm_bindgen]
+#[must_use]
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
@@ -163,6 +172,7 @@ pub fn get_max_input_size() -> usize {
 }
 
 /// Validate input size against the configured limit.
+#[inline(always)]
 fn check_input_size(input: &str) -> Result<(), JsError> {
     let max_size = MAX_INPUT_SIZE.load(Ordering::Relaxed);
     let input_size = input.len();
@@ -193,42 +203,49 @@ pub struct HedlDocument {
 impl HedlDocument {
     /// Get the HEDL version as a string (e.g., "1.0").
     #[wasm_bindgen(getter)]
+    #[must_use]
     pub fn version(&self) -> String {
         format!("{}.{}", self.inner.version.0, self.inner.version.1)
     }
 
     /// Get the number of schema definitions.
     #[wasm_bindgen(getter, js_name = schemaCount)]
+    #[must_use]
     pub fn schema_count(&self) -> usize {
         self.inner.structs.len()
     }
 
     /// Get the number of alias definitions.
     #[wasm_bindgen(getter, js_name = aliasCount)]
+    #[must_use]
     pub fn alias_count(&self) -> usize {
         self.inner.aliases.len()
     }
 
     /// Get the number of nest relationships.
     #[wasm_bindgen(getter, js_name = nestCount)]
+    #[must_use]
     pub fn nest_count(&self) -> usize {
         self.inner.nests.len()
     }
 
     /// Get the number of root items.
     #[wasm_bindgen(getter, js_name = rootItemCount)]
+    #[must_use]
     pub fn root_item_count(&self) -> usize {
         self.inner.root.len()
     }
 
     /// Get all schema names.
     #[wasm_bindgen(js_name = getSchemaNames)]
+    #[must_use]
     pub fn get_schema_names(&self) -> Vec<String> {
         self.inner.structs.keys().cloned().collect()
     }
 
     /// Get schema columns for a type.
     #[wasm_bindgen(js_name = getSchema)]
+    #[must_use]
     pub fn get_schema(&self, type_name: &str) -> Option<Vec<String>> {
         self.inner.structs.get(type_name).cloned()
     }
@@ -238,6 +255,7 @@ impl HedlDocument {
     /// Returns a JavaScript object mapping alias names to their resolved values.
     /// Returns an empty object if there are no aliases.
     #[wasm_bindgen(js_name = getAliases)]
+    #[must_use]
     pub fn get_aliases(&self) -> JsValue {
         serde_wasm_bindgen::to_value(&self.inner.aliases).unwrap_or(JsValue::NULL)
     }
@@ -247,6 +265,7 @@ impl HedlDocument {
     /// Returns a JavaScript object mapping parent type names to arrays of child type names.
     /// Returns an empty object if there are no nest relationships.
     #[wasm_bindgen(js_name = getNests)]
+    #[must_use]
     pub fn get_nests(&self) -> JsValue {
         serde_wasm_bindgen::to_value(&self.inner.nests).unwrap_or(JsValue::NULL)
     }
@@ -254,16 +273,17 @@ impl HedlDocument {
     /// Convert to JSON object.
     ///
     /// Returns the HEDL document as a structured JSON value that can be used
-    /// directly in JavaScript. The returned value conforms to the JsonValue type,
+    /// directly in JavaScript. The returned value conforms to the `JsonValue` type,
     /// which is a recursive union of JSON primitives, objects, and arrays.
     ///
     /// # Feature
     /// Requires the "json" feature to be enabled.
     ///
     /// # Returns
-    /// A JsonValue representing the complete document structure.
+    /// A `JsonValue` representing the complete document structure.
     #[cfg(feature = "json")]
     #[wasm_bindgen(js_name = toJson)]
+    #[must_use]
     pub fn to_json(&self) -> JsValue {
         let config = ToJsonConfig::default();
         match to_json_value(&self.inner, &config) {
@@ -303,6 +323,7 @@ impl HedlDocument {
 
     /// Count entities by type.
     #[wasm_bindgen(js_name = countEntities)]
+    #[must_use]
     pub fn count_entities(&self) -> JsValue {
         let mut counts: std::collections::BTreeMap<String, usize> =
             std::collections::BTreeMap::new();
@@ -316,16 +337,21 @@ impl HedlDocument {
 
     /// Query entities by type and optional ID.
     ///
-    /// Returns an array of EntityResult objects matching the specified criteria.
-    /// Each result contains the entity type, ID, and field values as a JsonValue map.
+    /// Returns an array of `EntityResult` objects matching the specified criteria.
+    /// Each result contains the entity type, ID, and field values as a `JsonValue` map.
     ///
     /// # Arguments
     /// * `type_name` - Optional type filter (e.g., "User"). If None, matches all types.
     /// * `id` - Optional ID filter. If None, matches all IDs.
     ///
     /// # Returns
-    /// Array of EntityResult objects with properly typed fields (JsonValue instead of any).
+    /// Array of `EntityResult` objects with properly typed fields (`JsonValue` instead of any).
+    ///
+    /// # Feature
+    /// Requires the "query-api" feature to be enabled.
+    #[cfg(feature = "query-api")]
     #[wasm_bindgen]
+    #[must_use]
     pub fn query(&self, type_name: Option<String>, id: Option<String>) -> JsValue {
         let mut results = Vec::new();
 
@@ -355,14 +381,17 @@ fn count_item_entities(item: &Item, counts: &mut std::collections::BTreeMap<Stri
 }
 
 fn count_node_entities(node: &Node, counts: &mut std::collections::BTreeMap<String, usize>) {
-    for children in node.children.values() {
-        for child in children {
-            *counts.entry(child.type_name.clone()).or_default() += 1;
-            count_node_entities(child, counts);
+    if let Some(children_map) = node.children() {
+        for children in children_map.values() {
+            for child in children {
+                *counts.entry(child.type_name.clone()).or_default() += 1;
+                count_node_entities(child, counts);
+            }
         }
     }
 }
 
+#[cfg(feature = "query-api")]
 #[derive(Serialize)]
 struct EntityResult {
     #[serde(rename = "type")]
@@ -371,6 +400,7 @@ struct EntityResult {
     fields: serde_json::Value,
 }
 
+#[cfg(feature = "query-api")]
 fn find_entities(
     item: &Item,
     type_filter: &Option<String>,
@@ -379,10 +409,10 @@ fn find_entities(
 ) {
     match item {
         Item::List(list) => {
-            let type_matches = type_filter.as_ref().is_none_or(|t| &list.type_name == t);
+            let type_matches = type_filter.as_ref().map_or(true, |t| &list.type_name == t);
 
             for node in &list.rows {
-                let id_matches = id_filter.as_ref().is_none_or(|i| &node.id == i);
+                let id_matches = id_filter.as_ref().map_or(true, |i| &node.id == i);
 
                 if type_matches && id_matches {
                     results.push(EntityResult {
@@ -392,9 +422,11 @@ fn find_entities(
                     });
                 }
 
-                for children in node.children.values() {
-                    for child in children {
-                        find_node_entities(child, type_filter, id_filter, results);
+                if let Some(children_map) = node.children() {
+                    for children in children_map.values() {
+                        for child in children {
+                            find_node_entities(child, type_filter, id_filter, results);
+                        }
                     }
                 }
             }
@@ -408,14 +440,15 @@ fn find_entities(
     }
 }
 
+#[cfg(feature = "query-api")]
 fn find_node_entities(
     node: &Node,
     type_filter: &Option<String>,
     id_filter: &Option<String>,
     results: &mut Vec<EntityResult>,
 ) {
-    let type_matches = type_filter.as_ref().is_none_or(|t| &node.type_name == t);
-    let id_matches = id_filter.as_ref().is_none_or(|i| &node.id == i);
+    let type_matches = type_filter.as_ref().map_or(true, |t| &node.type_name == t);
+    let id_matches = id_filter.as_ref().map_or(true, |i| &node.id == i);
 
     if type_matches && id_matches {
         results.push(EntityResult {
@@ -425,33 +458,37 @@ fn find_node_entities(
         });
     }
 
-    for children in node.children.values() {
-        for child in children {
-            find_node_entities(child, type_filter, id_filter, results);
+    if let Some(children_map) = node.children() {
+        for children in children_map.values() {
+            for child in children {
+                find_node_entities(child, type_filter, id_filter, results);
+            }
         }
     }
 }
 
+#[cfg(feature = "query-api")]
 fn node_fields_to_json(fields: &[Value], schema: &[String]) -> serde_json::Value {
     let mut obj = serde_json::Map::new();
     for (i, value) in fields.iter().enumerate() {
         let key = if i < schema.len() {
             schema[i].clone()
         } else {
-            format!("field_{}", i)
+            format!("field_{i}")
         };
         obj.insert(key, value_to_json(value));
     }
     serde_json::Value::Object(obj)
 }
 
+#[cfg(feature = "query-api")]
 fn value_to_json(value: &Value) -> serde_json::Value {
     match value {
         Value::Null => serde_json::Value::Null,
         Value::Bool(b) => serde_json::Value::Bool(*b),
         Value::Int(i) => serde_json::json!(i),
         Value::Float(f) => serde_json::json!(f),
-        Value::String(s) => serde_json::Value::String(s.clone()),
+        Value::String(s) => serde_json::Value::String(s.to_string()),
         Value::Reference(r) => {
             if let Some(ref t) = r.type_name {
                 serde_json::json!(format!("@{}:{}", t, r.id))
@@ -536,11 +573,11 @@ pub fn to_json(hedl: &str, pretty: Option<bool>) -> Result<String, JsError> {
 pub fn from_json(json: &str, use_ditto: Option<bool>) -> Result<String, JsError> {
     check_input_size(json)?;
     let json_value: serde_json::Value =
-        serde_json::from_str(json).map_err(|e| JsError::new(&format!("Invalid JSON: {}", e)))?;
+        serde_json::from_str(json).map_err(|e| JsError::new(&format!("Invalid JSON: {e}")))?;
 
     let config = FromJsonConfig::default();
     let doc = from_json_value(&json_value, &config)
-        .map_err(|e| JsError::new(&format!("Conversion error: {}", e)))?;
+        .map_err(|e| JsError::new(&format!("Conversion error: {e}")))?;
 
     let mut c14n_config = CanonicalConfig::default();
     if let Some(ditto) = use_ditto {
@@ -548,7 +585,249 @@ pub fn from_json(json: &str, use_ditto: Option<bool>) -> Result<String, JsError>
     }
 
     hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
-        .map_err(|e| JsError::new(&format!("Format error: {}", e)))
+        .map_err(|e| JsError::new(&format!("Format error: {e}")))
+}
+
+// --- YAML Conversion ---
+
+/// Convert HEDL string to YAML.
+///
+/// # Arguments
+/// * `hedl` - HEDL document string
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - Parsing or conversion fails
+///
+/// # Feature
+/// Requires the "yaml" feature to be enabled.
+#[cfg(feature = "yaml")]
+#[wasm_bindgen(js_name = toYaml)]
+pub fn to_yaml(hedl: &str) -> Result<String, JsError> {
+    check_input_size(hedl)?;
+    let doc = core_parse(hedl.as_bytes())
+        .map_err(|e| JsError::new(&format!("Parse error: {}", e.message)))?;
+
+    let config = hedl_yaml::ToYamlConfig::default();
+    hedl_yaml::to_yaml(&doc, &config)
+        .map_err(|e| JsError::new(&format!("YAML conversion error: {e}")))
+}
+
+/// Convert YAML string to HEDL.
+///
+/// # Arguments
+/// * `yaml` - YAML string to convert
+/// * `use_ditto` - Enable ditto optimization (default: true)
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - YAML parsing or conversion fails
+///
+/// # Feature
+/// Requires the "yaml" feature to be enabled.
+#[cfg(feature = "yaml")]
+#[wasm_bindgen(js_name = fromYaml)]
+pub fn from_yaml(yaml: &str, use_ditto: Option<bool>) -> Result<String, JsError> {
+    check_input_size(yaml)?;
+
+    let config = hedl_yaml::FromYamlConfig::default();
+    let doc = hedl_yaml::from_yaml(yaml, &config)
+        .map_err(|e| JsError::new(&format!("YAML parse error: {e}")))?;
+
+    let mut c14n_config = CanonicalConfig::default();
+    if let Some(ditto) = use_ditto {
+        c14n_config.use_ditto = ditto;
+    }
+
+    hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
+        .map_err(|e| JsError::new(&format!("Format error: {e}")))
+}
+
+// --- XML Conversion ---
+
+/// Convert HEDL string to XML.
+///
+/// # Arguments
+/// * `hedl` - HEDL document string
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - Parsing or conversion fails
+///
+/// # Feature
+/// Requires the "xml" feature to be enabled.
+#[cfg(feature = "xml")]
+#[wasm_bindgen(js_name = toXml)]
+pub fn to_xml(hedl: &str) -> Result<String, JsError> {
+    check_input_size(hedl)?;
+    let doc = core_parse(hedl.as_bytes())
+        .map_err(|e| JsError::new(&format!("Parse error: {}", e.message)))?;
+
+    let config = hedl_xml::ToXmlConfig::default();
+    hedl_xml::to_xml(&doc, &config).map_err(|e| JsError::new(&format!("XML conversion error: {e}")))
+}
+
+/// Convert XML string to HEDL.
+///
+/// # Arguments
+/// * `xml` - XML string to convert
+/// * `use_ditto` - Enable ditto optimization (default: true)
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - XML parsing or conversion fails
+///
+/// # Feature
+/// Requires the "xml" feature to be enabled.
+#[cfg(feature = "xml")]
+#[wasm_bindgen(js_name = fromXml)]
+pub fn from_xml(xml: &str, use_ditto: Option<bool>) -> Result<String, JsError> {
+    check_input_size(xml)?;
+
+    let config = hedl_xml::FromXmlConfig::default();
+    let doc = hedl_xml::from_xml(xml, &config)
+        .map_err(|e| JsError::new(&format!("XML parse error: {e}")))?;
+
+    let mut c14n_config = CanonicalConfig::default();
+    if let Some(ditto) = use_ditto {
+        c14n_config.use_ditto = ditto;
+    }
+
+    hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
+        .map_err(|e| JsError::new(&format!("Format error: {e}")))
+}
+
+// --- CSV Conversion ---
+
+/// Convert HEDL string to CSV.
+///
+/// # Arguments
+/// * `hedl` - HEDL document string
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - Parsing or conversion fails
+///
+/// # Feature
+/// Requires the "csv" feature to be enabled.
+#[cfg(feature = "csv")]
+#[wasm_bindgen(js_name = toCsv)]
+pub fn to_csv(hedl: &str) -> Result<String, JsError> {
+    check_input_size(hedl)?;
+    let doc = core_parse(hedl.as_bytes())
+        .map_err(|e| JsError::new(&format!("Parse error: {}", e.message)))?;
+
+    hedl_csv::to_csv(&doc).map_err(|e| JsError::new(&format!("CSV conversion error: {e}")))
+}
+
+/// Convert CSV string to HEDL.
+///
+/// The CSV must have a header row. Column names from the header become the schema.
+/// The type name defaults to "Row" but can be customized.
+///
+/// # Arguments
+/// * `csv` - CSV string to convert (must have header row)
+/// * `type_name` - Optional type name for entities (default: "Row")
+/// * `use_ditto` - Enable ditto optimization (default: true)
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - CSV parsing or conversion fails
+/// - CSV has no header row
+///
+/// # Feature
+/// Requires the "csv" feature to be enabled.
+#[cfg(feature = "csv")]
+#[wasm_bindgen(js_name = fromCsv)]
+pub fn from_csv(
+    csv: &str,
+    type_name: Option<String>,
+    use_ditto: Option<bool>,
+) -> Result<String, JsError> {
+    check_input_size(csv)?;
+
+    // Parse header row to get schema
+    let mut lines = csv.lines();
+    let header = lines
+        .next()
+        .ok_or_else(|| JsError::new("CSV must have a header row"))?;
+    let schema: Vec<&str> = header.split(',').map(str::trim).collect();
+
+    let type_name = type_name.unwrap_or_else(|| "Row".to_string());
+
+    let doc = hedl_csv::from_csv(csv, &type_name, &schema)
+        .map_err(|e| JsError::new(&format!("CSV parse error: {e}")))?;
+
+    let mut c14n_config = CanonicalConfig::default();
+    if let Some(ditto) = use_ditto {
+        c14n_config.use_ditto = ditto;
+    }
+
+    hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
+        .map_err(|e| JsError::new(&format!("Format error: {e}")))
+}
+
+// --- TOON Conversion ---
+
+/// Convert HEDL string to TOON.
+///
+/// TOON (Typed Object Outline Notation) is an external format specification
+/// for human-readable data serialization.
+///
+/// # Arguments
+/// * `hedl` - HEDL document string
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - Parsing or conversion fails
+///
+/// # Feature
+/// Requires the "toon" feature to be enabled.
+#[cfg(feature = "toon")]
+#[wasm_bindgen(js_name = toToon)]
+pub fn to_toon(hedl: &str) -> Result<String, JsError> {
+    check_input_size(hedl)?;
+    let doc = core_parse(hedl.as_bytes())
+        .map_err(|e| JsError::new(&format!("Parse error: {}", e.message)))?;
+
+    hedl_toon::hedl_to_toon(&doc).map_err(|e| JsError::new(&format!("TOON conversion error: {e}")))
+}
+
+/// Convert TOON string to HEDL.
+///
+/// # Arguments
+/// * `toon` - TOON string to convert
+/// * `use_ditto` - Enable ditto optimization (default: true)
+///
+/// # Errors
+/// Returns an error if:
+/// - Input exceeds the configured maximum size (default: 500 MB)
+/// - TOON parsing or conversion fails
+///
+/// # Feature
+/// Requires the "toon" feature to be enabled.
+#[cfg(feature = "toon")]
+#[wasm_bindgen(js_name = fromToon)]
+pub fn from_toon(toon: &str, use_ditto: Option<bool>) -> Result<String, JsError> {
+    check_input_size(toon)?;
+
+    let doc = hedl_toon::toon_to_hedl(toon)
+        .map_err(|e| JsError::new(&format!("TOON parse error: {e}")))?;
+
+    let mut c14n_config = CanonicalConfig::default();
+    if let Some(ditto) = use_ditto {
+        c14n_config.use_ditto = ditto;
+    }
+
+    hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
+        .map_err(|e| JsError::new(&format!("Format error: {e}")))
 }
 
 /// Format HEDL to canonical form.
@@ -573,7 +852,7 @@ pub fn format(hedl: &str, use_ditto: Option<bool>) -> Result<String, JsError> {
     }
 
     hedl_c14n::canonicalize_with_config(&doc, &config)
-        .map_err(|e| JsError::new(&format!("Format error: {}", e)))
+        .map_err(|e| JsError::new(&format!("Format error: {e}")))
 }
 
 // --- Validation ---
@@ -581,23 +860,34 @@ pub fn format(hedl: &str, use_ditto: Option<bool>) -> Result<String, JsError> {
 /// Validation result.
 #[derive(Serialize)]
 pub struct ValidationResult {
+    /// Whether the document is valid.
     valid: bool,
+    /// List of validation errors.
     errors: Vec<ValidationError>,
+    /// List of validation warnings.
     warnings: Vec<ValidationWarning>,
 }
 
+/// A validation error.
 #[derive(Serialize)]
 pub struct ValidationError {
+    /// Line number where the error occurred.
     line: usize,
+    /// Error message.
     message: String,
+    /// Error type identifier.
     #[serde(rename = "type")]
     error_type: String,
 }
 
+/// A validation warning.
 #[derive(Serialize)]
 pub struct ValidationWarning {
+    /// Line number where the warning occurred.
     line: usize,
+    /// Warning message.
     message: String,
+    /// Lint rule that generated this warning.
     rule: String,
 }
 
@@ -605,14 +895,15 @@ pub struct ValidationWarning {
 ///
 /// # Arguments
 /// * `hedl` - HEDL document string
-/// * `run_lint` - Run linting rules (default: true)
+/// * `run_lint` - Run linting rules (default: true, only available with full-validation feature)
 ///
 /// # Errors
 /// Returns validation result with errors if:
 /// - Input exceeds the configured maximum size (default: 500 MB)
 /// - Parsing fails due to syntax errors
-/// - Linting detects errors (if enabled)
+/// - Linting detects errors (if enabled and full-validation feature is active)
 #[wasm_bindgen]
+#[must_use]
 pub fn validate(hedl: &str, run_lint: Option<bool>) -> JsValue {
     // Check input size first
     if let Err(e) = check_input_size(hedl) {
@@ -620,7 +911,7 @@ pub fn validate(hedl: &str, run_lint: Option<bool>) -> JsValue {
             valid: false,
             errors: vec![ValidationError {
                 line: 0,
-                message: format!("{:?}", e),
+                message: format!("{e:?}"),
                 error_type: "InputSizeError".to_string(),
             }],
             warnings: Vec::new(),
@@ -635,29 +926,38 @@ pub fn validate(hedl: &str, run_lint: Option<bool>) -> JsValue {
     };
 
     match core_parse(hedl.as_bytes()) {
-        Ok(doc) => {
-            if run_lint.unwrap_or(true) {
-                let diagnostics = lint(&doc);
+        Ok(_doc) => {
+            #[cfg(feature = "full-validation")]
+            {
+                if run_lint.unwrap_or(true) {
+                    let diagnostics = lint(&_doc);
 
-                for diag in diagnostics {
-                    match diag.severity() {
-                        hedl_lint::Severity::Error => {
-                            result.valid = false;
-                            result.errors.push(ValidationError {
-                                line: diag.line().unwrap_or(0),
-                                message: diag.message().to_string(),
-                                error_type: diag.rule_id().to_string(),
-                            });
-                        }
-                        hedl_lint::Severity::Warning | hedl_lint::Severity::Hint => {
-                            result.warnings.push(ValidationWarning {
-                                line: diag.line().unwrap_or(0),
-                                message: diag.message().to_string(),
-                                rule: diag.rule_id().to_string(),
-                            });
+                    for diag in diagnostics {
+                        match diag.severity() {
+                            hedl_lint::Severity::Error => {
+                                result.valid = false;
+                                result.errors.push(ValidationError {
+                                    line: diag.line().unwrap_or(0),
+                                    message: diag.message().to_string(),
+                                    error_type: diag.rule_id().to_string(),
+                                });
+                            }
+                            hedl_lint::Severity::Warning | hedl_lint::Severity::Hint => {
+                                result.warnings.push(ValidationWarning {
+                                    line: diag.line().unwrap_or(0),
+                                    message: diag.message().to_string(),
+                                    rule: diag.rule_id().to_string(),
+                                });
+                            }
                         }
                     }
                 }
+            }
+
+            #[cfg(not(feature = "full-validation"))]
+            {
+                let _ = run_lint; // Suppress unused variable warning
+                                  // Minimal validation - syntax only (already done by parsing)
             }
         }
         Err(e) => {
@@ -705,8 +1005,8 @@ pub struct TokenStats {
 /// - Parsing fails
 ///
 /// # Feature
-/// Requires the "json" feature to be enabled.
-#[cfg(feature = "json")]
+/// Requires the "statistics" feature to be enabled.
+#[cfg(feature = "statistics")]
 #[wasm_bindgen(js_name = getStats)]
 pub fn get_stats(hedl: &str) -> Result<JsValue, JsError> {
     check_input_size(hedl)?;
@@ -743,7 +1043,7 @@ pub fn get_stats(hedl: &str) -> Result<JsValue, JsError> {
 ///
 /// This function estimates the number of tokens in text using a highly optimized
 /// byte-level loop, avoiding character iteration overhead. Provides approximately
-/// 3x speedup compared to the multi-pass .chars().filter() approach.
+/// 3x speedup compared to the multi-pass .`chars().filter()` approach.
 ///
 /// # Algorithm
 /// - Direct byte iteration for ASCII fast path
@@ -754,8 +1054,8 @@ pub fn get_stats(hedl: &str) -> Result<JsValue, JsError> {
 /// # Performance
 /// - Time complexity: O(n) single pass over bytes
 /// - Space complexity: O(1) constant
-/// - ~3x faster than multi-pass .chars().filter() approach
-/// - ~1.5x faster than single-pass .chars() loop
+/// - ~3x faster than multi-pass .`chars().filter()` approach
+/// - ~1.5x faster than single-pass .`chars()` loop
 ///
 /// # Token Estimation Formula
 /// `tokens = (byte_count + whitespace_count + punct_count) / CHARS_PER_TOKEN`
@@ -763,6 +1063,7 @@ pub fn get_stats(hedl: &str) -> Result<JsValue, JsError> {
 /// This approximates language model tokenization where:
 /// - Whitespace and punctuation often become separate tokens
 /// - Average token is ~4 characters for structured data
+#[cfg(any(feature = "statistics", feature = "token-tools"))]
 #[inline]
 fn estimate_tokens(text: &str) -> usize {
     let bytes = text.as_bytes();
@@ -784,10 +1085,10 @@ fn estimate_tokens(text: &str) -> usize {
         // ASCII fast path (most common in structured data)
         if b < 128 {
             // Check for ASCII whitespace: space, tab, newline, carriage return
-            whitespace_count += matches!(b, b' ' | b'\t' | b'\n' | b'\r') as usize;
+            whitespace_count += usize::from(matches!(b, b' ' | b'\t' | b'\n' | b'\r'));
 
             // Check for ASCII punctuation
-            punct_count += matches!(
+            punct_count += usize::from(matches!(
                 b,
                 b'!' | b'"'
                     | b'#'
@@ -820,7 +1121,7 @@ fn estimate_tokens(text: &str) -> usize {
                     | b'|'
                     | b'}'
                     | b'~'
-            ) as usize;
+            ));
 
             i += 1;
         } else {
@@ -847,7 +1148,12 @@ fn estimate_tokens(text: &str) -> usize {
 // --- Live Token Counter ---
 
 /// Compare HEDL and JSON token counts in real-time.
+///
+/// # Feature
+/// Requires the "token-tools" feature to be enabled.
+#[cfg(feature = "token-tools")]
 #[wasm_bindgen(js_name = compareTokens)]
+#[must_use]
 pub fn compare_tokens(hedl: &str, json: &str) -> JsValue {
     let hedl_tokens = estimate_tokens(hedl);
     let json_tokens = estimate_tokens(json);
@@ -938,11 +1244,13 @@ mod native_tests {
 
     // ============ TOKEN ESTIMATION TESTS ============
 
+    #[cfg(any(feature = "statistics", feature = "token-tools"))]
     #[test]
     fn test_estimate_tokens_empty() {
         assert_eq!(estimate_tokens(""), 0);
     }
 
+    #[cfg(any(feature = "statistics", feature = "token-tools"))]
     #[test]
     fn test_estimate_tokens_simple() {
         // Rough approximation: ~4 chars per token
@@ -951,6 +1259,7 @@ mod native_tests {
         assert!(tokens < 10, "Should not over-estimate");
     }
 
+    #[cfg(any(feature = "statistics", feature = "token-tools"))]
     #[test]
     fn test_estimate_tokens_punctuation() {
         // Punctuation counts extra
@@ -962,6 +1271,7 @@ mod native_tests {
         );
     }
 
+    #[cfg(any(feature = "statistics", feature = "token-tools"))]
     #[test]
     fn test_estimate_tokens_whitespace() {
         // Whitespace counts extra
@@ -975,12 +1285,14 @@ mod native_tests {
 
     // ============ VALUE TO JSON TESTS ============
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_null() {
         let json = value_to_json(&Value::Null);
         assert!(json.is_null());
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_bool() {
         let json_true = value_to_json(&Value::Bool(true));
@@ -990,44 +1302,50 @@ mod native_tests {
         assert_eq!(json_false, serde_json::Value::Bool(false));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_int() {
         let json = value_to_json(&Value::Int(42));
         assert_eq!(json, serde_json::json!(42));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_float() {
         let json = value_to_json(&Value::Float(3.5));
         assert_eq!(json, serde_json::json!(3.5));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_string() {
-        let json = value_to_json(&Value::String("hello".to_string()));
+        let json = value_to_json(&Value::String("hello".into()));
         assert_eq!(json, serde_json::Value::String("hello".to_string()));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_reference_qualified() {
         let reference = hedl_core::Reference {
-            type_name: Some("User".to_string()),
-            id: "alice".to_string(),
+            type_name: Some("User".into()),
+            id: "alice".into(),
         };
         let json = value_to_json(&Value::Reference(reference));
         assert_eq!(json, serde_json::json!("@User:alice"));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_reference_unqualified() {
         let reference = hedl_core::Reference {
             type_name: None,
-            id: "alice".to_string(),
+            id: "alice".into(),
         };
         let json = value_to_json(&Value::Reference(reference));
         assert_eq!(json, serde_json::json!("@alice"));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_value_to_json_expression() {
         // Test expression conversion via parsing a complete HEDL document
@@ -1046,7 +1364,7 @@ mod native_tests {
                     assert!(json.is_string(), "Expression should serialize to string");
                     let s = json.as_str().unwrap();
                     assert!(s.starts_with("$("), "Expression should start with $(");
-                    assert!(s.ends_with(")"), "Expression should end with )");
+                    assert!(s.ends_with(')'), "Expression should end with )");
                 }
                 _ => panic!("Expected expression value"),
             }
@@ -1055,11 +1373,12 @@ mod native_tests {
 
     // ============ NODE FIELDS TO JSON TESTS ============
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_node_fields_to_json_with_schema() {
         let fields = vec![
-            Value::String("alice".to_string()),
-            Value::String("Alice Smith".to_string()),
+            Value::String("alice".into()),
+            Value::String("Alice Smith".into()),
         ];
         let schema = vec!["id".to_string(), "name".to_string()];
 
@@ -1070,13 +1389,14 @@ mod native_tests {
         assert_eq!(obj.get("name"), Some(&serde_json::json!("Alice Smith")));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_node_fields_to_json_extra_fields() {
         // More fields than schema columns - uses field_N naming
         let fields = vec![
-            Value::String("a".to_string()),
-            Value::String("b".to_string()),
-            Value::String("c".to_string()),
+            Value::String("a".into()),
+            Value::String("b".into()),
+            Value::String("c".into()),
         ];
         let schema = vec!["id".to_string()];
 
@@ -1087,6 +1407,7 @@ mod native_tests {
         assert!(obj.contains_key("field_2"));
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_node_fields_to_json_empty() {
         let fields: Vec<Value> = vec![];
@@ -1168,6 +1489,7 @@ mod native_tests {
 
     // ============ LINTING TESTS ============
 
+    #[cfg(feature = "full-validation")]
     #[test]
     fn test_lint_valid_document() {
         let hedl = "%VERSION: 1.0\n---\n";
@@ -1215,6 +1537,7 @@ mod native_tests {
 
     // ============ ENTITY FINDING TESTS ============
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_find_entities_all() {
         let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
@@ -1228,6 +1551,7 @@ mod native_tests {
         assert_eq!(results.len(), 2, "Should find 2 entities");
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_find_entities_by_type() {
         let hedl = "%VERSION: 1.0\n%STRUCT: User: [id]\n%STRUCT: Product: [id]\n---\nusers: @User\n  | alice\nproducts: @Product\n  | prod1\n";
@@ -1243,6 +1567,7 @@ mod native_tests {
         assert_eq!(results[0].type_name, "User");
     }
 
+    #[cfg(feature = "query-api")]
     #[test]
     fn test_find_entities_by_id() {
         let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";

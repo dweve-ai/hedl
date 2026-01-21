@@ -283,6 +283,36 @@ pub enum CsvError {
     /// This is a catch-all for errors that don't fit other categories.
     #[error("{0}")]
     Other(String),
+
+    /// Security limit violated.
+    ///
+    /// This error occurs when CSV data exceeds configured security limits to prevent
+    /// denial-of-service attacks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hedl_csv::CsvError;
+    ///
+    /// let err = CsvError::Security {
+    ///     limit_type: "column count".to_string(),
+    ///     limit: 10_000,
+    ///     actual: 15_000,
+    ///     message: "CSV has 15000 columns, exceeds limit of 10000".to_string(),
+    /// };
+    /// assert!(err.to_string().contains("Security limit"));
+    /// ```
+    #[error("Security limit violated: {message}")]
+    Security {
+        /// Type of limit that was violated.
+        limit_type: String,
+        /// Configured limit value.
+        limit: usize,
+        /// Actual value encountered.
+        actual: usize,
+        /// Detailed error message.
+        message: String,
+    },
 }
 
 /// Convenience type alias for `Result` with `CsvError`.
@@ -304,16 +334,44 @@ impl CsvError {
     /// };
     /// let with_context = err.with_context("in column 'age' at line 10".to_string());
     /// ```
+    #[must_use]
     pub fn with_context(self, context: String) -> Self {
         match self {
             CsvError::ParseError { line, message } => CsvError::ParseError {
                 line,
-                message: format!("{} ({})", message, context),
+                message: format!("{message} ({context})"),
             },
-            CsvError::HedlCore(msg) => CsvError::HedlCore(format!("{} ({})", msg, context)),
-            CsvError::Other(msg) => CsvError::Other(format!("{} ({})", msg, context)),
+            CsvError::HedlCore(msg) => CsvError::HedlCore(format!("{msg} ({context})")),
+            CsvError::Other(msg) => CsvError::Other(format!("{msg} ({context})")),
             // For other variants, wrap in Other with context
-            other => CsvError::Other(format!("{} ({})", other, context)),
+            other => CsvError::Other(format!("{other} ({context})")),
+        }
+    }
+
+    /// Create a security error for limit violations.
+    ///
+    /// This is a convenience method for creating Security error variants.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hedl_csv::CsvError;
+    ///
+    /// let err = CsvError::security(
+    ///     "CSV has 15000 columns, exceeds limit of 10000".to_string(),
+    ///     0
+    /// );
+    /// assert!(matches!(err, CsvError::Security { .. }));
+    /// ```
+    #[must_use]
+    pub fn security(message: String, _line: usize) -> Self {
+        // Parse the message to extract limit information
+        // This is a simplified approach - the actual implementation will use structured data
+        CsvError::Security {
+            limit_type: "unknown".to_string(),
+            limit: 0,
+            actual: 0,
+            message,
         }
     }
 }
@@ -473,7 +531,7 @@ mod tests {
     #[test]
     fn test_error_debug() {
         let err = CsvError::MissingColumn("id".to_string());
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("MissingColumn"));
         assert!(debug.contains("id"));
     }
@@ -502,5 +560,40 @@ mod tests {
             with_ctx.to_string(),
             "CSV parse error at line 10: Invalid value (in field 'name')"
         );
+    }
+
+    #[test]
+    fn test_security_display() {
+        let err = CsvError::Security {
+            limit_type: "column count".to_string(),
+            limit: 10_000,
+            actual: 15_000,
+            message: "CSV has 15000 columns, exceeds limit of 10000".to_string(),
+        };
+        assert!(err.to_string().contains("Security limit"));
+        assert!(err.to_string().contains("15000"));
+    }
+
+    #[test]
+    fn test_security_error() {
+        let err = CsvError::security(
+            "CSV has 15000 columns, exceeds limit of 10000".to_string(),
+            0,
+        );
+        assert!(matches!(err, CsvError::Security { .. }));
+        assert!(err.to_string().contains("Security limit"));
+    }
+
+    #[test]
+    fn test_security_with_context() {
+        let err = CsvError::Security {
+            limit_type: "cell size".to_string(),
+            limit: 1_048_576,
+            actual: 2_000_000,
+            message: "Cell size exceeds limit".to_string(),
+        };
+        let with_ctx = err.with_context("at row 5, column 3".to_string());
+        assert!(with_ctx.to_string().contains("Cell size exceeds limit"));
+        assert!(with_ctx.to_string().contains("at row 5, column 3"));
     }
 }

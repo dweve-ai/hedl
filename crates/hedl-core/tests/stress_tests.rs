@@ -26,7 +26,8 @@
 //! - Various limits configurations
 
 use hedl_core::{
-    parse, parse_with_limits, traverse, HedlErrorKind, Limits, ParseOptions, StatsCollector,
+    parse, parse_with_limits, traverse, HedlErrorKind, Limits, ParseOptions, ReferenceMode,
+    StatsCollector,
 };
 use std::sync::Arc;
 use std::thread;
@@ -41,7 +42,7 @@ fn test_parse_10k_rows() {
 
     // Generate 10,000 rows
     for i in 0..10_000 {
-        doc.push_str(&format!("  | record-{}, value-{}\n", i, i));
+        doc.push_str(&format!("  | record-{i}, value-{i}\n"));
     }
 
     let result = parse(doc.as_bytes());
@@ -76,7 +77,7 @@ fn test_parse_100k_scalars() {
     let mut doc = String::from("%VERSION: 1.0\n---\n");
 
     for i in 0..100_000 {
-        doc.push_str(&format!("key{}: value{}\n", i, i));
+        doc.push_str(&format!("key{i}: value{i}\n"));
     }
 
     // Use unlimited limits for stress testing
@@ -84,7 +85,7 @@ fn test_parse_100k_scalars() {
         doc.as_bytes(),
         ParseOptions {
             limits: Limits::unlimited(),
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         },
     );
     assert!(result.is_ok());
@@ -98,7 +99,7 @@ fn test_parse_wide_table() {
     // Table with 100 columns and 1000 rows
     let mut schema = vec!["id".to_string()];
     for i in 1..100 {
-        schema.push(format!("col{}", i));
+        schema.push(format!("col{i}"));
     }
 
     let mut doc = format!(
@@ -108,9 +109,9 @@ fn test_parse_wide_table() {
 
     for row in 0..1_000 {
         doc.push_str("  | ");
-        doc.push_str(&format!("row-{}", row));
+        doc.push_str(&format!("row-{row}"));
         for col in 1..100 {
-            doc.push_str(&format!(", val-{}-{}", row, col));
+            doc.push_str(&format!(", val-{row}-{col}"));
         }
         doc.push('\n');
     }
@@ -135,7 +136,7 @@ fn test_deeply_nested_objects() {
 
     for i in 0..50 {
         doc.push_str(&" ".repeat(i * 2));
-        doc.push_str(&format!("level{}:\n", i));
+        doc.push_str(&format!("level{i}:\n"));
     }
 
     // Add a scalar at the deepest level
@@ -158,7 +159,7 @@ fn test_nested_objects_at_limit() {
 
     for i in 0..10 {
         doc.push_str(&" ".repeat(i * 2));
-        doc.push_str(&format!("level{}:\n", i));
+        doc.push_str(&format!("level{i}:\n"));
     }
 
     doc.push_str(&" ".repeat(10 * 2));
@@ -168,7 +169,7 @@ fn test_nested_objects_at_limit() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_ok());
@@ -186,14 +187,14 @@ fn test_nested_objects_exceeds_limit() {
 
     for i in 0..7 {
         doc.push_str(&" ".repeat(i * 2));
-        doc.push_str(&format!("level{}:\n", i));
+        doc.push_str(&format!("level{i}:\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_err());
@@ -209,7 +210,7 @@ fn test_deeply_nested_hierarchy() {
 
     // Define schemas for each level
     for i in 0..depth {
-        doc.push_str(&format!("%STRUCT: Level{}: [id, name]\n", i));
+        doc.push_str(&format!("%STRUCT: Level{i}: [id, name]\n"));
     }
 
     // Define NEST relationships
@@ -222,7 +223,7 @@ fn test_deeply_nested_hierarchy() {
     // Create nested data
     for level in 0..depth {
         let indent = "  ".repeat(level + 1);
-        doc.push_str(&format!("{}| node-{}, name-{}\n", indent, level, level));
+        doc.push_str(&format!("{indent}| node-{level}, name-{level}\n"));
     }
 
     let result = parse(doc.as_bytes());
@@ -246,7 +247,7 @@ fn test_nested_hierarchy_at_limit() {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     for i in 0..depth {
-        doc.push_str(&format!("%STRUCT: L{}: [id]\n", i));
+        doc.push_str(&format!("%STRUCT: L{i}: [id]\n"));
     }
 
     for i in 0..depth - 1 {
@@ -257,20 +258,20 @@ fn test_nested_hierarchy_at_limit() {
 
     for level in 0..depth {
         let indent = "  ".repeat(level + 1);
-        doc.push_str(&format!("{}| node-{}\n", indent, level));
+        doc.push_str(&format!("{indent}| node-{level}\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_ok());
 }
 
-/// Test that NEST depth limit is enforced during parsing to prevent DoS attacks.
+/// Test that NEST depth limit is enforced during parsing to prevent `DoS` attacks.
 ///
 /// This test validates the security fix for the NEST depth limit vulnerability.
 /// Without this check, an attacker could craft a HEDL document with excessive
@@ -286,7 +287,7 @@ fn test_nested_hierarchy_at_limit() {
 ///
 /// # Test Strategy
 ///
-/// 1. Set a low max_nest_depth limit (5 levels)
+/// 1. Set a low `max_nest_depth` limit (5 levels)
 /// 2. Create a NEST hierarchy deeper than the limit (10 levels)
 /// 3. Verify parsing fails with a Security error
 /// 4. Verify the error message contains depth information
@@ -304,7 +305,7 @@ fn test_nest_depth_limit_enforced() {
 
     // Define schemas for each level
     for i in 0..depth {
-        doc.push_str(&format!("%STRUCT: Level{}: [id]\n", i));
+        doc.push_str(&format!("%STRUCT: Level{i}: [id]\n"));
     }
 
     // Define NEST relationships
@@ -317,7 +318,7 @@ fn test_nest_depth_limit_enforced() {
     // Create nested data - this should fail at depth 6 (exceeding limit of 5)
     for level in 0..depth {
         let indent = "  ".repeat(level + 1);
-        doc.push_str(&format!("{}| node-{}\n", indent, level));
+        doc.push_str(&format!("{indent}| node-{level}\n"));
     }
 
     // Parse should fail with Security error
@@ -325,7 +326,7 @@ fn test_nest_depth_limit_enforced() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -345,8 +346,7 @@ fn test_nest_depth_limit_enforced() {
     let err_msg = err.to_string();
     assert!(
         err_msg.contains("depth") || err_msg.contains("NEST"),
-        "Error message should mention depth or NEST, got: {}",
-        err_msg
+        "Error message should mention depth or NEST, got: {err_msg}"
     );
 }
 
@@ -367,7 +367,7 @@ fn test_nest_depth_within_limit_succeeds() {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     for i in 0..depth {
-        doc.push_str(&format!("%STRUCT: Level{}: [id]\n", i));
+        doc.push_str(&format!("%STRUCT: Level{i}: [id]\n"));
     }
 
     for i in 0..depth - 1 {
@@ -379,7 +379,7 @@ fn test_nest_depth_within_limit_succeeds() {
     // Create nested data at exactly the limit
     for level in 0..depth {
         let indent = "  ".repeat(level + 1);
-        doc.push_str(&format!("{}| node-{}\n", indent, level));
+        doc.push_str(&format!("{indent}| node-{level}\n"));
     }
 
     // Parse should succeed
@@ -387,7 +387,7 @@ fn test_nest_depth_within_limit_succeeds() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -426,7 +426,7 @@ fn test_nest_depth_limit_minimal() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -447,7 +447,7 @@ fn test_max_object_keys() {
     let mut doc = String::from("%VERSION: 1.0\n---\nconfig:\n");
 
     for i in 0..1_000 {
-        doc.push_str(&format!("  setting{}: value{}\n", i, i));
+        doc.push_str(&format!("  setting{i}: value{i}\n"));
     }
 
     let result = parse(doc.as_bytes());
@@ -458,9 +458,9 @@ fn test_max_object_keys() {
     assert_eq!(obj.len(), 1_000);
 }
 
-/// Test that max_object_keys limit is enforced per object.
+/// Test that `max_object_keys` limit is enforced per object.
 ///
-/// This test validates that a single object cannot exceed the max_object_keys limit,
+/// This test validates that a single object cannot exceed the `max_object_keys` limit,
 /// even if the total keys across all objects is within limits.
 #[test]
 fn test_max_object_keys_limit_enforced() {
@@ -474,14 +474,14 @@ fn test_max_object_keys_limit_enforced() {
 
     // Try to create 150 keys in one object (exceeds limit of 100)
     for i in 0..150 {
-        doc.push_str(&format!("  setting{}: value{}\n", i, i));
+        doc.push_str(&format!("  setting{i}: value{i}\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -499,27 +499,26 @@ fn test_max_object_keys_limit_enforced() {
     let err_msg = err.to_string();
     assert!(
         err_msg.contains("too many keys") || err_msg.contains("object"),
-        "Error message should mention keys or object, got: {}",
-        err_msg
+        "Error message should mention keys or object, got: {err_msg}"
     );
 }
 
-/// Test that max_total_keys limit prevents DoS via many small objects.
+/// Test that `max_total_keys` limit prevents `DoS` via many small objects.
 ///
 /// This test validates the critical security feature that prevents attackers from
-/// creating many small objects, each under max_object_keys, but collectively
+/// creating many small objects, each under `max_object_keys`, but collectively
 /// consuming excessive memory.
 ///
 /// # Attack Scenario
 ///
-/// Without max_total_keys, an attacker could:
-/// 1. Create 10,000 objects with 10 keys each (under max_object_keys limit)
+/// Without `max_total_keys`, an attacker could:
+/// 1. Create 10,000 objects with 10 keys each (under `max_object_keys` limit)
 /// 2. Total: 100,000 keys consuming significant memory
 /// 3. Each object is "valid" but total memory usage is excessive
 ///
 /// # Defense
 ///
-/// The max_total_keys limit provides defense-in-depth by tracking cumulative
+/// The `max_total_keys` limit provides defense-in-depth by tracking cumulative
 /// key count across all objects and rejecting documents that exceed the limit.
 #[test]
 fn test_max_total_keys_limit_enforced() {
@@ -535,9 +534,9 @@ fn test_max_total_keys_limit_enforced() {
     // Create 10 objects with 10 keys each = 100 total keys
     // This should fail when we hit the 51st key
     for obj_idx in 0..10 {
-        doc.push_str(&format!("object{}:\n", obj_idx));
+        doc.push_str(&format!("object{obj_idx}:\n"));
         for key_idx in 0..10 {
-            doc.push_str(&format!("  key{}: value{}\n", key_idx, key_idx));
+            doc.push_str(&format!("  key{key_idx}: value{key_idx}\n"));
         }
     }
 
@@ -545,7 +544,7 @@ fn test_max_total_keys_limit_enforced() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -564,12 +563,11 @@ fn test_max_total_keys_limit_enforced() {
     let err_msg = err.to_string();
     assert!(
         err_msg.contains("total keys") || err_msg.contains("exceeds limit"),
-        "Error message should mention total keys or limit, got: {}",
-        err_msg
+        "Error message should mention total keys or limit, got: {err_msg}"
     );
 }
 
-/// Test that max_total_keys allows valid documents within the limit.
+/// Test that `max_total_keys` allows valid documents within the limit.
 ///
 /// Ensures the limit check doesn't incorrectly reject valid documents.
 #[test]
@@ -584,9 +582,9 @@ fn test_max_total_keys_within_limit_succeeds() {
 
     // Create 9 objects with 10 keys each = 90 total keys (within limit)
     for obj_idx in 0..9 {
-        doc.push_str(&format!("object{}:\n", obj_idx));
+        doc.push_str(&format!("object{obj_idx}:\n"));
         for key_idx in 0..10 {
-            doc.push_str(&format!("  key{}: value{}\n", key_idx, key_idx));
+            doc.push_str(&format!("  key{key_idx}: value{key_idx}\n"));
         }
     }
 
@@ -594,7 +592,7 @@ fn test_max_total_keys_within_limit_succeeds() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -604,7 +602,7 @@ fn test_max_total_keys_within_limit_succeeds() {
     assert_eq!(parsed.root.len(), 9, "Should have 9 top-level objects");
 }
 
-/// Test max_total_keys with nested objects.
+/// Test `max_total_keys` with nested objects.
 ///
 /// Validates that the total key counter tracks keys across all nesting levels.
 #[test]
@@ -619,32 +617,32 @@ fn test_max_total_keys_nested_objects() {
 
     // Root level: 5 keys
     for i in 0..5 {
-        doc.push_str(&format!("root_key{}: value{}\n", i, i));
+        doc.push_str(&format!("root_key{i}: value{i}\n"));
     }
 
     // Nested object 1: 15 keys (total: 20)
     doc.push_str("nested1:\n");
     for i in 0..15 {
-        doc.push_str(&format!("  nested1_key{}: value{}\n", i, i));
+        doc.push_str(&format!("  nested1_key{i}: value{i}\n"));
     }
 
     // Nested object 2: 15 keys (total: 35)
     doc.push_str("nested2:\n");
     for i in 0..15 {
-        doc.push_str(&format!("  nested2_key{}: value{}\n", i, i));
+        doc.push_str(&format!("  nested2_key{i}: value{i}\n"));
     }
 
     // Try to add one more object with 10 keys (would exceed limit at 6th key)
     doc.push_str("nested3:\n");
     for i in 0..10 {
-        doc.push_str(&format!("  nested3_key{}: value{}\n", i, i));
+        doc.push_str(&format!("  nested3_key{i}: value{i}\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -655,7 +653,7 @@ fn test_max_total_keys_nested_objects() {
     assert!(matches!(result.unwrap_err().kind, HedlErrorKind::Security));
 }
 
-/// Test max_total_keys at exactly the limit boundary.
+/// Test `max_total_keys` at exactly the limit boundary.
 ///
 /// Edge case testing to ensure off-by-one errors don't exist.
 /// Note: Object keys themselves (object0, object1, etc.) also count toward the total!
@@ -671,9 +669,9 @@ fn test_max_total_keys_at_exact_limit() {
 
     // Create exactly 110 total keys: 10 object keys + 100 nested keys
     for obj_idx in 0..10 {
-        doc.push_str(&format!("object{}:\n", obj_idx)); // This counts as 1 key
+        doc.push_str(&format!("object{obj_idx}:\n")); // This counts as 1 key
         for key_idx in 0..10 {
-            doc.push_str(&format!("  key{}: value{}\n", key_idx, key_idx)); // Each counts as 1 key
+            doc.push_str(&format!("  key{key_idx}: value{key_idx}\n")); // Each counts as 1 key
         }
     }
 
@@ -681,14 +679,14 @@ fn test_max_total_keys_at_exact_limit() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
     assert!(result.is_ok(), "Expected parsing to succeed at exact limit");
 }
 
-/// Test max_total_keys with overflow protection.
+/// Test `max_total_keys` with overflow protection.
 ///
 /// Validates that adding keys doesn't cause integer overflow.
 #[test]
@@ -706,14 +704,14 @@ fn test_max_total_keys_overflow_protection() {
 
     // Create a reasonable number of keys (can't actually overflow in test)
     for i in 0..100 {
-        doc.push_str(&format!("key{}: value{}\n", i, i));
+        doc.push_str(&format!("key{i}: value{i}\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -723,10 +721,10 @@ fn test_max_total_keys_overflow_protection() {
     );
 }
 
-/// Test that max_total_keys doesn't count keys in matrix list schemas.
+/// Test that `max_total_keys` doesn't count keys in matrix list schemas.
 ///
 /// Matrix list column names are schema metadata, not data keys,
-/// so they shouldn't count against max_total_keys.
+/// so they shouldn't count against `max_total_keys`.
 /// Note: The key "data" itself does count!
 #[test]
 fn test_max_total_keys_excludes_matrix_schemas() {
@@ -742,7 +740,7 @@ fn test_max_total_keys_excludes_matrix_schemas() {
 
     // Add some object keys (count toward limit)
     for i in 0..15 {
-        doc.push_str(&format!("key{}: value{}\n", i, i));
+        doc.push_str(&format!("key{i}: value{i}\n"));
     }
 
     // Add a matrix list - the key "data" counts, but schema columns don't
@@ -754,7 +752,7 @@ fn test_max_total_keys_excludes_matrix_schemas() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -765,7 +763,7 @@ fn test_max_total_keys_excludes_matrix_schemas() {
     );
 }
 
-/// Test max_total_keys with block strings.
+/// Test `max_total_keys` with block strings.
 ///
 /// Block string keys should count toward the limit.
 #[test]
@@ -795,7 +793,7 @@ fn test_max_total_keys_includes_block_strings() {
         doc.as_bytes(),
         ParseOptions {
             limits: limits.clone(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
 
@@ -811,7 +809,7 @@ fn test_max_total_keys_includes_block_strings() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(
@@ -826,7 +824,7 @@ fn test_max_aliases() {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     for i in 0..1_000 {
-        doc.push_str(&format!("%ALIAS: %alias{}: \"value{}\"\n", i, i));
+        doc.push_str(&format!("%ALIAS: %alias{i}: \"value{i}\"\n"));
     }
 
     doc.push_str("---\ndata: 1\n");
@@ -848,7 +846,7 @@ fn test_aliases_at_limit() {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     for i in 0..100 {
-        doc.push_str(&format!("%ALIAS: %alias{}: \"value{}\"\n", i, i));
+        doc.push_str(&format!("%ALIAS: %alias{i}: \"value{i}\"\n"));
     }
 
     doc.push_str("---\ndata: 1\n");
@@ -857,7 +855,7 @@ fn test_aliases_at_limit() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_ok());
@@ -873,7 +871,7 @@ fn test_aliases_exceeds_limit() {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     for i in 0..100 {
-        doc.push_str(&format!("%ALIAS: %alias{}: \"value{}\"\n", i, i));
+        doc.push_str(&format!("%ALIAS: %alias{i}: \"value{i}\"\n"));
     }
 
     doc.push_str("---\ndata: 1\n");
@@ -882,7 +880,7 @@ fn test_aliases_exceeds_limit() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_err());
@@ -969,7 +967,7 @@ fn test_concurrent_parsing_with_different_limits() {
             doc2.as_bytes(),
             ParseOptions {
                 limits,
-                strict_refs: true,
+                reference_mode: ReferenceMode::Strict,
             },
         );
         assert!(result.is_ok());
@@ -982,7 +980,7 @@ fn test_concurrent_parsing_with_different_limits() {
             doc3.as_bytes(),
             ParseOptions {
                 limits: Limits::unlimited(),
-                strict_refs: true,
+                reference_mode: ReferenceMode::Strict,
             },
         );
         assert!(result.is_ok());
@@ -1004,7 +1002,7 @@ fn test_large_string_values() {
     let mut doc = String::from("%VERSION: 1.0\n---\n");
 
     for i in 0..100 {
-        doc.push_str(&format!("key{}: \"{}\"\n", i, large_str));
+        doc.push_str(&format!("key{i}: \"{large_str}\"\n"));
     }
 
     let result = parse(doc.as_bytes());
@@ -1020,16 +1018,13 @@ fn test_block_string_at_limit() {
 
     // Block string content: each line + newline contributes to size
     let content = "x".repeat(400);
-    let doc = format!(
-        "%VERSION: 1.0\n---\ndata: \"\"\"\n{}\n{}\n\"\"\"\n",
-        content, content
-    );
+    let doc = format!("%VERSION: 1.0\n---\ndata: \"\"\"\n{content}\n{content}\n\"\"\"\n");
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_ok());
@@ -1043,13 +1038,13 @@ fn test_block_string_exceeds_limit() {
     };
 
     let content = "x".repeat(200);
-    let doc = format!("%VERSION: 1.0\n---\ndata: \"\"\"\n{}\n\"\"\"\n", content);
+    let doc = format!("%VERSION: 1.0\n---\ndata: \"\"\"\n{content}\n\"\"\"\n");
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_err());
@@ -1093,14 +1088,14 @@ fn test_node_limit_enforcement() {
 
     // Try to create 200 nodes
     for i in 0..200 {
-        doc.push_str(&format!("  | node-{}\n", i));
+        doc.push_str(&format!("  | node-{i}\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_err());
@@ -1116,7 +1111,7 @@ fn test_column_limit_enforcement() {
 
     let mut schema = vec!["id".to_string()];
     for i in 1..20 {
-        schema.push(format!("col{}", i));
+        schema.push(format!("col{i}"));
     }
 
     let doc = format!(
@@ -1128,7 +1123,7 @@ fn test_column_limit_enforcement() {
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_err());
@@ -1142,14 +1137,14 @@ fn test_unlimited_limits() {
     let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Record: [id, value]\n---\ndata: @Record\n");
 
     for i in 0..1_000 {
-        doc.push_str(&format!("  | record-{}, value-{}\n", i, i));
+        doc.push_str(&format!("  | record-{i}, value-{i}\n"));
     }
 
     let result = parse_with_limits(
         doc.as_bytes(),
         ParseOptions {
             limits,
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         },
     );
     assert!(result.is_ok());
@@ -1164,7 +1159,7 @@ fn test_traverse_large_document() {
     let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Record: [id, value]\n---\ndata: @Record\n");
 
     for i in 0..10_000 {
-        doc.push_str(&format!("  | record-{}, value-{}\n", i, i));
+        doc.push_str(&format!("  | record-{i}, value-{i}\n"));
     }
 
     let parsed = parse(doc.as_bytes()).unwrap();
@@ -1184,7 +1179,7 @@ fn test_traverse_deep_nesting() {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     for i in 0..depth {
-        doc.push_str(&format!("%STRUCT: Level{}: [id]\n", i));
+        doc.push_str(&format!("%STRUCT: Level{i}: [id]\n"));
     }
 
     for i in 0..depth - 1 {
@@ -1195,7 +1190,7 @@ fn test_traverse_deep_nesting() {
 
     for level in 0..depth {
         let indent = "  ".repeat(level + 1);
-        doc.push_str(&format!("{}| node-{}\n", indent, level));
+        doc.push_str(&format!("{indent}| node-{level}\n"));
     }
 
     let parsed = parse(doc.as_bytes()).unwrap();
@@ -1215,7 +1210,7 @@ fn test_traverse_wide_tree() {
     doc.push_str("  | root\n");
 
     for i in 0..1_000 {
-        doc.push_str(&format!("    | child-{}\n", i));
+        doc.push_str(&format!("    | child-{i}\n"));
     }
 
     let parsed = parse(doc.as_bytes()).unwrap();
@@ -1229,7 +1224,7 @@ fn test_traverse_wide_tree() {
 
 #[test]
 fn test_traverse_complex_mixed_structure() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Post: [id, title]
 %NEST: User > Post
@@ -1249,7 +1244,7 @@ users: @User
 data:
   key1: value1
   key2: value2
-"#;
+";
 
     let parsed = parse(doc.as_bytes()).unwrap();
 
@@ -1301,14 +1296,14 @@ data: @Record
 
 #[test]
 fn test_round_trip_with_references() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 %STRUCT: User: [id, manager]
 ---
 users: @User
   | alice, ~
   | bob, @alice
   | charlie, @bob
-"#;
+";
 
     let parsed1 = parse(doc.as_bytes()).unwrap();
     let parsed2 = parse(doc.as_bytes()).unwrap();
@@ -1346,7 +1341,7 @@ fn test_single_column_many_rows() {
     let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Single: [id]\n---\ndata: @Single\n");
 
     for i in 0..5_000 {
-        doc.push_str(&format!("  | id-{}\n", i));
+        doc.push_str(&format!("  | id-{i}\n"));
     }
 
     let result = parse(doc.as_bytes());
@@ -1364,8 +1359,8 @@ fn test_alternating_structure() {
     let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\n");
 
     for i in 0..100 {
-        doc.push_str(&format!("obj{}:\n  value: {}\n", i, i));
-        doc.push_str(&format!("list{}: @Item\n  | item-{}\n", i, i));
+        doc.push_str(&format!("obj{i}:\n  value: {i}\n"));
+        doc.push_str(&format!("list{i}: @Item\n  | item-{i}\n"));
     }
 
     let result = parse(doc.as_bytes());
@@ -1398,13 +1393,13 @@ fn test_unicode_stress() {
 
 #[test]
 fn test_all_value_types() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 %STRUCT: User: [id, manager, score, ratio, active, note]
 ---
 users: @User
   | alice, ~, 100, 1.5, true, test note
   | bob, @alice, 200, 2.5, false, another note
-"#;
+";
 
     let parsed = parse(doc.as_bytes()).unwrap();
     let list = parsed.get("users").unwrap().as_list().unwrap();
@@ -1446,7 +1441,7 @@ fn test_stress_reference_resolution() {
             "~".to_string()
         };
 
-        doc.push_str(&format!("  | node-{}, {}, {}, {}\n", i, ref1, ref2, ref3));
+        doc.push_str(&format!("  | node-{i}, {ref1}, {ref2}, {ref3}\n"));
     }
 
     let result = parse(doc.as_bytes());

@@ -30,12 +30,15 @@ Comprehensive guide to performance testing, optimization, and benchmarking in HE
 
 | Operation | Target | Measured |
 |-----------|--------|----------|
-| Parse small document (~10KB) | < 200 μs | ~142 μs |
-| Parse medium document (100KB) | < 2 ms | ~1.54 ms |
-| Parse large document (1-10 MB) | < 1 s | (varies) |
-| JSON conversion (HEDL→JSON) | < 500 μs | ~292 μs |
-| YAML conversion (HEDL→YAML) | < 2 ms | ~1,834 μs |
-| Canonicalization | < 100 μs | ~30 μs (small) |
+| Parse 10 keys flat | < 50 μs | ~20 μs |
+| Parse 50 keys flat | < 200 μs | ~115 μs |
+| Parse 100 keys flat | < 500 μs | ~229 μs |
+| Parse 500 keys flat | < 2 ms | ~1.12 ms |
+| Parse nested (blog 5p/2c) | < 100 μs | ~41 μs |
+
+Throughput: ~33-49 MiB/s depending on document structure.
+
+Run `cargo bench -p hedl-bench` to verify. Results from `cargo bench --bench parsing`.
 
 ---
 
@@ -581,36 +584,28 @@ parse_simple            time:   [48.234 µs 48.567 µs 48.912 µs]
 - **change**: Percentage change from baseline
 - **p-value**: Statistical significance (< 0.05 = significant)
 
-### Example Benchmark Results
+### Recent Benchmark Results
+
+From `cargo bench --bench parsing` (2025-01-19):
 
 ```
-Benchmark: parse
-  Tiny (< 1KB)        11 μs     ████████████████████
-  Small (10KB)        142 μs    ████████████████████
-  Medium (100KB)      1.54 ms   ████████████████████
+parse_flat/10           time:   [19.257 µs 19.774 µs 20.240 µs]
+                        thrpt:  [41.605 MiB/s 42.587 MiB/s 43.730 MiB/s]
 
-Benchmark: convert
-  to_json             292 μs    ████████████████████████
-  to_yaml             1,834 μs  ████████████████████████████
-  from_json           442 μs    ████████████████████████████████
+parse_flat/50           time:   [113.46 µs 114.70 µs 116.01 µs]
+                        thrpt:  [33.218 MiB/s 33.599 MiB/s 33.966 MiB/s]
 
-Throughput:
-  Parse               54.6 MB/s
-  JSON convert        1,549 MB/s (HEDL→JSON), 2,883 MB/s (JSON→HEDL)
-  YAML convert        246 MB/s (HEDL→YAML), 377 MB/s (YAML→HEDL)
-  XML convert         2,964 MB/s (HEDL→XML), 953 MB/s (XML→HEDL)
-  Linting             72-931 MB/s
+parse_flat/100          time:   [226.40 µs 228.63 µs 230.89 µs]
+                        thrpt:  [33.221 MiB/s 33.550 MiB/s 33.880 MiB/s]
+
+parse_flat/500          time:   [1.1101 ms 1.1200 ms 1.1305 ms]
+                        thrpt:  [34.222 MiB/s 34.545 MiB/s 34.852 MiB/s]
+
+parse_nested/blog/5p_2c time:   [40.273 µs 40.647 µs 41.047 µs]
+                        thrpt:  [48.280 MiB/s 48.755 MiB/s 49.207 MiB/s]
 ```
 
-### Performance Comparison
-
-```
-Format       Parse Time    Memory     Output Size
-HEDL         50 μs         12 KB      1.0x
-JSON         75 μs         18 KB      1.5x
-YAML         100 μs        20 KB      2.0x
-XML          120 μs        25 KB      3.0x
-```
+Run `cargo bench -p hedl-bench` to get current results. HTML reports in `target/criterion/`.
 
 ---
 

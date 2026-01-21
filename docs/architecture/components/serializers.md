@@ -63,12 +63,14 @@ let doc = hedl_json::from_json(json_input, &FromJsonConfig::default())?;
 
 ```rust
 pub struct ToJsonConfig {
-    /// Include HEDL metadata (__type__, __schema__)
-    pub include_metadata: bool,
+    /// Include HEDL metadata (__type__, __schema__, __count_hint__)
+    pub include_metadata: bool,    // Default: false
     /// Flatten matrix lists to plain arrays
-    pub flatten_lists: bool,
+    pub flatten_lists: bool,       // Default: false
     /// Include children as nested arrays
-    pub include_children: bool,
+    pub include_children: bool,    // Default: true
+    /// Escape all non-ASCII as \uXXXX
+    pub ascii_safe: bool,          // Default: false
 }
 ```
 
@@ -80,8 +82,8 @@ fn value_to_json(value: &Value) -> JsonValue {
         Value::Null => JsonValue::Null,
         Value::Bool(b) => JsonValue::Bool(*b),
         Value::Int(n) => JsonValue::Number(Number::from(*n)),
-        Value::Float(f) => JsonValue::Number(Number::from_f64(*f).unwrap_or(JsonValue::Null)),
-        Value::String(s) => JsonValue::String(s.clone()),
+        Value::Float(f) => Number::from_f64(*f).map(JsonValue::Number).unwrap_or(JsonValue::Null),
+        Value::String(s) => JsonValue::String(s.to_string()),  // Box<str> -> String
         Value::Tensor(t) => tensor_to_json(t),  // Nested arrays
         Value::Reference(r) => json!({ "@ref": r.to_ref_string() }),
         Value::Expression(e) => JsonValue::String(format!("$({})", e)),

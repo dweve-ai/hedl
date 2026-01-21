@@ -15,6 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This module is deprecated - allow using deprecated items within it
+#![allow(deprecated)]
+
 //! Question generators for LLM accuracy benchmarks.
 //!
 //! Generates deterministic questions for testing LLM comprehension of HEDL data.
@@ -50,7 +53,10 @@ pub enum AnswerType {
     /// Integer with tolerance for parsing variations
     Integer,
     /// Float with configurable decimal precision
-    Number { decimals: usize },
+    Number {
+        /// Number of decimal places to compare.
+        decimals: usize,
+    },
     /// Boolean (yes/no/true/false/y/n/1/0)
     Boolean,
     /// Date in ISO format (YYYY-MM-DD)
@@ -81,7 +87,7 @@ pub struct Question {
 }
 
 impl Question {
-    /// Creates a new QuestionBuilder (builder pattern)
+    /// Creates a new `QuestionBuilder` (builder pattern)
     pub fn builder(id: impl Into<String>, prompt: impl Into<String>) -> QuestionBuilder {
         QuestionBuilder {
             id: id.into(),
@@ -95,43 +101,59 @@ impl Question {
     }
 }
 
-/// Builder for creating questions
+/// Builder for creating questions.
 pub struct QuestionBuilder {
+    /// Unique question identifier.
     id: String,
+    /// The question text prompt.
     prompt: String,
+    /// Expected ground truth answer.
     ground_truth: Option<String>,
+    /// Type of question for categorization.
     question_type: QuestionType,
+    /// Dataset this question applies to.
     dataset: String,
+    /// Answer type for comparison logic.
     answer_type: AnswerType,
+    /// Optional notes about the question.
     notes: Option<String>,
 }
 
 impl QuestionBuilder {
+    /// Sets the ground truth answer.
     pub fn ground_truth(mut self, value: impl Into<String>) -> Self {
         self.ground_truth = Some(value.into());
         self
     }
 
+    /// Sets the question type.
+    #[must_use]
     pub fn question_type(mut self, qt: QuestionType) -> Self {
         self.question_type = qt;
         self
     }
 
+    /// Sets the dataset name.
     pub fn dataset(mut self, ds: impl Into<String>) -> Self {
         self.dataset = ds.into();
         self
     }
 
+    /// Sets the answer type for comparison.
+    #[must_use]
     pub fn answer_type(mut self, at: AnswerType) -> Self {
         self.answer_type = at;
         self
     }
 
+    /// Sets optional notes about the question.
     pub fn notes(mut self, n: impl Into<String>) -> Self {
         self.notes = Some(n.into());
         self
     }
 
+    /// Builds the question, consuming the builder.
+    #[must_use]
     pub fn build(self) -> Question {
         Question {
             id: self.id,
@@ -146,6 +168,7 @@ impl QuestionBuilder {
 }
 
 /// Generate questions for the users dataset
+#[must_use]
 pub fn generate_user_questions() -> Vec<Question> {
     vec![
         // Field Retrieval (12 questions)
@@ -237,6 +260,7 @@ pub fn generate_user_questions() -> Vec<Question> {
 }
 
 /// Generate questions for the products dataset
+#[must_use]
 pub fn generate_product_questions() -> Vec<Question> {
     vec![
         // Field Retrieval
@@ -297,6 +321,7 @@ pub fn generate_product_questions() -> Vec<Question> {
 }
 
 /// Generate questions for the events dataset
+#[must_use]
 pub fn generate_event_questions() -> Vec<Question> {
     vec![
         // Field Retrieval
@@ -345,6 +370,7 @@ pub fn generate_event_questions() -> Vec<Question> {
 }
 
 /// Generate questions for the blog dataset (with NEST hierarchy)
+#[must_use]
 pub fn generate_blog_questions() -> Vec<Question> {
     vec![
         // Field Retrieval
@@ -400,6 +426,7 @@ pub fn generate_blog_questions() -> Vec<Question> {
 }
 
 /// Generate structural validation questions
+#[must_use]
 pub fn generate_validation_questions() -> Vec<Question> {
     vec![
         Question::builder(
@@ -456,6 +483,7 @@ pub fn generate_validation_questions() -> Vec<Question> {
 }
 
 /// Get all questions grouped by dataset
+#[must_use]
 pub fn all_questions() -> HashMap<String, Vec<Question>> {
     let mut map = HashMap::new();
     map.insert("users".to_string(), generate_user_questions());
@@ -467,6 +495,7 @@ pub fn all_questions() -> HashMap<String, Vec<Question>> {
 }
 
 /// Get all questions as a flat list
+#[must_use]
 pub fn all_questions_flat() -> Vec<Question> {
     let mut questions = Vec::new();
     questions.extend(generate_user_questions());
@@ -478,6 +507,7 @@ pub fn all_questions_flat() -> Vec<Question> {
 }
 
 /// Count questions by type
+#[must_use]
 pub fn question_counts() -> HashMap<QuestionType, usize> {
     let mut counts = HashMap::new();
     for q in all_questions_flat() {
@@ -486,6 +516,8 @@ pub fn question_counts() -> HashMap<QuestionType, usize> {
     counts
 }
 
+// Tests for deprecated legacy module - allowed to use deprecated APIs
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
     use super::*;

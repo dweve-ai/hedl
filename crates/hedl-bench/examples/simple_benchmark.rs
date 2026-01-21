@@ -55,8 +55,8 @@ fn main() {
     let total_ns = elapsed.as_nanos() as u64;
     let avg_ns = total_ns / iterations;
 
-    println!("Completed {} iterations in {:?}", iterations, elapsed);
-    println!("Average time per iteration: {} ns", avg_ns);
+    println!("Completed {iterations} iterations in {elapsed:?}");
+    println!("Average time per iteration: {avg_ns} ns");
 
     // 4. Record results
     let throughput_bytes = hedl.len() as u64 * iterations;
@@ -71,7 +71,7 @@ fn main() {
         throughput_mbs: Some(throughput_mbs),
     });
 
-    println!("Throughput: {:.2} MB/s\n", throughput_mbs);
+    println!("Throughput: {throughput_mbs:.2} MB/s\n");
 
     // 5. Export reports
     let config = ExportConfig::all();

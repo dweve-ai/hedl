@@ -298,4 +298,4 @@ hedl format data.hedl | sha256sum > data.hedl.sha256
 
 **Related:**
 - [Data Model](data-model.md)
-- [CLI Reference](../reference/cli-commands.md#format)
+- [CLI Guide](../cli-guide.md)

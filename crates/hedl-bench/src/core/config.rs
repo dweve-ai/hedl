@@ -85,6 +85,7 @@ pub struct BenchConfig {
 
 impl BenchConfig {
     /// Creates a new benchmark configuration with specified sizes.
+    #[must_use]
     pub fn new(sizes: &[usize]) -> Self {
         let mut iterations = HashMap::new();
         for &size in sizes {
@@ -110,6 +111,7 @@ impl BenchConfig {
     }
 
     /// Sets custom dataset sizes.
+    #[must_use]
     pub fn with_sizes(mut self, sizes: &[usize]) -> Self {
         self.sizes = sizes.to_vec();
         for &size in sizes {
@@ -121,12 +123,14 @@ impl BenchConfig {
     }
 
     /// Sets custom iteration count for a specific size.
+    #[must_use]
     pub fn with_iterations(mut self, size: usize, iterations: u64) -> Self {
         self.iterations.insert(size, iterations);
         self
     }
 
     /// Sets warmup duration.
+    #[must_use]
     pub fn with_warmup(mut self, warmup: Duration) -> Self {
         self.warmup = warmup;
         self
@@ -139,6 +143,7 @@ impl BenchConfig {
     }
 
     /// Adds an export format.
+    #[must_use]
     pub fn with_export_format(mut self, format: ExportFormat) -> Self {
         if !self.export_formats.contains(&format) {
             self.export_formats.push(format);
@@ -147,12 +152,14 @@ impl BenchConfig {
     }
 
     /// Sets all export formats.
+    #[must_use]
     pub fn with_export_formats(mut self, formats: Vec<ExportFormat>) -> Self {
         self.export_formats = formats;
         self
     }
 
     /// Gets the iteration count for a specific size.
+    #[must_use]
     pub fn get_iterations(&self, size: usize) -> u64 {
         *self
             .iterations
@@ -161,6 +168,7 @@ impl BenchConfig {
     }
 
     /// Returns whether a specific export format is enabled.
+    #[must_use]
     pub fn has_format(&self, format: ExportFormat) -> bool {
         self.export_formats.contains(&format)
     }

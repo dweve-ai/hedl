@@ -15,33 +15,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Streaming parser benchmarks with REAL measurements and comparative analysis.
 //!
-//! Measures HEDL streaming parser performance vs competitors (DuckDB, Polars, Arrow, serde_json).
+//! Measures HEDL streaming parser performance vs competitors (`DuckDB`, Polars, Arrow, `serde_json`).
 //! All data comes from actual profiling - NO hardcoded values, NO estimates.
 //!
-//! ## Fixed Issues (from BENCHMARK_AUDIT.md):
+//! ## Fixed Issues (from `BENCHMARK_AUDIT.md)`:
 //! - Table 6 (Error Recovery): Now benchmarks ACTUAL error recovery scenarios
 //! - Table 9 (Buffer Management): Now measures REAL buffer allocation patterns
 //! - Table 12 (Protocol Overhead): Now profiles ACTUAL protocol overhead
 //! - Table 7 (Resume/Restart): Now benchmarks ACTUAL resume/restart from checkpoints
 //! - Table 10 (Concurrent Stream): Now benchmarks ACTUAL concurrent streams
 //! - Memory: Now profiles REAL memory usage (not formulas)
-//! - backpressure_events: Now actually measured during benchmarks
+//! - `backpressure_events`: Now actually measured during benchmarks
 //! - Added comparative benchmarks vs streaming JSON/XML parsers
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::measure_with_throughput;
-use hedl_bench::datasets::{generate_blog, generate_users};
+use hedl_bench::datasets::generate_users;
 use hedl_bench::report::BenchmarkReport;
 use hedl_bench::{CustomTable, ExportConfig, Insight, TableCell};
 use hedl_stream::{NodeEvent, StreamingParser, StreamingParserConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Cursor, Read, Write};
+use std::hint::black_box;
+use std::io::Cursor;
 use std::sync::Once;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
 
@@ -114,9 +116,6 @@ struct StreamResult {
     peak_memory_streaming_kb: usize,
     peak_memory_full_kb: usize,
     throughput_rows_per_sec: f64,
-    throughput_mb_per_sec: f64,
-    is_nested: bool,
-    backpressure_events: usize,
 
     // Error recovery measurements (REAL data)
     error_recovery_times_ns: HashMap<String, Vec<u64>>,
@@ -136,7 +135,6 @@ struct StreamResult {
     // Protocol overhead measurements (REAL data)
     event_dispatch_times_ns: Vec<u64>,
     buffer_copy_times_ns: Vec<u64>,
-    state_transition_times_ns: Vec<u64>,
 
     // Comparative measurements (REAL data)
     json_streaming_times_ns: Vec<u64>,
@@ -157,9 +155,6 @@ impl Default for StreamResult {
             peak_memory_streaming_kb: 0,
             peak_memory_full_kb: 0,
             throughput_rows_per_sec: 0.0,
-            throughput_mb_per_sec: 0.0,
-            is_nested: false,
-            backpressure_events: 0,
             error_recovery_times_ns: HashMap::new(),
             errors_recovered: 0,
             resume_times_ns: Vec::new(),
@@ -169,7 +164,6 @@ impl Default for StreamResult {
             buffer_reuses: 0,
             event_dispatch_times_ns: Vec::new(),
             buffer_copy_times_ns: Vec::new(),
-            state_transition_times_ns: Vec::new(),
             json_streaming_times_ns: Vec::new(),
             xml_streaming_times_ns: Vec::new(),
         }
@@ -181,8 +175,8 @@ impl Default for StreamResult {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<StreamResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<StreamResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -250,9 +244,8 @@ fn measure_streaming_memory(hedl: &str, buffer_size: usize) -> (usize, usize, us
     let parser = StreamingParser::with_config(cursor, config).unwrap();
 
     let mut reuses = 0;
-    let mut prev_pos = 0;
 
-    for event in parser.filter_map(Result::ok) {
+    for (event_idx, event) in parser.filter_map(Result::ok).enumerate() {
         // Track event processing overhead
         match event {
             NodeEvent::Node(_) => {
@@ -267,10 +260,9 @@ fn measure_streaming_memory(hedl: &str, buffer_size: usize) -> (usize, usize, us
         }
 
         // Simulate buffer reuse detection
-        if prev_pos > 0 && prev_pos % buffer_size == 0 {
+        if event_idx > 0 && event_idx % buffer_size == 0 {
             reuses += 1;
         }
-        prev_pos += 1;
     }
 
     (tracker.peak_kb(), tracker.allocations, reuses)
@@ -326,15 +318,15 @@ fn bench_error_recovery(c: &mut Criterion) {
                 let parser = StreamingParser::new(cursor).unwrap();
                 let mut recovered = 0;
                 for event in parser {
-                    if event.is_ok() {
-                        black_box(event.unwrap());
+                    if let Ok(e) = event {
+                        black_box(e);
                     } else {
                         recovered += 1;
                         // Error recovered, continue streaming
                     }
                 }
                 black_box(recovered)
-            })
+            });
         });
 
         // Measure error recovery time
@@ -359,7 +351,7 @@ fn bench_error_recovery(c: &mut Criterion) {
 
         result
             .error_recovery_times_ns
-            .insert(error_type.to_string(), times);
+            .insert((*error_type).to_string(), times);
         result.errors_recovered = recovered_count;
     }
 
@@ -379,13 +371,13 @@ fn bench_resume_restart(c: &mut Criterion) {
     for &size in &[100, 500, 1000] {
         let hedl = generate_users(size);
 
-        group.bench_function(format!("streaming_{}", size), |b| {
+        group.bench_function(format!("streaming_{size}"), |b| {
             b.iter(|| {
                 let cursor = Cursor::new(hedl.as_bytes());
                 let parser = StreamingParser::new(cursor).unwrap();
                 let count: usize = parser.filter_map(Result::ok).count();
                 black_box(count)
-            })
+            });
         });
     }
 
@@ -453,7 +445,7 @@ fn bench_concurrent_streaming(c: &mut Criterion) {
                     let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
 
                     black_box(results)
-                })
+                });
             },
         );
     }
@@ -516,7 +508,7 @@ fn bench_buffer_management(c: &mut Criterion) {
                     let parser = StreamingParser::with_config(cursor, config.clone()).unwrap();
                     let count: usize = parser.filter_map(Result::ok).count();
                     black_box(count)
-                })
+                });
             },
         );
 
@@ -524,7 +516,7 @@ fn bench_buffer_management(c: &mut Criterion) {
         let (peak_memory, allocations, reuses) = measure_streaming_memory(&hedl, buffer_size);
 
         let mut result = StreamResult::default();
-        result.dataset = format!("buffer_{}", buffer_size);
+        result.dataset = format!("buffer_{buffer_size}");
         result.buffer_size = buffer_size;
         result.row_count = 1_000;
         result.input_size_bytes = hedl.len();
@@ -585,7 +577,7 @@ fn bench_protocol_overhead(c: &mut Criterion) {
                 }
                 black_box(start.elapsed());
             }
-        })
+        });
     });
 
     group.bench_function("buffer_operations", |b| {
@@ -594,7 +586,7 @@ fn bench_protocol_overhead(c: &mut Criterion) {
             let parser = StreamingParser::new(cursor).unwrap();
             let count: usize = parser.filter_map(Result::ok).count();
             black_box(count)
-        })
+        });
     });
 
     let mut result = StreamResult::default();
@@ -661,7 +653,7 @@ fn bench_json_streaming_comparison(c: &mut Criterion) {
             let parser = StreamingParser::new(cursor).unwrap();
             let count: usize = parser.filter_map(Result::ok).count();
             black_box(count)
-        })
+        });
     });
 
     group.bench_function("json_streaming", |b| {
@@ -669,7 +661,7 @@ fn bench_json_streaming_comparison(c: &mut Criterion) {
             let stream = JsonDeserializer::from_reader(json.as_bytes()).into_iter::<JsonValue>();
             let count: usize = stream.filter_map(Result::ok).count();
             black_box(count)
-        })
+        });
     });
 
     let mut result = StreamResult::default();
@@ -729,7 +721,7 @@ fn bench_stream_throughput(c: &mut Criterion) {
                     }
                 }
                 black_box(count)
-            })
+            });
         });
 
         let measurement =
@@ -743,7 +735,7 @@ fn bench_stream_throughput(c: &mut Criterion) {
                 black_box(count);
             });
 
-        let name = format!("stream_throughput_{}_rows", row_count);
+        let name = format!("stream_throughput_{row_count}_rows");
         record_perf(
             &name,
             iterations,
@@ -755,12 +747,12 @@ fn bench_stream_throughput(c: &mut Criterion) {
             (row_count as f64 * iterations as f64 * 1e9) / measurement.as_nanos() as f64;
         REPORT.with(|r| {
             if let Some(ref mut report) = *r.borrow_mut() {
-                report.add_note(format!("{}: {:.0} rows/sec", name, rows_per_sec));
+                report.add_note(format!("{name}: {rows_per_sec:.0} rows/sec"));
             }
         });
 
         let mut result = StreamResult::default();
-        result.dataset = format!("throughput_{}", row_count);
+        result.dataset = format!("throughput_{row_count}");
         result.row_count = row_count;
         result.input_size_bytes = hedl.len();
         result.throughput_rows_per_sec = rows_per_sec;
@@ -804,18 +796,18 @@ fn bench_stream_vs_full_parse(c: &mut Criterion) {
                 let parser = StreamingParser::new(cursor).unwrap();
                 let count: usize = parser.filter_map(Result::ok).count();
                 black_box(count)
-            })
+            });
         });
 
         group.bench_with_input(BenchmarkId::new("full_parse", size), &hedl, |b, input| {
             b.iter(|| {
                 let doc = parse_hedl(input);
                 black_box(doc)
-            })
+            });
         });
 
         let mut result = StreamResult::default();
-        result.dataset = format!("comparison_{}", size);
+        result.dataset = format!("comparison_{size}");
         result.row_count = size;
         result.input_size_bytes = hedl.len();
 
@@ -914,23 +906,23 @@ fn create_resume_restart_table(results: &[StreamResult], report: &mut BenchmarkR
 
     for result in results {
         if !result.resume_times_ns.is_empty() {
-            let full_time = if !result.streaming_times_ns.is_empty() {
+            let full_time = if result.streaming_times_ns.is_empty() {
+                0.0
+            } else {
                 result.streaming_times_ns.iter().sum::<u64>() as f64
                     / result.streaming_times_ns.len() as f64
                     / 1000.0
-            } else {
-                0.0
             };
 
             let resume_time = result.resume_times_ns.iter().sum::<u64>() as f64
                 / result.resume_times_ns.len() as f64
                 / 1000.0;
 
-            let checkpoint_overhead = if !result.checkpoint_overhead_ns.is_empty() {
+            let checkpoint_overhead = if result.checkpoint_overhead_ns.is_empty() {
+                0
+            } else {
                 result.checkpoint_overhead_ns.iter().sum::<u64>()
                     / result.checkpoint_overhead_ns.len().max(1) as u64
-            } else {
-                0
             };
 
             table.rows.push(vec![
@@ -1014,12 +1006,12 @@ fn create_concurrent_stream_table(results: &[StreamResult], report: &mut Benchma
 
     for result in results {
         if result.dataset == "concurrent" && !result.concurrent_times_ns.is_empty() {
-            let single_time = if !result.streaming_times_ns.is_empty() {
+            let single_time = if result.streaming_times_ns.is_empty() {
+                0.0
+            } else {
                 result.streaming_times_ns.iter().sum::<u64>() as f64
                     / result.streaming_times_ns.len() as f64
                     / 1000.0
-            } else {
-                0.0
             };
 
             for (&streams, times) in &result.concurrent_times_ns {
@@ -1282,7 +1274,7 @@ fn generate_insights(results: &[StreamResult], report: &mut BenchmarkReport) {
                 let speedup = json_avg / hedl_avg;
                 report.add_insight(Insight {
                     category: "strength".to_string(),
-                    title: format!("HEDL {:.1}x Faster than serde_json Streaming", speedup),
+                    title: format!("HEDL {speedup:.1}x Faster than serde_json Streaming"),
                     description: "Real benchmark shows HEDL streaming outperforms serde_json"
                         .to_string(),
                     data_points: vec![
@@ -1294,7 +1286,7 @@ fn generate_insights(results: &[StreamResult], report: &mut BenchmarkReport) {
                 let slowdown = hedl_avg / json_avg;
                 report.add_insight(Insight {
                     category: "weakness".to_string(),
-                    title: format!("serde_json {:.1}x Faster than HEDL Streaming", slowdown),
+                    title: format!("serde_json {slowdown:.1}x Faster than HEDL Streaming"),
                     description: "Acknowledge competitor advantage in streaming performance"
                         .to_string(),
                     data_points: vec![
@@ -1360,7 +1352,7 @@ fn generate_insights(results: &[StreamResult], report: &mut BenchmarkReport) {
                 if scaling_factor > 0.7 {
                     report.add_insight(Insight {
                         category: "strength".to_string(),
-                        title: format!("Excellent Concurrent Scaling ({:.1}x)", scaling_factor),
+                        title: format!("Excellent Concurrent Scaling ({scaling_factor:.1}x)"),
                         description: "Streaming scales well across multiple threads".to_string(),
                         data_points: scaling_data
                             .iter()
@@ -1370,7 +1362,7 @@ fn generate_insights(results: &[StreamResult], report: &mut BenchmarkReport) {
                 } else {
                     report.add_insight(Insight {
                         category: "weakness".to_string(),
-                        title: format!("Limited Concurrent Scaling ({:.1}x)", scaling_factor),
+                        title: format!("Limited Concurrent Scaling ({scaling_factor:.1}x)"),
                         description: "Contention or overhead limits multi-thread performance"
                             .to_string(),
                         data_points: scaling_data
@@ -1459,7 +1451,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights (ALL REAL DATA)",
                         new_report.custom_tables.len(),
@@ -1467,9 +1459,9 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    eprintln!("Export failed: {e}");
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

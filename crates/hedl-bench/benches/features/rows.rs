@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Row operations benchmarks.
 //!
 //! Measures HEDL row-wise processing performance for tabular data.
@@ -25,7 +27,7 @@
 //! - **Wide rows**: Many-column efficiency
 //! - **Columnar vs row-oriented**: Layout comparison
 //! - **Batch operations**: Bulk processing performance
-//! - **Database comparisons**: vs SQLite, DuckDB, Polars, Arrow
+//! - **Database comparisons**: vs `SQLite`, `DuckDB`, Polars, Arrow
 //! - **SIMD acceleration**: Scalar vs vectorized operations
 //! - **Parallel scaling**: Multi-threaded performance
 //! - **Index structures**: Hash, B-Tree, Bitmap performance
@@ -39,11 +41,10 @@
 //! - Actual compression ratios
 //! - Real SIMD speedups
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use hedl_bench::core::measurement::measure_with_throughput;
-use hedl_bench::datasets::generate_users;
 use hedl_bench::generators::specialized::{generate_row_data, generate_wide_rows};
 use hedl_bench::report::BenchmarkReport;
 use hedl_bench::{CustomTable, ExportConfig, Insight, TableCell};
@@ -52,6 +53,7 @@ use rayon::prelude::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
+use std::hint::black_box;
 use std::io::{Cursor, Write as IoWrite};
 use std::sync::Once;
 use std::time::Instant;
@@ -64,7 +66,6 @@ const STANDARD_SIZES: [usize; 3] = [10, 100, 1_000];
 const COLUMN_COUNTS: [usize; 5] = [5, 10, 20, 50, 100];
 const BATCH_SIZES: [usize; 4] = [10, 100, 500, 1000];
 const THREAD_COUNTS: [usize; 5] = [1, 2, 4, 8, 16];
-const INDEX_TYPES: [&str; 4] = ["hash", "btree", "bitmap", "fulltext"];
 
 // ============================================================================
 // Comprehensive Result Structure
@@ -79,7 +80,6 @@ struct RowResult {
     parsing_times_ns: Vec<u64>,
     extraction_times_ns: Vec<u64>,
     streaming_times_ns: Vec<u64>,
-    serialization_times_ns: Vec<u64>,
     memory_usage_kb: usize,
     fields_per_row: usize,
     bytes_per_row: f64,
@@ -118,7 +118,6 @@ struct DatabaseComparison {
     operation: String,
     rows: usize,
     time_us: f64,
-    memory_kb: usize,
     throughput_rows_sec: f64,
 }
 
@@ -127,9 +126,9 @@ struct DatabaseComparison {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<RowResult>> = RefCell::new(Vec::new());
-    static DB_COMPARISONS: RefCell<Vec<DatabaseComparison>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<RowResult>> = const { RefCell::new(Vec::new()) };
+    static DB_COMPARISONS: RefCell<Vec<DatabaseComparison>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -164,9 +163,10 @@ fn record_result(result: RowResult) {
     });
 }
 
-fn record_db_comparison(comp: DatabaseComparison) {
+#[allow(dead_code)] // Used for future incremental data collection
+fn record_db_comparison(comparison: DatabaseComparison) {
     DB_COMPARISONS.with(|r| {
-        r.borrow_mut().push(comp);
+        r.borrow_mut().push(comparison);
     });
 }
 
@@ -278,7 +278,7 @@ fn bench_row_parsing(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -287,7 +287,7 @@ fn bench_row_parsing(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("row_parse_{}_rows", size);
+        let name = format!("row_parse_{size}_rows");
         record_perf(
             &name,
             iterations,
@@ -297,7 +297,7 @@ fn bench_row_parsing(c: &mut Criterion) {
 
         // Collect result with actual measurements
         let mut result = RowResult::default();
-        result.dataset = format!("parse_{}", size);
+        result.dataset = format!("parse_{size}");
         result.row_count = size;
         result.column_count = 5;
         result.input_size_bytes = hedl.len();
@@ -380,7 +380,7 @@ fn bench_wide_rows(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -389,7 +389,7 @@ fn bench_wide_rows(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("wide_row_{}_cols", col_count);
+        let name = format!("wide_row_{col_count}_cols");
         record_perf(
             &name,
             iterations,
@@ -399,7 +399,7 @@ fn bench_wide_rows(c: &mut Criterion) {
 
         // Collect result
         let mut result = RowResult::default();
-        result.dataset = format!("wide_{}_cols", col_count);
+        result.dataset = format!("wide_{col_count}_cols");
         result.row_count = row_count;
         result.column_count = col_count;
         result.input_size_bytes = hedl.len();
@@ -453,7 +453,7 @@ fn bench_parallel_rows(c: &mut Criterion) {
                         .unwrap()
                         .install(|| {
                             // Simulate parallel parsing of chunks
-                            let chunk_size = size / threads.max(1);
+                            let _chunk_size = size / threads.max(1);
                             let results: Vec<_> = (0..threads)
                                 .into_par_iter()
                                 .map(|_| {
@@ -463,7 +463,7 @@ fn bench_parallel_rows(c: &mut Criterion) {
                                 .collect();
                             black_box(results)
                         })
-                })
+                });
             },
         );
 
@@ -476,7 +476,7 @@ fn bench_parallel_rows(c: &mut Criterion) {
                 .build()
                 .unwrap()
                 .install(|| {
-                    let chunk_size = size / thread_count.max(1);
+                    let _chunk_size = size / thread_count.max(1);
                     let results: Vec<_> = (0..thread_count)
                         .into_par_iter()
                         .map(|_| {
@@ -500,7 +500,7 @@ fn bench_parallel_rows(c: &mut Criterion) {
         };
 
         let mut result = RowResult::default();
-        result.dataset = format!("parallel_{}_threads", thread_count);
+        result.dataset = format!("parallel_{thread_count}_threads");
         result.row_count = size;
         result.thread_count = thread_count;
         result.parsing_times_ns = times;
@@ -520,7 +520,7 @@ fn bench_parallel_rows(c: &mut Criterion) {
 /// Benchmark index performance
 fn bench_index_operations(c: &mut Criterion) {
     ensure_init();
-    let mut group = c.benchmark_group("index_operations");
+    let group = c.benchmark_group("index_operations");
 
     let size = 1_000;
     let hedl = generate_row_data(size, 5);
@@ -550,7 +550,7 @@ fn bench_index_operations(c: &mut Criterion) {
         let index_mem = hash_index.capacity() * std::mem::size_of::<(usize, usize)>() / 1024;
 
         let mut result = RowResult::default();
-        result.dataset = format!("index_{}", index_type);
+        result.dataset = format!("index_{index_type}");
         result.row_count = size;
         result.index_type = index_type.to_string();
         result.index_build_time_ns = build_time;
@@ -584,7 +584,7 @@ fn bench_index_operations(c: &mut Criterion) {
         let index_mem = size * std::mem::size_of::<(usize, usize)>() * 2 / 1024; // Rough estimate
 
         let mut result = RowResult::default();
-        result.dataset = format!("index_{}", index_type);
+        result.dataset = format!("index_{index_type}");
         result.row_count = size;
         result.index_type = index_type.to_string();
         result.index_build_time_ns = build_time;
@@ -601,7 +601,7 @@ fn bench_index_operations(c: &mut Criterion) {
 #[cfg(feature = "database-comparison")]
 fn bench_database_comparisons(c: &mut Criterion) {
     ensure_init();
-    let mut group = c.benchmark_group("database_comparisons");
+    let group = c.benchmark_group("database_comparisons");
 
     let size = 1_000;
     let hedl = generate_row_data(size, 5);
@@ -624,7 +624,6 @@ fn bench_database_comparisons(c: &mut Criterion) {
             operation: "parse_rows".to_string(),
             rows: size,
             time_us: avg_us,
-            memory_kb: 0, // Would need actual measurement
             throughput_rows_sec: (size as f64 * 1e9) / avg_ns,
         });
     }
@@ -645,7 +644,13 @@ fn bench_database_comparisons(c: &mut Criterion) {
         for i in 0..size {
             conn.execute(
                 "INSERT INTO test VALUES (?, ?, ?, ?, ?)",
-                rusqlite::params![i, format!("name{}", i), i as f64, i % 2, "2024-01-01"],
+                rusqlite::params![
+                    i as i64,
+                    format!("name{}", i),
+                    i as f64,
+                    (i % 2) as i64,
+                    "2024-01-01"
+                ],
             )
             .unwrap();
         }
@@ -672,7 +677,6 @@ fn bench_database_comparisons(c: &mut Criterion) {
             operation: "insert".to_string(),
             rows: size,
             time_us: insert_time,
-            memory_kb: 0,
             throughput_rows_sec: (size as f64 * 1e6) / insert_time,
         });
 
@@ -681,7 +685,6 @@ fn bench_database_comparisons(c: &mut Criterion) {
             operation: "query".to_string(),
             rows: size,
             time_us: query_time,
-            memory_kb: 0,
             throughput_rows_sec: (size as f64 * 1e6) / query_time,
         });
     }
@@ -710,11 +713,11 @@ fn bench_row_extraction(c: &mut Criterion) {
             b.iter(|| {
                 let row_count = doc.root.len();
                 black_box(row_count)
-            })
+            });
         });
 
         let mut result = RowResult::default();
-        result.dataset = format!("extract_{}", size);
+        result.dataset = format!("extract_{size}");
         result.row_count = size;
         result.column_count = 5;
         result.input_size_bytes = hedl.len();
@@ -746,7 +749,7 @@ fn bench_streaming_vs_parse(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         // Streaming parse
@@ -756,11 +759,11 @@ fn bench_streaming_vs_parse(c: &mut Criterion) {
                 let parser = StreamingParser::new(cursor).unwrap();
                 let count: usize = parser.filter_map(Result::ok).count();
                 black_box(count)
-            })
+            });
         });
 
         let mut result = RowResult::default();
-        result.dataset = format!("stream_vs_parse_{}", size);
+        result.dataset = format!("stream_vs_parse_{size}");
         result.row_count = size;
         result.column_count = 5;
         result.input_size_bytes = hedl.len();
@@ -806,7 +809,7 @@ fn bench_row_memory(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
@@ -815,7 +818,7 @@ fn bench_row_memory(c: &mut Criterion) {
         let ratio = doc_size as f64 / bytes as f64;
 
         let mut result = RowResult::default();
-        result.dataset = format!("memory_{}", size);
+        result.dataset = format!("memory_{size}");
         result.row_count = size;
         result.column_count = 5;
         result.input_size_bytes = bytes;
@@ -826,10 +829,7 @@ fn bench_row_memory(c: &mut Criterion) {
 
         REPORT.with(|r| {
             if let Some(ref mut report) = *r.borrow_mut() {
-                report.add_note(format!(
-                    "row_memory_{}: doc/input ratio {:.2}x",
-                    size, ratio
-                ));
+                report.add_note(format!("row_memory_{size}: doc/input ratio {ratio:.2}x"));
             }
         });
     }
@@ -859,12 +859,12 @@ fn bench_batch_operations(c: &mut Criterion) {
                         count += chunk.len();
                     }
                     black_box(count)
-                })
+                });
             },
         );
 
         let mut result = RowResult::default();
-        result.dataset = format!("batch_{}", batch_size);
+        result.dataset = format!("batch_{batch_size}");
         result.row_count = total_rows;
         result.column_count = 5;
         result.input_size_bytes = hedl.len();
@@ -1244,7 +1244,7 @@ fn create_projection_performance_table(results: &[RowResult], report: &mut Bench
 }
 
 /// Table 8: Filter Optimization Guide
-fn create_filter_performance_table(results: &[RowResult], report: &mut BenchmarkReport) {
+fn create_filter_performance_table(_results: &[RowResult], report: &mut BenchmarkReport) {
     let mut table = CustomTable {
         title: "Filter Optimization Guide".to_string(),
         headers: vec![
@@ -1312,8 +1312,7 @@ fn create_database_comparison_table(
     let hedl_baseline = comparisons
         .iter()
         .find(|c| c.system == "HEDL" && c.operation == "parse_rows")
-        .map(|c| c.time_us)
-        .unwrap_or(1.0);
+        .map_or(1.0, |c| c.time_us);
 
     for comp in comparisons {
         let vs_hedl = (comp.time_us / hedl_baseline) * 100.0;
@@ -1356,12 +1355,12 @@ fn create_compression_effectiveness_table(results: &[RowResult], report: &mut Be
         let compressed_kb = result.compressed_size_bytes as f64 / 1024.0;
         let compressible = result.compression_ratio > 2.0;
 
-        let comp_time_avg = if !result.compression_time_ns.is_empty() {
+        let comp_time_avg = if result.compression_time_ns.is_empty() {
+            0.0
+        } else {
             result.compression_time_ns.iter().sum::<u64>() as f64
                 / result.compression_time_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         table.rows.push(vec![
@@ -1628,11 +1627,11 @@ fn generate_insights(
         let max_throughput = parse_results
             .iter()
             .map(|r| r.rows_per_sec)
-            .fold(0.0f64, |a, b| a.max(b));
+            .fold(0.0f64, f64::max);
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Peak Row Throughput: {:.0} rows/sec", max_throughput),
+            title: format!("Peak Row Throughput: {max_throughput:.0} rows/sec"),
             description: "Maximum row parsing throughput achieved".to_string(),
             data_points: parse_results
                 .iter()
@@ -1656,7 +1655,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("Excellent Compression: {:.2}x average ratio", avg_ratio),
+            title: format!("Excellent Compression: {avg_ratio:.2}x average ratio"),
             description: "Row data compresses well with gzip".to_string(),
             data_points: vec![
                 format!("Average compression ratio: {:.2}x", avg_ratio),
@@ -1675,7 +1674,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("SIMD Acceleration: {:.2}x average speedup", avg_speedup),
+            title: format!("SIMD Acceleration: {avg_speedup:.2}x average speedup"),
             description: "Vectorized operations provide significant performance gains".to_string(),
             data_points: simd_results
                 .iter()
@@ -1694,7 +1693,7 @@ fn generate_insights(
         let max_efficiency = parallel_results
             .iter()
             .map(|r| r.parallel_efficiency)
-            .fold(0.0f64, |a, b| a.max(b));
+            .fold(0.0f64, f64::max);
 
         let category = if max_efficiency > 80.0 {
             "strength"
@@ -1704,7 +1703,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: category.to_string(),
-            title: format!("Parallel Efficiency: {:.1}% maximum", max_efficiency),
+            title: format!("Parallel Efficiency: {max_efficiency:.1}% maximum"),
             description: "Multi-threaded processing scalability".to_string(),
             data_points: parallel_results
                 .iter()
@@ -1723,21 +1722,19 @@ fn generate_insights(
         let hedl_time = comparisons
             .iter()
             .find(|c| c.system == "HEDL")
-            .map(|c| c.time_us)
-            .unwrap_or(0.0);
+            .map_or(0.0, |c| c.time_us);
 
         if hedl_time > 0.0 {
             let sqlite_time = comparisons
                 .iter()
                 .find(|c| c.system == "SQLite" && c.operation == "query")
-                .map(|c| c.time_us)
-                .unwrap_or(hedl_time);
+                .map_or(hedl_time, |c| c.time_us);
 
             let ratio = sqlite_time / hedl_time;
 
             report.add_insight(Insight {
                 category: if ratio > 1.0 { "strength" } else { "finding" }.to_string(),
-                title: format!("vs SQLite: {:.2}x performance", ratio),
+                title: format!("vs SQLite: {ratio:.2}x performance"),
                 description: "Comparison against relational database".to_string(),
                 data_points: vec![
                     format!("HEDL: {:.2} us", hedl_time),
@@ -1772,8 +1769,7 @@ fn generate_insights(
             .to_string(),
             title: "Wide Row Field Processing".to_string(),
             description: format!(
-                "Wide rows ({:.0} fields/sec) vs narrow ({:.0} fields/sec)",
-                wide_avg, narrow_avg
+                "Wide rows ({wide_avg:.0} fields/sec) vs narrow ({narrow_avg:.0} fields/sec)"
             ),
             data_points: vec![
                 format!("Narrow (<= 10 cols): {:.0} fields/sec", narrow_avg),
@@ -1808,7 +1804,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Memory Expansion: {:.2}x ({})", avg_expansion, rating),
+            title: format!("Memory Expansion: {avg_expansion:.2}x ({rating})"),
             description: "Average memory overhead for parsed documents".to_string(),
             data_points: memory_results
                 .iter()
@@ -1925,7 +1921,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights",
                         new_report.custom_tables.len(),
@@ -1933,9 +1929,9 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    eprintln!("Export failed: {e}");
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

@@ -33,7 +33,7 @@ pub fn print_report(report: &BenchmarkReport) {
     if !report.notes.is_empty() {
         println!("\nNotes:");
         for note in &report.notes {
-            println!("  - {}", note);
+            println!("  - {note}");
         }
     }
 
@@ -44,7 +44,7 @@ pub fn print_report(report: &BenchmarkReport) {
     for result in &report.results {
         let size_str = result
             .size
-            .map(|s| format!(" (size: {})", s))
+            .map(|s| format!(" (size: {s})"))
             .unwrap_or_default();
         println!(
             "{}{}: {:?} ({} iterations)",
@@ -55,7 +55,7 @@ pub fn print_report(report: &BenchmarkReport) {
         );
 
         if let Some(throughput) = result.throughput_mbs() {
-            println!("  Throughput: {:.2} MB/s", throughput);
+            println!("  Throughput: {throughput:.2} MB/s");
         }
     }
 

@@ -1,19 +1,63 @@
+# =============================================================================
+# HEDL YAML - crates/hedl-yaml/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-yaml"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 description = "HEDL to/from YAML conversion"
+documentation = "https://docs.rs/hedl-yaml"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
-hedl-core.workspace = true
-serde.workspace = true
-serde_yaml = "0.9"
-thiserror.workspace = true
+hedl-core = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+once_cell = "1.19"
+regex = "1.10"
 
 [dev-dependencies]
 hedl-test = { workspace = true }
-proptest = "1.4"
+proptest = { workspace = true }
 
+[features]
+default = []

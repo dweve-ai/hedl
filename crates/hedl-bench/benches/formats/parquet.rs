@@ -26,27 +26,27 @@
 //! - Type mapping validation
 //! - Position encoding preservation
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hedl_bench::helpers::measure_throughput_ns;
 use hedl_bench::{
-    count_tokens, generate_analytics, generate_products, generate_users, sizes, BenchmarkReport,
-    CustomTable, ExportConfig, Insight, PerfResult, TableCell,
+    generate_analytics, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
+    ExportConfig, Insight, PerfResult, TableCell,
 };
 use hedl_parquet::{
-    from_parquet_bytes, to_parquet_bytes, to_parquet_bytes_with_config, ToParquetConfig,
+    from_parquet_bytes, to_parquet_bytes, to_parquet_bytes_with_config, CompressionStrategy,
+    StatisticsLevel, ToParquetConfig,
 };
 use parquet::basic::Compression;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -66,8 +66,8 @@ fn init_report() {
 fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes
-                .map(|bytes| formats::measure_throughput_ns(bytes as usize, total_ns));
+            let throughput_mbs =
+                throughput_bytes.map(|bytes| measure_throughput_ns(bytes as usize, total_ns));
 
             report.add_perf(PerfResult {
                 name: name.to_string(),
@@ -103,7 +103,7 @@ fn bench_hedl_to_parquet_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &doc, |b, doc| {
-            b.iter(|| to_parquet_bytes(black_box(doc)))
+            b.iter(|| to_parquet_bytes(black_box(doc)));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -111,7 +111,7 @@ fn bench_hedl_to_parquet_users(c: &mut Criterion) {
             let _ = to_parquet_bytes(&doc);
         });
         add_perf(
-            &format!("hedl_to_parquet_users_{}", size),
+            &format!("hedl_to_parquet_users_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -130,7 +130,7 @@ fn bench_hedl_to_parquet_analytics(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("analytics", size), &doc, |b, doc| {
-            b.iter(|| to_parquet_bytes(black_box(doc)))
+            b.iter(|| to_parquet_bytes(black_box(doc)));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -138,7 +138,7 @@ fn bench_hedl_to_parquet_analytics(c: &mut Criterion) {
             let _ = to_parquet_bytes(&doc);
         });
         add_perf(
-            &format!("hedl_to_parquet_analytics_{}", size),
+            &format!("hedl_to_parquet_analytics_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -162,7 +162,7 @@ fn bench_parquet_to_hedl_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(parquet.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &parquet, |b, parquet| {
-            b.iter(|| from_parquet_bytes(black_box(parquet)))
+            b.iter(|| from_parquet_bytes(black_box(parquet)));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -170,7 +170,7 @@ fn bench_parquet_to_hedl_users(c: &mut Criterion) {
             let _ = from_parquet_bytes(&parquet);
         });
         add_perf(
-            &format!("parquet_to_hedl_users_{}", size),
+            &format!("parquet_to_hedl_users_{size}"),
             iterations,
             total_ns,
             Some(parquet.len() as u64),
@@ -200,7 +200,7 @@ fn bench_parquet_to_hedl_analytics(c: &mut Criterion) {
             let _ = from_parquet_bytes(&parquet);
         });
         add_perf(
-            &format!("parquet_to_hedl_analytics_{}", size),
+            &format!("parquet_to_hedl_analytics_{size}"),
             iterations,
             total_ns,
             Some(parquet.len() as u64),
@@ -227,13 +227,11 @@ fn bench_compression_methods(c: &mut Criterion) {
         ("zstd", Compression::ZSTD(Default::default())),
         ("lz4", Compression::LZ4),
     ] {
-        let config = ToParquetConfig {
-            compression: *compression,
-            ..Default::default()
-        };
+        let config = ToParquetConfig::default()
+            .with_compression_strategy(CompressionStrategy::Global(*compression));
 
         group.bench_with_input(BenchmarkId::new("analytics", name), &config, |b, config| {
-            b.iter(|| to_parquet_bytes_with_config(black_box(&doc), black_box(config)))
+            b.iter(|| to_parquet_bytes_with_config(black_box(&doc), black_box(config)));
         });
 
         let iterations = 100;
@@ -241,11 +239,115 @@ fn bench_compression_methods(c: &mut Criterion) {
             let _ = to_parquet_bytes_with_config(&doc, &config);
         });
         add_perf(
-            &format!("parquet_compression_{}", name),
+            &format!("parquet_compression_{name}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
         );
+    }
+
+    group.finish();
+}
+
+// ============================================================================
+// Statistics Level Benchmarks
+// ============================================================================
+
+fn bench_statistics_levels(c: &mut Criterion) {
+    let mut group = c.benchmark_group("parquet_statistics");
+
+    let hedl = generate_analytics(sizes::MEDIUM);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    for (name, stats_level) in &[
+        ("none", StatisticsLevel::None),
+        ("chunk", StatisticsLevel::Chunk),
+        ("page", StatisticsLevel::Page),
+    ] {
+        let config = ToParquetConfig::default().with_statistics_level(*stats_level);
+
+        group.throughput(Throughput::Bytes(hedl.len() as u64));
+        group.bench_with_input(BenchmarkId::new("analytics", name), &config, |b, config| {
+            b.iter(|| to_parquet_bytes_with_config(black_box(&doc), black_box(config)));
+        });
+
+        let iterations = 100;
+        let total_ns = measure(iterations, || {
+            let _ = to_parquet_bytes_with_config(&doc, &config);
+        });
+        add_perf(
+            &format!("parquet_statistics_{name}"),
+            iterations,
+            total_ns,
+            Some(hedl.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_statistics_overhead(c: &mut Criterion) {
+    let mut group = c.benchmark_group("parquet_statistics_overhead");
+
+    // Test different dataset sizes to measure statistics overhead
+    for &size in &[sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
+        let hedl = generate_analytics(size);
+        let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+        // Without statistics
+        let config_none = ToParquetConfig::without_statistics();
+        let bytes_none = to_parquet_bytes_with_config(&doc, &config_none).unwrap();
+
+        // With statistics (default: Chunk)
+        let config_chunk = ToParquetConfig::default().with_statistics_level(StatisticsLevel::Chunk);
+        let bytes_chunk = to_parquet_bytes_with_config(&doc, &config_chunk).unwrap();
+
+        // With page-level statistics
+        let config_page = ToParquetConfig::default().with_statistics_level(StatisticsLevel::Page);
+        let bytes_page = to_parquet_bytes_with_config(&doc, &config_page).unwrap();
+
+        // Report size differences
+        let overhead_chunk = ((bytes_chunk.len() as f64 / bytes_none.len() as f64) - 1.0) * 100.0;
+        let overhead_page = ((bytes_page.len() as f64 / bytes_none.len() as f64) - 1.0) * 100.0;
+
+        group.throughput(Throughput::Bytes(hedl.len() as u64));
+        group.bench_with_input(BenchmarkId::new("none", size), &config_none, |b, config| {
+            b.iter(|| to_parquet_bytes_with_config(black_box(&doc), black_box(config)));
+        });
+        group.bench_with_input(
+            BenchmarkId::new("chunk", size),
+            &config_chunk,
+            |b, config| b.iter(|| to_parquet_bytes_with_config(black_box(&doc), black_box(config))),
+        );
+
+        // Record performance metrics
+        let iterations = if size >= sizes::LARGE { 50 } else { 100 };
+        let total_ns_none = measure(iterations, || {
+            let _ = to_parquet_bytes_with_config(&doc, &config_none);
+        });
+        let total_ns_chunk = measure(iterations, || {
+            let _ = to_parquet_bytes_with_config(&doc, &config_chunk);
+        });
+
+        add_perf(
+            &format!("stats_none_{size}"),
+            iterations,
+            total_ns_none,
+            Some(bytes_none.len() as u64),
+        );
+        add_perf(
+            &format!("stats_chunk_{size}"),
+            iterations,
+            total_ns_chunk,
+            Some(bytes_chunk.len() as u64),
+        );
+
+        // Print overhead info during benchmark
+        if size == sizes::MEDIUM {
+            println!(
+                "\nStatistics overhead (size {size}): Chunk: {overhead_chunk:.1}%, Page: {overhead_page:.1}%"
+            );
+        }
     }
 
     group.finish();
@@ -261,8 +363,6 @@ struct ConversionResult {
     direction: String,
     input_bytes: usize,
     output_bytes: usize,
-    input_tokens: usize,
-    output_tokens: usize,
     conversion_times_ns: Vec<u64>,
     success: bool,
 }
@@ -299,12 +399,10 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
             let parquet = to_parquet_bytes(&doc).unwrap();
 
             results.push(ConversionResult {
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 direction: "HEDL→Parquet".to_string(),
                 input_bytes: hedl.len(),
                 output_bytes: parquet.len(),
-                input_tokens: count_tokens(&hedl),
-                output_tokens: count_tokens(&String::from_utf8_lossy(&parquet)),
                 conversion_times_ns: conversion_times_ns.clone(),
                 success: true,
             });
@@ -318,12 +416,10 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
             }
 
             results.push(ConversionResult {
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 direction: "Parquet→HEDL".to_string(),
                 input_bytes: parquet.len(),
                 output_bytes: 0, // Will be filled with actual size
-                input_tokens: 0, // Parquet is binary
-                output_tokens: 0,
                 conversion_times_ns,
                 success: true,
             });
@@ -348,7 +444,7 @@ fn collect_roundtrip_results() -> Vec<RoundTripResult> {
             let final_hedl = hedl_c14n::canonicalize(&doc2).unwrap_or_default();
 
             results.push(RoundTripResult {
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 original_bytes: original.len(),
                 final_bytes: final_hedl.len(),
                 byte_equal: original == final_hedl,
@@ -401,7 +497,7 @@ fn create_bidirectional_conversion_table(
                 .count()
                 .max(1) as u64;
 
-        let throughput_mbs = formats::measure_throughput_ns(avg_bytes, avg_time_ns);
+        let throughput_mbs = measure_throughput_ns(avg_bytes, avg_time_ns);
         let success_rate = (dir_results.iter().filter(|r| r.success).count() as f64
             / dir_results.len().max(1) as f64)
             * 100.0;
@@ -478,10 +574,8 @@ fn create_compression_analysis_table(report: &mut BenchmarkReport) {
         ("ZSTD", Compression::ZSTD(Default::default())),
         ("LZ4", Compression::LZ4),
     ] {
-        let config = ToParquetConfig {
-            compression: *compression,
-            ..Default::default()
-        };
+        let config = ToParquetConfig::default()
+            .with_compression_strategy(CompressionStrategy::Global(*compression));
 
         let start = Instant::now();
         let parquet = to_parquet_bytes_with_config(&doc, &config).unwrap();
@@ -494,7 +588,7 @@ fn create_compression_analysis_table(report: &mut BenchmarkReport) {
         let ratio = parquet.len() as f64 / hedl.len() as f64;
 
         table.rows.push(vec![
-            TableCell::String(name.to_string()),
+            TableCell::String((*name).to_string()),
             TableCell::Integer(parquet.len() as i64),
             TableCell::Float(ratio),
             TableCell::Float(compress_time),
@@ -539,7 +633,7 @@ fn create_columnar_alignment_table(report: &mut BenchmarkReport) {
         let per_col = time_us / *expected_cols as f64;
 
         table.rows.push(vec![
-            TableCell::String(dataset_name.to_string()),
+            TableCell::String((*dataset_name).to_string()),
             TableCell::Integer(*expected_cols),
             TableCell::Integer(rows as i64),
             TableCell::Float(time_us),
@@ -613,7 +707,7 @@ fn create_roundtrip_fidelity_table(results: &[RoundTripResult], report: &mut Ben
             TableCell::Integer(result.original_bytes as i64),
             TableCell::Integer(result.final_bytes as i64),
             TableCell::String(if result.byte_equal { "✓" } else { "✗" }.to_string()),
-            TableCell::String(format!("{:+.1}%", size_change)),
+            TableCell::String(format!("{size_change:+.1}%")),
         ]);
     }
 
@@ -637,7 +731,7 @@ fn create_performance_by_dataset_table(results: &[ConversionResult], report: &mu
     for result in results {
         let avg_time_ns = result.conversion_times_ns.iter().sum::<u64>()
             / result.conversion_times_ns.len().max(1) as u64;
-        let throughput = formats::measure_throughput_ns(result.input_bytes, avg_time_ns);
+        let throughput = measure_throughput_ns(result.input_bytes, avg_time_ns);
         let ratio = result.output_bytes as f64 / result.input_bytes.max(1) as f64;
 
         table.rows.push(vec![
@@ -892,7 +986,7 @@ fn create_scalability_table(report: &mut BenchmarkReport) {
         let _ = to_parquet_bytes(&doc);
         let time_ms = start.elapsed().as_micros() as f64 / 1000.0;
 
-        let throughput = formats::measure_throughput_ns(hedl.len(), (time_ms * 1_000_000.0) as u64);
+        let throughput = measure_throughput_ns(hedl.len(), (time_ms * 1_000_000.0) as u64);
         let scaling = if prev_time > 0.0 {
             time_ms / prev_time
         } else {
@@ -901,7 +995,7 @@ fn create_scalability_table(report: &mut BenchmarkReport) {
         prev_time = time_ms;
 
         table.rows.push(vec![
-            TableCell::String(size_name.to_string()),
+            TableCell::String((*size_name).to_string()),
             TableCell::Integer(*size as i64),
             TableCell::Float(time_ms),
             TableCell::Float(throughput),
@@ -1021,7 +1115,7 @@ fn create_batch_size_analysis_table(report: &mut BenchmarkReport) {
         };
 
         table.rows.push(vec![
-            TableCell::String(batch_name.to_string()),
+            TableCell::String((*batch_name).to_string()),
             TableCell::Integer(*size as i64),
             TableCell::Float(time_ms),
             TableCell::Float(per_record_us),
@@ -1055,7 +1149,7 @@ fn create_null_handling_table(report: &mut BenchmarkReport) {
         let time_us = start.elapsed().as_micros() as f64;
 
         table.rows.push(vec![
-            TableCell::String(format!("users_{}", size)),
+            TableCell::String(format!("users_{size}")),
             TableCell::Integer((size * 5) as i64), // 5 fields per user
             TableCell::Float(time_us),
             TableCell::Integer(parquet.len() as i64),
@@ -1103,10 +1197,8 @@ fn create_compression_tradeoff_table(report: &mut BenchmarkReport) {
 
     let mut results = Vec::new();
     for (name, compression, use_case) in &compression_methods {
-        let config = ToParquetConfig {
-            compression: *compression,
-            ..Default::default()
-        };
+        let config = ToParquetConfig::default()
+            .with_compression_strategy(CompressionStrategy::Global(*compression));
 
         let start = Instant::now();
         let parquet = to_parquet_bytes_with_config(&doc, &config).unwrap();
@@ -1127,12 +1219,12 @@ fn create_compression_tradeoff_table(report: &mut BenchmarkReport) {
 
     for (name, compress_ms, decompress_ms, ratio, total_rt, use_case) in results {
         table.rows.push(vec![
-            TableCell::String(name.to_string()),
+            TableCell::String((*name).to_string()),
             TableCell::Float(compress_ms),
             TableCell::Float(decompress_ms),
             TableCell::Float(ratio),
             TableCell::Float(total_rt),
-            TableCell::String(use_case.to_string()),
+            TableCell::String((*use_case).to_string()),
         ]);
     }
 
@@ -1254,10 +1346,10 @@ fn create_streaming_performance_table(report: &mut BenchmarkReport) {
         let parquet = to_parquet_bytes(&doc).unwrap();
         let time_ms = start.elapsed().as_micros() as f64 / 1000.0;
 
-        let throughput = formats::measure_throughput_ns(hedl.len(), (time_ms * 1_000_000.0) as u64);
+        let throughput = measure_throughput_ns(hedl.len(), (time_ms * 1_000_000.0) as u64);
 
         table.rows.push(vec![
-            TableCell::String(size_name.to_string()),
+            TableCell::String((*size_name).to_string()),
             TableCell::Integer(*size as i64),
             TableCell::Float(time_ms),
             TableCell::Integer((hedl.len() / 1024) as i64),
@@ -1539,7 +1631,7 @@ fn bench_export(c: &mut Criterion) {
 
             let config = ExportConfig::all();
             if let Err(e) = report.save_all("target/parquet_report", &config) {
-                eprintln!("Warning: Failed to export: {}", e);
+                eprintln!("Warning: Failed to export: {e}");
             } else {
                 println!("\nExported to target/parquet_report.*");
             }
@@ -1565,6 +1657,8 @@ criterion_group!(
     bench_parquet_to_hedl_users,
     bench_parquet_to_hedl_analytics,
     bench_compression_methods,
+    bench_statistics_levels,
+    bench_statistics_overhead,
     bench_export
 );
 criterion_main!(benches);

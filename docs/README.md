@@ -23,7 +23,7 @@ HEDL supports seamless conversion between these formats:
 | CSV | Yes | Yes | Yes |
 | Parquet | Yes | Yes | - |
 | Neo4j Cypher | Yes | Yes | - |
-| TOON | - | Yes | - |
+| TOON | Yes | Yes | - |
 
 ## Getting Started
 

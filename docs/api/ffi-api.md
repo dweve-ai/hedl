@@ -151,6 +151,11 @@ hedl_parse(input, -1, 0, &doc);
 #define HEDL_ERR_PARQUET    -10     // Parquet conversion error
 #define HEDL_ERR_LINT       -11     // Linting error
 #define HEDL_ERR_NEO4J      -12     // Neo4j conversion error
+#define HEDL_ERR_TOON       -13     // TOON conversion error
+#define HEDL_ERR_REENTRANT_CALL -14 // Reentrant FFI call detected
+#define HEDL_ERR_CANCELLED  -15     // Async operation cancelled
+#define HEDL_ERR_QUEUE_FULL -16     // Async queue is full
+#define HEDL_ERR_INVALID_HANDLE -17 // Invalid async operation handle
 ```
 
 ---
@@ -166,8 +171,8 @@ Parse a HEDL document.
 ```c
 int hedl_parse(
     const char* input,
-    int32_t input_len,
-    int32_t strict,
+    int input_len,
+    int strict,
     HedlDocument** out_doc
 );
 ```
@@ -198,8 +203,8 @@ Validate HEDL input without fully parsing.
 ```c
 int hedl_validate(
     const char* input,
-    int32_t input_len,
-    int32_t strict
+    int input_len,
+    int strict
 );
 ```
 
@@ -223,8 +228,8 @@ Get HEDL format version.
 ```c
 int hedl_get_version(
     const HedlDocument* doc,
-    int32_t* major,
-    int32_t* minor
+    int* major,
+    int* minor
 );
 ```
 
@@ -306,7 +311,7 @@ if (hedl_canonicalize(doc, &canonical) == HEDL_OK) {
 Zero-copy canonicalization via callback.
 
 ```c
-typedef void (*HedlOutputCallback)(const char* chunk, size_t len, void* user_data);
+typedef void (*HedlOutputCallback)(const char* data, uintptr_t len, void* user_data);
 
 int hedl_canonicalize_callback(
     const HedlDocument* doc,
@@ -317,8 +322,8 @@ int hedl_canonicalize_callback(
 
 **Example**:
 ```c
-void write_chunk(const char* chunk, size_t len, void* fp) {
-    fwrite(chunk, 1, len, (FILE*)fp);
+void write_chunk(const char* data, uintptr_t len, void* fp) {
+    fwrite(data, 1, len, (FILE*)fp);
 }
 
 FILE* fp = fopen("output.hedl", "w");
@@ -337,7 +342,7 @@ Convert HEDL to JSON.
 ```c
 int hedl_to_json(
     const HedlDocument* doc,
-    int32_t include_metadata,
+    int include_metadata,
     char** out_str
 );
 ```
@@ -365,7 +370,7 @@ Convert HEDL to JSON using callback (zero-copy).
 ```c
 int hedl_to_json_callback(
     const HedlDocument* doc,
-    int32_t include_metadata,
+    int include_metadata,
     HedlOutputCallback callback,
     void* user_data
 );
@@ -386,7 +391,7 @@ Convert JSON to HEDL document.
 ```c
 int hedl_from_json(
     const char* json,
-    int32_t json_len,
+    int json_len,
     HedlDocument** out_doc
 );
 ```
@@ -403,6 +408,64 @@ if (hedl_from_json(json, -1, &doc) == HEDL_OK) {
 
 ---
 
+#### `hedl_from_yaml`
+
+Convert YAML to HEDL document (requires `yaml` feature).
+
+```c
+int hedl_from_yaml(
+    const char* yaml,
+    int yaml_len,
+    HedlDocument** out_doc
+);
+```
+
+**Parameters**:
+- `yaml`: Null-terminated YAML string or byte array
+- `yaml_len`: Length of input, or `-1` if null-terminated
+- `out_doc`: Output parameter for parsed document
+
+**Example**:
+```c
+const char* yaml = "key: value\nlist:\n  - item1\n  - item2";
+HedlDocument* doc = NULL;
+if (hedl_from_yaml(yaml, -1, &doc) == HEDL_OK) {
+    // Use document
+    hedl_free_document(doc);
+}
+```
+
+---
+
+#### `hedl_from_xml`
+
+Convert XML to HEDL document (requires `xml` feature).
+
+```c
+int hedl_from_xml(
+    const char* xml,
+    int xml_len,
+    HedlDocument** out_doc
+);
+```
+
+**Parameters**:
+- `xml`: Null-terminated XML string or byte array
+- `xml_len`: Length of input, or `-1` if null-terminated
+- `out_doc`: Output parameter for parsed document
+
+**Example**:
+```c
+const char* xml = "<root><key>value</key></root>";
+HedlDocument* doc = NULL;
+if (hedl_from_xml(xml, -1, &doc) == HEDL_OK) {
+    // Use document
+    hedl_free_document(doc);
+}
+```
+
+---
+
 #### `hedl_to_yaml`
 
 Convert HEDL to YAML (requires `yaml` feature).
@@ -410,7 +473,7 @@ Convert HEDL to YAML (requires `yaml` feature).
 ```c
 int hedl_to_yaml(
     const HedlDocument* doc,
-    int32_t include_metadata,
+    int include_metadata,
     char** out_str
 );
 ```
@@ -429,7 +492,7 @@ Convert HEDL to YAML using callback (zero-copy).
 ```c
 int hedl_to_yaml_callback(
     const HedlDocument* doc,
-    int32_t include_metadata,
+    int include_metadata,
     HedlOutputCallback callback,
     void* user_data
 );
@@ -499,7 +562,7 @@ Convert HEDL to Parquet binary format (requires `parquet` feature).
 int hedl_to_parquet(
     const HedlDocument* doc,
     uint8_t** out_bytes,
-    size_t* out_len
+    uintptr_t* out_len
 );
 ```
 
@@ -508,7 +571,7 @@ int hedl_to_parquet(
 **Example**:
 ```c
 uint8_t* bytes = NULL;
-size_t len = 0;
+uintptr_t len = 0;
 if (hedl_to_parquet(doc, &bytes, &len) == HEDL_OK) {
     fwrite(bytes, 1, len, output_file);
     hedl_free_bytes(bytes, len);
@@ -523,8 +586,8 @@ Convert Parquet bytes to HEDL document.
 
 ```c
 int hedl_from_parquet(
-    const uint8_t* bytes,
-    size_t len,
+    const uint8_t* data,
+    uintptr_t len,
     HedlDocument** out_doc
 );
 ```
@@ -538,7 +601,7 @@ Convert HEDL to Neo4j Cypher statements (requires `neo4j` feature).
 ```c
 int hedl_to_neo4j_cypher(
     const HedlDocument* doc,
-    int32_t use_merge,
+    int use_merge,
     char** out_str
 );
 ```
@@ -557,10 +620,65 @@ Convert HEDL to Neo4j Cypher using callback (zero-copy).
 ```c
 int hedl_to_neo4j_cypher_callback(
     const HedlDocument* doc,
-    int32_t use_merge,
+    int use_merge,
     HedlOutputCallback callback,
     void* user_data
 );
+```
+
+---
+
+#### `hedl_to_toon`
+
+Convert HEDL to TOON (Tab-Organized Object Notation) (requires `toon` feature).
+
+```c
+int hedl_to_toon(
+    const HedlDocument* doc,
+    char** out_str
+);
+```
+
+**Parameters**:
+- `doc`: Document to convert
+- `out_str`: Output TOON string
+
+**Example**:
+```c
+char* toon = NULL;
+if (hedl_to_toon(doc, &toon) == HEDL_OK) {
+    printf("%s\n", toon);
+    hedl_free_string(toon);
+}
+```
+
+---
+
+#### `hedl_from_toon`
+
+Convert TOON to HEDL document (requires `toon` feature).
+
+```c
+int hedl_from_toon(
+    const char* toon,
+    int toon_len,
+    HedlDocument** out_doc
+);
+```
+
+**Parameters**:
+- `toon`: Null-terminated TOON string or byte array
+- `toon_len`: Length of input, or `-1` if null-terminated
+- `out_doc`: Output parameter for parsed document
+
+**Example**:
+```c
+const char* toon = "users\n\talice\n\t\tname\tAlice";
+HedlDocument* doc = NULL;
+if (hedl_from_toon(toon, -1, &doc) == HEDL_OK) {
+    // Use document
+    hedl_free_document(doc);
+}
 ```
 
 ---
@@ -615,7 +733,7 @@ Get diagnostic message by index.
 ```c
 int hedl_diagnostics_get(
     const HedlDiagnostics* diag,
-    int32_t index,
+    int index,
     char** out_str
 );
 ```
@@ -636,7 +754,7 @@ Get diagnostic severity.
 ```c
 int hedl_diagnostics_severity(
     const HedlDiagnostics* diag,
-    int32_t index
+    int index
 );
 ```
 
@@ -654,7 +772,7 @@ Get last error message for current thread.
 const char* hedl_get_last_error(void);
 ```
 
-**Returns**: Error message string, or `"No error"` if no error occurred
+**Returns**: Error message string, or `NULL` if no error occurred
 
 **Example**:
 ```c
@@ -716,7 +834,7 @@ void hedl_free_string(char* str);
 Free a byte array allocated by HEDL.
 
 ```c
-void hedl_free_bytes(uint8_t* bytes, size_t len);
+void hedl_free_bytes(uint8_t* data, uintptr_t len);
 ```
 
 ---
@@ -790,7 +908,7 @@ import ctypes
 hedl = ctypes.CDLL('libhedl_ffi.so')
 
 # Define types
-hedl.hedl_parse.argtypes = [ctypes.c_char_p, ctypes.c_int32, ctypes.c_int32, ctypes.POINTER(ctypes.c_void_p)]
+hedl.hedl_parse.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)]
 hedl.hedl_parse.restype = ctypes.c_int
 hedl.hedl_free_document.argtypes = [ctypes.c_void_p]
 hedl.hedl_get_last_error.restype = ctypes.c_char_p
@@ -855,7 +973,7 @@ module HedlFFI
   extend FFI::Library
   ffi_lib 'hedl_ffi'
 
-  attach_function :hedl_parse, [:string, :int32, :int32, :pointer], :int
+  attach_function :hedl_parse, [:string, :int, :int, :pointer], :int
   attach_function :hedl_free_document, [:pointer], :void
   attach_function :hedl_get_last_error, [], :string
 end
@@ -870,6 +988,308 @@ else
   HedlFFI.hedl_free_document(doc_ptr.read_pointer)
 end
 ```
+
+---
+
+## Async API
+
+The FFI layer provides non-blocking operations using a thread pool and callback-based completion.
+
+### Callback Type
+
+The callback type is defined as:
+
+```c
+typedef void (*HedlCompletionCallbackFn)(
+    int status,           // HEDL_OK or error code
+    void* result,         // Result pointer (type depends on operation)
+    const char* error_msg,// Error message (NULL on success)
+    void* user_data       // User-provided context
+);
+
+typedef struct Option_HedlCompletionCallbackFn HedlCompletionCallback;
+```
+
+**Important**:
+- Callbacks execute on worker threads and must be thread-safe
+- `result` ownership transfers to callback (must free if non-NULL)
+- `error_msg` is valid only during callback execution
+- Do not call back into async FFI functions from callbacks (deadlock risk)
+- C callers can pass NULL for the callback (it's optional via the Option type)
+
+---
+
+### `hedl_parse_async`
+
+Asynchronously parse a HEDL document.
+
+```c
+struct HedlAsyncOp* hedl_parse_async(
+    const char* input,
+    int input_len,
+    int strict,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `input`: UTF-8 encoded HEDL document
+- `input_len`: Length of input in bytes, or `-1` for null-terminated
+- `strict`: Non-zero for strict mode (validate references)
+- `callback`: Completion callback (invoked on worker thread)
+- `user_data`: User context pointer passed to callback
+
+**Returns**: Async operation handle on success, NULL on submission failure
+
+**Callback receives**: `HedlDocument*` on success (must free with `hedl_free_document`)
+
+**Example**:
+```c
+void parse_callback(int status, void* result, const char* error_msg, void* user_data) {
+    if (status == HEDL_OK) {
+        HedlDocument* doc = (HedlDocument*)result;
+        // Use document...
+        hedl_free_document(doc);
+    } else {
+        fprintf(stderr, "Parse failed: %s\n", error_msg);
+    }
+}
+
+HedlAsyncOp* op = hedl_parse_async(input, -1, 0, parse_callback, NULL);
+if (op != NULL) {
+    // Do other work while parsing...
+    hedl_async_free(op);  // Free handle when done
+}
+```
+
+---
+
+### `hedl_canonicalize_async`
+
+Asynchronously canonicalize a document.
+
+```c
+struct HedlAsyncOp* hedl_canonicalize_async(
+    const struct HedlDocument* doc,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_lint_async`
+
+Asynchronously lint a document.
+
+```c
+struct HedlAsyncOp* hedl_lint_async(
+    const struct HedlDocument* doc,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `HedlDiagnostics*` on success (must free with `hedl_free_diagnostics`)
+
+---
+
+### `hedl_to_json_async`
+
+Asynchronously convert to JSON.
+
+```c
+struct HedlAsyncOp* hedl_to_json_async(
+    const struct HedlDocument* doc,
+    int include_metadata,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `include_metadata`: Non-zero to include metadata
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_to_yaml_async`
+
+Asynchronously convert to YAML (requires `yaml` feature).
+
+```c
+struct HedlAsyncOp* hedl_to_yaml_async(
+    const struct HedlDocument* doc,
+    int include_metadata,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `include_metadata`: Non-zero to include metadata
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_to_xml_async`
+
+Asynchronously convert to XML (requires `xml` feature).
+
+```c
+struct HedlAsyncOp* hedl_to_xml_async(
+    const struct HedlDocument* doc,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_to_csv_async`
+
+Asynchronously convert to CSV (requires `csv` feature).
+
+```c
+struct HedlAsyncOp* hedl_to_csv_async(
+    const struct HedlDocument* doc,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_to_neo4j_cypher_async`
+
+Asynchronously convert to Neo4j Cypher (requires `neo4j` feature).
+
+```c
+struct HedlAsyncOp* hedl_to_neo4j_cypher_async(
+    const struct HedlDocument* doc,
+    int include_metadata,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `include_metadata`: Non-zero to use MERGE (idempotent), zero for CREATE
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_to_toon_async`
+
+Asynchronously convert to TOON (requires `toon` feature).
+
+```c
+struct HedlAsyncOp* hedl_to_toon_async(
+    const struct HedlDocument* doc,
+    HedlCompletionCallback callback,
+    void* user_data
+);
+```
+
+**Parameters**:
+- `doc`: Document handle
+- `callback`: Completion callback
+- `user_data`: User context pointer
+
+**Returns**: Async operation handle on success, NULL on failure
+
+**Callback receives**: `char*` on success (must free with `hedl_free_string`)
+
+---
+
+### `hedl_async_cancel`
+
+Cancel a pending async operation.
+
+```c
+void hedl_async_cancel(struct HedlAsyncOp* op);
+```
+
+**Behavior**:
+- If not started: Cancelled immediately, callback invoked with `HEDL_ERR_CANCELLED`
+- If in progress: Attempts to abort, callback invoked with `HEDL_ERR_CANCELLED`
+- If completed: No effect (callback already executed)
+
+---
+
+### `hedl_async_free`
+
+Free an async operation handle.
+
+```c
+void hedl_async_free(struct HedlAsyncOp* op);
+```
+
+**Must** be called regardless of operation completion status (pending, completed, or cancelled).
+
+**Safety**: NULL-safe, can be called with NULL pointer.
+
+---
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HEDL_ASYNC_THREADS` | Number of CPUs | Thread pool size |
+| `HEDL_ASYNC_QUEUE_SIZE` | 1000 | Maximum queued operations |
 
 ---
 

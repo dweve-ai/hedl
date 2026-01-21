@@ -96,6 +96,12 @@ impl HedlError {
         }
     }
 
+    /// Set line number.
+    pub fn with_line(mut self, line: usize) -> Self {
+        self.line = line;
+        self
+    }
+
     /// Add column information.
     pub fn with_column(mut self, column: usize) -> Self {
         self.column = Some(column);
@@ -109,52 +115,70 @@ impl HedlError {
     }
 
     // Convenience constructors for each error kind
+
+    /// Creates a syntax error at the given line.
     pub fn syntax(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Syntax, message, line)
     }
 
+    /// Creates a version error at the given line.
     pub fn version(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Version, message, line)
     }
 
+    /// Creates a schema error at the given line.
     pub fn schema(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Schema, message, line)
     }
 
+    /// Creates an alias error at the given line.
     pub fn alias(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Alias, message, line)
     }
 
+    /// Creates a shape error at the given line.
     pub fn shape(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Shape, message, line)
     }
 
+    /// Creates a semantic error at the given line.
     pub fn semantic(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Semantic, message, line)
     }
 
+    /// Creates an orphan row error at the given line.
     pub fn orphan_row(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::OrphanRow, message, line)
     }
 
+    /// Creates a collision error at the given line.
     pub fn collision(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Collision, message, line)
     }
 
+    /// Creates a reference error at the given line.
     pub fn reference(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Reference, message, line)
     }
 
+    /// Creates a security error at the given line.
     pub fn security(message: impl Into<String>, line: usize) -> Self {
         Self::new(HedlErrorKind::Security, message, line)
     }
 
+    /// Creates a conversion error (no line context).
     pub fn conversion(message: impl Into<String>) -> Self {
         Self::new(HedlErrorKind::Conversion, message, 0)
     }
 
+    /// Creates an I/O error (no line context).
     pub fn io(message: impl Into<String>) -> Self {
         Self::new(HedlErrorKind::IO, message, 0)
+    }
+
+    /// Create a type mismatch error (semantic error kind).
+    pub fn type_mismatch(message: impl Into<String>, line: usize) -> Self {
+        Self::new(HedlErrorKind::Semantic, message, line)
     }
 }
 

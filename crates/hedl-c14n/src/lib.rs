@@ -37,7 +37,7 @@
 //! - Proper escaping of quotes and control characters
 //! - Alphabetically sorted keys, aliases, and struct declarations
 //! - Count hints in STRUCT directives for performance optimization
-//! - Security: Recursion depth limits prevent stack overflow DoS attacks
+//! - Security: Recursion depth limits prevent stack overflow `DoS` attacks
 //!
 //! # Examples
 //!
@@ -78,15 +78,19 @@
 //!
 //! Several optimizations are implemented:
 //!
-//! - **P0**: Direct BTreeMap iteration eliminates key cloning (1.15x speedup, 10-15% fewer allocations)
+//! - **P0**: Direct `BTreeMap` iteration eliminates key cloning (1.15x speedup, 10-15% fewer allocations)
 //! - **P1**: Pre-allocated output buffer (1.2-1.3x speedup)
 //! - **P1**: Cell buffer reuse across rows (1.05-1.1x speedup for large matrices)
+//! - **Count hints**: `add_count_hints()` function to automatically add count hints to matrix lists
 
+#![cfg_attr(not(test), warn(missing_docs))]
 mod config;
+mod count_hints;
 mod ditto;
 mod writer;
 
 pub use config::{CanonicalConfig, CanonicalConfigBuilder, QuotingStrategy};
+pub use count_hints::add_count_hints;
 pub use ditto::can_use_ditto;
 pub use writer::CanonicalWriter;
 

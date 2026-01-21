@@ -19,7 +19,15 @@ Use for complex configuration:
 
 pub struct ParseOptions {
     pub limits: Limits,
-    pub strict_refs: bool,
+    pub reference_mode: ReferenceMode,
+}
+
+/// Reference resolution mode for controlling validation behavior.
+pub enum ReferenceMode {
+    /// Strict mode: Unresolved references cause errors (default).
+    Strict,
+    /// Lenient mode: Unresolved references are silently ignored.
+    Lenient,
 }
 
 impl ParseOptions {
@@ -30,19 +38,19 @@ impl ParseOptions {
 
 pub struct ParseOptionsBuilder {
     limits: Limits,
-    strict_refs: bool,
+    reference_mode: ReferenceMode,
 }
 
 impl ParseOptionsBuilder {
     pub fn new() -> Self {
         Self {
             limits: Limits::default(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         }
     }
 
-    pub fn strict(mut self, strict: bool) -> Self {
-        self.strict_refs = strict;
+    pub fn reference_mode(mut self, mode: ReferenceMode) -> Self {
+        self.reference_mode = mode;
         self
     }
 
@@ -56,7 +64,7 @@ impl ParseOptionsBuilder {
         self
     }
 
-    pub fn max_array_length(mut self, length: usize) -> Self {
+    pub fn max_nodes(mut self, length: usize) -> Self {
         self.limits.max_nodes = length;
         self
     }
@@ -64,7 +72,7 @@ impl ParseOptionsBuilder {
     pub fn build(self) -> ParseOptions {
         ParseOptions {
             limits: self.limits,
-            strict_refs: self.strict_refs,
+            reference_mode: self.reference_mode,
         }
     }
 }
@@ -72,14 +80,14 @@ impl ParseOptionsBuilder {
 // Usage
 let options = ParseOptions::builder()
     .max_depth(100)
-    .strict(true)
+    .reference_mode(ReferenceMode::Strict)
     .build();
 
 // Or with multiple settings:
 let options = ParseOptions::builder()
     .max_depth(100)
-    .max_array_length(50_000)
-    .strict(false)
+    .max_nodes(50_000)
+    .reference_mode(ReferenceMode::Lenient)
     .build();
 ```
 

@@ -18,6 +18,7 @@
 //! Format command - HEDL canonicalization and formatting
 
 use super::{read_file, write_output};
+use crate::error::CliError;
 use hedl_c14n::{canonicalize_with_config, CanonicalConfig};
 use hedl_core::{parse, Document, Item};
 
@@ -55,7 +56,7 @@ use hedl_core::{parse, Document, Item};
 /// ```no_run
 /// use hedl_cli::commands::format;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Format to stdout
 /// format("input.hedl", None, false, true, false)?;
 ///
@@ -84,27 +85,28 @@ pub fn format(
     check: bool,
     ditto: bool,
     with_counts: bool,
-) -> Result<(), String> {
+) -> Result<(), CliError> {
     let content = read_file(file)?;
 
-    let mut doc = parse(content.as_bytes()).map_err(|e| format!("Parse error: {}", e))?;
+    let mut doc =
+        parse(content.as_bytes()).map_err(|e| CliError::parse(format!("Parse error: {e}")))?;
 
     // Add count hints if requested
     if with_counts {
-        add_count_hints(&mut doc);
+        add_count_hints_to_doc(&mut doc);
     }
 
     let mut config = CanonicalConfig::default();
     config.use_ditto = ditto;
 
     let canonical = canonicalize_with_config(&doc, &config)
-        .map_err(|e| format!("Canonicalization error: {}", e))?;
+        .map_err(|e| CliError::canonicalization(format!("Canonicalization error: {e}")))?;
 
     if check {
         // Compare with original (normalized)
         let normalized_original = content.replace("\r\n", "\n");
         if canonical.trim() != normalized_original.trim() {
-            return Err("File is not in canonical form".to_string());
+            return Err(CliError::NotCanonical);
         }
         println!("File is in canonical form");
         Ok(())
@@ -114,7 +116,7 @@ pub fn format(
 }
 
 /// Recursively add count hints to all matrix lists in the document
-fn add_count_hints(doc: &mut Document) {
+fn add_count_hints_to_doc(doc: &mut Document) {
     for item in doc.root.values_mut() {
         add_count_hints_to_item(item);
     }
@@ -144,18 +146,22 @@ fn add_count_hints_to_item(item: &mut Item) {
     }
 }
 
-/// Recursively set child_count on nodes that have children
+/// Recursively set `child_count` on nodes that have children
 fn add_child_count_to_node(node: &mut hedl_core::Node) {
     // Calculate total number of direct children across all child types
-    let total_children: usize = node.children.values().map(|v| v.len()).sum();
+    let total_children: usize = node
+        .children()
+        .map_or(0, |c| c.values().map(std::vec::Vec::len).sum());
 
     if total_children > 0 {
-        node.child_count = Some(total_children);
+        node.child_count = total_children.min(u16::MAX as usize) as u16;
 
         // Recursively process all child nodes
-        for child_list in node.children.values_mut() {
-            for child_node in child_list {
-                add_child_count_to_node(child_node);
+        if let Some(children) = node.children_mut() {
+            for child_list in children.values_mut() {
+                for child_node in child_list {
+                    add_child_count_to_node(child_node);
+                }
             }
         }
     }
@@ -316,7 +322,7 @@ mod tests {
         doc.root.insert("teams".to_string(), Item::List(list1));
         doc.root.insert("players".to_string(), Item::List(list2));
 
-        add_count_hints(&mut doc);
+        add_count_hints_to_doc(&mut doc);
 
         // Verify both lists have count hints
         if let Some(Item::List(teams)) = doc.root.get("teams") {

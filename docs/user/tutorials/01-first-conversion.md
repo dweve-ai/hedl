@@ -377,7 +377,7 @@ Congratulations! You've completed your first conversion and understand the basic
 
 **Continue your learning:**
 - [Tutorial 2: CLI Basics](02-cli-basics.md) - Master the command-line tools
-- [How-To: Convert Formats](../how-to/convert-formats.md) - More conversion recipes
+- [Formats Guide](../formats.md) - More conversion recipes
 - [Concepts: Data Model](../concepts/data-model.md) - Deep dive into HEDL's structure
 
 **Quick Reference:**

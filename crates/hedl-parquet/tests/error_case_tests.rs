@@ -491,8 +491,7 @@ fn test_extremely_long_column_name() {
                         // Verify column names are valid after sanitization
                         assert!(
                             col.chars().all(|c| c.is_alphanumeric() || c == '_'),
-                            "Column name should contain only alphanumeric and underscore: {}",
-                            col
+                            "Column name should contain only alphanumeric and underscore: {col}"
                         );
                     }
                 }
@@ -535,8 +534,7 @@ fn test_invalid_column_name_special_chars() {
                         // Should only contain alphanumeric and underscore
                         assert!(
                             col.chars().all(|c| c.is_alphanumeric() || c == '_'),
-                            "Column name should be sanitized: {}",
-                            col
+                            "Column name should be sanitized: {col}"
                         );
                     }
                 }
@@ -618,7 +616,7 @@ fn test_empty_rows_many_columns() {
     // Many columns but zero rows
     let schema = Arc::new(Schema::new(
         (0..500)
-            .map(|i| Field::new(format!("col{}", i), DataType::Int64, true))
+            .map(|i| Field::new(format!("col{i}"), DataType::Int64, true))
             .collect::<Vec<_>>(),
     ));
 
@@ -779,7 +777,7 @@ fn create_parquet_with_time_column() -> Vec<u8> {
     create_parquet_from_batch(schema, vec![id_array, time_array])
 }
 
-/// Create Parquet file with FixedSizeBinary column.
+/// Create Parquet file with `FixedSizeBinary` column.
 fn create_parquet_with_fixed_binary_column() -> Vec<u8> {
     let schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Utf8, false),
@@ -859,7 +857,7 @@ fn create_parquet_with_struct_column() -> Vec<u8> {
     create_parquet_from_batch(schema, vec![id_array, struct_array])
 }
 
-/// Create Parquet file with LargeUtf8 column.
+/// Create Parquet file with `LargeUtf8` column.
 fn create_parquet_with_large_utf8_column() -> Vec<u8> {
     let schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Utf8, false),
@@ -872,7 +870,7 @@ fn create_parquet_with_large_utf8_column() -> Vec<u8> {
     create_parquet_from_batch(schema, vec![id_array, large_utf8_array])
 }
 
-/// Create Parquet file with LargeBinary column.
+/// Create Parquet file with `LargeBinary` column.
 fn create_parquet_with_large_binary_column() -> Vec<u8> {
     let schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Utf8, false),
@@ -886,7 +884,7 @@ fn create_parquet_with_large_binary_column() -> Vec<u8> {
     create_parquet_from_batch(schema, vec![id_array, large_binary_array])
 }
 
-/// Create Parquet file with UInt64 values that overflow i64::MAX.
+/// Create Parquet file with `UInt64` values that overflow `i64::MAX`.
 fn create_parquet_with_uint64_overflow() -> Vec<u8> {
     let schema = Arc::new(Schema::new(vec![
         Field::new("id", DataType::Utf8, false),
@@ -903,7 +901,7 @@ fn create_parquet_with_uint64_overflow() -> Vec<u8> {
 fn create_parquet_with_n_columns(n: usize) -> Vec<u8> {
     let mut fields = vec![Field::new("id", DataType::Utf8, false)];
     for i in 1..n {
-        fields.push(Field::new(format!("col{}", i), DataType::Int64, true));
+        fields.push(Field::new(format!("col{i}"), DataType::Int64, true));
     }
 
     let schema = Arc::new(Schema::new(fields));
@@ -920,12 +918,12 @@ fn create_parquet_with_n_columns(n: usize) -> Vec<u8> {
 fn create_parquet_with_dimensions(num_columns: usize, num_rows: usize) -> Vec<u8> {
     let mut fields = vec![Field::new("id", DataType::Utf8, false)];
     for i in 1..num_columns {
-        fields.push(Field::new(format!("col{}", i), DataType::Int64, true));
+        fields.push(Field::new(format!("col{i}"), DataType::Int64, true));
     }
 
     let schema = Arc::new(Schema::new(fields));
 
-    let id_data: Vec<String> = (0..num_rows).map(|i| format!("row{}", i)).collect();
+    let id_data: Vec<String> = (0..num_rows).map(|i| format!("row{i}")).collect();
     let mut columns: Vec<ArrayRef> = vec![Arc::new(StringArray::from(id_data))];
 
     for _ in 1..num_columns {

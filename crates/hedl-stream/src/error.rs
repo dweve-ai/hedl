@@ -124,15 +124,30 @@ pub enum StreamError {
 
     /// Invalid UTF-8 encoding.
     #[error("Invalid UTF-8 at line {line}: {message}")]
-    Utf8 { line: usize, message: String },
+    Utf8 {
+        /// Line number where the invalid encoding was found.
+        line: usize,
+        /// Description of the encoding error.
+        message: String,
+    },
 
     /// Syntax error.
     #[error("Syntax error at line {line}: {message}")]
-    Syntax { line: usize, message: String },
+    Syntax {
+        /// Line number where the syntax error occurred.
+        line: usize,
+        /// Description of the syntax error.
+        message: String,
+    },
 
     /// Schema error.
     #[error("Schema error at line {line}: {message}")]
-    Schema { line: usize, message: String },
+    Schema {
+        /// Line number where the schema error occurred.
+        line: usize,
+        /// Description of the schema error.
+        message: String,
+    },
 
     /// Invalid header.
     #[error("Invalid header: {0}")]
@@ -148,21 +163,51 @@ pub enum StreamError {
 
     /// Orphan row (child without parent).
     #[error("Orphan row at line {line}: {message}")]
-    OrphanRow { line: usize, message: String },
+    OrphanRow {
+        /// Line number of the orphan row.
+        line: usize,
+        /// Description of the orphan row error.
+        message: String,
+    },
 
     /// Shape mismatch.
     #[error("Shape mismatch at line {line}: expected {expected} columns, got {got}")]
     ShapeMismatch {
+        /// Line number where the mismatch occurred.
         line: usize,
+        /// Expected number of columns.
         expected: usize,
+        /// Actual number of columns found.
         got: usize,
     },
 
     /// Timeout exceeded during parsing.
     #[error("Parsing timeout: elapsed {elapsed:?} exceeded limit {limit:?}")]
     Timeout {
+        /// Time elapsed before timeout.
         elapsed: std::time::Duration,
+        /// Configured timeout limit.
         limit: std::time::Duration,
+    },
+
+    /// Line length exceeds configured maximum.
+    #[error("Line {line} exceeds maximum length: {length} bytes > {limit} bytes")]
+    LineTooLong {
+        /// Line number that exceeded the limit.
+        line: usize,
+        /// Actual length in bytes.
+        length: usize,
+        /// Maximum allowed length in bytes.
+        limit: usize,
+    },
+
+    /// Invalid UTF-8 encoding in input.
+    #[error("Invalid UTF-8 encoding at line {line}: {error}")]
+    InvalidUtf8 {
+        /// Line number with invalid encoding.
+        line: usize,
+        /// The underlying UTF-8 decoding error.
+        error: std::str::Utf8Error,
     },
 }
 
@@ -196,13 +241,16 @@ impl StreamError {
 
     /// Get the line number if available.
     #[inline]
+    #[must_use]
     pub fn line(&self) -> Option<usize> {
         match self {
             Self::Utf8 { line, .. }
             | Self::Syntax { line, .. }
             | Self::Schema { line, .. }
             | Self::OrphanRow { line, .. }
-            | Self::ShapeMismatch { line, .. } => Some(*line),
+            | Self::ShapeMismatch { line, .. }
+            | Self::LineTooLong { line, .. }
+            | Self::InvalidUtf8 { line, .. } => Some(*line),
             _ => None,
         }
     }
@@ -222,7 +270,7 @@ mod tests {
     fn test_stream_error_io() {
         let io_err = io::Error::new(io::ErrorKind::NotFound, "file not found");
         let err = StreamError::Io(io_err);
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("IO error"));
         assert!(display.contains("file not found"));
     }
@@ -233,7 +281,7 @@ mod tests {
             line: 42,
             message: "invalid byte sequence".to_string(),
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Invalid UTF-8"));
         assert!(display.contains("42"));
         assert!(display.contains("invalid byte sequence"));
@@ -245,7 +293,7 @@ mod tests {
             line: 10,
             message: "unexpected token".to_string(),
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Syntax error"));
         assert!(display.contains("10"));
         assert!(display.contains("unexpected token"));
@@ -257,16 +305,16 @@ mod tests {
             line: 5,
             message: "undefined type".to_string(),
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Schema error"));
-        assert!(display.contains("5"));
+        assert!(display.contains('5'));
         assert!(display.contains("undefined type"));
     }
 
     #[test]
     fn test_stream_error_header() {
         let err = StreamError::Header("invalid header format".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Invalid header"));
         assert!(display.contains("invalid header format"));
     }
@@ -274,14 +322,14 @@ mod tests {
     #[test]
     fn test_stream_error_missing_version() {
         let err = StreamError::MissingVersion;
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Missing %VERSION"));
     }
 
     #[test]
     fn test_stream_error_invalid_version() {
         let err = StreamError::InvalidVersion("abc".to_string());
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Invalid version"));
         assert!(display.contains("abc"));
     }
@@ -292,7 +340,7 @@ mod tests {
             line: 25,
             message: "child without parent".to_string(),
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Orphan row"));
         assert!(display.contains("25"));
         assert!(display.contains("child without parent"));
@@ -305,11 +353,11 @@ mod tests {
             expected: 5,
             got: 3,
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Shape mismatch"));
         assert!(display.contains("100"));
-        assert!(display.contains("5"));
-        assert!(display.contains("3"));
+        assert!(display.contains('5'));
+        assert!(display.contains('3'));
     }
 
     // ==================== Constructor tests ====================
@@ -451,7 +499,7 @@ mod tests {
         let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
         let stream_err: StreamError = io_err.into();
         assert!(matches!(stream_err, StreamError::Io(_)));
-        let display = format!("{}", stream_err);
+        let display = format!("{stream_err}");
         assert!(display.contains("access denied"));
     }
 
@@ -467,7 +515,7 @@ mod tests {
     #[test]
     fn test_debug_syntax() {
         let err = StreamError::syntax(10, "test error");
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("Syntax"));
         assert!(debug.contains("10"));
     }
@@ -475,14 +523,14 @@ mod tests {
     #[test]
     fn test_debug_schema() {
         let err = StreamError::schema(20, "schema issue");
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("Schema"));
     }
 
     #[test]
     fn test_debug_missing_version() {
         let err = StreamError::MissingVersion;
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("MissingVersion"));
     }
 
@@ -511,7 +559,7 @@ mod tests {
     #[test]
     fn test_unicode_message() {
         let err = StreamError::syntax(1, "错误信息 🚫");
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("错误信息"));
         assert!(display.contains("🚫"));
     }
@@ -519,7 +567,7 @@ mod tests {
     #[test]
     fn test_multiline_message() {
         let err = StreamError::syntax(1, "line1\nline2\nline3");
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("line1"));
     }
 
@@ -540,7 +588,7 @@ mod tests {
             expected: 1000,
             got: 999,
         };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("1000000"));
         assert!(display.contains("1000"));
         assert!(display.contains("999"));
@@ -556,7 +604,7 @@ mod tests {
         let limit = Duration::from_millis(100);
         let err = StreamError::Timeout { elapsed, limit };
 
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("timeout"));
         assert!(display.contains("150ms"));
         assert!(display.contains("100ms"));
@@ -571,7 +619,7 @@ mod tests {
             limit: Duration::from_millis(500),
         };
 
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("Timeout"));
     }
 
@@ -596,7 +644,7 @@ mod tests {
         let limit = Duration::from_secs(1);
         let err = StreamError::Timeout { elapsed, limit };
 
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("5s"));
         assert!(display.contains("1s"));
     }
@@ -609,7 +657,7 @@ mod tests {
         let limit = Duration::from_nanos(1000);
         let err = StreamError::Timeout { elapsed, limit };
 
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("timeout"));
     }
 }

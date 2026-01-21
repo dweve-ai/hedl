@@ -56,6 +56,8 @@
 //! }
 //! ```
 
+use crate::buffer_config::BufferSizeHint;
+use crate::buffer_pool::{BufferPool, MemoryLimits};
 use crate::error::{StreamError, StreamResult};
 use crate::event::{HeaderInfo, NodeEvent, NodeInfo};
 use crate::reader::LineReader;
@@ -64,12 +66,12 @@ use hedl_core::Value;
 use std::io::Read;
 use std::time::{Duration, Instant};
 
-/// Type alias for list context lookup result: (type_name, schema, optional last_node info)
+/// Type alias for list context lookup result: (`type_name`, schema, optional `last_node` info)
 type ListContextResult = (String, Vec<String>, Option<(String, String)>);
 
 /// Configuration options for the streaming parser.
 ///
-/// Controls memory limits, buffer sizes, and timeout behavior.
+/// Controls memory limits, buffer sizes, timeout behavior, and buffer pooling.
 ///
 /// # Examples
 ///
@@ -88,27 +90,26 @@ type ListContextResult = (String, Vec<String>, Option<(String, String)>);
 /// ## Custom Configuration for Large Files
 ///
 /// ```rust
-/// use hedl_stream::StreamingParserConfig;
+/// use hedl_stream::{StreamingParserConfig, BufferSizeHint};
 ///
-/// let config = StreamingParserConfig {
-///     max_line_length: 10_000_000,  // 10MB lines
-///     max_indent_depth: 1000,        // Deep nesting
-///     buffer_size: 256 * 1024,       // 256KB buffer
-///     timeout: None,                 // No timeout
-/// };
+/// let config = StreamingParserConfig::default()
+///     .with_buffer_hint(BufferSizeHint::Large)
+///     .with_buffer_pooling(true);
 /// ```
 ///
 /// ## Configuration for Untrusted Input
 ///
 /// ```rust
-/// use hedl_stream::StreamingParserConfig;
+/// use hedl_stream::{StreamingParserConfig, MemoryLimits};
 /// use std::time::Duration;
 ///
 /// let config = StreamingParserConfig {
-///     max_line_length: 100_000,           // Limit line length
-///     max_indent_depth: 50,                // Limit nesting
-///     buffer_size: 32 * 1024,              // Smaller buffer
-///     timeout: Some(Duration::from_secs(10)), // 10 second timeout
+///     max_line_length: 100_000,
+///     max_indent_depth: 50,
+///     buffer_size: 32 * 1024,
+///     timeout: Some(Duration::from_secs(10)),
+///     memory_limits: MemoryLimits::untrusted(),
+///     enable_pooling: false,
 /// };
 /// ```
 #[derive(Debug, Clone)]
@@ -154,6 +155,23 @@ pub struct StreamingParserConfig {
     /// overhead. For very fast parsing, the actual timeout may slightly exceed the
     /// configured limit.
     pub timeout: Option<Duration>,
+
+    /// Memory limits for buffer management.
+    ///
+    /// Controls maximum buffer sizes, line lengths, and pool configuration.
+    /// See [`MemoryLimits`] for preset configurations.
+    ///
+    /// Default: `MemoryLimits::default()`
+    pub memory_limits: MemoryLimits,
+
+    /// Enable buffer pooling for high-throughput scenarios.
+    ///
+    /// When enabled, the parser reuses string and value buffers across operations,
+    /// reducing allocation overhead. Beneficial for processing many files in sequence
+    /// or high-throughput server workloads.
+    ///
+    /// Default: false (for backward compatibility)
+    pub enable_pooling: bool,
 }
 
 impl Default for StreamingParserConfig {
@@ -162,8 +180,106 @@ impl Default for StreamingParserConfig {
             max_line_length: 1_000_000,
             max_indent_depth: 100,
             buffer_size: 64 * 1024,
-            timeout: None, // No timeout by default for backward compatibility
+            timeout: None,
+            memory_limits: MemoryLimits::default(),
+            enable_pooling: false,
         }
+    }
+}
+
+impl StreamingParserConfig {
+    /// Config with no limits (use for trusted input only).
+    ///
+    /// # Security Warning
+    ///
+    /// This configuration removes the line length limit, which can expose
+    /// your application to denial-of-service attacks if processing untrusted input.
+    /// Only use this for trusted, controlled environments.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_stream::StreamingParserConfig;
+    ///
+    /// // For trusted input where you want to allow arbitrarily long lines
+    /// let config = StreamingParserConfig::unlimited();
+    /// ```
+    #[must_use]
+    pub fn unlimited() -> Self {
+        Self {
+            max_line_length: usize::MAX,
+            ..Default::default()
+        }
+    }
+
+    /// Configure buffer size using a size hint.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_stream::{StreamingParserConfig, BufferSizeHint};
+    ///
+    /// let config = StreamingParserConfig::default()
+    ///     .with_buffer_hint(BufferSizeHint::Large);
+    /// assert_eq!(config.buffer_size, 256 * 1024);
+    /// ```
+    #[must_use]
+    pub fn with_buffer_hint(mut self, hint: BufferSizeHint) -> Self {
+        self.buffer_size = hint.size();
+        self
+    }
+
+    /// Enable or disable buffer pooling.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_stream::StreamingParserConfig;
+    ///
+    /// let config = StreamingParserConfig::default()
+    ///     .with_buffer_pooling(true);
+    /// assert_eq!(config.enable_pooling, true);
+    /// ```
+    #[must_use]
+    pub fn with_buffer_pooling(mut self, enabled: bool) -> Self {
+        self.enable_pooling = enabled;
+        self
+    }
+
+    /// Configure memory limits.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_stream::{StreamingParserConfig, MemoryLimits};
+    ///
+    /// let config = StreamingParserConfig::default()
+    ///     .with_memory_limits(MemoryLimits::high_throughput());
+    /// ```
+    #[must_use]
+    pub fn with_memory_limits(mut self, limits: MemoryLimits) -> Self {
+        self.memory_limits = limits;
+        // Sync max_line_length with memory limits
+        self.max_line_length = limits.max_line_length;
+        self
+    }
+
+    /// Configure buffer pool size (when pooling is enabled).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_stream::StreamingParserConfig;
+    ///
+    /// let config = StreamingParserConfig::default()
+    ///     .with_buffer_pooling(true)
+    ///     .with_pool_size(50);
+    /// assert_eq!(config.memory_limits.max_pool_size, 50);
+    /// ```
+    #[must_use]
+    pub fn with_pool_size(mut self, size: usize) -> Self {
+        self.memory_limits.max_pool_size = size;
+        self
     }
 }
 
@@ -377,8 +493,12 @@ pub struct StreamingParser<R: Read> {
     header: Option<HeaderInfo>,
     state: ParserState,
     finished: bool,
+    errored: bool,              // Track if an error occurred to skip finalize
+    sent_end_of_document: bool, // Track if EndOfDocument has been returned
     start_time: Instant,
     operations_count: usize, // Track operations for periodic timeout checks
+    #[allow(dead_code)] // TODO: Integrate buffer pooling in parse_data_row
+    buffer_pool: Option<BufferPool>, // Optional buffer pool for high-throughput scenarios
 }
 
 #[derive(Debug)]
@@ -532,6 +652,7 @@ impl<R: Read> StreamingParser<R> {
     ///     max_line_length: 10_000_000,  // 10MB max line
     ///     max_indent_depth: 1000,       // Deep nesting allowed
     ///     timeout: None,
+    ///     ..Default::default()
     /// };
     ///
     /// let parser = StreamingParser::with_config(
@@ -555,6 +676,7 @@ impl<R: Read> StreamingParser<R> {
     ///     max_line_length: 100_000,     // 100KB max line
     ///     max_indent_depth: 50,         // Limited nesting
     ///     timeout: Some(Duration::from_secs(10)),
+    ///     ..Default::default()
     /// };
     ///
     /// let parser = StreamingParser::with_config(
@@ -571,8 +693,19 @@ impl<R: Read> StreamingParser<R> {
     ///
     /// - `StreamError::Timeout`: Header parsing exceeded configured timeout
     pub fn with_config(reader: R, config: StreamingParserConfig) -> StreamResult<Self> {
+        // Initialize buffer pool if enabled
+        let buffer_pool = if config.enable_pooling && config.memory_limits.enable_buffer_pooling {
+            Some(BufferPool::new(config.memory_limits.max_pool_size))
+        } else {
+            None
+        };
+
         let mut parser = Self {
-            reader: LineReader::with_capacity(reader, config.buffer_size),
+            reader: LineReader::with_capacity_and_max_length(
+                reader,
+                config.buffer_size,
+                config.max_line_length,
+            ),
             config,
             header: None,
             state: ParserState {
@@ -580,8 +713,11 @@ impl<R: Read> StreamingParser<R> {
                 prev_row: None,
             },
             finished: false,
+            errored: false,
+            sent_end_of_document: false,
             start_time: Instant::now(),
             operations_count: 0,
+            buffer_pool,
         };
 
         // Parse header immediately
@@ -750,12 +886,43 @@ impl<R: Read> StreamingParser<R> {
         }
     }
 
+    /// Strip inline comments from a directive line.
+    ///
+    /// Handles `#` characters outside of quoted strings and brackets.
+    /// Returns the content before the first unquoted/unbracketed `#`.
+    fn strip_inline_comment(text: &str) -> &str {
+        let mut in_quotes = false;
+        let mut in_brackets = 0;
+        let mut quote_char = '"';
+
+        for (i, c) in text.char_indices() {
+            match c {
+                '"' | '\'' if !in_quotes => {
+                    in_quotes = true;
+                    quote_char = c;
+                }
+                c if in_quotes && c == quote_char => {
+                    in_quotes = false;
+                }
+                '[' if !in_quotes => in_brackets += 1,
+                ']' if !in_quotes && in_brackets > 0 => in_brackets -= 1,
+                '#' if !in_quotes && in_brackets == 0 => {
+                    return text[..i].trim_end();
+                }
+                _ => {}
+            }
+        }
+        text
+    }
+
     fn parse_version_directive(
         &self,
         line: &str,
         header: &mut HeaderInfo,
         found_version: &mut bool,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         // Safe: starts_with check guarantees prefix exists
         let rest = line.strip_prefix("%VERSION").expect("prefix exists").trim();
         // Handle both "%VERSION: 1.0" and "%VERSION: 1.0" formats
@@ -784,6 +951,8 @@ impl<R: Read> StreamingParser<R> {
         line_num: usize,
         header: &mut HeaderInfo,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         // Safe: starts_with check guarantees prefix exists
         let rest = line.strip_prefix("%STRUCT").expect("prefix exists").trim();
         // Handle both "%STRUCT TypeName: [cols]" and "%STRUCT: TypeName: [cols]" formats
@@ -808,7 +977,7 @@ impl<R: Read> StreamingParser<R> {
         if !is_valid_type_name(type_name) {
             return Err(StreamError::syntax(
                 line_num,
-                format!("invalid type name: {}", type_name),
+                format!("invalid type name: {type_name}"),
             ));
         }
 
@@ -833,6 +1002,8 @@ impl<R: Read> StreamingParser<R> {
         line_num: usize,
         header: &mut HeaderInfo,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         // Safe: starts_with check guarantees prefix exists
         let rest = line.strip_prefix("%ALIAS").expect("prefix exists").trim();
         // Handle both "%ALIAS: %short: = ..." and "%ALIAS: %short: ..." formats
@@ -857,6 +1028,8 @@ impl<R: Read> StreamingParser<R> {
         line_num: usize,
         header: &mut HeaderInfo,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         // Safe: starts_with check guarantees prefix exists
         let rest = line.strip_prefix("%NEST").expect("prefix exists").trim();
         // Handle both "%NEST: Parent > Child" and "%NEST: Parent > Child" formats
@@ -879,24 +1052,28 @@ impl<R: Read> StreamingParser<R> {
 
     /// Parse the next event from the stream.
     fn next_event(&mut self) -> StreamResult<Option<NodeEvent>> {
-        if self.finished {
+        // If errored, stop immediately without finalize
+        if self.errored {
             return Ok(None);
+        }
+        // If finished, continue emitting remaining context ends until stack is empty
+        if self.finished {
+            return self.finalize();
         }
 
         loop {
             // Check timeout periodically (every 100 operations to minimize overhead)
             self.operations_count += 1;
-            if self.operations_count.is_multiple_of(100) {
+            if self.operations_count % 100 == 0 {
                 self.check_timeout()?;
             }
 
-            let (line_num, line) = match self.reader.next_line()? {
-                Some(l) => l,
-                None => {
-                    self.finished = true;
-                    // Emit any remaining list ends
-                    return self.finalize();
-                }
+            let (line_num, line) = if let Some(l) = self.reader.next_line()? {
+                l
+            } else {
+                self.finished = true;
+                // Emit any remaining list ends
+                return self.finalize();
             };
 
             let trimmed = line.trim();
@@ -918,7 +1095,7 @@ impl<R: Read> StreamingParser<R> {
             if indent > self.config.max_indent_depth {
                 return Err(StreamError::syntax(
                     line_num,
-                    format!("indent depth {} exceeds limit", indent),
+                    format!("indent depth {indent} exceeds limit"),
                 ));
             }
 
@@ -947,18 +1124,25 @@ impl<R: Read> StreamingParser<R> {
             if should_pop {
                 // Safe: loop condition guarantees stack has elements
                 let ctx = self.state.stack.pop().expect("stack has elements");
-                if let Context::List {
-                    key,
-                    type_name,
-                    count,
-                    ..
-                } = ctx
-                {
-                    return Ok(Some(NodeEvent::ListEnd {
+                match ctx {
+                    Context::List {
                         key,
                         type_name,
                         count,
-                    }));
+                        ..
+                    } => {
+                        return Ok(Some(NodeEvent::ListEnd {
+                            key,
+                            type_name,
+                            count,
+                        }));
+                    }
+                    Context::Object { key, .. } => {
+                        return Ok(Some(NodeEvent::ObjectEnd { key }));
+                    }
+                    Context::Root => {
+                        // Root context should never be popped
+                    }
                 }
             } else {
                 break;
@@ -985,16 +1169,15 @@ impl<R: Read> StreamingParser<R> {
             let after_colon = &content[colon_pos + 1..];
 
             if !is_valid_key_token(key) {
-                return Err(StreamError::syntax(
-                    line_num,
-                    format!("invalid key: {}", key),
-                ));
+                return Err(StreamError::syntax(line_num, format!("invalid key: {key}")));
             }
 
             let after_colon_trimmed = after_colon.trim();
 
             if after_colon_trimmed.is_empty() {
-                // Object start
+                // Object start: validate indent and context
+                self.validate_indent_for_key_value(indent, line_num)?;
+
                 self.state.stack.push(Context::Object {
                     key: key.to_string(),
                     indent,
@@ -1006,7 +1189,17 @@ impl<R: Read> StreamingParser<R> {
             } else if after_colon_trimmed.starts_with('@')
                 && self.is_list_start(after_colon_trimmed)
             {
-                // List start
+                // List start: require space after colon
+                if !after_colon.starts_with(' ') {
+                    return Err(StreamError::syntax(
+                        line_num,
+                        "space required after ':' before '@'",
+                    ));
+                }
+
+                // List declarations are allowed in list context (for nested lists)
+                // so we don't call validate_indent_for_key_value here
+
                 let (type_name, schema) = self.parse_list_start(after_colon_trimmed, line_num)?;
 
                 self.state.stack.push(Context::List {
@@ -1027,7 +1220,15 @@ impl<R: Read> StreamingParser<R> {
                     line: line_num,
                 }))
             } else {
-                // Key-value pair
+                // Key-value pair: require space after colon and validate indent
+                if !after_colon.starts_with(' ') {
+                    return Err(StreamError::syntax(
+                        line_num,
+                        "space required after ':' in key-value",
+                    ));
+                }
+                self.validate_indent_for_key_value(indent, line_num)?;
+
                 let value = self.infer_value(after_colon.trim(), line_num)?;
                 Ok(Some(NodeEvent::Scalar {
                     key: key.to_string(),
@@ -1038,6 +1239,37 @@ impl<R: Read> StreamingParser<R> {
         } else {
             Err(StreamError::syntax(line_num, "expected ':' in line"))
         }
+    }
+
+    /// Validate that the indent is correct for a key-value or object start.
+    ///
+    /// Mirrors `validate_indent_for_child` from hedl-core:
+    /// - Root context: expects indent 0
+    /// - Object context: expects `parent_indent` + 1
+    /// - List context: key-value not allowed (only list declarations)
+    fn validate_indent_for_key_value(&self, indent: usize, line_num: usize) -> StreamResult<()> {
+        let expected = match self.state.stack.last() {
+            Some(Context::Root) | None => 0,
+            Some(Context::Object {
+                indent: parent_indent,
+                ..
+            }) => parent_indent + 1,
+            Some(Context::List { .. }) => {
+                return Err(StreamError::syntax(
+                    line_num,
+                    "cannot add key-value inside list context",
+                ));
+            }
+        };
+
+        if indent != expected {
+            return Err(StreamError::syntax(
+                line_num,
+                format!("expected indent level {expected}, got {indent}"),
+            ));
+        }
+
+        Ok(())
     }
 
     #[inline]
@@ -1064,7 +1296,7 @@ impl<R: Read> StreamingParser<R> {
             if !is_valid_type_name(type_name) {
                 return Err(StreamError::syntax(
                     line_num,
-                    format!("invalid type name: {}", type_name),
+                    format!("invalid type name: {type_name}"),
                 ));
             }
 
@@ -1073,11 +1305,41 @@ impl<R: Read> StreamingParser<R> {
                 .ok_or_else(|| StreamError::syntax(line_num, "missing ']'"))?;
 
             let cols_str = &rest[bracket_pos + 1..bracket_end];
-            let columns: Vec<String> = cols_str
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
+            let mut columns = Vec::new();
+
+            for part in cols_str.split(',') {
+                let col = part.trim();
+                if col.is_empty() {
+                    continue;
+                }
+                // Validate column name
+                if !is_valid_key_token(col) {
+                    return Err(StreamError::syntax(
+                        line_num,
+                        format!("invalid column name: {col}"),
+                    ));
+                }
+                columns.push(col.to_string());
+            }
+
+            // Check for empty schema
+            if columns.is_empty() {
+                return Err(StreamError::syntax(line_num, "empty inline schema"));
+            }
+
+            // Check against declared schema if type exists in header
+            if let Some(header) = &self.header {
+                if let Some(declared) = header.structs.get(type_name) {
+                    if declared != &columns {
+                        return Err(StreamError::schema(
+                            line_num,
+                            format!(
+                                "inline schema for '{type_name}' doesn't match declared schema"
+                            ),
+                        ));
+                    }
+                }
+            }
 
             Ok((type_name.to_string(), columns))
         } else {
@@ -1086,7 +1348,7 @@ impl<R: Read> StreamingParser<R> {
             if !is_valid_type_name(type_name) {
                 return Err(StreamError::syntax(
                     line_num,
-                    format!("invalid type name: {}", type_name),
+                    format!("invalid type name: {type_name}"),
                 ));
             }
 
@@ -1096,7 +1358,7 @@ impl<R: Read> StreamingParser<R> {
                 .ok_or_else(|| StreamError::Header("header not parsed".to_string()))?;
 
             let schema = header.structs.get(type_name).ok_or_else(|| {
-                StreamError::schema(line_num, format!("undefined type: {}", type_name))
+                StreamError::schema(line_num, format!("undefined type: {type_name}"))
             })?;
 
             Ok((type_name.to_string(), schema.clone()))
@@ -1109,7 +1371,9 @@ impl<R: Read> StreamingParser<R> {
         indent: usize,
         line_num: usize,
     ) -> StreamResult<Option<NodeEvent>> {
-        let content = strip_comment(content).trim();
+        // Parse row prefix to extract optional child count and CSV content
+        let (child_count, csv_content) = self.parse_row_prefix(content, line_num)?;
+        let content = strip_comment(csv_content).trim();
 
         // Find active list context
         let (type_name, schema, parent_info) = self.find_list_context(indent, line_num)?;
@@ -1117,7 +1381,7 @@ impl<R: Read> StreamingParser<R> {
         // Parse HEDL matrix row (comma-separated values after the |)
         // Use hedl_row parser for proper CSV-like parsing
         let fields = hedl_core::lex::parse_csv_row(content)
-            .map_err(|e| StreamError::syntax(line_num, format!("row parse error: {}", e)))?;
+            .map_err(|e| StreamError::syntax(line_num, format!("row parse error: {e}")))?;
 
         // Validate shape
         if fields.len() != schema.len() {
@@ -1139,7 +1403,7 @@ impl<R: Read> StreamingParser<R> {
                     .and_then(|prev| prev.get(col_idx).cloned())
                     .unwrap_or(Value::Null)
             } else if field.is_quoted {
-                Value::String(field.value.clone())
+                Value::String(field.value.clone().into())
             } else {
                 self.infer_value(&field.value, line_num)?
             };
@@ -1148,7 +1412,7 @@ impl<R: Read> StreamingParser<R> {
 
         // Get ID from first column
         let id = match &values[0] {
-            Value::String(s) => s.clone(),
+            Value::String(s) => s.to_string(),
             _ => return Err(StreamError::syntax(line_num, "ID column must be a string")),
         };
 
@@ -1156,14 +1420,55 @@ impl<R: Read> StreamingParser<R> {
         self.update_list_context(&type_name, &id);
         self.state.prev_row = Some(values.clone());
 
+        // Calculate depth as number of list contexts minus 1 (0-indexed nesting level)
+        let depth = self
+            .state
+            .stack
+            .iter()
+            .filter(|ctx| matches!(ctx, Context::List { .. }))
+            .count()
+            .saturating_sub(1);
+
         // Build node info
-        let mut node = NodeInfo::new(type_name.clone(), id, values, indent, line_num);
+        let mut node = NodeInfo::new(type_name.clone(), id, values, depth, line_num);
 
         if let Some((parent_type, parent_id)) = parent_info {
             node = node.with_parent(parent_type, parent_id);
         }
 
+        if let Some(count) = child_count {
+            node = node.with_child_count(count);
+        }
+
         Ok(Some(NodeEvent::Node(node)))
+    }
+
+    /// Parse row prefix to extract optional child count and CSV content.
+    ///
+    /// Handles `|[N]` syntax where N is the expected child count.
+    /// Returns (Option<`child_count`>, `csv_content`).
+    fn parse_row_prefix<'a>(
+        &self,
+        content: &'a str,
+        _line_num: usize,
+    ) -> StreamResult<(Option<usize>, &'a str)> {
+        // Content is already after the leading |
+        // Check for [N] pattern at start
+        if content.starts_with('[') {
+            if let Some(bracket_end) = content.find(']') {
+                let count_str = &content[1..bracket_end];
+                if let Ok(count) = count_str.parse::<usize>() {
+                    // Count 0 is valid - means row has no children (empty parent)
+                    // Skip [N] and any following space
+                    let data = content[bracket_end + 1..].trim_start();
+                    return Ok((Some(count), data));
+                }
+                // Invalid count format - fall through and treat as regular content
+            }
+        }
+
+        // No child count prefix
+        Ok((None, content))
     }
 
     fn find_list_context(
@@ -1197,14 +1502,14 @@ impl<R: Read> StreamingParser<R> {
                     let child_type = header.nests.get(type_name).ok_or_else(|| {
                         StreamError::orphan_row(
                             line_num,
-                            format!("no NEST rule for parent type '{}'", type_name),
+                            format!("no NEST rule for parent type '{type_name}'"),
                         )
                     })?;
 
                     let child_schema = header.structs.get(child_type).ok_or_else(|| {
                         StreamError::schema(
                             line_num,
-                            format!("child type '{}' not defined", child_type),
+                            format!("child type '{child_type}' not defined"),
                         )
                     })?;
 
@@ -1251,7 +1556,8 @@ impl<R: Read> StreamingParser<R> {
     fn infer_value(&self, s: &str, _line_num: usize) -> StreamResult<Value> {
         let s = s.trim();
 
-        if s.is_empty() || s == "~" {
+        // Handle null values: empty, ~, or the keyword "null"
+        if s.is_empty() || s == "~" || s == "null" {
             return Ok(Value::Null);
         }
 
@@ -1268,25 +1574,24 @@ impl<R: Read> StreamingParser<R> {
                 let type_name = &ref_part[..colon_pos];
                 let id = &ref_part[colon_pos + 1..];
                 return Ok(Value::Reference(hedl_core::Reference {
-                    type_name: Some(type_name.to_string()),
-                    id: id.to_string(),
-                }));
-            } else {
-                return Ok(Value::Reference(hedl_core::Reference {
-                    type_name: None,
-                    id: ref_part.to_string(),
+                    type_name: Some(type_name.to_string().into()),
+                    id: id.to_string().into(),
                 }));
             }
+            return Ok(Value::Reference(hedl_core::Reference {
+                type_name: None,
+                id: ref_part.to_string().into(),
+            }));
         }
 
         // Alias
         if let Some(alias) = s.strip_prefix('$') {
             if let Some(header) = &self.header {
                 if let Some(value) = header.aliases.get(alias) {
-                    return Ok(Value::String(value.clone()));
+                    return Ok(Value::String(value.clone().into()));
                 }
             }
-            return Ok(Value::String(s.to_string()));
+            return Ok(Value::String(s.to_string().into()));
         }
 
         // Number
@@ -1298,29 +1603,43 @@ impl<R: Read> StreamingParser<R> {
         }
 
         // Default to string
-        Ok(Value::String(s.to_string()))
+        Ok(Value::String(s.to_string().into()))
     }
 
     fn finalize(&mut self) -> StreamResult<Option<NodeEvent>> {
+        // If we already sent EndOfDocument, return None to signal true end of stream
+        if self.sent_end_of_document {
+            return Ok(None);
+        }
+
         // Pop remaining contexts
         while self.state.stack.len() > 1 {
             // Safe: loop condition guarantees stack has elements
             let ctx = self.state.stack.pop().expect("stack has elements");
-            if let Context::List {
-                key,
-                type_name,
-                count,
-                ..
-            } = ctx
-            {
-                return Ok(Some(NodeEvent::ListEnd {
+            match ctx {
+                Context::List {
                     key,
                     type_name,
                     count,
-                }));
+                    ..
+                } => {
+                    return Ok(Some(NodeEvent::ListEnd {
+                        key,
+                        type_name,
+                        count,
+                    }));
+                }
+                Context::Object { key, .. } => {
+                    return Ok(Some(NodeEvent::ObjectEnd { key }));
+                }
+                Context::Root => {
+                    // Root context should never be popped
+                }
             }
         }
 
+        // Mark that we've sent EndOfDocument, so subsequent calls return None
+        self.sent_end_of_document = true;
         Ok(Some(NodeEvent::EndOfDocument))
     }
 }
@@ -1333,8 +1652,114 @@ impl<R: Read> Iterator for StreamingParser<R> {
             Ok(Some(NodeEvent::EndOfDocument)) => None,
             Ok(Some(event)) => Some(Ok(event)),
             Ok(None) => None,
-            Err(e) => Some(Err(e)),
+            Err(e) => {
+                // Stop iteration after an error to prevent inconsistent state
+                self.finished = true;
+                self.errored = true;
+                Some(Err(e))
+            }
         }
+    }
+}
+
+// File opening with compression support
+#[cfg(feature = "compression")]
+impl StreamingParser<crate::compression::CompressionReader<std::fs::File>> {
+    /// Open a file with automatic compression detection.
+    ///
+    /// Detects compression format from the file extension (`.gz`, `.zst`, `.lz4`)
+    /// and automatically decompresses the content.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_stream::StreamingParser;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// // Open a GZIP-compressed HEDL file
+    /// let parser = StreamingParser::open("data.hedl.gz")?;
+    ///
+    /// for event in parser {
+    ///     println!("{:?}", event?);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - `StreamError::Io`: File not found or cannot be opened
+    /// - `StreamError::Compression`: Decompression initialization failed
+    /// - `StreamError::MissingVersion`: Invalid HEDL header
+    pub fn open<P: AsRef<std::path::Path>>(path: P) -> StreamResult<Self> {
+        Self::open_with_config(path, StreamingParserConfig::default())
+    }
+
+    /// Open a file with automatic compression detection and custom configuration.
+    ///
+    /// Combines automatic compression detection with custom parser settings.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_stream::{StreamingParser, StreamingParserConfig};
+    /// use std::time::Duration;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let config = StreamingParserConfig {
+    ///     timeout: Some(Duration::from_secs(30)),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let parser = StreamingParser::open_with_config("data.hedl.zst", config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn open_with_config<P: AsRef<std::path::Path>>(
+        path: P,
+        config: StreamingParserConfig,
+    ) -> StreamResult<Self> {
+        use crate::compression::{CompressionFormat, CompressionReader};
+
+        let path = path.as_ref();
+        let format = CompressionFormat::from_path(path);
+
+        let file = std::fs::File::open(path).map_err(StreamError::Io)?;
+        let reader = CompressionReader::with_format(file, format).map_err(StreamError::Io)?;
+
+        Self::with_config(reader, config)
+    }
+
+    /// Open a file with explicit compression format.
+    ///
+    /// Use this when the file extension doesn't match the actual compression
+    /// format, or when you want to force a specific decompression algorithm.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_stream::StreamingParser;
+    /// use hedl_stream::compression::CompressionFormat;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// // File has no extension but is GZIP compressed
+    /// let parser = StreamingParser::open_with_compression(
+    ///     "data.hedl",
+    ///     CompressionFormat::Gzip,
+    /// )?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn open_with_compression<P: AsRef<std::path::Path>>(
+        path: P,
+        format: crate::compression::CompressionFormat,
+    ) -> StreamResult<Self> {
+        use crate::compression::CompressionReader;
+
+        let file = std::fs::File::open(path).map_err(StreamError::Io)?;
+        let reader = CompressionReader::with_format(file, format).map_err(StreamError::Io)?;
+
+        Self::new(reader)
     }
 }
 
@@ -1345,23 +1770,27 @@ impl<R: Read> Iterator for StreamingParser<R> {
 /// on non-AVX2 platforms or when the feature is disabled.
 mod simd_comment {
     #[cfg(all(target_arch = "x86_64", feature = "avx2"))]
-    use std::arch::x86_64::*;
+    use std::arch::x86_64::{
+        __m256i, _mm256_cmpeq_epi8, _mm256_loadu_si256, _mm256_movemask_epi8, _mm256_set1_epi8,
+    };
 
     /// Find the first occurrence of '#' in the input string using SIMD.
     ///
     /// This function scans 32 bytes at a time using AVX2 instructions
-    /// on x86_64 platforms when the `avx2` feature is enabled.
+    /// on `x86_64` platforms when the `avx2` feature is enabled.
     ///
     /// # Safety
     ///
     /// On AVX2-enabled platforms, this uses `unsafe` SIMD intrinsics
     /// but ensures all memory accesses are valid.
     #[inline]
+    #[allow(unsafe_code)] // SIMD intrinsic requires unsafe for AVX2 operations
     pub fn find_hash_simd(s: &[u8]) -> Option<usize> {
         #[cfg(all(target_arch = "x86_64", feature = "avx2"))]
         {
             // Check if AVX2 is available at runtime
             if is_x86_feature_detected!("avx2") {
+                // SAFETY: AVX2 feature is confirmed by is_x86_feature_detected!
                 return unsafe { find_hash_avx2(s) };
             }
         }
@@ -1389,7 +1818,7 @@ mod simd_comment {
         // Process 32-byte chunks
         while offset + CHUNK_SIZE <= len {
             // Load 32 bytes from input
-            let chunk = _mm256_loadu_si256(s.as_ptr().add(offset) as *const __m256i);
+            let chunk = _mm256_loadu_si256(s.as_ptr().add(offset).cast::<__m256i>());
 
             // Compare with '#' character
             let matches = _mm256_cmpeq_epi8(chunk, hash_vec);
@@ -1561,43 +1990,43 @@ mod tests {
 
     #[test]
     fn test_header_missing_version() {
-        let input = r#"
+        let input = r"
 %STRUCT: User: [id, name]
 ---
-"#;
+";
         let result = StreamingParser::new(Cursor::new(input));
         assert!(matches!(result, Err(StreamError::MissingVersion)));
     }
 
     #[test]
     fn test_header_invalid_version_format() {
-        let input = r#"
+        let input = r"
 %VERSION abc
 ---
-"#;
+";
         let result = StreamingParser::new(Cursor::new(input));
         assert!(matches!(result, Err(StreamError::InvalidVersion(_))));
     }
 
     #[test]
     fn test_header_version_single_number() {
-        let input = r#"
+        let input = r"
 %VERSION 1
 ---
-"#;
+";
         let result = StreamingParser::new(Cursor::new(input));
         assert!(matches!(result, Err(StreamError::InvalidVersion(_))));
     }
 
     #[test]
     fn test_header_multiple_schemas() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Product: [id, title, price]
 %STRUCT: Order: [id, user_id, product_id]
 ---
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let header = parser.header().unwrap();
 
@@ -1609,22 +2038,22 @@ mod tests {
 
     #[test]
     fn test_header_struct_missing_bracket() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT User id, name
 ---
-"#;
+";
         let result = StreamingParser::new(Cursor::new(input));
         assert!(matches!(result, Err(StreamError::Syntax { .. })));
     }
 
     #[test]
     fn test_header_empty_struct() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: []
 ---
-"#;
+";
         let result = StreamingParser::new(Cursor::new(input));
         assert!(matches!(result, Err(StreamError::Syntax { .. })));
     }
@@ -1642,23 +2071,23 @@ mod tests {
 
     #[test]
     fn test_header_nest_missing_arrow() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %NEST Parent Child
 ---
-"#;
+";
         let result = StreamingParser::new(Cursor::new(input));
         assert!(matches!(result, Err(StreamError::Syntax { .. })));
     }
 
     #[test]
     fn test_header_with_comments() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 # This is a comment
 %STRUCT: User: [id, name] # inline comment
 ---
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let header = parser.header().unwrap();
         assert!(header.structs.contains_key("User"));
@@ -1666,13 +2095,13 @@ mod tests {
 
     #[test]
     fn test_header_blank_lines() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 
 %STRUCT: User: [id, name]
 
 ---
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let header = parser.header().unwrap();
         assert!(header.structs.contains_key("User"));
@@ -1682,23 +2111,23 @@ mod tests {
 
     #[test]
     fn test_streaming_nodes() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice Smith
   | bob, Bob Jones
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
 
         let events: Vec<_> = parser.collect();
         for event in &events {
             if let Err(e) = event {
-                eprintln!("Error: {:?}", e);
+                eprintln!("Error: {e:?}");
             }
         }
-        assert!(events.iter().all(|e| e.is_ok()));
+        assert!(events.iter().all(std::result::Result::is_ok));
 
         let nodes: Vec<_> = events
             .iter()
@@ -1713,11 +2142,11 @@ users: @User
 
     #[test]
     fn test_streaming_empty_body() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let events: Vec<_> = parser.collect();
         assert!(events.is_empty());
@@ -1725,15 +2154,15 @@ users: @User
 
     #[test]
     fn test_streaming_list_start_end_events() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
 
         let list_starts: Vec<_> = events
             .iter()
@@ -1768,15 +2197,15 @@ users: @User
         // Note: Empty fields are NOT preserved in the current pipe-splitting logic
         // When the field is truly empty (just whitespace between pipes), it's filtered
         // Use ~ (tilde) for explicit null values
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, optional, required]
 ---
 data: @Data
   | row1, ~, value
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
@@ -1794,25 +2223,25 @@ data: @Data
   | row1, "Hello, World"
 "#;
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
         assert_eq!(
             nodes[0].fields[1],
-            Value::String("Hello, World".to_string())
+            Value::String("Hello, World".to_string().into())
         );
     }
 
     #[test]
     fn test_matrix_row_shape_mismatch() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
 users: @User
   | alice, Alice
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let events: Vec<_> = parser.collect();
         let errors: Vec<_> = events.iter().filter(|e| e.is_err()).collect();
@@ -1826,30 +2255,30 @@ users: @User
 
     #[test]
     fn test_matrix_row_references() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Order: [id, user]
 ---
 orders: @Order
   | order1, @User:alice
   | order2, @bob
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
 
         if let Value::Reference(r) = &nodes[0].fields[1] {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "alice");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
+            assert_eq!(&*r.id, "alice");
         } else {
             panic!("Expected reference");
         }
 
         if let Value::Reference(r) = &nodes[1].fields[1] {
             assert_eq!(r.type_name, None);
-            assert_eq!(r.id, "bob");
+            assert_eq!(&*r.id, "bob");
         } else {
             panic!("Expected reference");
         }
@@ -1857,15 +2286,15 @@ orders: @Order
 
     #[test]
     fn test_matrix_row_booleans() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Flag: [id, active, verified]
 ---
 flags: @Flag
   | flag1, true, false
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
@@ -1875,16 +2304,16 @@ flags: @Flag
 
     #[test]
     fn test_matrix_row_numbers() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, int_val, float_val]
 ---
 data: @Data
   | row1, 42, 3.5
   | row2, -100, -2.5
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
@@ -1896,15 +2325,15 @@ data: @Data
 
     #[test]
     fn test_matrix_row_null() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, nullable]
 ---
 data: @Data
   | row1, ~
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
@@ -1913,7 +2342,7 @@ data: @Data
 
     #[test]
     fn test_matrix_row_ditto() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, category]
 ---
@@ -1921,15 +2350,24 @@ data: @Data
   | row1, CategoryA
   | row2, ^
   | row3, ^
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 3);
-        assert_eq!(nodes[0].fields[1], Value::String("CategoryA".to_string()));
-        assert_eq!(nodes[1].fields[1], Value::String("CategoryA".to_string()));
-        assert_eq!(nodes[2].fields[1], Value::String("CategoryA".to_string()));
+        assert_eq!(
+            nodes[0].fields[1],
+            Value::String("CategoryA".to_string().into())
+        );
+        assert_eq!(
+            nodes[1].fields[1],
+            Value::String("CategoryA".to_string().into())
+        );
+        assert_eq!(
+            nodes[2].fields[1],
+            Value::String("CategoryA".to_string().into())
+        );
     }
 
     #[test]
@@ -1943,26 +2381,29 @@ users: @User
   | alice, $status
 "#;
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].fields[1], Value::String("Active".to_string()));
+        assert_eq!(
+            nodes[0].fields[1],
+            Value::String("Active".to_string().into())
+        );
     }
 
     // ============ INLINE SCHEMA TESTS ============
 
     #[test]
     fn test_inline_schema() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 ---
 items: @Item[id, name]
   | item1, First
   | item2, Second
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
@@ -1970,37 +2411,132 @@ items: @Item[id, name]
     }
 
     #[test]
-    fn test_inline_schema_overrides_header() {
-        let input = r#"
+    fn test_inline_schema_mismatch_declared_produces_error() {
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Item: [id, name, extra]
 ---
 items: @Item[id, name]
   | item1, First
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.collect::<Vec<_>>();
+
+        // Should produce error when inline schema doesn't match declared schema
+        let has_schema_error = events.iter().any(|e| {
+            if let Err(e) = e {
+                matches!(e, StreamError::Schema { .. })
+            } else {
+                false
+            }
+        });
+        assert!(has_schema_error, "expected schema mismatch error");
+    }
+
+    #[test]
+    fn test_inline_schema_matches_declared_works() {
+        let input = r"
+%VERSION: 1.0
+%STRUCT: Item: [id, name]
+---
+items: @Item[id, name]
+  | item1, First
+";
+        let parser = StreamingParser::new(Cursor::new(input)).unwrap();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
-        // Should use inline schema with 2 fields, not header schema with 3
+        // Should work when inline schema matches declared schema
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].fields.len(), 2);
+    }
+
+    #[test]
+    fn test_inline_schema_invalid_column_name() {
+        let input = r"
+%VERSION: 1.0
+---
+items: @Item[id, Invalid-Name, value]
+  | item1, x, y
+";
+        let parser = StreamingParser::new(Cursor::new(input)).unwrap();
+        let events: Vec<_> = parser.collect::<Vec<_>>();
+
+        // Should produce syntax error for invalid column name (hyphen not allowed)
+        let has_syntax_error = events.iter().any(|e| {
+            if let Err(e) = e {
+                matches!(e, StreamError::Syntax { .. })
+                    && format!("{e}").contains("invalid column name")
+            } else {
+                false
+            }
+        });
+        assert!(has_syntax_error, "expected invalid column name error");
+    }
+
+    #[test]
+    fn test_inline_schema_empty() {
+        let input = r"
+%VERSION: 1.0
+---
+items: @Item[]
+  | item1
+";
+        let parser = StreamingParser::new(Cursor::new(input)).unwrap();
+        let events: Vec<_> = parser.collect::<Vec<_>>();
+
+        // Should produce syntax error for empty schema
+        let has_syntax_error = events.iter().any(|e| {
+            if let Err(e) = e {
+                matches!(e, StreamError::Syntax { .. })
+                    && format!("{e}").contains("empty inline schema")
+            } else {
+                false
+            }
+        });
+        assert!(has_syntax_error, "expected empty inline schema error");
+    }
+
+    #[test]
+    fn test_inline_schema_column_with_leading_digit() {
+        let input = r"
+%VERSION: 1.0
+---
+items: @Item[id, 123col]
+  | item1, x
+";
+        let parser = StreamingParser::new(Cursor::new(input)).unwrap();
+        let events: Vec<_> = parser.collect::<Vec<_>>();
+
+        // Should produce error for column name starting with digit
+        let has_syntax_error = events.iter().any(|e| {
+            if let Err(e) = e {
+                matches!(e, StreamError::Syntax { .. })
+                    && format!("{e}").contains("invalid column name")
+            } else {
+                false
+            }
+        });
+        assert!(
+            has_syntax_error,
+            "expected invalid column name error for leading digit"
+        );
     }
 
     // ============ OBJECT CONTEXT TESTS ============
 
     #[test]
     fn test_object_context() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 db:
   users: @User
     | alice, Alice
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
 
         let obj_starts: Vec<_> = events
             .iter()
@@ -2024,7 +2560,7 @@ config:
   name: "Test Config"
 "#;
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
 
         let scalars: Vec<_> = events
             .iter()
@@ -2037,16 +2573,16 @@ config:
 
     #[test]
     fn test_unicode_ids() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | 用户1, 张三
   | пользователь, Иван
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
@@ -2056,35 +2592,38 @@ users: @User
 
     #[test]
     fn test_unicode_in_values() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id, emoji]
 ---
 data: @Data
   | row1, 🎉✨🚀
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].fields[1], Value::String("🎉✨🚀".to_string()));
+        assert_eq!(
+            nodes[0].fields[1],
+            Value::String("🎉✨🚀".to_string().into())
+        );
     }
 
     // ============ COMMENT HANDLING TESTS ============
 
     #[test]
     fn test_inline_comments() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User  # list of users
   | alice, Alice Smith  # first user
   | bob, Bob Jones
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
@@ -2094,7 +2633,7 @@ users: @User  # list of users
 
     #[test]
     fn test_full_line_comments() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
@@ -2103,9 +2642,9 @@ users: @User
   # Comment between rows
   | alice, Alice
   | bob, Bob
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
@@ -2116,18 +2655,21 @@ users: @User
         let input =
             "%VERSION: 1.0\n%STRUCT: Data: [id, tag]\n---\ndata: @Data\n  | row1, \"#hashtag\"\n";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].fields[1], Value::String("#hashtag".to_string()));
+        assert_eq!(
+            nodes[0].fields[1],
+            Value::String("#hashtag".to_string().into())
+        );
     }
 
     // ============ INDENT AND CONTEXT TESTS ============
 
     #[test]
     fn test_multiple_lists() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Product: [id, title]
@@ -2136,9 +2678,9 @@ users: @User
   | alice, Alice
 products: @Product
   | prod1, Widget
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 2);
@@ -2152,7 +2694,7 @@ products: @Product
             max_indent_depth: 2,
             ..Default::default()
         };
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id]
 ---
@@ -2161,7 +2703,7 @@ level1:
     level3:
       data: @Data
         | row1
-"#;
+";
         let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
 
         // Should get an error for excessive indent
@@ -2181,12 +2723,12 @@ level1:
 
     #[test]
     fn test_undefined_schema() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 ---
 users: @User
   | alice, Alice
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let events: Vec<_> = parser.collect();
         let errors: Vec<_> = events.iter().filter(|e| e.is_err()).collect();
@@ -2197,12 +2739,12 @@ users: @User
 
     #[test]
     fn test_orphan_row_without_context() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: Data: [id]
 ---
 | orphan_row
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let events: Vec<_> = parser.collect();
         let errors: Vec<_> = events.iter().filter(|e| e.is_err()).collect();
@@ -2212,18 +2754,18 @@ users: @User
 
     #[test]
     fn test_missing_colon_error() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 ---
 invalid line without colon
-"#;
+";
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
         let events: Vec<_> = parser.collect();
         let errors: Vec<_> = events.iter().filter(|e| e.is_err()).collect();
 
         assert!(!errors.is_empty());
         if let Err(StreamError::Syntax { message, .. }) = &errors[0] {
-            assert!(message.contains(":"));
+            assert!(message.contains(':'));
         }
     }
 
@@ -2232,19 +2774,19 @@ invalid line without colon
     #[test]
     fn test_many_rows() {
         let mut input = String::from(
-            r#"
+            r"
 %VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
-"#,
+",
         );
         for i in 0..1000 {
-            input.push_str(&format!("  | row{}, value{}\n", i, i));
+            input.push_str(&format!("  | row{i}, value{i}\n"));
         }
 
         let parser = StreamingParser::new(Cursor::new(input)).unwrap();
-        let events: Vec<_> = parser.filter_map(|e| e.ok()).collect();
+        let events: Vec<_> = parser.filter_map(std::result::Result::ok).collect();
         let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
         assert_eq!(nodes.len(), 1000);
@@ -2269,13 +2811,13 @@ data: @Data
     fn test_strip_comment_escaped() {
         // Backslash escapes the hash, so \# is not treated as comment start
         assert_eq!(
-            strip_comment(r#"hello\# not a comment"#),
-            r#"hello\# not a comment"#
+            strip_comment(r"hello\# not a comment"),
+            r"hello\# not a comment"
         );
         // But a later unescaped hash still starts a comment
         assert_eq!(
-            strip_comment(r#"hello\# still here # comment"#),
-            r#"hello\# still here"#
+            strip_comment(r"hello\# still here # comment"),
+            r"hello\# still here"
         );
     }
 

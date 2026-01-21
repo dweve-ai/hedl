@@ -88,7 +88,7 @@ fn test_invalid_utf8_handling() {
 #[test]
 fn test_extremely_long_lines() {
     let long_value = "x".repeat(100_000);
-    let content = format!("%VERSION: 1.0\n---\nLongEntity: id: \"{}\"", long_value);
+    let content = format!("%VERSION: 1.0\n---\nLongEntity: id: \"{long_value}\"");
     let analysis = AnalyzedDocument::analyze(&content);
 
     // Should handle without panic
@@ -229,7 +229,7 @@ fn test_cache_eviction_under_pressure() {
 
     // Fill cache
     for i in 0..3 {
-        let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
         manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
     }
 
@@ -280,7 +280,7 @@ fn test_many_documents_in_cache() {
 
     // Insert 500 documents
     for i in 0..500 {
-        let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
         manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
     }
 
@@ -296,7 +296,7 @@ fn test_cache_clear_operation() {
 
     // Insert documents
     for i in 0..5 {
-        let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
         manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
     }
 
@@ -469,7 +469,7 @@ fn test_dirty_tracking_rapid_changes() {
 
     // Rapid updates
     for i in 0..10 {
-        let content = format!("%VERSION: 1.0\n---\nEntity: e{}: \"test\"", i);
+        let content = format!("%VERSION: 1.0\n---\nEntity: e{i}: \"test\"");
         manager.insert_or_update(&uri, &content);
         assert!(manager.is_dirty(&uri));
 
@@ -686,7 +686,7 @@ fn test_concurrent_access_safety() {
         let uri_clone = uri.clone();
         let handle = thread::spawn(move || {
             for j in 0..100 {
-                let content = format!("%VERSION: 1.0\n---\nEntity: e{}: \"test{}\"", i, j);
+                let content = format!("%VERSION: 1.0\n---\nEntity: e{i}: \"test{j}\"");
                 manager_clone.insert_or_update(&uri_clone, &content);
             }
         });

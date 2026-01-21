@@ -103,7 +103,11 @@ teams(abc): @Team
     let result = parse(input);
     assert!(result.is_err(), "non-numeric count hint should fail");
     let err = result.unwrap_err();
-    assert!(err.to_string().contains("invalid count hint"));
+    let err_msg = err.to_string();
+    assert!(
+        err_msg.contains("invalid count value") || err_msg.contains("invalid count hint"),
+        "Error message '{err_msg}' should contain 'invalid count value' or 'invalid count hint'"
+    );
 }
 
 #[test]

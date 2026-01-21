@@ -45,21 +45,19 @@ hedl validate config.hedl
 hedl validate --strict api_schema.hedl
 ```
 
-**Output** (JSON format):
-```json
-{
-  "valid": true,
-  "version": "1.0",
-  "struct_count": 5,
-  "alias_count": 2,
-  "nest_count": 3
-}
+**Output**:
+```
+✓ config.hedl
+  Version: 1.0
+  Structs: 5
+  Aliases: 2
+  Nests: 3
 ```
 
 **Options**:
 - `--strict` - Enforce all entity references must resolve to defined entities
 
-**Exit Codes**: 0 (valid), 1 (parse errors), 2 (unresolved references in strict mode)
+**Exit Codes**: 0 (valid), 1 (parse errors or validation failures)
 
 ### format - Canonical Formatting
 
@@ -75,8 +73,8 @@ hedl format data.hedl -o formatted.hedl
 # Check if already canonical (no changes)
 hedl format --check config.hedl
 
-# Enable ditto optimization (compress repeated values)
-hedl format --ditto data.hedl
+# Disable ditto optimization (keep repeated values explicit)
+hedl format --ditto=false data.hedl
 
 # Add count hints to all matrix lists
 hedl format --with-counts users.hedl
@@ -85,10 +83,10 @@ hedl format --with-counts users.hedl
 **Options**:
 - `-o, --output <FILE>` - Write to file instead of stdout
 - `--check` - Only check if canonical, don't write output
-- `--ditto` - Enable ditto operator optimization (default: true)
+- `--ditto` - Enable ditto operator optimization for repeated values (default: enabled)
 - `--with-counts` - Recursively add count hints to matrix lists
 
-**Exit Codes**: 0 (success or already canonical), 1 (parse error), 2 (not canonical when using --check)
+**Exit Codes**: 0 (success or already canonical), 1 (parse error or check failed)
 
 ### lint - Best Practices Checking
 
@@ -136,10 +134,10 @@ Found 1 warning, 1 suggestion
 ```
 
 **Options**:
-- `--format <text|json>` - Output format (default: text with colors)
+- `-f, --format <text|json>` - Output format (default: text with colors)
 - `-W, --warn-error` - Treat warnings as errors
 
-**Exit Codes**: 0 (no issues), 1 (has errors), 2 (has warnings when --warn-error enabled)
+**Exit Codes**: 0 (no issues), 1 (has errors or warnings when --warn-error enabled)
 
 ### inspect - Structure Visualization
 
@@ -297,7 +295,7 @@ hedl to-parquet data.hedl --output output.parquet
 hedl from-parquet input.parquet -o data.hedl
 ```
 
-Note: Uses `--output` (not `-o`) for consistency with Arrow Parquet conventions.
+Note: `--output` is required (not optional like other commands) because Parquet uses binary columnar format.
 
 ### TOON Conversion
 
@@ -319,22 +317,34 @@ Process multiple files in parallel with automatic parallelization and progress t
 
 ```bash
 # Validate all .hedl files in directory
-hedl batch-validate data/
+hedl batch-validate data/*.hedl
 
 # Strict mode for all files
-hedl batch-validate --strict schemas/
+hedl batch-validate --strict schemas/*.hedl
 
 # Verbose progress tracking
-hedl batch-validate -v configs/
+hedl batch-validate -v configs/*.hedl
 
 # Force parallel processing
-hedl batch-validate -p data/
+hedl batch-validate -p data/*.hedl
+
+# Use streaming mode for large files (constant memory)
+hedl batch-validate --streaming large-files/*.hedl
+
+# Automatically use streaming for files > 100MB
+hedl batch-validate --auto-streaming mixed-files/*.hedl
+
+# Limit processing to 5000 files
+hedl batch-validate --max-files 5000 huge-directory/*.hedl
 ```
 
 **Options**:
 - `--strict` - Enforce reference resolution for all files
 - `-v, --verbose` - Detailed progress output
 - `-p, --parallel` - Force parallel processing (default: auto-detect based on file count)
+- `--streaming` - Use streaming mode for memory-efficient processing (constant memory, ideal for files >100MB)
+- `--auto-streaming` - Automatically use streaming for large files (>100MB) and standard mode for smaller files
+- `--max-files <N>` - Maximum number of files to process (default: 10,000, set to 0 for unlimited)
 
 **Output**:
 ```
@@ -355,24 +365,28 @@ Results:
 
 ```bash
 # Format all files in-place
-hedl batch-format data/
+hedl batch-format data/*.hedl
 
 # Format to output directory
-hedl batch-format configs/ --output formatted/
+hedl batch-format configs/*.hedl --output-dir formatted/
 
 # Format with ditto optimization
-hedl batch-format --ditto data/
+hedl batch-format --ditto data/*.hedl
 
 # Add count hints to all files
-hedl batch-format --with-counts schemas/
+hedl batch-format --with-counts schemas/*.hedl
+
+# Limit processing to 5000 files
+hedl batch-format --max-files 5000 huge-directory/*.hedl
 ```
 
 **Options**:
-- `--output <DIR>` - Write formatted files to directory (preserves relative paths)
+- `--output-dir <DIR>` - Write formatted files to directory (preserves relative paths)
 - `--ditto` - Enable ditto optimization (default: true)
 - `--with-counts` - Add count hints to matrix lists
 - `-v, --verbose` - Detailed progress output
 - `-p, --parallel` - Force parallel processing
+- `--max-files <N>` - Maximum number of files to process (default: 10,000, set to 0 for unlimited)
 
 **Output**:
 ```
@@ -391,19 +405,23 @@ Results:
 
 ```bash
 # Lint all files with aggregated results
-hedl batch-lint data/
+hedl batch-lint data/*.hedl
 
 # Treat warnings as errors
-hedl batch-lint --warn-error schemas/
+hedl batch-lint --warn-error schemas/*.hedl
 
 # Verbose per-file results
-hedl batch-lint -v configs/
+hedl batch-lint -v configs/*.hedl
+
+# Limit processing to 5000 files
+hedl batch-lint --max-files 5000 huge-directory/*.hedl
 ```
 
 **Options**:
 - `--warn-error` - Treat warnings as errors
 - `-v, --verbose` - Show issues for each file
 - `-p, --parallel` - Force parallel processing
+- `--max-files <N>` - Maximum number of files to process (default: 10,000, set to 0 for unlimited)
 
 **Output**:
 ```
@@ -536,18 +554,29 @@ users[2]: @User[id, name]
 
 ### Error Types
 
-Comprehensive error handling with 11 error variants:
+Comprehensive error handling with 19 error variants:
 
 - **Io** - File I/O errors with path context
 - **FileTooLarge** - Size limit exceeded (configurable)
 - **IoTimeout** - I/O operation timeout
-- **ParseError** - HEDL syntax errors with line/column
-- **CanonError** - Canonicalization failures
-- **ConversionError** - Format conversion failures (JSON, YAML, XML, CSV, Parquet, TOON)
-- **LintError** - Linting errors
+- **Parse** - HEDL syntax errors with line/column
+- **Canonicalization** - Canonicalization failures
+- **JsonConversion** - JSON conversion errors
+- **JsonFormat** - JSON serialization/deserialization errors
+- **YamlConversion** - YAML conversion errors
+- **XmlConversion** - XML conversion errors
+- **CsvConversion** - CSV conversion errors
+- **ParquetConversion** - Parquet conversion errors
+- **LintErrors** - Linting errors found
+- **NotCanonical** - File is not in canonical form
 - **InvalidInput** - Input validation failures (type names, paths)
+- **ThreadPoolError** - Parallel processing thread pool creation failure
+- **GlobPattern** - Invalid glob pattern syntax
+- **NoFilesMatched** - No files matched the provided patterns
+- **DirectoryTraversal** - Directory traversal failures
+- **ResourceExhaustion** - System resource exhaustion (file handles, memory)
 
-All errors implement `std::error::Error` and `Display` for detailed messages.
+All errors implement `std::error::Error`, `Display`, and `Clone` for detailed messages and parallel error handling.
 
 ## Use Cases
 
@@ -589,10 +618,10 @@ Detailed performance benchmarks are available in the HEDL repository benchmark s
 
 ## Dependencies
 
-- `hedl-core` 1.0 - HEDL parsing and data model
-- `hedl-c14n` 1.0 - Canonicalization
-- `hedl-lint` 1.0 - Best practices linting
-- `hedl-json`, `hedl-yaml`, `hedl-xml`, `hedl-csv`, `hedl-parquet`, `hedl-toon` 1.0 - Format conversion
+- `hedl-core` 1.2 - HEDL parsing and data model
+- `hedl-c14n` 1.2 - Canonicalization
+- `hedl-lint` 1.2 - Best practices linting
+- `hedl-json`, `hedl-yaml`, `hedl-xml`, `hedl-csv`, `hedl-parquet`, `hedl-toon` 1.2 - Format conversion
 - `clap` 4.4 - CLI argument parsing
 - `clap_complete` - Shell completion generation
 - `colored` - Terminal coloring

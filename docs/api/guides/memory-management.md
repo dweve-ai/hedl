@@ -208,18 +208,25 @@ void pool_destroy(StringPool* pool) {
 ### Configuring Limits
 
 ```rust
-use hedl::{parse_with_limits, ParseOptions, Limits};
+use hedl::{parse_with_limits, ParseOptions, Limits, ReferenceMode};
+use std::time::Duration;
 
 let limits = Limits {
-    max_nest_depth: 20,               // Maximum nesting depth
-    max_object_keys: 10_000,          // Keys per object
-    max_total_keys: 100_000,          // Total keys in document
-    max_block_string_size: 1_000_000, // 1 MB strings
-    max_file_size: 100_000_000,       // 100 MB documents
-    ..Default::default()
+    max_file_size: 1024 * 1024 * 1024,       // 1 GB documents (default)
+    max_line_length: 1024 * 1024,            // 1 MB lines (default)
+    max_indent_depth: 50,                    // Maximum indentation depth (default)
+    max_nodes: 10_000_000,                   // Maximum nodes (default: 10M)
+    max_aliases: 10_000,                     // Maximum aliases (default: 10k)
+    max_columns: 100,                        // Columns per schema (default)
+    max_nest_depth: 100,                     // Maximum nesting depth (default)
+    max_block_string_size: 10 * 1024 * 1024, // 10 MB strings (default)
+    max_object_keys: 10_000,                 // Keys per object (default: 10k)
+    max_total_keys: 10_000_000,              // Total keys in document (default: 10M)
+    max_total_ids: 10_000_000,               // Total IDs across types (default: 10M)
+    timeout: Some(Duration::from_secs(30)),  // Parsing timeout (default: 30s)
 };
 
-let options = ParseOptions { limits, strict_refs: true };
+let options = ParseOptions { limits, reference_mode: ReferenceMode::Strict };
 let doc = parse_with_limits(input.as_bytes(), options)?;
 ```
 

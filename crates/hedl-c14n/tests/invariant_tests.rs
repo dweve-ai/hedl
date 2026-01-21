@@ -56,7 +56,7 @@ fn test_idempotency_simple_key_value() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("test".to_string())),
+        Item::Scalar(Value::String("test".to_string().into())),
     );
     doc.root
         .insert("count".to_string(), Item::Scalar(Value::Int(42)));
@@ -77,7 +77,7 @@ fn test_idempotency_nested_objects() {
     let mut inner = BTreeMap::new();
     inner.insert(
         "child".to_string(),
-        Item::Scalar(Value::String("value".to_string())),
+        Item::Scalar(Value::String("value".to_string().into())),
     );
     doc.root.insert("parent".to_string(), Item::Object(inner));
 
@@ -104,16 +104,16 @@ fn test_idempotency_matrix_list() {
         "User",
         "u1",
         vec![
-            Value::String("u1".to_string()),
-            Value::String("Alice".to_string()),
+            Value::String("u1".to_string().into()),
+            Value::String("Alice".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "User",
         "u2",
         vec![
-            Value::String("u2".to_string()),
-            Value::String("Bob".to_string()),
+            Value::String("u2".to_string().into()),
+            Value::String("Bob".to_string().into()),
         ],
     ));
     doc.root.insert("users".to_string(), Item::List(list));
@@ -136,16 +136,16 @@ fn test_idempotency_with_ditto() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("fruit".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("fruit".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("fruit".to_string()),
+            Value::String("i2".to_string().into()),
+            Value::String("fruit".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -178,7 +178,7 @@ fn test_idempotency_all_value_types() {
         .insert("float".to_string(), Item::Scalar(Value::Float(3.14)));
     doc.root.insert(
         "string".to_string(),
-        Item::Scalar(Value::String("hello".to_string())),
+        Item::Scalar(Value::String("hello".to_string().into())),
     );
     // Create a matrix list so references have a target
     doc.structs.insert(
@@ -190,8 +190,8 @@ fn test_idempotency_all_value_types() {
         "Target",
         "target",
         vec![
-            Value::String("target".to_string()),
-            Value::String("data".to_string()),
+            Value::String("target".to_string().into()),
+            Value::String("data".to_string().into()),
         ],
     ));
     doc.root.insert("targets".to_string(), Item::List(list));
@@ -201,17 +201,17 @@ fn test_idempotency_all_value_types() {
     );
     doc.root.insert(
         "tensor".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
-        ]))),
+        ])))),
     );
     doc.root.insert(
         "expression".to_string(),
-        Item::Scalar(Value::Expression(Expression::Identifier {
+        Item::Scalar(Value::Expression(Box::new(Expression::Identifier {
             name: "x".to_string(),
             span: Default::default(),
-        })),
+        }))),
     );
 
     let output1 = canonicalize(&doc).unwrap();
@@ -243,8 +243,7 @@ fn test_determinism_multiple_runs() {
     for i in 1..outputs.len() {
         assert_eq!(
             outputs[0], outputs[i],
-            "Same input should always produce same output (run {})",
-            i
+            "Same input should always produce same output (run {i})"
         );
     }
 }
@@ -376,8 +375,7 @@ fn test_round_trip_preserves_integers() {
         assert_eq!(
             doc.root.get(*key).unwrap().as_scalar().unwrap(),
             doc2.root.get(*key).unwrap().as_scalar().unwrap(),
-            "Round-trip should preserve integer: {}",
-            key
+            "Round-trip should preserve integer: {key}"
         );
     }
 }
@@ -402,8 +400,7 @@ fn test_round_trip_preserves_floats() {
         assert_eq!(
             doc.root.get(*key).unwrap().as_scalar().unwrap(),
             doc2.root.get(*key).unwrap().as_scalar().unwrap(),
-            "Round-trip should preserve float: {}",
-            key
+            "Round-trip should preserve float: {key}"
         );
     }
 }
@@ -413,23 +410,23 @@ fn test_round_trip_preserves_strings() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "simple".to_string(),
-        Item::Scalar(Value::String("hello".to_string())),
+        Item::Scalar(Value::String("hello".to_string().into())),
     );
     doc.root.insert(
         "empty".to_string(),
-        Item::Scalar(Value::String("".to_string())),
+        Item::Scalar(Value::String(String::new().into())),
     );
     doc.root.insert(
         "with_space".to_string(),
-        Item::Scalar(Value::String("  spaces  ".to_string())),
+        Item::Scalar(Value::String("  spaces  ".to_string().into())),
     );
     doc.root.insert(
         "with_quotes".to_string(),
-        Item::Scalar(Value::String("say \"hi\"".to_string())),
+        Item::Scalar(Value::String("say \"hi\"".to_string().into())),
     );
     doc.root.insert(
         "unicode".to_string(),
-        Item::Scalar(Value::String("héllo 世界".to_string())),
+        Item::Scalar(Value::String("héllo 世界".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -439,8 +436,7 @@ fn test_round_trip_preserves_strings() {
         assert_eq!(
             doc.root.get(*key).unwrap().as_scalar().unwrap(),
             doc2.root.get(*key).unwrap().as_scalar().unwrap(),
-            "Round-trip should preserve string: {}",
-            key
+            "Round-trip should preserve string: {key}"
         );
     }
 }
@@ -462,8 +458,8 @@ fn test_round_trip_preserves_references() {
         "Target",
         "target",
         vec![
-            Value::String("target".to_string()),
-            Value::String("data".to_string()),
+            Value::String("target".to_string().into()),
+            Value::String("data".to_string().into()),
         ],
     ));
     doc.root.insert("targets".to_string(), Item::List(targets));
@@ -473,8 +469,8 @@ fn test_round_trip_preserves_references() {
         "User",
         "id",
         vec![
-            Value::String("id".to_string()),
-            Value::String("John".to_string()),
+            Value::String("id".to_string().into()),
+            Value::String("John".to_string().into()),
         ],
     ));
     doc.root.insert("users".to_string(), Item::List(users));
@@ -508,18 +504,18 @@ fn test_round_trip_preserves_tensors() {
     // They both serialize as "1.0" so we skip scalar tensors
     doc.root.insert(
         "array".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
             Tensor::Scalar(3.0),
-        ]))),
+        ])))),
     );
     doc.root.insert(
         "nested".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
             Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
-        ]))),
+        ])))),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -529,8 +525,7 @@ fn test_round_trip_preserves_tensors() {
         assert_eq!(
             doc.root.get(*key).unwrap().as_scalar().unwrap(),
             doc2.root.get(*key).unwrap().as_scalar().unwrap(),
-            "Round-trip should preserve tensor: {}",
-            key
+            "Round-trip should preserve tensor: {key}"
         );
     }
 }
@@ -551,18 +546,18 @@ fn test_round_trip_preserves_matrix_list_structure() {
         "User",
         "u1",
         vec![
-            Value::String("u1".to_string()),
-            Value::String("Alice".to_string()),
-            Value::String("alice@example.com".to_string()),
+            Value::String("u1".to_string().into()),
+            Value::String("Alice".to_string().into()),
+            Value::String("alice@example.com".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "User",
         "u2",
         vec![
-            Value::String("u2".to_string()),
-            Value::String("Bob".to_string()),
-            Value::String("bob@example.com".to_string()),
+            Value::String("u2".to_string().into()),
+            Value::String("Bob".to_string().into()),
+            Value::String("bob@example.com".to_string().into()),
         ],
     ));
     doc.root.insert("users".to_string(), Item::List(list));
@@ -607,8 +602,8 @@ fn test_keys_always_sorted_alphabetically() {
 
     for key in &keys {
         let pos = output
-            .find(&format!("{}:", key))
-            .unwrap_or_else(|| panic!("Key {} not found", key));
+            .find(&format!("{key}:"))
+            .unwrap_or_else(|| panic!("Key {key} not found"));
         positions.push(pos);
     }
 
@@ -652,7 +647,7 @@ fn test_minimal_quoting_simple_strings() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "simple".to_string(),
-        Item::Scalar(Value::String("hello".to_string())),
+        Item::Scalar(Value::String("hello".to_string().into())),
     );
 
     let config = CanonicalConfig::new().with_quoting(QuotingStrategy::Minimal);
@@ -668,19 +663,19 @@ fn test_minimal_quoting_requires_quotes_for_special() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "empty".to_string(),
-        Item::Scalar(Value::String("".to_string())),
+        Item::Scalar(Value::String(String::new().into())),
     );
     doc.root.insert(
         "numeric".to_string(),
-        Item::Scalar(Value::String("123".to_string())),
+        Item::Scalar(Value::String("123".to_string().into())),
     );
     doc.root.insert(
         "boolean".to_string(),
-        Item::Scalar(Value::String("true".to_string())),
+        Item::Scalar(Value::String("true".to_string().into())),
     );
     doc.root.insert(
         "with_hash".to_string(),
-        Item::Scalar(Value::String("test#comment".to_string())),
+        Item::Scalar(Value::String("test#comment".to_string().into())),
     );
 
     let config = CanonicalConfig::new().with_quoting(QuotingStrategy::Minimal);
@@ -698,11 +693,11 @@ fn test_always_quoting_quotes_everything() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "simple".to_string(),
-        Item::Scalar(Value::String("hello".to_string())),
+        Item::Scalar(Value::String("hello".to_string().into())),
     );
     doc.root.insert(
         "empty".to_string(),
-        Item::Scalar(Value::String("".to_string())),
+        Item::Scalar(Value::String(String::new().into())),
     );
 
     let config = CanonicalConfig::new().with_quoting(QuotingStrategy::Always);
@@ -718,7 +713,7 @@ fn test_quoting_round_trip_minimal() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("hello world".to_string())),
+        Item::Scalar(Value::String("hello world".to_string().into())),
     );
 
     let config = CanonicalConfig::new().with_quoting(QuotingStrategy::Minimal);
@@ -734,7 +729,7 @@ fn test_quoting_round_trip_always() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("hello world".to_string())),
+        Item::Scalar(Value::String("hello world".to_string().into())),
     );
 
     let config = CanonicalConfig::new().with_quoting(QuotingStrategy::Always);
@@ -756,7 +751,7 @@ fn test_ditto_never_in_first_row() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(42)],
+        vec![Value::String("i1".to_string().into()), Value::Int(42)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -768,8 +763,8 @@ fn test_ditto_never_in_first_row() {
 
     // First row should never have ditto
     let lines: Vec<&str> = output.lines().collect();
-    let first_row = lines.iter().find(|l| l.trim().starts_with("|")).unwrap();
-    assert!(!first_row.contains("^"), "First row should never use ditto");
+    let first_row = lines.iter().find(|l| l.trim().starts_with('|')).unwrap();
+    assert!(!first_row.contains('^'), "First row should never use ditto");
 }
 
 #[test]
@@ -779,12 +774,12 @@ fn test_ditto_never_in_id_column() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(42)],
+        vec![Value::String("i1".to_string().into()), Value::Int(42)],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
-        vec![Value::String("i2".to_string()), Value::Int(42)],
+        vec![Value::String("i2".to_string().into()), Value::Int(42)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -813,8 +808,8 @@ fn test_ditto_applied_for_matching_values() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("fruit".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("fruit".to_string().into()),
             Value::Bool(true),
         ],
     ));
@@ -822,8 +817,8 @@ fn test_ditto_applied_for_matching_values() {
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("fruit".to_string()),
+            Value::String("i2".to_string().into()),
+            Value::String("fruit".to_string().into()),
             Value::Bool(true),
         ],
     ));
@@ -849,12 +844,12 @@ fn test_ditto_not_applied_for_different_values() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(1)],
+        vec![Value::String("i1".to_string().into()), Value::Int(1)],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
-        vec![Value::String("i2".to_string()), Value::Int(2)],
+        vec![Value::String("i2".to_string().into()), Value::Int(2)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -880,16 +875,16 @@ fn test_ditto_disabled() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("same".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("same".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("same".to_string()),
+            Value::String("i2".to_string().into()),
+            Value::String("same".to_string().into()),
         ],
     ));
 
@@ -902,7 +897,7 @@ fn test_ditto_disabled() {
 
     // No ditto when disabled
     assert!(
-        !output.contains("^"),
+        !output.contains('^'),
         "Ditto should not be used when disabled"
     );
 }
@@ -915,12 +910,12 @@ fn test_ditto_deep_equality_required() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(42)],
+        vec![Value::String("i1".to_string().into()), Value::Int(42)],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
-        vec![Value::String("i2".to_string()), Value::Float(42.0)],
+        vec![Value::String("i2".to_string().into()), Value::Float(42.0)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -955,16 +950,16 @@ fn test_count_hint_in_struct_declaration() {
         "User",
         "u1",
         vec![
-            Value::String("u1".to_string()),
-            Value::String("Alice".to_string()),
+            Value::String("u1".to_string().into()),
+            Value::String("Alice".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "User",
         "u2",
         vec![
-            Value::String("u2".to_string()),
-            Value::String("Bob".to_string()),
+            Value::String("u2".to_string().into()),
+            Value::String("Bob".to_string().into()),
         ],
     ));
     doc.root.insert("users".to_string(), Item::List(list));
@@ -991,7 +986,10 @@ fn test_node_child_count_preserved() {
     let mut node = Node::new(
         "Team",
         "t1",
-        vec![Value::Int(1), Value::String("Engineering".to_string())],
+        vec![
+            Value::Int(1),
+            Value::String("Engineering".to_string().into()),
+        ],
     );
     node.set_child_count(5);
     list.add_row(node);
@@ -1021,17 +1019,17 @@ fn test_count_hint_round_trip() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(1)],
+        vec![Value::String("i1".to_string().into()), Value::Int(1)],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
-        vec![Value::String("i2".to_string()), Value::Int(2)],
+        vec![Value::String("i2".to_string().into()), Value::Int(2)],
     ));
     list.add_row(Node::new(
         "Item",
         "i3",
-        vec![Value::String("i3".to_string()), Value::Int(3)],
+        vec![Value::String("i3".to_string().into()), Value::Int(3)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -1136,10 +1134,10 @@ fn test_expression_formatted_correctly() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "expr".to_string(),
-        Item::Scalar(Value::Expression(Expression::Identifier {
+        Item::Scalar(Value::Expression(Box::new(Expression::Identifier {
             name: "x".to_string(),
             span: Default::default(),
-        })),
+        }))),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1151,14 +1149,14 @@ fn test_tensor_formatted_correctly() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "scalar".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Scalar(1.0))),
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Scalar(1.0)))),
     );
     doc.root.insert(
         "array".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
-        ]))),
+        ])))),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1175,15 +1173,15 @@ fn test_unicode_preserved() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "chinese".to_string(),
-        Item::Scalar(Value::String("你好世界".to_string())),
+        Item::Scalar(Value::String("你好世界".to_string().into())),
     );
     doc.root.insert(
         "emoji".to_string(),
-        Item::Scalar(Value::String("Hello 👋".to_string())),
+        Item::Scalar(Value::String("Hello 👋".to_string().into())),
     );
     doc.root.insert(
         "mixed".to_string(),
-        Item::Scalar(Value::String("café".to_string())),
+        Item::Scalar(Value::String("café".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1197,7 +1195,7 @@ fn test_unicode_round_trip() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("Iñtërnâtiônàlizætiøn 🌍".to_string())),
+        Item::Scalar(Value::String("Iñtërnâtiônàlizætiøn 🌍".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1219,7 +1217,7 @@ fn test_quote_escaping() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("say \"hello\"".to_string())),
+        Item::Scalar(Value::String("say \"hello\"".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1232,7 +1230,7 @@ fn test_quote_escaping_round_trip() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("He said \"hi\"".to_string())),
+        Item::Scalar(Value::String("He said \"hi\"".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -1253,8 +1251,8 @@ fn test_newline_escaping_in_cells() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("line1\nline2".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("line1\nline2".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1274,8 +1272,8 @@ fn test_tab_escaping_in_cells() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("col1\tcol2".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("col1\tcol2".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1295,8 +1293,8 @@ fn test_backslash_escaping_in_cells() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("C:\\path\\to\\file".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("C:\\path\\to\\file".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1316,8 +1314,8 @@ fn test_control_character_escaping_round_trip() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("line1\nline2\ttab\rcarriage".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("line1\nline2\ttab\rcarriage".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1361,7 +1359,7 @@ fn test_complex_document_idempotency() {
         .insert("version".to_string(), Item::Scalar(Value::Int(1)));
     doc.root.insert(
         "app_name".to_string(),
-        Item::Scalar(Value::String("TestApp".to_string())),
+        Item::Scalar(Value::String("TestApp".to_string().into())),
     );
 
     // Matrix list
@@ -1373,18 +1371,18 @@ fn test_complex_document_idempotency() {
         "User",
         "u1",
         vec![
-            Value::String("u1".to_string()),
-            Value::String("Alice".to_string()),
-            Value::String("alice@example.com".to_string()),
+            Value::String("u1".to_string().into()),
+            Value::String("Alice".to_string().into()),
+            Value::String("alice@example.com".to_string().into()),
         ],
     ));
     users.add_row(Node::new(
         "User",
         "u2",
         vec![
-            Value::String("u2".to_string()),
-            Value::String("Bob".to_string()),
-            Value::String("bob@example.com".to_string()),
+            Value::String("u2".to_string().into()),
+            Value::String("Bob".to_string().into()),
+            Value::String("bob@example.com".to_string().into()),
         ],
     ));
     doc.root.insert("users".to_string(), Item::List(users));
@@ -1396,8 +1394,7 @@ fn test_complex_document_idempotency() {
         let next = canonicalize(&parsed).unwrap();
         assert_eq!(
             current, next,
-            "Idempotency should hold for complex document at iteration {}",
-            i
+            "Idempotency should hold for complex document at iteration {i}"
         );
         current = next;
     }
@@ -1411,16 +1408,16 @@ fn test_invariant_holds_across_configurations() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("test".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("test".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("test".to_string()),
+            Value::String("i2".to_string().into()),
+            Value::String("test".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1439,8 +1436,7 @@ fn test_invariant_holds_across_configurations() {
 
         assert_eq!(
             output1, output2,
-            "Idempotency should hold for config: {:?}",
-            config
+            "Idempotency should hold for config: {config:?}"
         );
     }
 }

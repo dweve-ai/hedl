@@ -115,11 +115,11 @@ pub const DIAGNOSTIC_LINE_END_CHAR: u32 = 1000;
 
 /// Maximum character position for symbol ranges.
 ///
-/// **Rationale**: Similar to DIAGNOSTIC_LINE_END_CHAR, used for document
+/// **Rationale**: Similar to `DIAGNOSTIC_LINE_END_CHAR`, used for document
 /// symbols where exact end position is not critical. Editors use this for
 /// outline views and navigation, where approximate ranges are sufficient.
 ///
-/// **Trade-offs**: Same as DIAGNOSTIC_LINE_END_CHAR.
+/// **Trade-offs**: Same as `DIAGNOSTIC_LINE_END_CHAR`.
 pub const SYMBOL_LINE_END_CHAR: u32 = 1000;
 
 /// Character offset for header selection range.

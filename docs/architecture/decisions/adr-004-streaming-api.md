@@ -69,9 +69,14 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
 }
 
 pub enum NodeEvent {
+    Header(HeaderInfo),
+    ListStart { key: String, type_name: String, schema: Vec<String>, line: usize },
     Node(NodeInfo),
-    ListStart { key: String, type_name: String, schema: Vec<String> },
-    ListEnd { key: String, row_count: usize },
+    ListEnd { key: String, type_name: String, count: usize },
+    Scalar { key: String, value: Value, line: usize },
+    ObjectStart { key: String, line: usize },
+    ObjectEnd { key: String },
+    EndOfDocument,
 }
 ```
 
@@ -134,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match event {
             NodeEvent::Node(node) => process_node(node).await?,
             NodeEvent::ListStart { type_name, .. } => println!("List: {}", type_name),
-            NodeEvent::ListEnd { row_count, .. } => println!("Rows: {}", row_count),
+            NodeEvent::ListEnd { count, .. } => println!("Rows: {}", count),
         }
     }
     Ok(())
@@ -154,13 +159,13 @@ while let Some(event) = parser.next_event().await? {
             // Process individual node
             println!("{}:{}", node_info.type_name, node_info.id);
         }
-        NodeEvent::ListStart { key, type_name, schema } => {
+        NodeEvent::ListStart { key, type_name, .. } => {
             // List boundary detected
             println!("Starting list {} of type {}", key, type_name);
         }
-        NodeEvent::ListEnd { key, row_count } => {
+        NodeEvent::ListEnd { key, count, .. } => {
             // List complete
-            println!("Finished list {} with {} rows", key, row_count);
+            println!("Finished list {} with {} rows", key, count);
         }
     }
 }

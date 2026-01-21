@@ -26,32 +26,33 @@ hedl <COMMAND> [OPTIONS] <ARGS>
 
 ```bash
 # Core operations
-hedl validate <file>          # Validate HEDL syntax
-hedl format <file>            # Format to canonical form
-hedl lint <file>              # Check best practices
-hedl inspect <file>           # Show internal structure
-hedl stats <file>             # Compare format sizes
+hedl validate <FILE>          # Validate HEDL syntax
+hedl format <FILE>            # Format to canonical form
+hedl lint <FILE>              # Check best practices
+hedl inspect <FILE>           # Show internal structure
+hedl stats <FILE>             # Compare format sizes
 
 # Format conversion
-hedl to-json <file>           # Convert to JSON
-hedl from-json <file>         # Convert from JSON
-hedl to-yaml <file>           # Convert to YAML
-hedl from-yaml <file>         # Convert from YAML
-hedl to-xml <file>            # Convert to XML
-hedl from-xml <file>          # Convert from XML
-hedl to-csv <file>            # Convert to CSV
-hedl from-csv <file>          # Convert from CSV
-hedl to-parquet <file>        # Convert to Parquet
-hedl from-parquet <file>      # Convert from Parquet
-hedl to-toon <file>           # Convert to TOON
+hedl to-json <FILE>           # Convert to JSON
+hedl from-json <FILE>         # Convert from JSON
+hedl to-yaml <FILE>           # Convert to YAML
+hedl from-yaml <FILE>         # Convert from YAML
+hedl to-xml <FILE>            # Convert to XML
+hedl from-xml <FILE>          # Convert from XML
+hedl to-csv <FILE>            # Convert to CSV
+hedl from-csv <FILE>          # Convert from CSV
+hedl to-parquet <FILE>        # Convert to Parquet
+hedl from-parquet <FILE>      # Convert from Parquet
+hedl to-toon <FILE>           # Convert to TOON
+hedl from-toon <FILE>         # Convert from TOON
 
 # Batch operations
-hedl batch-validate <files>   # Validate multiple files
-hedl batch-format <files>     # Format multiple files
-hedl batch-lint <files>       # Lint multiple files
+hedl batch-validate <FILES>...   # Validate multiple files
+hedl batch-format <FILES>...     # Format multiple files
+hedl batch-lint <FILES>...       # Lint multiple files
 
 # Utilities
-hedl completion <shell>       # Generate shell completions
+hedl completion <SHELL>       # Generate shell completions
 ```
 
 ## Global Options
@@ -77,10 +78,6 @@ All commands support these common patterns:
 # Read from file
 hedl <command> file.hedl
 
-# Read from stdin
-hedl <command> -
-cat file.hedl | hedl <command> -
-
 # Write to stdout (default)
 hedl <command> file.hedl
 
@@ -88,6 +85,8 @@ hedl <command> file.hedl
 hedl <command> file.hedl -o output.hedl
 hedl <command> file.hedl --output output.hedl
 ```
+
+**Note**: Stdin input (`-`) is not currently supported. All commands require file paths.
 
 ## Core Commands
 
@@ -149,12 +148,12 @@ hedl format [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to HEDL file (use `-` for stdin)
+- `<FILE>`: Path to HEDL file
 
 **Options:**
 - `-o, --output <FILE>`: Output file path (default: stdout)
 - `-c, --check`: Check only (exit 1 if not canonical)
-- `--ditto`: Use ditto optimization (default: true)
+- `--ditto`: Use ditto optimization for repeated values (default: true). Use `--no-ditto` or `--ditto false` to disable.
 - `--with-counts`: Automatically add count hints to all matrix lists
 
 **Examples:**
@@ -168,8 +167,8 @@ hedl format messy.hedl -o clean.hedl
 # Format to output directory (batch)
 hedl batch-format *.hedl --output-dir clean/
 
-# Format from stdin
-cat messy.hedl | hedl format - > clean.hedl
+# Format to new file
+hedl format messy.hedl -o clean.hedl
 
 # Check if file is canonical (CI/CD)
 hedl format data.hedl --check
@@ -177,8 +176,8 @@ hedl format data.hedl --check
 # Format with count hints
 hedl format data.hedl --with-counts -o optimized.hedl
 
-# Disable ditto optimization
-hedl format data.hedl --ditto false
+# Format without ditto optimization
+hedl format data.hedl --no-ditto -o formatted.hedl
 ```
 
 **What It Does:**
@@ -222,7 +221,7 @@ hedl lint [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to HEDL file (use `-` for stdin)
+- `<FILE>`: Path to HEDL file
 
 **Options:**
 - `-f, --format <FORMAT>`: Output format: `text` or `json` (default: text)
@@ -233,8 +232,8 @@ hedl lint [OPTIONS] <FILE>
 # Lint a file
 hedl lint data.hedl
 
-# Lint from stdin
-cat data.hedl | hedl lint -
+# Lint a file with JSON output
+hedl lint data.hedl --format json
 
 # Output as JSON (for CI/CD integration)
 hedl lint data.hedl --format json
@@ -273,7 +272,7 @@ hedl inspect [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to HEDL file (use `-` for stdin)
+- `<FILE>`: Path to HEDL file
 
 **Options:**
 - `-v, --verbose`: Show detailed internal structure
@@ -283,8 +282,8 @@ hedl inspect [OPTIONS] <FILE>
 # Inspect structure
 hedl inspect data.hedl
 
-# Inspect from stdin
-echo '%VERSION: 1.0\n---\nname: Alice' | hedl inspect -
+# Create a test file and inspect
+hedl inspect test.hedl
 
 # Show verbose internal details
 hedl inspect data.hedl --verbose
@@ -317,7 +316,7 @@ hedl stats [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to HEDL file (use `-` for stdin)
+- `<FILE>`: Path to HEDL file
 
 **Options:**
 - `-t, --tokens`: Show estimated token counts for LLM context
@@ -369,7 +368,7 @@ hedl to-json [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to HEDL file (use `-` for stdin)
+- `<FILE>`: Path to HEDL file
 
 **Options:**
 - `-o, --output <FILE>`: Output file path (default: stdout)
@@ -406,7 +405,7 @@ hedl from-json [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to JSON file (use `-` for stdin)
+- `<FILE>`: Path to JSON file (file path required)
 
 **Options:**
 - `-o, --output <FILE>`: Output file path (default: stdout)
@@ -419,8 +418,8 @@ hedl from-json data.json
 # Save to file
 hedl from-json data.json -o data.hedl
 
-# Pipeline usage
-curl https://api.example.com/users | hedl from-json - > users.hedl
+# Save to file
+hedl from-json data.json -o users.hedl
 ```
 
 ---
@@ -436,7 +435,7 @@ hedl from-yaml [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to file (use `-` for stdin)
+- `<FILE>`: Path to file (file path required)
 
 **Options:**
 - `-o, --output <FILE>`: Output file path (default: stdout)
@@ -449,8 +448,8 @@ hedl to-yaml config.hedl -o config.yaml
 # YAML to HEDL
 hedl from-yaml config.yaml -o config.hedl
 
-# Pipeline
-hedl from-json data.json | hedl to-yaml - > data.yaml
+# Convert JSON to YAML via HEDL
+hedl from-json data.json -o temp.hedl && hedl to-yaml temp.hedl -o data.yaml
 ```
 
 ---
@@ -466,7 +465,7 @@ hedl from-xml [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to file (use `-` for stdin)
+- `<FILE>`: Path to file (file path required)
 
 **Options (to-xml):**
 - `-o, --output <FILE>`: Output file path (default: stdout)
@@ -500,11 +499,11 @@ hedl from-csv [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to file (use `-` for stdin)
+- `<FILE>`: Path to file (file path required)
 
 **Options (to-csv):**
 - `-o, --output <FILE>`: Output file path (default: stdout)
-- `--headers`: Include header row (default: true)
+- `--headers`: Include header row (default: true). Use `--no-headers` to exclude header row.
 
 **Options (from-csv):**
 - `-o, --output <FILE>`: Output file path (default: stdout)
@@ -512,17 +511,17 @@ hedl from-csv [OPTIONS] <FILE>
 
 **Examples:**
 ```bash
-# HEDL to CSV
+# HEDL to CSV (with headers by default)
 hedl to-csv data.hedl -o output.csv
 
-# HEDL to CSV without headers
-hedl to-csv data.hedl --headers false -o output.csv
+# HEDL to CSV (without headers)
+hedl to-csv data.hedl --no-headers -o output.csv
 
-# CSV to HEDL
+# CSV to HEDL (uses type name 'Row' by default)
 hedl from-csv data.csv -o data.hedl
 
 # CSV to HEDL (custom type name)
-hedl from-csv users.csv --type-name User -o users.hedl
+hedl from-csv users.csv -t User -o users.hedl
 ```
 
 ---
@@ -557,8 +556,8 @@ hedl from-parquet data.parquet
 # Parquet to HEDL (file)
 hedl from-parquet data.parquet -o data.hedl
 
-# Pipeline: CSV → HEDL → Parquet
-hedl from-csv data.csv | hedl to-parquet - -o data.parquet
+# CSV → HEDL → Parquet
+hedl from-csv data.csv -o data.hedl && hedl to-parquet data.hedl -o data.parquet
 ```
 
 **Note:** Parquet output requires a file path (cannot write to stdout).
@@ -573,7 +572,7 @@ hedl to-toon [OPTIONS] <FILE>
 ```
 
 **Arguments:**
-- `<FILE>`: Path to HEDL file (use `-` for stdin)
+- `<FILE>`: Path to HEDL file
 
 **Options:**
 - `-o, --output <FILE>`: Output file path (default: stdout)
@@ -586,8 +585,37 @@ hedl to-toon data.hedl
 # Save to file
 hedl to-toon data.hedl -o data.toon
 
-# Pipeline
-hedl from-json data.json | hedl to-toon -
+# Convert JSON to TOON via HEDL
+hedl from-json data.json -o temp.hedl && hedl to-toon temp.hedl
+```
+
+---
+
+### from-toon
+
+Convert TOON to HEDL format.
+
+**Usage:**
+```bash
+hedl from-toon [OPTIONS] <FILE>
+```
+
+**Arguments:**
+- `<FILE>`: Path to TOON file (file path required)
+
+**Options:**
+- `-o, --output <FILE>`: Output file path (default: stdout)
+
+**Examples:**
+```bash
+# TOON to HEDL
+hedl from-toon data.toon
+
+# Save to file
+hedl from-toon data.toon -o data.hedl
+
+# Convert TOON to HEDL
+hedl from-toon data.toon -o data.hedl
 ```
 
 ## Batch Commands
@@ -610,6 +638,9 @@ hedl batch-validate [OPTIONS] <FILES>...
 - `-s, --strict`: Strict mode (fail on any error)
 - `-p, --parallel`: Force parallel processing
 - `-v, --verbose`: Show verbose progress
+- `--streaming`: Use streaming mode for memory-efficient processing (currently reserved for future use)
+- `--auto-streaming`: Automatically use streaming for files > 100MB (currently reserved for future use)
+- `--max-files <N>`: Maximum number of files to process (unlimited if not specified)
 
 **Examples:**
 ```bash
@@ -659,10 +690,11 @@ hedl batch-format [OPTIONS] <FILES>...
 **Options:**
 - `-o, --output-dir <DIR>`: Output directory for formatted files
 - `-c, --check`: Check only (exit 1 if not canonical)
-- `--ditto`: Use ditto optimization (default: true)
+- `--ditto`: Use ditto optimization for repeated values (default: true). Use `--no-ditto` or `--ditto false` to disable.
 - `--with-counts`: Automatically add count hints to all matrix lists
 - `-p, --parallel`: Force parallel processing
 - `-v, --verbose`: Show verbose progress
+- `--max-files <N>`: Maximum number of files to process (unlimited if not specified)
 
 **Examples:**
 ```bash
@@ -701,6 +733,7 @@ hedl batch-lint [OPTIONS] <FILES>...
 - `-W, --warn-error`: Treat warnings as errors
 - `-p, --parallel`: Force parallel processing
 - `-v, --verbose`: Show verbose progress
+- `--max-files <N>`: Maximum number of files to process (unlimited if not specified)
 
 **Examples:**
 ```bash
@@ -818,26 +851,26 @@ HEDL_MAX_FILE_SIZE=10737418240 hedl validate huge_file.hedl
 
 ## Advanced Usage
 
-### Pipeline Processing
+### Multi-Step Processing
 
-Chain HEDL commands with Unix pipes:
+Process files through multiple stages:
 
 ```bash
-# Validate, format, and convert in one pipeline
-cat data.hedl | hedl validate - && \
-  hedl format - | \
-  hedl to-json - --pretty > output.json
+# Validate, format, and convert
+hedl validate data.hedl && \
+  hedl format data.hedl -o formatted.hedl && \
+  hedl to-json formatted.hedl --pretty -o output.json
 
 # Multi-format conversion
-hedl from-csv data.csv --headers | \
-  hedl format - | \
-  hedl to-parquet - -o data.parquet
+hedl from-csv data.csv -t DataRow -o data.hedl && \
+  hedl format data.hedl -o formatted.hedl && \
+  hedl to-parquet formatted.hedl -o data.parquet
 
-# Process API response
-curl -s https://api.example.com/data | \
-  hedl from-json - | \
-  hedl lint - | \
-  hedl to-yaml - > config.yaml
+# Download, convert, lint, and export
+curl -s https://api.example.com/data -o data.json && \
+  hedl from-json data.json -o data.hedl && \
+  hedl lint data.hedl && \
+  hedl to-yaml data.hedl -o config.yaml
 ```
 
 ### Batch Processing Scripts
@@ -937,7 +970,7 @@ export HEDL_MAX_FILE_SIZE=5368709120  # 5GB
 # Split large files before processing
 split -l 100000 huge.csv chunk_
 for chunk in chunk_*; do
-  hedl from-csv "$chunk" --headers >> combined.hedl
+  hedl from-csv "$chunk" -o temp.hedl && cat temp.hedl >> combined.hedl
 done
 ```
 
@@ -996,7 +1029,7 @@ mkdir -p "$HEDL_DIR" "$OUTPUT_DIR"
 echo "Converting CSV to HEDL..."
 for csv in "$INPUT_DIR"/*.csv; do
   base=$(basename "$csv" .csv)
-  hedl from-csv "$csv" --headers -o "$HEDL_DIR/${base}.hedl"
+  hedl from-csv "$csv" -o "$HEDL_DIR/${base}.hedl"
 done
 
 # Transform: Validate and lint

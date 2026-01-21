@@ -28,7 +28,7 @@
 //! - Concurrent request handling
 //! - Error handling overhead
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
     ExportConfig, Insight, PerfResult, TableCell,
@@ -37,6 +37,7 @@ use hedl_mcp::{McpServer, McpServerConfig};
 use serde_json::json;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use tempfile::TempDir;
 
 /// Comprehensive MCP request result for detailed analysis
@@ -46,8 +47,6 @@ struct MCPRequestResult {
     latencies_ns: Vec<u64>,
     message_size_bytes: usize,
     serialization_ns: u64,
-    deserialization_ns: u64,
-    network_ns: u64,
     memory_estimate_kb: f64,
     concurrent_level: usize,
     cache_hit: bool,
@@ -61,8 +60,6 @@ impl Default for MCPRequestResult {
             latencies_ns: Vec::new(),
             message_size_bytes: 0,
             serialization_ns: 0,
-            deserialization_ns: 0,
-            network_ns: 0,
             memory_estimate_kb: 0.0,
             concurrent_level: 1,
             cache_hit: false,
@@ -72,8 +69,8 @@ impl Default for MCPRequestResult {
 }
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static MCP_RESULTS: RefCell<Vec<MCPRequestResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static MCP_RESULTS: RefCell<Vec<MCPRequestResult>> = const { RefCell::new(Vec::new()) };
 }
 
 fn init_report() {
@@ -90,13 +87,216 @@ fn init_report() {
     });
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used for future incremental data collection
 fn add_mcp_result(result: MCPRequestResult) {
     MCP_RESULTS.with(|r| {
         r.borrow_mut().push(result);
     });
 }
 
+/// Collect MCP operation results by running actual measurements.
+/// This is a fallback when benchmark runs don't populate `MCP_RESULTS`.
+/// Uses fewer iterations since this runs at export time.
+fn collect_mcp_results() -> Vec<MCPRequestResult> {
+    use std::time::Instant;
+
+    let mut results = Vec::new();
+    let iterations = 10; // Reduced for faster export when used as fallback
+
+    // Create temp directory for file operations
+    let temp_dir = TempDir::new().unwrap();
+    let root_path = temp_dir.path();
+
+    // Create test HEDL files of various sizes
+    let small_hedl = generate_users(sizes::SMALL);
+    let medium_hedl = generate_users(sizes::MEDIUM);
+    let large_hedl = generate_users(sizes::LARGE);
+    std::fs::write(root_path.join("small.hedl"), &small_hedl).unwrap();
+    std::fs::write(root_path.join("medium.hedl"), &medium_hedl).unwrap();
+    std::fs::write(root_path.join("large.hedl"), &large_hedl).unwrap();
+
+    // 1. Server initialization benchmarks
+    let mut latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let config = McpServerConfig::default();
+        let _ = McpServer::new(config);
+        latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(MCPRequestResult {
+        operation: "server_init".to_string(),
+        latencies_ns: latencies,
+        message_size_bytes: 0,
+        serialization_ns: 0,
+        memory_estimate_kb: 10.0,
+        concurrent_level: 1,
+        cache_hit: false,
+        error_count: 0,
+    });
+
+    // 2. Tool registration benchmarks
+    let mut latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = hedl_mcp::get_tools();
+        latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(MCPRequestResult {
+        operation: "tool_list".to_string(),
+        latencies_ns: latencies,
+        message_size_bytes: 0,
+        serialization_ns: 0,
+        memory_estimate_kb: 5.0,
+        concurrent_level: 1,
+        cache_hit: true,
+        error_count: 0,
+    });
+
+    // 3. Tool execution benchmarks for each tool
+    let tools_and_args = [
+        (
+            "hedl_validate",
+            json!({ "hedl": small_hedl.clone(), "strict": false }),
+        ),
+        ("hedl_query", json!({ "hedl": small_hedl.clone() })),
+        ("hedl_stats", json!({ "hedl": small_hedl.clone() })),
+        ("hedl_lint", json!({ "hedl": small_hedl.clone() })),
+        ("hedl_to_json", json!({ "hedl": small_hedl.clone() })),
+        ("hedl_to_yaml", json!({ "hedl": small_hedl.clone() })),
+        ("hedl_canonicalize", json!({ "hedl": small_hedl.clone() })),
+    ];
+
+    for (tool_name, args) in &tools_and_args {
+        let mut latencies = Vec::with_capacity(iterations);
+        let mut error_count = 0;
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            match hedl_mcp::execute_tool(tool_name, Some(args.clone()), root_path) {
+                Ok(_) => {}
+                Err(_) => error_count += 1,
+            }
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(MCPRequestResult {
+            operation: format!("tool_{tool_name}"),
+            latencies_ns: latencies,
+            message_size_bytes: small_hedl.len(),
+            serialization_ns: 0,
+            memory_estimate_kb: (small_hedl.len() as f64 * 2.0) / 1024.0,
+            concurrent_level: 1,
+            cache_hit: false,
+            error_count,
+        });
+    }
+
+    // 4. Tool execution with different sizes
+    for (size_name, hedl) in [
+        ("small", &small_hedl),
+        ("medium", &medium_hedl),
+        ("large", &large_hedl),
+    ] {
+        let args = json!({ "hedl": hedl });
+        let mut latencies = Vec::with_capacity(iterations);
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(MCPRequestResult {
+            operation: format!("validate_{size_name}"),
+            latencies_ns: latencies,
+            message_size_bytes: hedl.len(),
+            serialization_ns: 0,
+            memory_estimate_kb: (hedl.len() as f64 * 2.0) / 1024.0,
+            concurrent_level: 1,
+            cache_hit: false,
+            error_count: 0,
+        });
+    }
+
+    // 5. Serialization benchmarks
+    let tools = hedl_mcp::get_tools();
+    let mut latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = serde_json::to_string(&tools);
+        latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    let serialized = serde_json::to_string(&tools).unwrap_or_default();
+    results.push(MCPRequestResult {
+        operation: "serialize_tools".to_string(),
+        latencies_ns: latencies,
+        message_size_bytes: serialized.len(),
+        serialization_ns: 0,
+        memory_estimate_kb: (serialized.len() as f64) / 1024.0,
+        concurrent_level: 1,
+        cache_hit: false,
+        error_count: 0,
+    });
+
+    // 6. JSON-RPC message parsing benchmarks
+    let rpc_message = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "hedl_validate",
+            "arguments": { "hedl": small_hedl.clone() }
+        }
+    });
+    let rpc_str = serde_json::to_string(&rpc_message).unwrap();
+
+    let mut latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _: serde_json::Value = serde_json::from_str(&rpc_str).unwrap();
+        latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(MCPRequestResult {
+        operation: "parse_rpc_message".to_string(),
+        latencies_ns: latencies,
+        message_size_bytes: rpc_str.len(),
+        serialization_ns: 0,
+        memory_estimate_kb: (rpc_str.len() as f64 * 1.5) / 1024.0,
+        concurrent_level: 1,
+        cache_hit: false,
+        error_count: 0,
+    });
+
+    // 7. Batch operation simulation
+    let batch_sizes = [5, 10, 20];
+    for batch_size in batch_sizes {
+        let mut latencies = Vec::with_capacity(iterations);
+        let args = json!({ "hedl": small_hedl.clone() });
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            for _ in 0..batch_size {
+                let _ = hedl_mcp::execute_tool("hedl_stats", Some(args.clone()), root_path);
+            }
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(MCPRequestResult {
+            operation: format!("batch_{batch_size}"),
+            latencies_ns: latencies,
+            message_size_bytes: small_hedl.len() * batch_size,
+            serialization_ns: 0,
+            memory_estimate_kb: (small_hedl.len() as f64 * batch_size as f64) / 1024.0,
+            concurrent_level: batch_size,
+            cache_hit: false,
+            error_count: 0,
+        });
+    }
+
+    results
+}
+
+#[allow(dead_code)] // Reserved for future benchmark-time data collection
 fn add_perf_result(name: &str, time_ns: u64, iterations: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
@@ -121,8 +321,23 @@ fn export_reports() {
         if let Some(ref report) = *r.borrow() {
             let mut new_report = report.clone();
 
-            // Collect all MCP results
-            let mcp_results = MCP_RESULTS.with(|r| r.borrow().clone());
+            // First try to use data collected during benchmark runs
+            let mcp_results = MCP_RESULTS.with(|results| {
+                let stored = results.borrow();
+                if stored.is_empty() {
+                    // Fallback: collect data if benchmarks didn't populate results
+                    println!("\n[MCP] No stored results, collecting measurement data...");
+                    drop(stored); // Release borrow before calling collect
+                    collect_mcp_results()
+                } else {
+                    println!(
+                        "\n[MCP] Using {} result sets from benchmark runs",
+                        stored.len()
+                    );
+                    stored.clone()
+                }
+            });
+            println!("[MCP] Total {} result sets for report", mcp_results.len());
 
             // Create all 16 comprehensive tables
             create_request_latency_distribution_table(&mcp_results, &mut new_report);
@@ -146,7 +361,7 @@ fn export_reports() {
             generate_mcp_insights(&mcp_results, &mut new_report);
 
             if let Err(e) = std::fs::create_dir_all("target") {
-                eprintln!("Failed to create target directory: {}", e);
+                eprintln!("Failed to create target directory: {e}");
                 return;
             }
 
@@ -159,7 +374,7 @@ fn export_reports() {
                         new_report.insights.len()
                     );
                 }
-                Err(e) => eprintln!("Failed to export reports: {}", e),
+                Err(e) => eprintln!("Failed to export reports: {e}"),
             }
 
             new_report.print();
@@ -212,9 +427,9 @@ fn create_request_latency_distribution_table(
         let min = latencies[0];
         let max = latencies[len - 1];
         let p50 = latencies[len / 2];
-        let p90 = latencies[len * 90 / 100.max(1)];
-        let p95 = latencies[len * 95 / 100.max(1)];
-        let p99 = latencies[len * 99 / 100.max(1)];
+        let p90 = latencies[len * 90 / 100];
+        let p95 = latencies[len * 95 / 100];
+        let p99 = latencies[len * 99 / 100];
         let sla_target = 100.0; // 100ms SLA
         let within_sla = latencies.iter().filter(|&&l| l <= sla_target).count();
         let sla_met_pct = (within_sla as f64 / len as f64) * 100.0;
@@ -282,7 +497,7 @@ fn create_throughput_analysis_table(results: &[MCPRequestResult], report: &mut B
             TableCell::Float(requests_per_sec),
             TableCell::Integer((requests_per_sec / 100.0).ceil() as i64),
             TableCell::Integer(10),
-            TableCell::String(format!("{:.0} req/s", requests_per_sec)),
+            TableCell::String(format!("{requests_per_sec:.0} req/s")),
             TableCell::String("CPU".to_string()),
             TableCell::String("Linear".to_string()),
         ]);
@@ -298,7 +513,7 @@ fn create_incremental_update_performance_table(
     _results: &[MCPRequestResult],
     report: &mut BenchmarkReport,
 ) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Incremental Update Performance".to_string(),
         headers: vec![
             "Change Type".to_string(),
@@ -349,7 +564,7 @@ fn create_memory_usage_profiling_table(results: &[MCPRequestResult], report: &mu
             continue;
         }
         let avg_mem_mb = mems.iter().sum::<f64>() / mems.len() as f64 / 1024.0;
-        let peak_mem_mb = mems.iter().cloned().fold(0.0f64, f64::max) / 1024.0;
+        let peak_mem_mb = mems.iter().copied().fold(0.0f64, f64::max) / 1024.0;
 
         table.rows.push(vec![
             TableCell::String(op_type.clone()),
@@ -415,7 +630,7 @@ fn create_cache_effectiveness_table(results: &[MCPRequestResult], report: &mut B
 // TABLE 6: Cold vs Warm Start
 // ============================================================================
 fn create_cold_vs_warm_start_table(_results: &[MCPRequestResult], report: &mut BenchmarkReport) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Cold vs Warm Start Performance".to_string(),
         headers: vec![
             "Scenario".to_string(),
@@ -439,7 +654,7 @@ fn create_concurrent_request_handling_table(
     results: &[MCPRequestResult],
     report: &mut BenchmarkReport,
 ) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Concurrent Request Handling".to_string(),
         headers: vec![
             "Concurrency Level".to_string(),
@@ -470,7 +685,7 @@ fn create_concurrent_request_handling_table(
 // TABLE 8: Document Size Impact
 // ============================================================================
 fn create_document_size_impact_table(results: &[MCPRequestResult], report: &mut BenchmarkReport) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Document Size Impact".to_string(),
         headers: vec![
             "Size (KB)".to_string(),
@@ -517,7 +732,7 @@ fn create_tool_invocation_performance_table(
     _results: &[MCPRequestResult],
     report: &mut BenchmarkReport,
 ) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "MCP Tool Invocation Performance".to_string(),
         headers: vec![
             "Tool".to_string(),
@@ -541,7 +756,7 @@ fn create_error_recovery_performance_table(
     results: &[MCPRequestResult],
     report: &mut BenchmarkReport,
 ) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Error Recovery Performance".to_string(),
         headers: vec![
             "Error Type".to_string(),
@@ -564,7 +779,7 @@ fn create_error_recovery_performance_table(
 // TABLE 11: Protocol Overhead
 // ============================================================================
 fn create_protocol_overhead_table(results: &[MCPRequestResult], report: &mut BenchmarkReport) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Protocol Overhead".to_string(),
         headers: vec![
             "Protocol".to_string(),
@@ -579,12 +794,12 @@ fn create_protocol_overhead_table(results: &[MCPRequestResult], report: &mut Ben
         footer: None,
     };
 
-    let avg_ser_ms = if !results.is_empty() {
+    let _avg_ser_ms = if results.is_empty() {
+        0.15
+    } else {
         results.iter().map(|r| r.serialization_ns).sum::<u64>() as f64
             / results.len() as f64
             / 1_000_000.0
-    } else {
-        0.15
     };
 
     report.add_custom_table(table);
@@ -617,8 +832,8 @@ fn create_comparison_with_alternatives_table(
 
         if !latencies.is_empty() {
             let avg_latency = latencies.iter().sum::<f64>() / latencies.len() as f64;
-            let min_latency = latencies.iter().cloned().fold(f64::MAX, f64::min);
-            let max_latency = latencies.iter().cloned().fold(f64::MIN, f64::max);
+            let min_latency = latencies.iter().copied().fold(f64::MAX, f64::min);
+            let max_latency = latencies.iter().copied().fold(f64::MIN, f64::max);
 
             table.rows.push(vec![
                 TableCell::String("Average Latency".to_string()),
@@ -650,7 +865,7 @@ fn create_comparison_with_alternatives_table(
 // TABLE 13: Resource Utilization
 // ============================================================================
 fn create_resource_utilization_table(_results: &[MCPRequestResult], report: &mut BenchmarkReport) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Resource Utilization".to_string(),
         headers: vec![
             "Resource".to_string(),
@@ -676,7 +891,7 @@ fn create_parallelization_effectiveness_table(
     _results: &[MCPRequestResult],
     report: &mut BenchmarkReport,
 ) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Parallelization Effectiveness".to_string(),
         headers: vec![
             "Operation".to_string(),
@@ -698,7 +913,7 @@ fn create_parallelization_effectiveness_table(
 // TABLE 15: Real-World Scenarios
 // ============================================================================
 fn create_real_world_scenarios_table(_results: &[MCPRequestResult], report: &mut BenchmarkReport) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Real-World Scenarios".to_string(),
         headers: vec![
             "Scenario".to_string(),
@@ -723,7 +938,7 @@ fn create_performance_regression_detection_table(
     results: &[MCPRequestResult],
     report: &mut BenchmarkReport,
 ) {
-    let mut table = CustomTable {
+    let table = CustomTable {
         title: "Performance Regression Detection".to_string(),
         headers: vec![
             "Metric".to_string(),
@@ -737,7 +952,9 @@ fn create_performance_regression_detection_table(
         footer: None,
     };
 
-    let current_latency = if !results.is_empty() {
+    let _current_latency = if results.is_empty() {
+        2.0
+    } else {
         let total: f64 = results
             .iter()
             .flat_map(|r| r.latencies_ns.iter())
@@ -749,8 +966,6 @@ fn create_performance_regression_detection_table(
         } else {
             2.0
         }
-    } else {
-        2.0
     };
 
     report.add_custom_table(table);
@@ -776,10 +991,7 @@ fn generate_mcp_insights(results: &[MCPRequestResult], report: &mut BenchmarkRep
     if avg_latency < 5.0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Excellent Protocol Efficiency: {:.2}ms average latency",
-                avg_latency
-            ),
+            title: format!("Excellent Protocol Efficiency: {avg_latency:.2}ms average latency"),
             description: "MCP protocol overhead is minimal, suitable for real-time AI interactions"
                 .to_string(),
             data_points: vec![
@@ -803,17 +1015,17 @@ fn generate_mcp_insights(results: &[MCPRequestResult], report: &mut BenchmarkRep
     });
 
     // 3. Serialization Overhead
-    let avg_ser_ms = if !results.is_empty() {
+    let avg_ser_ms = if results.is_empty() {
+        0.15
+    } else {
         results.iter().map(|r| r.serialization_ns).sum::<u64>() as f64
             / results.len() as f64
             / 1_000_000.0
-    } else {
-        0.15
     };
 
     report.add_insight(Insight {
         category: "finding".to_string(),
-        title: format!("Serialization Overhead: {:.2}ms per request", avg_ser_ms),
+        title: format!("Serialization Overhead: {avg_ser_ms:.2}ms per request"),
         description: "JSON-RPC serialization adds minimal overhead to tool calls".to_string(),
         data_points: vec![
             "JSON serialization is well-optimized".to_string(),
@@ -835,10 +1047,10 @@ fn generate_mcp_insights(results: &[MCPRequestResult], report: &mut BenchmarkRep
 
     // 5. Cache Effectiveness
     let cache_hits = results.iter().filter(|r| r.cache_hit).count();
-    let cache_rate = if !results.is_empty() {
-        (cache_hits as f64 / results.len() as f64) * 100.0
-    } else {
+    let cache_rate = if results.is_empty() {
         85.0
+    } else {
+        (cache_hits as f64 / results.len() as f64) * 100.0
     };
 
     report.add_insight(Insight {
@@ -848,7 +1060,7 @@ fn generate_mcp_insights(results: &[MCPRequestResult], report: &mut BenchmarkRep
             "recommendation"
         }
         .to_string(),
-        title: format!("Cache Hit Rate: {:.1}%", cache_rate),
+        title: format!("Cache Hit Rate: {cache_rate:.1}%"),
         description: "Tool discovery and resource caching are highly effective".to_string(),
         data_points: vec![
             "Tool discovery cache: 95%+ hit rate".to_string(),
@@ -867,7 +1079,7 @@ fn generate_mcp_insights(results: &[MCPRequestResult], report: &mut BenchmarkRep
 
     report.add_insight(Insight {
         category: "strength".to_string(),
-        title: format!("Robust Error Handling: {:.2}% error rate", error_rate),
+        title: format!("Robust Error Handling: {error_rate:.2}% error rate"),
         description: "Error detection and recovery are fast and preserve state".to_string(),
         data_points: vec![
             "Error detection: <1ms".to_string(),
@@ -935,35 +1147,15 @@ fn bench_server_init(c: &mut Criterion) {
         b.iter(|| {
             let config = McpServerConfig::default();
             black_box(McpServer::new(config))
-        })
+        });
     });
-
-    // Collect metrics for new_server
-    let iterations = 1000u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let config = McpServerConfig::default();
-        let _ = McpServer::new(config);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("server_init_new", total_ns, iterations, None);
 
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path().to_path_buf();
 
     group.bench_function("with_root", |b| {
-        b.iter(|| black_box(McpServer::with_root(root.clone())))
+        b.iter(|| black_box(McpServer::with_root(root.clone())));
     });
-
-    // Collect metrics for with_root
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = McpServer::with_root(root.clone());
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("server_init_with_root", total_ns, iterations, None);
 
     group.finish();
 }
@@ -976,33 +1168,13 @@ fn bench_tool_registration(c: &mut Criterion) {
         b.iter(|| {
             let tools = hedl_mcp::get_tools();
             black_box(tools)
-        })
+        });
     });
-
-    // Collect metrics for list_tools
-    let iterations = 1000u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::get_tools();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("tool_registration_list", total_ns, iterations, None);
 
     group.bench_function("serialize_tools", |b| {
         let tools = hedl_mcp::get_tools();
-        b.iter(|| black_box(serde_json::to_string(&tools).unwrap()))
+        b.iter(|| black_box(serde_json::to_string(&tools).unwrap()));
     });
-
-    // Collect metrics for serialize_tools
-    let tools = hedl_mcp::get_tools();
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = serde_json::to_string(&tools).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("tool_registration_serialize", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1017,8 +1189,6 @@ fn bench_tool_execution(c: &mut Criterion) {
     let hedl_content = generate_users(sizes::SMALL);
     std::fs::write(root_path.join("test.hedl"), &hedl_content).unwrap();
 
-    let iterations = 100u64;
-
     // hedl_validate
     group.bench_function("hedl_validate", |b| {
         let args = json!({ "hedl": hedl_content, "strict": false });
@@ -1026,92 +1196,32 @@ fn bench_tool_execution(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for hedl_validate
-    let args = json!({ "hedl": hedl_content, "strict": false });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_validate",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // hedl_query
     group.bench_function("hedl_query", |b| {
         let args = json!({ "hedl": hedl_content });
         b.iter(|| {
             black_box(hedl_mcp::execute_tool("hedl_query", Some(args.clone()), root_path).unwrap())
-        })
+        });
     });
-
-    // Collect metrics for hedl_query
-    let args = json!({ "hedl": hedl_content });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_query", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_query",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // hedl_stats
     group.bench_function("hedl_stats", |b| {
         let args = json!({ "hedl": hedl_content });
         b.iter(|| {
             black_box(hedl_mcp::execute_tool("hedl_stats", Some(args.clone()), root_path).unwrap())
-        })
+        });
     });
-
-    // Collect metrics for hedl_stats
-    let args = json!({ "hedl": hedl_content });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_stats", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_stats",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // hedl_format
     group.bench_function("hedl_format", |b| {
         let args = json!({ "hedl": hedl_content });
         b.iter(|| {
             black_box(hedl_mcp::execute_tool("hedl_format", Some(args.clone()), root_path).unwrap())
-        })
+        });
     });
-
-    // Collect metrics for hedl_format
-    let args = json!({ "hedl": hedl_content });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_format", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_format",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // hedl_optimize (JSON to HEDL)
     let json_content = r#"{"users": [{"id": "1", "name": "Alice"}, {"id": "2", "name": "Bob"}]}"#;
@@ -1121,46 +1231,16 @@ fn bench_tool_execution(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_optimize", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for hedl_optimize
-    let args = json!({ "json": json_content, "ditto": true });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_optimize", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_optimize",
-        total_ns,
-        iterations,
-        Some(json_content.len() as u64),
-    );
 
     // hedl_read
     group.bench_function("hedl_read", |b| {
         let args = json!({ "path": "test.hedl" });
         b.iter(|| {
             black_box(hedl_mcp::execute_tool("hedl_read", Some(args.clone()), root_path).unwrap())
-        })
+        });
     });
-
-    // Collect metrics for hedl_read
-    let args = json!({ "path": "test.hedl" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_read", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_read",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // hedl_convert_to
     group.bench_function("hedl_convert_to_json", |b| {
@@ -1169,23 +1249,8 @@ fn bench_tool_execution(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_convert_to", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for hedl_convert_to
-    let args = json!({ "hedl": hedl_content, "format": "json" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_convert_to", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_convert_to",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // hedl_convert_from
     group.bench_function("hedl_convert_from_json", |b| {
@@ -1194,23 +1259,8 @@ fn bench_tool_execution(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_convert_from", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for hedl_convert_from
-    let args = json!({ "content": json_content, "format": "json" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_convert_from", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "tool_exec_convert_from",
-        total_ns,
-        iterations,
-        Some(json_content.len() as u64),
-    );
 
     group.finish();
 }
@@ -1231,24 +1281,8 @@ fn bench_tool_execution_sizes(c: &mut Criterion) {
                 black_box(
                     hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap(),
                 )
-            })
+            });
         });
-
-        // Collect metrics for hedl_validate at this size
-        let iterations = if size >= sizes::LARGE { 10 } else { 100 };
-        let args = json!({ "hedl": hedl, "strict": false });
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap();
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("tool_exec_sizes_validate_{}", size),
-            total_ns,
-            iterations,
-            Some(hedl.len() as u64),
-        );
 
         group.bench_with_input(BenchmarkId::new("hedl_stats", size), &hedl, |b, hedl| {
             let args = json!({ "hedl": hedl });
@@ -1256,23 +1290,8 @@ fn bench_tool_execution_sizes(c: &mut Criterion) {
                 black_box(
                     hedl_mcp::execute_tool("hedl_stats", Some(args.clone()), root_path).unwrap(),
                 )
-            })
+            });
         });
-
-        // Collect metrics for hedl_stats at this size
-        let args = json!({ "hedl": hedl });
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = hedl_mcp::execute_tool("hedl_stats", Some(args.clone()), root_path).unwrap();
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("tool_exec_sizes_stats_{}", size),
-            total_ns,
-            iterations,
-            Some(hedl.len() as u64),
-        );
     }
 
     group.finish();
@@ -1291,8 +1310,6 @@ fn bench_request_handling(c: &mut Criterion) {
     };
     let mut server = McpServer::new(config);
 
-    let iterations = 100u64;
-
     // Initialize request
     group.bench_function("handle_initialize", |b| {
         let request = hedl_mcp::JsonRpcRequest {
@@ -1308,30 +1325,8 @@ fn bench_request_handling(c: &mut Criterion) {
                 }
             })),
         };
-        b.iter(|| black_box(server.handle_request(request.clone())))
+        b.iter(|| black_box(server.handle_request(request.clone())));
     });
-
-    // Collect metrics for handle_initialize
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(1)),
-            method: "initialize".to_string(),
-            params: Some(json!({
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "test",
-                    "version": "1.0.0"
-                }
-            })),
-        };
-        let _ = server.handle_request(request);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("request_handle_initialize", total_ns, iterations, None);
 
     // Tools list request
     group.bench_function("handle_tools_list", |b| {
@@ -1341,23 +1336,8 @@ fn bench_request_handling(c: &mut Criterion) {
             method: "tools/list".to_string(),
             params: None,
         };
-        b.iter(|| black_box(server.handle_request(request.clone())))
+        b.iter(|| black_box(server.handle_request(request.clone())));
     });
-
-    // Collect metrics for handle_tools_list
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(2)),
-            method: "tools/list".to_string(),
-            params: None,
-        };
-        let _ = server.handle_request(request);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("request_handle_tools_list", total_ns, iterations, None);
 
     // Tools call request
     let hedl_content = generate_users(sizes::SMALL);
@@ -1374,34 +1354,8 @@ fn bench_request_handling(c: &mut Criterion) {
                 }
             })),
         };
-        b.iter(|| black_box(server.handle_request(request.clone())))
+        b.iter(|| black_box(server.handle_request(request.clone())));
     });
-
-    // Collect metrics for handle_tools_call
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(3)),
-            method: "tools/call".to_string(),
-            params: Some(json!({
-                "name": "hedl_validate",
-                "arguments": {
-                    "hedl": hedl_content,
-                    "strict": false
-                }
-            })),
-        };
-        let _ = server.handle_request(request);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "request_handle_tools_call",
-        total_ns,
-        iterations,
-        Some(hedl_content.len() as u64),
-    );
 
     // Resources list request
     group.bench_function("handle_resources_list", |b| {
@@ -1411,23 +1365,8 @@ fn bench_request_handling(c: &mut Criterion) {
             method: "resources/list".to_string(),
             params: None,
         };
-        b.iter(|| black_box(server.handle_request(request.clone())))
+        b.iter(|| black_box(server.handle_request(request.clone())));
     });
-
-    // Collect metrics for handle_resources_list
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(4)),
-            method: "resources/list".to_string(),
-            params: None,
-        };
-        let _ = server.handle_request(request);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("request_handle_resources_list", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1441,7 +1380,7 @@ fn bench_resource_management(c: &mut Criterion) {
     // Create multiple HEDL files
     for i in 0..10 {
         let content = generate_users(sizes::SMALL);
-        std::fs::write(root_path.join(format!("test{}.hedl", i)), content).unwrap();
+        std::fs::write(root_path.join(format!("test{i}.hedl")), content).unwrap();
     }
 
     let config = McpServerConfig {
@@ -1450,8 +1389,6 @@ fn bench_resource_management(c: &mut Criterion) {
     };
     let mut server = McpServer::new(config);
 
-    let iterations = 100u64;
-
     group.bench_function("list_resources", |b| {
         let request = hedl_mcp::JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -1459,23 +1396,8 @@ fn bench_resource_management(c: &mut Criterion) {
             method: "resources/list".to_string(),
             params: None,
         };
-        b.iter(|| black_box(server.handle_request(request.clone())))
+        b.iter(|| black_box(server.handle_request(request.clone())));
     });
-
-    // Collect metrics for list_resources
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(1)),
-            method: "resources/list".to_string(),
-            params: None,
-        };
-        let _ = server.handle_request(request);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("resource_list", total_ns, iterations, None);
 
     group.bench_function("read_resource", |b| {
         let uri = format!("file://{}/test0.hedl", root_path.display());
@@ -1485,24 +1407,8 @@ fn bench_resource_management(c: &mut Criterion) {
             method: "resources/read".to_string(),
             params: Some(json!({ "uri": uri })),
         };
-        b.iter(|| black_box(server.handle_request(request.clone())))
+        b.iter(|| black_box(server.handle_request(request.clone())));
     });
-
-    // Collect metrics for read_resource
-    let uri = format!("file://{}/test0.hedl", root_path.display());
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(2)),
-            method: "resources/read".to_string(),
-            params: Some(json!({ "uri": uri })),
-        };
-        let _ = server.handle_request(request);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("resource_read", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1525,26 +1431,8 @@ fn bench_batch_operations(c: &mut Criterion) {
                         hedl_mcp::execute_tool("hedl_validate", Some(args), root_path).unwrap(),
                     );
                 }
-            })
+            });
         });
-
-        // Collect metrics for this batch size
-        let iterations = 50u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            for _ in 0..batch_size {
-                let args = json!({ "hedl": hedl_content });
-                let _ = hedl_mcp::execute_tool("hedl_validate", Some(args), root_path).unwrap();
-            }
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("batch_sequential_{}", batch_size),
-            total_ns,
-            iterations,
-            Some((hedl_content.len() * batch_size) as u64),
-        );
     }
 
     group.finish();
@@ -1566,30 +1454,8 @@ fn bench_large_payloads(c: &mut Criterion) {
                 black_box(
                     hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap(),
                 )
-            })
+            });
         });
-
-        // Collect metrics for large payloads
-        let iterations = if size >= sizes::STRESS {
-            5
-        } else if size >= sizes::LARGE {
-            10
-        } else {
-            50
-        };
-        let args = json!({ "hedl": hedl, "strict": false });
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap();
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("large_payload_{}", size),
-            total_ns,
-            iterations,
-            Some(hedl.len() as u64),
-        );
     }
 
     group.finish();
@@ -1601,8 +1467,6 @@ fn bench_error_handling(c: &mut Criterion) {
     let temp_dir = TempDir::new().unwrap();
     let root_path = temp_dir.path();
 
-    let iterations = 100u64;
-
     // Invalid HEDL
     group.bench_function("invalid_hedl", |b| {
         let args = json!({ "hedl": "invalid hedl content" });
@@ -1612,32 +1476,13 @@ fn bench_error_handling(c: &mut Criterion) {
                 Some(args.clone()),
                 root_path,
             ))
-        })
+        });
     });
-
-    // Collect metrics for invalid_hedl
-    let args = json!({ "hedl": "invalid hedl content" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("error_invalid_hedl", total_ns, iterations, None);
 
     // Invalid tool name
     group.bench_function("invalid_tool", |b| {
-        b.iter(|| black_box(hedl_mcp::execute_tool("nonexistent_tool", None, root_path)))
+        b.iter(|| black_box(hedl_mcp::execute_tool("nonexistent_tool", None, root_path)));
     });
-
-    // Collect metrics for invalid_tool
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("nonexistent_tool", None, root_path);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("error_invalid_tool", total_ns, iterations, None);
 
     // Invalid JSON
     group.bench_function("invalid_json", |b| {
@@ -1648,18 +1493,8 @@ fn bench_error_handling(c: &mut Criterion) {
                 Some(args.clone()),
                 root_path,
             ))
-        })
+        });
     });
-
-    // Collect metrics for invalid_json
-    let args = json!({ "json": "not valid json" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_optimize", Some(args.clone()), root_path);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("error_invalid_json", total_ns, iterations, None);
 
     // Missing required arguments
     group.bench_function("missing_args", |b| {
@@ -1670,18 +1505,8 @@ fn bench_error_handling(c: &mut Criterion) {
                 Some(args.clone()),
                 root_path,
             ))
-        })
+        });
     });
-
-    // Collect metrics for missing_args
-    let args = json!({});
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("error_missing_args", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1730,51 +1555,8 @@ fn bench_protocol_lifecycle(c: &mut Criterion) {
                 params: None,
             };
             black_box(server.handle_request(shutdown_request));
-        })
+        });
     });
-
-    // Collect metrics for full_lifecycle
-    let iterations = 100u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let config = McpServerConfig {
-            root_path: root_path.clone(),
-            ..Default::default()
-        };
-        let mut server = McpServer::new(config);
-
-        let init_request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(1)),
-            method: "initialize".to_string(),
-            params: Some(json!({
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": { "name": "test", "version": "1.0.0" }
-            })),
-        };
-        let _ = server.handle_request(init_request);
-
-        let list_request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(2)),
-            method: "tools/list".to_string(),
-            params: None,
-        };
-        let _ = server.handle_request(list_request);
-
-        let shutdown_request = hedl_mcp::JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: Some(json!(3)),
-            method: "shutdown".to_string(),
-            params: None,
-        };
-        let _ = server.handle_request(shutdown_request);
-
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("protocol_full_lifecycle", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1785,8 +1567,6 @@ fn bench_data_structures(c: &mut Criterion) {
     let temp_dir = TempDir::new().unwrap();
     let root_path = temp_dir.path();
 
-    let iterations = 100u64;
-
     // Flat tabular data (users)
     let users = generate_users(sizes::MEDIUM);
     group.bench_function("validate_flat_data", |b| {
@@ -1795,23 +1575,8 @@ fn bench_data_structures(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for validate_flat_data
-    let args = json!({ "hedl": users });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "data_struct_flat",
-        total_ns,
-        iterations,
-        Some(users.len() as u64),
-    );
 
     // Nested hierarchical data (blog)
     let blog = generate_blog(sizes::SMALL, 3);
@@ -1821,23 +1586,8 @@ fn bench_data_structures(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for validate_nested_data
-    let args = json!({ "hedl": blog });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "data_struct_nested",
-        total_ns,
-        iterations,
-        Some(blog.len() as u64),
-    );
 
     // Complex products data
     let products = generate_products(sizes::MEDIUM);
@@ -1847,23 +1597,8 @@ fn bench_data_structures(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for validate_complex_data
-    let args = json!({ "hedl": products });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_validate", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "data_struct_complex",
-        total_ns,
-        iterations,
-        Some(products.len() as u64),
-    );
 
     group.finish();
 }
@@ -1875,7 +1610,6 @@ fn bench_conversions(c: &mut Criterion) {
     let root_path = temp_dir.path();
 
     let hedl = generate_users(sizes::MEDIUM);
-    let iterations = 100u64;
 
     // HEDL to different formats
     for format in ["json", "yaml", "csv", "cypher"] {
@@ -1886,24 +1620,8 @@ fn bench_conversions(c: &mut Criterion) {
                     hedl_mcp::execute_tool("hedl_convert_to", Some(args.clone()), root_path)
                         .unwrap(),
                 )
-            })
+            });
         });
-
-        // Collect metrics for this conversion
-        let args = json!({ "hedl": hedl, "format": format });
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ =
-                hedl_mcp::execute_tool("hedl_convert_to", Some(args.clone()), root_path).unwrap();
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("convert_to_{}", format),
-            total_ns,
-            iterations,
-            Some(hedl.len() as u64),
-        );
     }
 
     // Different formats to HEDL
@@ -1914,23 +1632,8 @@ fn bench_conversions(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_convert_from", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for from_json
-    let args = json!({ "content": json_data, "format": "json" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_convert_from", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "convert_from_json",
-        total_ns,
-        iterations,
-        Some(json_data.len() as u64),
-    );
 
     let yaml_data = "name: Alice\nemail: alice@example.com\n";
     group.bench_function("from_yaml", |b| {
@@ -1939,23 +1642,8 @@ fn bench_conversions(c: &mut Criterion) {
             black_box(
                 hedl_mcp::execute_tool("hedl_convert_from", Some(args.clone()), root_path).unwrap(),
             )
-        })
+        });
     });
-
-    // Collect metrics for from_yaml
-    let args = json!({ "content": yaml_data, "format": "yaml" });
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = hedl_mcp::execute_tool("hedl_convert_from", Some(args.clone()), root_path).unwrap();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "convert_from_yaml",
-        total_ns,
-        iterations,
-        Some(yaml_data.len() as u64),
-    );
 
     group.finish();
 }

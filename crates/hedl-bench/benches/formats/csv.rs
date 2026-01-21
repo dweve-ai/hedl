@@ -26,10 +26,8 @@
 //! - Performance comparison vs `csv` crate
 //! - CSV escaping, quoting, and encoding overhead analysis
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hedl_bench::helpers::measure_throughput_ns;
 use hedl_bench::{
     count_tokens, generate_analytics, generate_orders, generate_products, generate_users, sizes,
     BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -38,13 +36,14 @@ use hedl_core::lex::parse_csv_row;
 use hedl_csv::to_csv;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -65,8 +64,8 @@ fn init_report() {
 fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes
-                .map(|bytes| formats::measure_throughput_ns(bytes as usize, total_ns));
+            let throughput_mbs =
+                throughput_bytes.map(|bytes| measure_throughput_ns(bytes as usize, total_ns));
 
             report.add_perf(PerfResult {
                 name: name.to_string(),
@@ -106,7 +105,7 @@ fn bench_hedl_to_csv(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("analytics", size), &doc, |b, doc| {
-            b.iter(|| to_csv(black_box(doc)))
+            b.iter(|| to_csv(black_box(doc)));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -114,7 +113,7 @@ fn bench_hedl_to_csv(c: &mut Criterion) {
             let _ = to_csv(&doc);
         });
         add_perf(
-            &format!("hedl_to_csv_{}", size),
+            &format!("hedl_to_csv_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -132,7 +131,7 @@ fn bench_hedl_to_csv_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &doc, |b, doc| {
-            b.iter(|| to_csv(black_box(doc)))
+            b.iter(|| to_csv(black_box(doc)));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -140,7 +139,7 @@ fn bench_hedl_to_csv_products(c: &mut Criterion) {
             let _ = to_csv(&doc);
         });
         add_perf(
-            &format!("hedl_to_csv_products_{}", size),
+            &format!("hedl_to_csv_products_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -170,7 +169,7 @@ fn bench_csv_row_parsing(c: &mut Criterion) {
                 for r in &rows {
                     let _ = parse_csv_row(black_box(r));
                 }
-            })
+            });
         });
 
         // Collect metrics
@@ -220,7 +219,7 @@ fn bench_csv_crate_comparison(c: &mut Criterion) {
             for row in &rows {
                 let _ = parse_csv_row(black_box(row));
             }
-        })
+        });
     });
 
     // csv crate parsing (for comparison)
@@ -233,7 +232,7 @@ fn bench_csv_crate_comparison(c: &mut Criterion) {
             for result in reader.records() {
                 let _ = black_box(result);
             }
-        })
+        });
     });
 
     group.finish();
@@ -295,7 +294,6 @@ struct ConversionResult {
     input_bytes: usize,
     output_bytes: usize,
     conversion_times_ns: Vec<u64>,
-    success: bool,
     input_tokens: usize,
     output_tokens: usize,
 }
@@ -337,12 +335,11 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "HEDL→CSV".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: hedl_text.len(),
                 output_bytes: csv_text.len(),
                 conversion_times_ns: times,
-                success: true,
                 input_tokens: count_tokens(&hedl_text),
                 output_tokens: count_tokens(&csv_text),
             });
@@ -410,7 +407,7 @@ fn create_hedl_to_csv_performance_table(
         let avg_time_ns = result.conversion_times_ns.iter().sum::<u64>()
             / result.conversion_times_ns.len().max(1) as u64;
         let avg_time_us = avg_time_ns as f64 / 1000.0;
-        let throughput = formats::measure_throughput_ns(result.input_bytes, avg_time_ns);
+        let throughput = measure_throughput_ns(result.input_bytes, avg_time_ns);
         let size_increase = ((result.output_bytes as f64 - result.input_bytes as f64)
             / result.input_bytes as f64)
             * 100.0;
@@ -586,7 +583,7 @@ fn create_csv_row_parsing_performance_table(
         let avg_fields = rows.iter().map(|r| r.field_count).sum::<usize>() / rows.len();
         let avg_time = rows.iter().map(|r| r.parse_time_ns).sum::<u64>() / rows.len() as u64;
         let rows_per_sec = 1_000_000_000.0 / avg_time as f64;
-        let throughput = formats::measure_throughput_ns(avg_size, avg_time);
+        let throughput = measure_throughput_ns(avg_size, avg_time);
 
         table.rows.push(vec![
             TableCell::String(row_type.to_string()),
@@ -979,14 +976,14 @@ fn create_large_dataset_performance_table(
                     .count()
                     .max(1) as u64;
             let avg_time_ms = avg_time_ns as f64 / 1_000_000.0;
-            let throughput = formats::measure_throughput_ns(avg_hedl_size, avg_time_ns);
+            let throughput = measure_throughput_ns(avg_hedl_size, avg_time_ns);
 
             table.rows.push(vec![
                 TableCell::String(match size {
                     sizes::SMALL => "Small".to_string(),
                     sizes::MEDIUM => "Medium".to_string(),
                     sizes::LARGE => "Large".to_string(),
-                    _ => format!("{}", size),
+                    _ => format!("{size}"),
                 }),
                 TableCell::Integer(size as i64),
                 TableCell::Float(avg_hedl_size as f64 / 1024.0),
@@ -1001,7 +998,7 @@ fn create_large_dataset_performance_table(
 }
 
 fn create_compression_compatibility_table(
-    results: &[ConversionResult],
+    _results: &[ConversionResult],
     report: &mut BenchmarkReport,
 ) {
     use flate2::write::GzEncoder;
@@ -1055,7 +1052,7 @@ fn create_compression_compatibility_table(
                     };
 
                     table.rows.push(vec![
-                        TableCell::String(format!("{}_{}", dataset_name, size)),
+                        TableCell::String(format!("{dataset_name}_{size}")),
                         TableCell::Integer(hedl_text.len() as i64),
                         TableCell::Integer(csv_text.len() as i64),
                         TableCell::Integer(hedl_gzip.len() as i64),
@@ -1223,10 +1220,10 @@ fn create_field_escaping_overhead_table(
         .collect();
     let escaped_rows: Vec<_> = row_results.iter().filter(|r| r.has_escapes).collect();
 
-    let simple_avg_time = if !simple_rows.is_empty() {
-        simple_rows.iter().map(|r| r.parse_time_ns).sum::<u64>() / simple_rows.len() as u64
-    } else {
+    let simple_avg_time = if simple_rows.is_empty() {
         0
+    } else {
+        simple_rows.iter().map(|r| r.parse_time_ns).sum::<u64>() / simple_rows.len() as u64
     };
 
     for (category, rows, has_esc_pct, has_quote_pct) in [
@@ -1619,7 +1616,7 @@ fn create_csv_size_breakdown_table(results: &[ConversionResult], report: &mut Be
             };
 
             table.rows.push(vec![
-                TableCell::String(format!("{} ({} rows)", size_cat, size)),
+                TableCell::String(format!("{size_cat} ({size} rows)")),
                 TableCell::Integer(avg_input as i64),
                 TableCell::Integer(avg_output as i64),
                 TableCell::Float(ratio),
@@ -1657,8 +1654,7 @@ fn generate_insights(
         title: "HEDL Ditto Markers Reduce File Size vs CSV Repetition".to_string(),
         description: format!(
             "HEDL's ditto markers (^) eliminate field repetition, making files smaller than CSV. \
-            On average, CSV exports are {:.1}% larger than HEDL source due to repeated values.",
-            avg_size_increase
+            On average, CSV exports are {avg_size_increase:.1}% larger than HEDL source due to repeated values."
         ),
         data_points: vec![
             format!("Average CSV size increase: +{:.1}%", avg_size_increase),
@@ -1824,8 +1820,7 @@ fn generate_insights(
         title: "HEDL Maintains Token Efficiency Advantage Over CSV".to_string(),
         description: format!(
             "HEDL's ditto markers and schema reduce token count for LLM processing. \
-            CSV exports have {:.1}% more tokens on average due to field repetition and lack of schema.",
-            avg_token_overhead
+            CSV exports have {avg_token_overhead:.1}% more tokens on average due to field repetition and lack of schema."
         ),
         data_points: vec![
             format!("Average CSV token overhead: +{:.1}%", avg_token_overhead),
@@ -1886,9 +1881,8 @@ fn generate_insights(
         category: "weakness".to_string(),
         title: "Field Quoting and Escaping Adds Parsing Overhead".to_string(),
         description: format!(
-            "CSV fields with quotes or special characters require escaping, adding {:.1}% parsing overhead \
-            compared to simple unquoted fields. This impacts performance for data with many strings.",
-            quoted_overhead
+            "CSV fields with quotes or special characters require escaping, adding {quoted_overhead:.1}% parsing overhead \
+            compared to simple unquoted fields. This impacts performance for data with many strings."
         ),
         data_points: vec![
             format!("Quoted fields add ~{:.1}% parse time overhead", quoted_overhead),
@@ -1965,9 +1959,8 @@ fn generate_insights(
             category: "finding".to_string(),
             title: "CSV Output Size Analysis".to_string(),
             description: format!(
-                "HEDL → CSV conversion produces output that is {:.2}x the input size on average. \
-                CSV's lack of type information results in larger output for numeric-heavy datasets.",
-                size_ratio
+                "HEDL → CSV conversion produces output that is {size_ratio:.2}x the input size on average. \
+                CSV's lack of type information results in larger output for numeric-heavy datasets."
             ),
             data_points: vec![
                 format!("Average input size: {:.1} KB", avg_input as f64 / 1024.0),
@@ -2029,7 +2022,7 @@ fn bench_export(c: &mut Criterion) {
 
             let config = ExportConfig::all();
             if let Err(e) = report.save_all("target/csv_report", &config) {
-                eprintln!("Warning: Failed to export: {}", e);
+                eprintln!("Warning: Failed to export: {e}");
             } else {
                 println!("\nExported to target/csv_report.*");
             }

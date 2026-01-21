@@ -1,78 +1,237 @@
-[workspace]
-resolver = "2"
-members = [
-    "crates/hedl",
-    "crates/hedl-core",
-    "crates/hedl-c14n",
-    "crates/hedl-json",
-    "crates/hedl-yaml",
-    "crates/hedl-xml",
-    "crates/hedl-csv",
-    "crates/hedl-toon",
-    "crates/hedl-parquet",
-    "crates/hedl-neo4j",
-    "crates/hedl-lint",
-    "crates/hedl-cli",
-    "crates/hedl-ffi",
-    "crates/hedl-test",
-    # AI/DX Enhancement Crates
-    "crates/hedl-mcp",     # MCP Server for AI/LLM integration
-    "crates/hedl-lsp",     # Language Server Protocol for IDEs
-    "crates/hedl-wasm",    # WebAssembly bindings for browser
-    "crates/hedl-stream",  # Streaming parser for large files
-    # Benchmarks & Testing
-    "crates/hedl-bench",   # Performance benchmarks and token efficiency
-]
+# =============================================================================
+# HEDL - Hierarchical Entity Data Language - Cargo.toml
+# Open Source (Apache 2.0) Workspace Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
 
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+# =============================================================================
+# Workspace Package Defaults
+# =============================================================================
 [workspace.package]
-version = "1.0.0"
+version = "1.2.0"
 edition = "2021"
-license = "Apache-2.0"
-authors = ["Dweve B.V. <opensource@dweve.com>"]
-repository = "https://github.com/dweve-ai/hedl"
-homepage = "https://dweve.com"
 rust-version = "1.70"
 
+authors = [
+    "marcflp <marc@dweve.com>"
+]
+
+homepage = "https://dweve.com"
+repository = "https://github.com/dweve/hedl"
+license = "Apache-2.0"
+
+keywords = ["hedl", "data-format", "serialization", "parser", "token-efficient"]
+categories = ["encoding", "parser-implementations", "data-structures"]
+
+[workspace.metadata.dweve]
+company = "Dweve B.V."
+ip_holder = "Dweve IP B.V."
+
+# =============================================================================
+# Workspace Dependencies (single source of truth)
+# =============================================================================
 [workspace.dependencies]
 # Internal crates
-hedl = { version = "1.0.0", path = "crates/hedl" }
-hedl-core = { version = "1.0.0", path = "crates/hedl-core" }
-hedl-c14n = { version = "1.0.0", path = "crates/hedl-c14n" }
-hedl-json = { version = "1.0.0", path = "crates/hedl-json" }
-hedl-yaml = { version = "1.0.0", path = "crates/hedl-yaml" }
-hedl-xml = { version = "1.0.0", path = "crates/hedl-xml" }
-hedl-csv = { version = "1.0.0", path = "crates/hedl-csv" }
-hedl-toon = { version = "1.1.0", path = "crates/hedl-toon" }
-hedl-parquet = { version = "1.0.0", path = "crates/hedl-parquet" }
-hedl-neo4j = { version = "1.0.0", path = "crates/hedl-neo4j" }
-hedl-lint = { version = "1.0.0", path = "crates/hedl-lint" }
-hedl-test = { version = "1.0.0", path = "crates/hedl-test" }
-hedl-ffi = { version = "1.0.0", path = "crates/hedl-ffi" }
-# AI/DX Enhancement crates
-hedl-mcp = { version = "1.0.0", path = "crates/hedl-mcp" }
-hedl-lsp = { version = "1.0.0", path = "crates/hedl-lsp" }
-hedl-wasm = { version = "1.0.0", path = "crates/hedl-wasm" }
-hedl-stream = { version = "1.0.0", path = "crates/hedl-stream" }
-# Benchmarks & Testing
-hedl-bench = { version = "1.0.0", path = "crates/hedl-bench" }
+hedl = { version = "1.2.0", path = "crates/hedl" }
+hedl-bench = { version = "1.2.0", path = "crates/hedl-bench" }
+hedl-c14n = { version = "1.2.0", path = "crates/hedl-c14n" }
+hedl-cli = { version = "1.2.0", path = "crates/hedl-cli" }
+hedl-core = { version = "1.2.0", path = "crates/hedl-core" }
+hedl-csv = { version = "1.2.0", path = "crates/hedl-csv" }
+hedl-ffi = { version = "1.2.0", path = "crates/hedl-ffi" }
+hedl-json = { version = "1.2.0", path = "crates/hedl-json" }
+hedl-lint = { version = "1.2.0", path = "crates/hedl-lint" }
+hedl-lsp = { version = "1.2.0", path = "crates/hedl-lsp" }
+hedl-mcp = { version = "1.2.0", path = "crates/hedl-mcp" }
+hedl-neo4j = { version = "1.2.0", path = "crates/hedl-neo4j" }
+hedl-parquet = { version = "1.2.0", path = "crates/hedl-parquet" }
+hedl-stream = { version = "1.2.0", path = "crates/hedl-stream" }
+hedl-test = { version = "1.2.0", path = "crates/hedl-test" }
+hedl-toon = { version = "1.2.0", path = "crates/hedl-toon" }
+hedl-wasm = { version = "1.2.0", path = "crates/hedl-wasm" }
+hedl-xml = { version = "1.2.0", path = "crates/hedl-xml" }
+hedl-yaml = { version = "1.2.0", path = "crates/hedl-yaml" }
 
-# External dependencies
-thiserror = "1.0"
+# Core utilities
+thiserror = "2.0"
+anyhow = "1.0"
+smallvec = "1.13"
+once_cell = "1.19"
+parking_lot = "0.12"
+dashmap = "6.1"
+bytes = "1.11"
+memchr = "2.7"
+bumpalo = "3.16"
+itoa = "1.0"
+ryu = "1.0"
+similar = "2.3"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+regex = "1.10"
+glob = "0.3"
+walkdir = "2.4"
+num_cpus = "1.16"
+unicode-normalization = "0.1"
+hex = "0.4"
+base64 = "0.22"
+ctor = "0.6"
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-quick-xml = { version = "0.31", features = ["serialize"] }
+serde_json_path = "0.7"
+serde_jsonrc = "0.1"
+toml = "0.9"
+
+# Format-specific
+quick-xml = { version = "0.39", features = ["serialize"] }
 csv = "1.3"
 parquet = "57.0"
 arrow = "57.0"
-clap = { version = "4.4", features = ["derive"] }
-criterion = { version = "0.5", features = ["html_reports"] }
+roxmltree = "0.21"
+string_cache = "0.9"
+jsonschema = "0.40"
 
-# Performance optimization profiles
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+clap_complete = "4.4"
+colored = "3.1"
+indicatif = "0.18"
+
+# Async runtime
+tokio = { version = "1.43", features = ["full"] }
+tokio-util = "0.7"
+futures = "0.3"
+futures-core = "0.3"
+async-trait = "0.1"
+async-compression = { version = "0.4", features = ["tokio", "gzip", "zstd"] }
+
+# Compression
+flate2 = "1.0"
+zstd = "0.13"
+lz4_flex = "0.12"
+
+# Cryptography and security
+ring = "0.17"
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+secrecy = "0.10"
+zeroize = "1.7"
+jsonwebtoken = { version = "10.2", features = ["rust_crypto"] }
+oauth2 = "5.0"
+
+# HTTP and networking
+reqwest = { version = "0.13", features = ["json", "form"] }
+ureq = { version = "3.1", features = ["json"] }
+
+# Database
+neo4rs = "0.9.0-rc"
+rusqlite = "0.38"
+duckdb = "1.1"
+polars = { version = "0.52", features = ["lazy", "sql"] }
+
+# Tracing and logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# LSP and editor support
+tower-lsp = "0.20"
+ropey = "1.6"
+
+# WASM
+wasm-bindgen = "0.2"
+wasm-bindgen-test = "0.3"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console"] }
+serde-wasm-bindgen = "0.6"
+console_error_panic_hook = "0.1"
+wasmtime = "41"
+
+# FFI
+cbindgen = "0.29"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Testing
+criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
+proptest = "1.5"
+tempfile = "3.14"
+assert_cmd = "2.0"
+predicates = "3.0"
+serial_test = "3.2"
+mockall = "0.14"
+loom = "0.7"
+
+# Benchmarking utilities
+rand = "0.9.2"
+fake = { version = "4.4", features = ["derive"] }
+tiktoken-rs = "0.9"
+dhat = "0.3"
+
+# Parallel processing
+rayon = "1.10"
+
+# =============================================================================
+# Workspace Lints
+# =============================================================================
+[workspace.lints.rust]
+warnings = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
+unused_must_use = "allow"
+
+[workspace.lints.clippy]
+all = "warn"
+
+# =============================================================================
+# Profiles
+# =============================================================================
+[profile.dev]
+opt-level = 0
+debug = 2
+incremental = true
+
+[profile.test]
+inherits = "dev"
+
+[profile.dev-fast]
+inherits = "dev"
+
+[profile.dev-fast.package."*"]
+opt-level = 2
+debug = 0
+
+[profile.ci]
+inherits = "dev-fast"
+incremental = false
+opt-level = 1
+debug = 0
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
-opt-level = 3
+strip = "debuginfo"
 
-[profile.bench]
+[profile.dist]
 inherits = "release"
+lto = "fat"
+panic = "abort"
+debug = "line-tables-only"
+strip = "symbols"
+
+[profile.release-wasm]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+panic = "abort"
+overflow-checks = false
+
+[profile.release-wasm.package.hedl-core]
+opt-level = 3

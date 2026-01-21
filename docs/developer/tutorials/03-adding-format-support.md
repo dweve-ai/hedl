@@ -1,10 +1,10 @@
 # Tutorial 3: Adding Format Support
 
-Learn how to add a new format converter to HEDL by implementing TOML support.
+Learn how to add a new format converter to HEDL by implementing CSV support.
 
 ## Overview
 
-In this tutorial, you'll create a complete format converter crate (`hedl-toml`) that converts between HEDL and TOML formats. This teaches you:
+In this tutorial, you'll create a complete format converter crate (`hedl-csv`) that converts between HEDL and CSV formats. This teaches you:
 
 - How to structure a converter crate
 - Bidirectional format conversion patterns
@@ -20,28 +20,28 @@ In this tutorial, you'll create a complete format converter crate (`hedl-toml`) 
 - Understanding of TOML format basics
 - Familiarity with `serde` (Rust serialization library)
 
-## The Feature: TOML Converter
+## The Feature: CSV Converter
 
-We'll create `hedl-toml` with:
-- `to_toml(&doc)` - Convert HEDL to TOML
-- `from_toml(text)` - Convert TOML to HEDL
+We'll create `hedl-csv` with:
+- `to_csv(&doc)` - Convert HEDL to CSV
+- `from_csv(text)` - Convert CSV to HEDL
 - Configuration options for conversion behavior
 - Full test coverage
 
 ### Example Usage
 
 ```rust
-use hedl_toml::{to_toml, from_toml};
+use hedl_csv::{to_csv, from_csv};
 use hedl_core::parse;
 
-let hedl = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  port: 8080")?;
-let toml = to_toml(&hedl)?;
-// [server]
-// host = "localhost"
-// port = 8080
+let hedl = parse(b"%VERSION: 1.0\n---\nusers:\n  alice:\n    email: alice@example.com\n  bob:\n    email: bob@example.com")?;
+let csv = to_csv(&hedl)?;
+// name,email
+// alice,alice@example.com
+// bob,bob@example.com
 
-let back = from_toml(&toml)?;
-assert_eq!(hedl, back); // Round-trip works!
+let back = from_csv(&csv)?;
+// Converts back to HEDL structure
 ```
 
 ## Step 1: Study Existing Converters
@@ -75,36 +75,53 @@ crates/hedl-json/
 ```bash
 cat crates/hedl-json/src/lib.rs
 cat crates/hedl-json/src/to_json.rs
+cat crates/hedl-json/src/from_json.rs
 ```
 
 Note the patterns:
-1. Configuration via builder pattern
-2. Error handling with custom error types
-3. Recursive traversal of document tree
-4. Schema inference for arrays
+1. Error handling with custom error types (`JsonConversionError`)
+2. Configuration via builder pattern (`ToJsonConfig`, `FromJsonConfig`)
+3. Recursive traversal of document tree using visitor pattern
+4. Support for schema inference and array handling
 
 ## Step 2: Create the Crate
 
+Let's examine the existing CSV crate first:
+
+```bash
+# Check if hedl-csv already exists
+ls -la crates/hedl-csv/
+
+# If it exists, examine its structure
+cat crates/hedl-csv/Cargo.toml
+cat crates/hedl-csv/src/lib.rs
+```
+
+Note: The `hedl-csv` crate already exists in the workspace. For this tutorial, we'll demonstrate extending it with new features or creating a similar converter for another format (like MessagePack).
+
+### Alternative: Create Your Own Format Crate
+
+If you want to practice creating from scratch, follow this pattern:
+
 ```bash
 # Create directory
-mkdir -p crates/hedl-toml/src
+mkdir -p crates/hedl-msgpack/src
 
 # Create Cargo.toml
-cat > crates/hedl-toml/Cargo.toml << 'EOF'
+cat > crates/hedl-msgpack/Cargo.toml << 'EOF'
 [package]
-name = "hedl-toml"
+name = "hedl-msgpack"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "TOML conversion for HEDL format"
+description = "MessagePack conversion for HEDL format"
 
 [dependencies]
 hedl-core.workspace = true
 thiserror.workspace = true
-toml = "0.8"
-serde_json = "1.0"
+rmp-serde = "1.1"
 
 [dev-dependencies]
 hedl-c14n.workspace = true
@@ -117,40 +134,32 @@ EOF
 
 ### Add to Workspace
 
-Edit `/home/marc/dev/projects/hedl/Cargo.toml`:
-
-```toml
-[workspace]
-members = [
-    # ... existing members ...
-    "crates/hedl-toml",  # Add this line
-]
-```
+Edit `Cargo.toml` and verify the new crate is listed in `members` array.
 
 ## Step 3: Define Error Types
 
-Create `crates/hedl-toml/src/error.rs`:
+Create `crates/hedl-msgpack/src/error.rs`:
 
 ```rust
 use std::fmt;
 
-/// Errors that can occur during TOML conversion
+/// Errors that can occur during MessagePack conversion
 #[derive(Debug, thiserror::Error)]
-pub enum TomlError {
-    /// Error parsing TOML text
-    #[error("TOML parse error: {0}")]
+pub enum MsgPackError {
+    /// Error parsing MessagePack data
+    #[error("MessagePack parse error: {0}")]
     Parse(String),
 
-    /// Error serializing to TOML
-    #[error("TOML serialization error: {0}")]
+    /// Error serializing to MessagePack
+    #[error("MessagePack serialization error: {0}")]
     Serialize(String),
 
     /// HEDL parsing error
     #[error("HEDL error: {0}")]
     Hedl(#[from] hedl_core::HedlError),
 
-    /// Unsupported TOML feature
-    #[error("Unsupported TOML feature: {message}")]
+    /// Unsupported MessagePack feature
+    #[error("Unsupported MessagePack feature: {message}")]
     Unsupported { message: String },
 
     /// Type conversion error
@@ -158,104 +167,90 @@ pub enum TomlError {
     TypeMismatch { expected: String, actual: String },
 }
 
-pub type Result<T> = std::result::Result<T, TomlError>;
+pub type Result<T> = std::result::Result<T, MsgPackError>;
 ```
 
-## Step 4: Implement HEDL → TOML
+## Step 4: Implement HEDL → JSON (Reference Implementation)
 
-Create `crates/hedl-toml/src/to_toml.rs`:
+For this tutorial, we'll examine the actual JSON converter to understand the pattern. Create your own by following this structure:
+
+Create `crates/hedl-msgpack/src/to_msgpack.rs`:
 
 ```rust
-use hedl_core::{Document, Node, Value, Item};
-use toml::Table;
-use crate::error::{Result, TomlError};
+use hedl_core::{Document, Value, Item};
+use crate::error::{Result, MsgPackError};
 
-/// Convert HEDL document to TOML string
+/// Convert HEDL document to MessagePack bytes
 ///
 /// # Example
 ///
 /// ```
 /// use hedl_core::parse;
-/// use hedl_toml::to_toml;
+/// use hedl_msgpack::to_msgpack;
 ///
-/// let doc = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  port: 8080").unwrap();
-/// let toml = to_toml(&doc).unwrap();
-/// assert!(toml.contains("[server]"));
+/// let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+/// let bytes = to_msgpack(&doc).unwrap();
+/// assert!(!bytes.is_empty());
 /// ```
-pub fn to_toml(doc: &Document) -> Result<String> {
-    let table = node_to_table(&doc.root)?;
-    toml::to_string_pretty(&table)
-        .map_err(|e| TomlError::Serialize(e.to_string()))
-}
+pub fn to_msgpack(doc: &Document) -> Result<Vec<u8>> {
+    // Convert document root to value
+    let mut map = std::collections::BTreeMap::new();
 
-/// Convert HEDL document root to a TOML table
-fn doc_to_table(doc: &Document) -> Result<Table> {
-    let mut table = Table::new();
-
-    // Convert root items
     for (key, item) in &doc.root {
-        table.insert(key.clone(), item_to_toml(item)?);
+        map.insert(key.clone(), item_to_value(item)?);
     }
 
-    Ok(table)
+    // Serialize to MessagePack
+    rmp_serde::to_vec(&map)
+        .map_err(|e| MsgPackError::Serialize(e.to_string()))
 }
 
-/// Convert HEDL Item to TOML value
-fn item_to_toml(item: &Item) -> Result<toml::Value> {
+/// Convert HEDL Item to a serializable value
+fn item_to_value(item: &Item) -> Result<serde_json::Value> {
     Ok(match item {
-        Item::Scalar(value) => value_to_toml(value)?,
+        Item::Scalar(value) => value_to_json(value)?,
         Item::Object(map) => {
-            let mut table = Table::new();
+            let mut obj = serde_json::Map::new();
             for (k, v) in map {
-                table.insert(k.clone(), item_to_toml(v)?);
+                obj.insert(k.clone(), item_to_value(v)?);
             }
-            toml::Value::Table(table)
+            serde_json::Value::Object(obj)
         }
         Item::List(matrix) => {
-            // Matrix lists convert to arrays of tables
-            let arr: Vec<toml::Value> = matrix.rows.iter()
+            // Convert matrix list to array of objects
+            let arr: Vec<serde_json::Value> = matrix.rows.iter()
                 .map(|node| {
-                    let mut table = Table::new();
-                    table.insert("id".to_string(), toml::Value::String(node.id.clone()));
+                    let mut obj = serde_json::Map::new();
+                    obj.insert("id".to_string(), serde_json::Value::String(node.id.clone()));
                     for (i, value) in node.fields.iter().enumerate() {
                         let key = matrix.schema.get(i).map(|s| s.as_str()).unwrap_or("field");
-                        table.insert(key.to_string(), value_to_toml(value)?);
+                        obj.insert(key.to_string(), value_to_json(value)?);
                     }
-                    Ok(toml::Value::Table(table))
+                    Ok(serde_json::Value::Object(obj))
                 })
                 .collect::<Result<_>>()?;
-            toml::Value::Array(arr)
+            serde_json::Value::Array(arr)
         }
     })
 }
 
-/// Convert HEDL value to TOML value
-fn value_to_toml(value: &Value) -> Result<toml::Value> {
+/// Convert HEDL value to JSON value
+fn value_to_json(value: &Value) -> Result<serde_json::Value> {
     Ok(match value {
-        Value::String(s) => toml::Value::String(s.clone()),
-        Value::Int(i) => toml::Value::Integer(*i),
-        Value::Float(f) => toml::Value::Float(*f),
-        Value::Bool(b) => toml::Value::Boolean(*b),
-        Value::Null => {
-            // TOML doesn't have null, use empty string
-            toml::Value::String(String::new())
-        }
-        Value::Reference(r) => {
-            // Convert reference to string ID
-            toml::Value::String(r.id.clone())
-        }
-        Value::Tensor(t) => {
-            // Convert tensor to array
-            let values: Vec<toml::Value> = t
-                .values
-                .iter()
-                .map(|v| value_to_toml(v))
-                .collect::<Result<_>>()?;
-            toml::Value::Array(values)
+        Value::String(s) => serde_json::Value::String(s.to_string()),
+        Value::Int(i) => serde_json::json!(i),
+        Value::Float(f) => serde_json::json!(f),
+        Value::Bool(b) => serde_json::Value::Bool(*b),
+        Value::Null => serde_json::Value::Null,
+        Value::Reference(r) => serde_json::Value::String(r.id.to_string()),
+        Value::Tensor(_) => {
+            return Err(MsgPackError::Unsupported {
+                message: "Tensors require special handling".to_string(),
+            });
         }
         Value::Expression(_) => {
-            return Err(TomlError::Unsupported {
-                message: "Expressions not supported in TOML".to_string(),
+            return Err(MsgPackError::Unsupported {
+                message: "Expressions not supported in MessagePack".to_string(),
             });
         }
     })
@@ -269,58 +264,60 @@ mod tests {
     #[test]
     fn test_simple_conversion() {
         let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
-        let toml = to_toml(&doc).unwrap();
-        assert!(toml.contains("name = \"Alice\""));
-        assert!(toml.contains("age = 30"));
+        let bytes = to_msgpack(&doc).unwrap();
+        assert!(!bytes.is_empty());
     }
 
     #[test]
-    fn test_nested_tables() {
+    fn test_nested_objects() {
         let doc = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  port: 8080").unwrap();
-        let toml = to_toml(&doc).unwrap();
-        assert!(toml.contains("[server]"));
-        assert!(toml.contains("host = \"localhost\""));
+        let bytes = to_msgpack(&doc).unwrap();
+        assert!(!bytes.is_empty());
     }
 }
 ```
 
-## Step 5: Implement TOML → HEDL
+## Step 5: Implement MessagePack → HEDL
 
-Create `crates/hedl-toml/src/from_toml.rs`:
+Create `crates/hedl-msgpack/src/from_msgpack.rs`:
 
 ```rust
 use hedl_core::{Document, Value, Item};
-use toml::Table;
 use std::collections::BTreeMap;
-use crate::error::{Result, TomlError};
+use crate::error::{Result, MsgPackError};
 
-/// Convert TOML string to HEDL document
+/// Convert MessagePack bytes to HEDL document
 ///
 /// # Example
 ///
 /// ```
-/// use hedl_toml::from_toml;
+/// use hedl_msgpack::{to_msgpack, from_msgpack};
+/// use hedl_core::parse;
 ///
-/// let toml = "[server]\nhost = \"localhost\"\nport = 8080";
-/// let doc = from_toml(toml).unwrap();
-/// assert_eq!(doc.version, (1, 0));
+/// let doc = parse(b"%VERSION: 1.0\n---\nname: Alice").unwrap();
+/// let bytes = to_msgpack(&doc).unwrap();
+/// let back = from_msgpack(&bytes).unwrap();
+/// // back contains the same data as doc
 /// ```
-pub fn from_toml(toml_text: &str) -> Result<Document> {
-    let table: Table = toml::from_str(toml_text)
-        .map_err(|e| TomlError::Parse(e.to_string()))?;
+pub fn from_msgpack(data: &[u8]) -> Result<Document> {
+    let value: serde_json::Value = rmp_serde::from_slice(data)
+        .map_err(|e| MsgPackError::Parse(e.to_string()))?;
 
-    table_to_doc(table)
+    json_to_doc(value)
 }
 
-fn table_to_doc(table: Table) -> Result<Document> {
+fn json_to_doc(value: serde_json::Value) -> Result<Document> {
     let mut root = BTreeMap::new();
 
-    for (key, value) in table {
-        root.insert(key, toml_to_item(value)?);
+    if let Some(obj) = value.as_object() {
+        for (key, val) in obj {
+            root.insert(key.clone(), json_to_item(val.clone())?);
+        }
     }
 
     Ok(Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -328,39 +325,45 @@ fn table_to_doc(table: Table) -> Result<Document> {
     })
 }
 
-fn toml_to_item(value: toml::Value) -> Result<Item> {
+fn json_to_item(value: serde_json::Value) -> Result<Item> {
     Ok(match value {
-        toml::Value::Table(table) => {
-            let mut map = BTreeMap::new();
-            for (k, v) in table {
-                map.insert(k, toml_to_item(v)?);
+        serde_json::Value::Object(map) => {
+            let mut obj_map = BTreeMap::new();
+            for (k, v) in map {
+                obj_map.insert(k, json_to_item(v)?);
             }
-            Item::Object(map)
+            Item::Object(obj_map)
         }
-        _ => Item::Scalar(toml_to_value(value)?),
+        _ => Item::Scalar(json_to_value(value)?),
     })
 }
 
-fn toml_to_value(value: toml::Value) -> Result<Value> {
+fn json_to_value(value: serde_json::Value) -> Result<Value> {
     Ok(match value {
-        toml::Value::String(s) => Value::String(s),
-        toml::Value::Integer(i) => Value::Int(i),
-        toml::Value::Float(f) => Value::Float(f),
-        toml::Value::Boolean(b) => Value::Bool(b),
-        toml::Value::Array(arr) => {
-            // For now, convert arrays to string representation
-            // A more complete implementation would use Tensor type
-            let json_str = serde_json::to_string(&arr)
-                .map_err(|e| TomlError::Serialize(e.to_string()))?;
-            Value::String(json_str)
+        serde_json::Value::String(s) => Value::String(s.into_boxed_str()),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Value::Int(i)
+            } else if let Some(f) = n.as_f64() {
+                Value::Float(f)
+            } else {
+                return Err(MsgPackError::TypeMismatch {
+                    expected: "Int or Float".to_string(),
+                    actual: "Number".to_string(),
+                });
+            }
         }
-        toml::Value::Table(_) => {
-            return Err(TomlError::Unsupported {
-                message: "Nested tables should be handled separately".to_string(),
+        serde_json::Value::Bool(b) => Value::Bool(b),
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Array(_) => {
+            return Err(MsgPackError::Unsupported {
+                message: "Arrays require special handling".to_string(),
             });
         }
-        toml::Value::Datetime(dt) => {
-            Value::String(dt.to_string())
+        serde_json::Value::Object(_) => {
+            return Err(MsgPackError::Unsupported {
+                message: "Nested objects should be handled separately".to_string(),
+            });
         }
     })
 }
@@ -368,50 +371,50 @@ fn toml_to_value(value: toml::Value) -> Result<Value> {
 
 ## Step 6: Create Public API
 
-Create `crates/hedl-toml/src/lib.rs`:
+Create `crates/hedl-msgpack/src/lib.rs`:
 
 ```rust
-//! TOML conversion for HEDL documents
+//! MessagePack conversion for HEDL documents
 //!
-//! Provides bidirectional conversion between HEDL and TOML formats.
+//! Provides bidirectional conversion between HEDL and MessagePack formats.
 //!
 //! # Examples
 //!
 //! ```
 //! use hedl_core::parse;
-//! use hedl_toml::{to_toml, from_toml};
+//! use hedl_msgpack::{to_msgpack, from_msgpack};
 //!
-//! // HEDL to TOML
-//! let doc = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  port: 8080").unwrap();
-//! let toml = to_toml(&doc).unwrap();
+//! // HEDL to MessagePack
+//! let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+//! let bytes = to_msgpack(&doc).unwrap();
 //!
-//! // TOML to HEDL
-//! let back = from_toml(&toml).unwrap();
+//! // MessagePack to HEDL
+//! let back = from_msgpack(&bytes).unwrap();
 //! ```
 
 mod error;
-mod from_toml;
-mod to_toml;
+mod from_msgpack;
+mod to_msgpack;
 
-pub use error::{TomlError, Result};
-pub use from_toml::from_toml;
-pub use to_toml::to_toml;
+pub use error::{MsgPackError, Result};
+pub use from_msgpack::from_msgpack;
+pub use to_msgpack::to_msgpack;
 ```
 
 ## Step 7: Write Comprehensive Tests
 
-Create `crates/hedl-toml/tests/conversion_tests.rs`:
+Create `crates/hedl-msgpack/tests/conversion_tests.rs`:
 
 ```rust
 use hedl_core::parse;
-use hedl_toml::{to_toml, from_toml};
+use hedl_msgpack::{to_msgpack, from_msgpack};
 
 #[test]
 fn test_round_trip_simple() {
     let hedl = b"%VERSION: 1.0\n---\nname: Alice\nage: 30\nactive: true";
     let doc = parse(hedl).unwrap();
-    let toml = to_toml(&doc).unwrap();
-    let back = from_toml(&toml).unwrap();
+    let bytes = to_msgpack(&doc).unwrap();
+    let back = from_msgpack(&bytes).unwrap();
 
     // Verify structure preserved
     assert!(back.root.contains_key("name"));
@@ -423,55 +426,48 @@ fn test_round_trip_simple() {
 fn test_nested_structures() {
     let hedl = b"%VERSION: 1.0\n---\ndatabase:\n  host: localhost\n  port: 5432\n  credentials:\n    user: admin\n    password: secret\n";
     let doc = parse(hedl).unwrap();
-    let toml = to_toml(&doc).unwrap();
+    let bytes = to_msgpack(&doc).unwrap();
 
-    assert!(toml.contains("[database]"));
-    assert!(toml.contains("[database.credentials]"));
-}
-
-#[test]
-fn test_arrays() {
-    let hedl = b"%VERSION: 1.0\n---\nports: [8080, 8081, 8082]\n";
-    let doc = parse(hedl).unwrap();
-    let toml = to_toml(&doc).unwrap();
-
-    assert!(toml.contains("ports = [8080, 8081, 8082]"));
+    // Verify it doesn't panic during conversion
+    let back = from_msgpack(&bytes).unwrap();
+    assert!(back.root.contains_key("database"));
 }
 
 #[test]
 fn test_types() {
-    let hedl = b"%VERSION: 1.0\n---\nstring: hello\nint: 42\nfloat: 3.14\nbool: true\n";
+    let hedl = b"%VERSION: 1.0\n---\nstring: hello\nint: 42\nbool: true\n";
     let doc = parse(hedl).unwrap();
-    let toml = to_toml(&doc).unwrap();
+    let bytes = to_msgpack(&doc).unwrap();
 
-    let back = from_toml(&toml).unwrap();
+    let back = from_msgpack(&bytes).unwrap();
     // Verify types preserved
     use hedl_core::{Item, Value};
     assert!(matches!(back.root.get("int"), Some(Item::Scalar(Value::Int(42)))));
 }
 ```
 
-Create `crates/hedl-toml/tests/property_tests.rs`:
+Create `crates/hedl-msgpack/tests/property_tests.rs`:
 
 ```rust
-use hedl_toml::{to_toml, from_toml};
+use hedl_msgpack::{to_msgpack, from_msgpack};
 use proptest::prelude::*;
 
 proptest! {
     #[test]
-    fn test_round_trip_doesnt_panic(s in ".*") {
+    fn test_round_trip_doesnt_panic(s in r"[a-z0-9]*") {
         // Should never panic, even with invalid input
-        let _ = from_toml(&s);
+        let _ = from_msgpack(s.as_bytes());
     }
 
     #[test]
-    fn test_valid_toml_round_trips(
-        name in "[a-z]+",
+    fn test_valid_docs_can_roundtrip(
+        name in "[a-z]{1,20}",
         value in 1..100i64
     ) {
-        let toml = format!("{} = {}", name, value);
-        if let Ok(doc) = from_toml(&toml) {
-            let result = to_toml(&doc);
+        let hedl = format!("---\n{}: {}", name, value);
+        if let Ok(doc) = hedl_core::parse(hedl.as_bytes()) {
+            let bytes = to_msgpack(&doc).unwrap();
+            let result = from_msgpack(&bytes);
             assert!(result.is_ok());
         }
     }
@@ -480,14 +476,14 @@ proptest! {
 
 ## Step 8: Add Examples
 
-Create `crates/hedl-toml/examples/basic_usage.rs`:
+Create `crates/hedl-msgpack/examples/basic_usage.rs`:
 
 ```rust
 use hedl_core::parse;
-use hedl_toml::{to_toml, from_toml};
+use hedl_msgpack::{to_msgpack, from_msgpack};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== HEDL-TOML Conversion Example ===\n");
+    println!("=== HEDL-MessagePack Conversion Example ===\n");
 
     // Example configuration in HEDL
     let hedl = r#"%VERSION: 1.0
@@ -508,16 +504,15 @@ database:
     // Parse HEDL
     let doc = parse(hedl.as_bytes())?;
 
-    // Convert to TOML
-    let toml = to_toml(&doc)?;
-    println!("\nTOML Output:");
-    println!("{}", toml);
+    // Convert to MessagePack
+    let bytes = to_msgpack(&doc)?;
+    println!("\nMessagePack Output (hex): {:x?}", &bytes[..20.min(bytes.len())]);
 
     // Convert back to HEDL
-    let doc2 = from_toml(&toml)?;
-    let toml2 = to_toml(&doc2)?;
+    let doc2 = from_msgpack(&bytes)?;
+    let bytes2 = to_msgpack(&doc2)?;
 
-    println!("\nRound-trip successful: {}", toml == toml2);
+    println!("\nRound-trip successful: {}", bytes == bytes2);
 
     Ok(())
 }
@@ -525,36 +520,41 @@ database:
 
 Run it:
 ```bash
-cargo run --example basic_usage -p hedl-toml
+cargo run --example basic_usage -p hedl-msgpack
 ```
 
 ## Step 9: Add Benchmarks
 
-Create `crates/hedl-bench/benches/formats/toml.rs`:
+Create `crates/hedl-bench/benches/formats/msgpack.rs`:
 
 ```rust
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use hedl_core::parse;
-use hedl_toml::{to_toml, from_toml};
+use hedl_msgpack::{to_msgpack, from_msgpack};
 
-fn benchmark_to_toml(c: &mut Criterion) {
-    let mut group = c.benchmark_group("toml_conversion");
+fn benchmark_msgpack(c: &mut Criterion) {
+    let mut group = c.benchmark_group("msgpack_conversion");
 
     let small = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
     let medium = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  database:\n    url: postgres://localhost".as_bytes()).unwrap();
 
-    group.bench_with_input(BenchmarkId::new("to_toml", "small"), &small, |b, doc| {
-        b.iter(|| to_toml(black_box(doc)))
+    group.bench_with_input(BenchmarkId::new("to_msgpack", "small"), &small, |b, doc| {
+        b.iter(|| to_msgpack(black_box(doc)))
     });
 
-    group.bench_with_input(BenchmarkId::new("to_toml", "medium"), &medium, |b, doc| {
-        b.iter(|| to_toml(black_box(doc)))
+    group.bench_with_input(BenchmarkId::new("to_msgpack", "medium"), &medium, |b, doc| {
+        b.iter(|| to_msgpack(black_box(doc)))
+    });
+
+    group.bench_with_input(BenchmarkId::new("from_msgpack", "small"), &small, |b, doc| {
+        let bytes = to_msgpack(doc).unwrap();
+        b.iter(|| from_msgpack(black_box(&bytes)))
     });
 
     group.finish();
 }
 
-criterion_group!(benches, benchmark_to_toml);
+criterion_group!(benches, benchmark_msgpack);
 criterion_main!(benches);
 ```
 
@@ -562,49 +562,34 @@ criterion_main!(benches);
 
 ```bash
 # Build the new crate
-cargo build -p hedl-toml
+cargo build -p hedl-msgpack
 
 # Run all tests
-cargo test -p hedl-toml
+cargo test -p hedl-msgpack
 
 # Run with verbose output
-cargo test -p hedl-toml -- --nocapture
+cargo test -p hedl-msgpack -- --nocapture
 
 # Check for warnings
-cargo clippy -p hedl-toml -- -D warnings
+cargo clippy -p hedl-msgpack -- -D warnings
 
 # Format code
-cargo fmt -p hedl-toml
+cargo fmt -p hedl-msgpack
 
 # Build documentation
-cargo doc -p hedl-toml --open
+cargo doc -p hedl-msgpack --open
 ```
 
 ## Step 11: Integrate with Main Crate
 
-Edit `crates/hedl/Cargo.toml`:
+Edit `Cargo.toml` if hedl-msgpack is not already in members:
 
 ```toml
-[dependencies]
-# ... existing dependencies ...
-hedl-toml = { workspace = true, optional = true }
-
-[features]
-default = []
-toml = ["hedl-toml"]
-all = ["json", "yaml", "xml", "csv", "toml"]  # Add toml
-```
-
-Edit `crates/hedl/src/lib.rs`:
-
-```rust
-#[cfg(feature = "toml")]
-pub use hedl_toml as toml;
-```
-
-Now users can:
-```rust
-use hedl::toml::{to_toml, from_toml};
+[workspace]
+members = [
+    # ... existing members ...
+    "crates/hedl-msgpack",  # Verify it's included
+]
 ```
 
 ## Step 12: Update Documentation
@@ -612,48 +597,45 @@ use hedl::toml::{to_toml, from_toml};
 Add to `docs/developer/module-guide.md`:
 
 ```markdown
-### hedl-toml
+### hedl-msgpack
 
-**Path**: `crates/hedl-toml/`
-**Purpose**: TOML ↔ HEDL conversion
-**Dependencies**: hedl-core, toml
+**Path**: `crates/hedl-msgpack/`
+**Purpose**: MessagePack ↔ HEDL conversion
+**Dependencies**: hedl-core, rmp-serde
 
 #### Features
 
-- Bidirectional TOML conversion
-- Nested table support
-- Array handling
-- Type preservation
-- TOML datetime support
+- Bidirectional MessagePack conversion
+- Efficient binary format
+- Full type preservation
+- Fast serialization/deserialization
 
 #### Example
 
 \`\`\`rust
-use hedl_toml::{to_toml, from_toml};
+use hedl_msgpack::{to_msgpack, from_msgpack};
 
 let doc = parse("server:\n  host: localhost")?;
-let toml = to_toml(&doc)?;
+let bytes = to_msgpack(&doc)?;
 \`\`\`
 ```
 
 ## Step 13: Commit and Push
 
 ```bash
-git add crates/hedl-toml
-git add crates/hedl/Cargo.toml
-git add crates/hedl/src/lib.rs
+git add crates/hedl-msgpack
 git add docs/developer/module-guide.md
 
-git commit -m "feat(toml): Add TOML format converter
+git commit -m "feat(msgpack): Add MessagePack format converter
 
-- Create hedl-toml crate for TOML conversion
-- Implement bidirectional conversion (to_toml, from_toml)
-- Handle nested tables and arrays
+- Create hedl-msgpack crate for MessagePack conversion
+- Implement bidirectional conversion (to_msgpack, from_msgpack)
+- Handle nested structures and type preservation
 - Add comprehensive unit and property tests
 - Add example and benchmarks
-- Integrate with main hedl crate via feature flag"
+- Update module documentation"
 
-git push origin add-toml-support
+git push origin add-msgpack-support
 ```
 
 ## Best Practices Learned

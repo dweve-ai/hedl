@@ -87,8 +87,8 @@ pub fn to_xml(doc: &Document, config: &ToXmlConfig) -> Result<String, String> {
         .write_event(Event::Start(root))
         .map_err(|e| format!("Failed to write root element: {}", e))?;
 
-    // Write document content
-    write_root(&mut writer, &doc.root, config)?;
+    // Write document content - pass structs for schema lookup
+    write_root(&mut writer, &doc.root, config, &doc.structs)?;
 
     // Close root element
     writer
@@ -103,9 +103,10 @@ fn write_root<W: std::io::Write>(
     writer: &mut Writer<W>,
     root: &BTreeMap<String, Item>,
     config: &ToXmlConfig,
+    structs: &BTreeMap<String, Vec<String>>,
 ) -> Result<(), String> {
     for (key, item) in root {
-        write_item(writer, key, item, config)?;
+        write_item(writer, key, item, config, structs)?;
     }
     Ok(())
 }
@@ -115,11 +116,12 @@ fn write_item<W: std::io::Write>(
     key: &str,
     item: &Item,
     config: &ToXmlConfig,
+    structs: &BTreeMap<String, Vec<String>>,
 ) -> Result<(), String> {
     match item {
         Item::Scalar(value) => write_scalar_element(writer, key, value, config)?,
-        Item::Object(obj) => write_object(writer, key, obj, config)?,
-        Item::List(list) => write_matrix_list(writer, key, list, config)?,
+        Item::Object(obj) => write_object(writer, key, obj, config, structs)?,
+        Item::List(list) => write_matrix_list(writer, key, list, config, structs)?,
     }
     Ok(())
 }
@@ -183,6 +185,7 @@ fn write_object<W: std::io::Write>(
     key: &str,
     obj: &BTreeMap<String, Item>,
     config: &ToXmlConfig,
+    structs: &BTreeMap<String, Vec<String>>,
 ) -> Result<(), String> {
     let elem = BytesStart::new(key);
     writer
@@ -190,7 +193,7 @@ fn write_object<W: std::io::Write>(
         .map_err(|e| format!("Failed to write object start: {}", e))?;
 
     for (child_key, child_item) in obj {
-        write_item(writer, child_key, child_item, config)?;
+        write_item(writer, child_key, child_item, config, structs)?;
     }
 
     writer
@@ -205,6 +208,7 @@ fn write_matrix_list<W: std::io::Write>(
     key: &str,
     list: &MatrixList,
     config: &ToXmlConfig,
+    structs: &BTreeMap<String, Vec<String>>,
 ) -> Result<(), String> {
     let mut list_elem = BytesStart::new(key);
     if config.include_metadata {
@@ -218,7 +222,7 @@ fn write_matrix_list<W: std::io::Write>(
     // Write each row as an item element
     let item_name = list.type_name.to_lowercase();
     for row in &list.rows {
-        write_node(writer, &item_name, row, &list.schema, config)?;
+        write_node(writer, &item_name, row, &list.schema, config, structs)?;
     }
 
     writer
@@ -234,6 +238,7 @@ fn write_node<W: std::io::Write>(
     node: &Node,
     schema: &[String],
     config: &ToXmlConfig,
+    structs: &BTreeMap<String, Vec<String>>,
 ) -> Result<(), String> {
     let mut elem = BytesStart::new(elem_name);
 
@@ -252,28 +257,45 @@ fn write_node<W: std::io::Write>(
 
     // Check if we need element content (complex values or children)
     let has_complex_values = node.fields.iter().any(|v| !is_simple_value(v));
-    let has_children = !node.children.is_empty();
+    let has_children = node.children().map(|c| !c.is_empty()).unwrap_or(false);
 
     if !config.use_attributes || has_complex_values || has_children {
         writer
             .write_event(Event::Start(elem))
             .map_err(|e| format!("Failed to write node start: {}", e))?;
 
-        // Write fields as elements if not using attributes or if complex
-        if !config.use_attributes || has_complex_values {
+        // ISSUE 5 FIX: Write fields as elements
+        // If using attributes mode and have complex fields, write only complex fields as elements
+        // Simple fields are already in attributes, so don't duplicate them
+        if !config.use_attributes {
+            // Not using attributes: write all fields as elements
             for (i, field) in node.fields.iter().enumerate() {
                 if i < schema.len() {
                     write_scalar_element(writer, &schema[i], field, config)?;
                 }
             }
+        } else if has_complex_values {
+            // Using attributes but have complex values: write only complex fields as elements
+            for (i, field) in node.fields.iter().enumerate() {
+                if i < schema.len() && !is_simple_value(field) {
+                    write_scalar_element(writer, &schema[i], field, config)?;
+                }
+            }
         }
+        // else: using attributes and no complex values, all fields already in attributes
 
         // Write children with marker attribute so they can be recognized on import
-        for (child_type, child_nodes) in &node.children {
-            for child in child_nodes {
-                // Determine schema for children (would need to be passed down in real implementation)
-                let child_schema = vec!["id".to_string()]; // Simplified
-                write_child_node(writer, child_type, child, &child_schema, config)?;
+        if let Some(children) = node.children() {
+            for (child_type, child_nodes) in children {
+                for child in child_nodes {
+                    // ISSUE 4 FIX: Look up child schema from structs instead of hardcoding ["id"]
+                    let default_schema = vec!["id".to_string()];
+                    let child_schema = structs
+                        .get(child_type)
+                        .map(|s| s.as_slice())
+                        .unwrap_or(&default_schema);
+                    write_child_node(writer, child_type, child, child_schema, config, structs)?;
+                }
             }
         }
 
@@ -297,6 +319,7 @@ fn write_child_node<W: std::io::Write>(
     node: &Node,
     schema: &[String],
     config: &ToXmlConfig,
+    structs: &BTreeMap<String, Vec<String>>,
 ) -> Result<(), String> {
     let mut elem = BytesStart::new(elem_name);
 
@@ -315,27 +338,43 @@ fn write_child_node<W: std::io::Write>(
 
     // Check if we need element content (complex values or children)
     let has_complex_values = node.fields.iter().any(|v| !is_simple_value(v));
-    let has_children = !node.children.is_empty();
+    let has_children = node.children().map(|c| !c.is_empty()).unwrap_or(false);
 
     if !config.use_attributes || has_complex_values || has_children {
         writer
             .write_event(Event::Start(elem))
             .map_err(|e| format!("Failed to write child node start: {}", e))?;
 
-        // Write fields as elements if not using attributes or if complex
-        if !config.use_attributes || has_complex_values {
+        // ISSUE 5 FIX: Write fields as elements (same fix as write_node)
+        if !config.use_attributes {
+            // Not using attributes: write all fields as elements
             for (i, field) in node.fields.iter().enumerate() {
                 if i < schema.len() {
                     write_scalar_element(writer, &schema[i], field, config)?;
                 }
             }
+        } else if has_complex_values {
+            // Using attributes but have complex values: write only complex fields as elements
+            for (i, field) in node.fields.iter().enumerate() {
+                if i < schema.len() && !is_simple_value(field) {
+                    write_scalar_element(writer, &schema[i], field, config)?;
+                }
+            }
         }
+        // else: using attributes and no complex values, all fields already in attributes
 
         // Write nested children recursively
-        for (child_type, child_nodes) in &node.children {
-            for child in child_nodes {
-                let child_schema = vec!["id".to_string()];
-                write_child_node(writer, child_type, child, &child_schema, config)?;
+        if let Some(children) = node.children() {
+            for (child_type, child_nodes) in children {
+                for child in child_nodes {
+                    // ISSUE 4 FIX: Look up nested child schema from structs
+                    let default_schema = vec!["id".to_string()];
+                    let child_schema = structs
+                        .get(child_type)
+                        .map(|s| s.as_slice())
+                        .unwrap_or(&default_schema);
+                    write_child_node(writer, child_type, child, child_schema, config, structs)?;
+                }
             }
         }
 
@@ -396,7 +435,7 @@ fn escape_attribute_value(value: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Int(n) => n.to_string(),
         Value::Float(f) => f.to_string(),
-        Value::String(s) => s.clone(),
+        Value::String(s) => s.to_string(),
         Value::Reference(r) => r.to_ref_string(),
         Value::Expression(e) => format!("$({})", e),
         Value::Tensor(_) => "[tensor]".to_string(),
@@ -593,7 +632,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "val".to_string(),
-            Item::Scalar(Value::String("hello".to_string())),
+            Item::Scalar(Value::String("hello".to_string().into())),
         );
 
         let config = ToXmlConfig::default();
@@ -606,7 +645,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "val".to_string(),
-            Item::Scalar(Value::String("".to_string())),
+            Item::Scalar(Value::String("".to_string().into())),
         );
 
         let config = ToXmlConfig::default();
@@ -650,10 +689,10 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "expr".to_string(),
-            Item::Scalar(Value::Expression(Expression::Identifier {
+            Item::Scalar(Value::Expression(Box::new(Expression::Identifier {
                 name: "foo".to_string(),
-                span: Span::default(),
-            })),
+                span: Span::synthetic(),
+            }))),
         );
 
         let config = ToXmlConfig::default();
@@ -666,20 +705,20 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "expr".to_string(),
-            Item::Scalar(Value::Expression(Expression::Call {
+            Item::Scalar(Value::Expression(Box::new(Expression::Call {
                 name: "add".to_string(),
                 args: vec![
                     Expression::Identifier {
                         name: "x".to_string(),
-                        span: Span::default(),
+                        span: Span::synthetic(),
                     },
                     Expression::Literal {
                         value: hedl_core::lex::ExprLiteral::Int(1),
-                        span: Span::default(),
+                        span: Span::synthetic(),
                     },
                 ],
-                span: Span::default(),
-            })),
+                span: Span::synthetic(),
+            }))),
         );
 
         let config = ToXmlConfig::default();
@@ -697,8 +736,10 @@ mod tests {
             Tensor::Scalar(2.0),
             Tensor::Scalar(3.0),
         ]);
-        doc.root
-            .insert("tensor".to_string(), Item::Scalar(Value::Tensor(tensor)));
+        doc.root.insert(
+            "tensor".to_string(),
+            Item::Scalar(Value::Tensor(Box::new(tensor))),
+        );
 
         let config = ToXmlConfig::default();
         let xml = to_xml(&doc, &config).unwrap();
@@ -712,8 +753,10 @@ mod tests {
     fn test_tensor_scalar() {
         let mut doc = Document::new((1, 0));
         let tensor = Tensor::Scalar(42.5);
-        doc.root
-            .insert("tensor".to_string(), Item::Scalar(Value::Tensor(tensor)));
+        doc.root.insert(
+            "tensor".to_string(),
+            Item::Scalar(Value::Tensor(Box::new(tensor))),
+        );
 
         let config = ToXmlConfig::default();
         let xml = to_xml(&doc, &config).unwrap();
@@ -728,7 +771,7 @@ mod tests {
         let mut inner = BTreeMap::new();
         inner.insert(
             "name".to_string(),
-            Item::Scalar(Value::String("test".to_string())),
+            Item::Scalar(Value::String("test".to_string().into())),
         );
         inner.insert("value".to_string(), Item::Scalar(Value::Int(100)));
         doc.root.insert("config".to_string(), Item::Object(inner));
@@ -776,8 +819,8 @@ mod tests {
             "User",
             "u1",
             vec![
-                Value::String("u1".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("u1".to_string().into()),
+                Value::String("Alice".to_string().into()),
             ],
         ));
         doc.root.insert("users".to_string(), Item::List(list));
@@ -797,7 +840,7 @@ mod tests {
         list.add_row(Node::new(
             "User",
             "u1",
-            vec![Value::String("u1".to_string())],
+            vec![Value::String("u1".to_string().into())],
         ));
         doc.root.insert("users".to_string(), Item::List(list));
 
@@ -816,7 +859,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "text".to_string(),
-            Item::Scalar(Value::String("hello & goodbye".to_string())),
+            Item::Scalar(Value::String("hello & goodbye".to_string().into())),
         );
 
         let config = ToXmlConfig::default();
@@ -830,7 +873,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "text".to_string(),
-            Item::Scalar(Value::String("hello <tag> goodbye".to_string())),
+            Item::Scalar(Value::String("hello <tag> goodbye".to_string().into())),
         );
 
         let config = ToXmlConfig::default();
@@ -843,7 +886,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "text".to_string(),
-            Item::Scalar(Value::String("hello \"quoted\"".to_string())),
+            Item::Scalar(Value::String("hello \"quoted\"".to_string().into())),
         );
 
         let config = ToXmlConfig::default();
@@ -859,9 +902,11 @@ mod tests {
         assert!(is_simple_value(&Value::Bool(true)));
         assert!(is_simple_value(&Value::Int(42)));
         assert!(is_simple_value(&Value::Float(3.5)));
-        assert!(is_simple_value(&Value::String("hello".to_string())));
+        assert!(is_simple_value(&Value::String("hello".to_string().into())));
         assert!(!is_simple_value(&Value::Reference(Reference::local("x"))));
-        assert!(!is_simple_value(&Value::Tensor(Tensor::Scalar(1.0))));
+        assert!(!is_simple_value(&Value::Tensor(Box::new(Tensor::Scalar(
+            1.0
+        )))));
     }
 
     #[test]
@@ -889,7 +934,7 @@ mod tests {
     #[test]
     fn test_escape_attribute_value_string() {
         assert_eq!(
-            escape_attribute_value(&Value::String("hello".to_string())),
+            escape_attribute_value(&Value::String("hello".to_string().into())),
             "hello"
         );
     }
@@ -902,16 +947,16 @@ mod tests {
 
     #[test]
     fn test_escape_attribute_value_expression() {
-        let expr = Value::Expression(Expression::Identifier {
+        let expr = Value::Expression(Box::new(Expression::Identifier {
             name: "foo".to_string(),
             span: Span::default(),
-        });
+        }));
         assert_eq!(escape_attribute_value(&expr), "$(foo)");
     }
 
     #[test]
     fn test_escape_attribute_value_tensor() {
-        let tensor = Value::Tensor(Tensor::Scalar(1.0));
+        let tensor = Value::Tensor(Box::new(Tensor::Scalar(1.0)));
         assert_eq!(escape_attribute_value(&tensor), "[tensor]");
     }
 

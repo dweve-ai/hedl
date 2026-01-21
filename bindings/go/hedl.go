@@ -53,8 +53,14 @@
 //
 // # Resource Limits
 //
-// The HEDL_MAX_OUTPUT_SIZE environment variable controls the maximum size of
-// output from conversion operations (ToJSON, ToYAML, ToXML, etc.).
+// The HEDL_MAX_OUTPUT_SIZE environment variable sets the maximum allowed size
+// for output from conversion operations (ToJSON, ToYAML, ToXML, etc.).
+//
+// IMPORTANT: This is a POST-ALLOCATION check. The Rust FFI layer performs the
+// full conversion and allocates memory before the Go bindings can check the size.
+// This means large outputs will still cause temporary memory allocation before
+// being rejected. To truly limit memory usage, ensure your input documents are
+// appropriately sized.
 //
 // Default: 100 MB (conservative, may be too restrictive for many use cases)
 // Recommended for data processing: 500 MB - 1 GB
@@ -160,9 +166,11 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -243,6 +251,27 @@ func checkStringOutputSize(s string) error {
 	return checkOutputSize([]byte(s))
 }
 
+// contentToFFI converts a Go string to FFI-safe C pointer and length.
+// This handles embedded NUL characters correctly by using CBytes instead of CString.
+//
+// IMPORTANT: C.CString truncates at the first NUL, but len(content) returns
+// the full Go string length. This mismatch causes the Rust FFI to read beyond
+// the NUL-terminated buffer, resulting in out-of-bounds reads and undefined behavior.
+//
+// Returns: (pointer, length, free function)
+// The caller MUST call the returned free function when done with the pointer.
+func contentToFFI(content string) (unsafe.Pointer, C.int, func()) {
+	if strings.ContainsRune(content, '\x00') {
+		// Content has embedded NULs - use CBytes for exact byte array
+		bytes := []byte(content)
+		cBytes := C.CBytes(bytes)
+		return cBytes, C.int(len(bytes)), func() { C.free(cBytes) }
+	}
+	// No embedded NULs - CString is safe and slightly more efficient
+	cStr := C.CString(content)
+	return unsafe.Pointer(cStr), C.int(len(content)), func() { C.free(unsafe.Pointer(cStr)) }
+}
+
 // Document represents a parsed HEDL document.
 type Document struct {
 	ptr *C.HedlDocument
@@ -264,8 +293,8 @@ type Diagnostic struct {
 // If strict is true, reference validation is enabled.
 // The returned Document must be closed with Close() when done.
 func Parse(content string, strict bool) (*Document, error) {
-	cContent := C.CString(content)
-	defer C.free(unsafe.Pointer(cContent))
+	cContent, cLen, freeContent := contentToFFI(content)
+	defer freeContent()
 
 	strictInt := 0
 	if strict {
@@ -273,7 +302,7 @@ func Parse(content string, strict bool) (*Document, error) {
 	}
 
 	var docPtr *C.HedlDocument
-	result := C.hedl_parse(cContent, C.int(len(content)), C.int(strictInt), &docPtr)
+	result := C.hedl_parse((*C.char)(cContent), cLen, C.int(strictInt), &docPtr)
 	if result != 0 {
 		return nil, newError(result)
 	}
@@ -285,25 +314,25 @@ func Parse(content string, strict bool) (*Document, error) {
 
 // Validate validates HEDL content without creating a document.
 func Validate(content string, strict bool) bool {
-	cContent := C.CString(content)
-	defer C.free(unsafe.Pointer(cContent))
+	cContent, cLen, freeContent := contentToFFI(content)
+	defer freeContent()
 
 	strictInt := 0
 	if strict {
 		strictInt = 1
 	}
 
-	result := C.hedl_validate(cContent, C.int(len(content)), C.int(strictInt))
+	result := C.hedl_validate((*C.char)(cContent), cLen, C.int(strictInt))
 	return result == 0
 }
 
 // FromJSON parses JSON content into a HEDL Document.
 func FromJSON(content string) (*Document, error) {
-	cContent := C.CString(content)
-	defer C.free(unsafe.Pointer(cContent))
+	cContent, cLen, freeContent := contentToFFI(content)
+	defer freeContent()
 
 	var docPtr *C.HedlDocument
-	result := C.hedl_from_json(cContent, C.int(len(content)), &docPtr)
+	result := C.hedl_from_json((*C.char)(cContent), cLen, &docPtr)
 	if result != 0 {
 		return nil, newError(result)
 	}
@@ -315,11 +344,11 @@ func FromJSON(content string) (*Document, error) {
 
 // FromYAML parses YAML content into a HEDL Document.
 func FromYAML(content string) (*Document, error) {
-	cContent := C.CString(content)
-	defer C.free(unsafe.Pointer(cContent))
+	cContent, cLen, freeContent := contentToFFI(content)
+	defer freeContent()
 
 	var docPtr *C.HedlDocument
-	result := C.hedl_from_yaml(cContent, C.int(len(content)), &docPtr)
+	result := C.hedl_from_yaml((*C.char)(cContent), cLen, &docPtr)
 	if result != 0 {
 		return nil, newError(result)
 	}
@@ -331,11 +360,11 @@ func FromYAML(content string) (*Document, error) {
 
 // FromXML parses XML content into a HEDL Document.
 func FromXML(content string) (*Document, error) {
-	cContent := C.CString(content)
-	defer C.free(unsafe.Pointer(cContent))
+	cContent, cLen, freeContent := contentToFFI(content)
+	defer freeContent()
 
 	var docPtr *C.HedlDocument
-	result := C.hedl_from_xml(cContent, C.int(len(content)), &docPtr)
+	result := C.hedl_from_xml((*C.char)(cContent), cLen, &docPtr)
 	if result != 0 {
 		return nil, newError(result)
 	}
@@ -391,7 +420,9 @@ func (d *Document) SchemaCount() (int, error) {
 	}
 	count := C.hedl_schema_count(d.ptr)
 	if count < 0 {
-		return 0, newError(count)
+		// These FFI functions don't set thread-local error, so use a fixed message
+		// instead of newError() which would return stale/unrelated error messages
+		return 0, &HedlError{Message: "invalid document handle", Code: int(count)}
 	}
 	return int(count), nil
 }
@@ -403,7 +434,8 @@ func (d *Document) AliasCount() (int, error) {
 	}
 	count := C.hedl_alias_count(d.ptr)
 	if count < 0 {
-		return 0, newError(count)
+		// These FFI functions don't set thread-local error, so use a fixed message
+		return 0, &HedlError{Message: "invalid document handle", Code: int(count)}
 	}
 	return int(count), nil
 }
@@ -415,7 +447,8 @@ func (d *Document) RootItemCount() (int, error) {
 	}
 	count := C.hedl_root_item_count(d.ptr)
 	if count < 0 {
-		return 0, newError(count)
+		// These FFI functions don't set thread-local error, so use a fixed message
+		return 0, &HedlError{Message: "invalid document handle", Code: int(count)}
 	}
 	return int(count), nil
 }
@@ -538,6 +571,15 @@ func (d *Document) ToParquet() ([]byte, error) {
 		return nil, newError(result)
 	}
 	defer C.hedl_free_bytes(dataPtr, dataLen)
+
+	// Check for size overflow: C.GoBytes takes C.int which is 32-bit
+	// Data larger than 2GB would cause silent truncation
+	if uint64(dataLen) > math.MaxInt32 {
+		return nil, &HedlError{
+			Message: fmt.Sprintf("Parquet output size (%d bytes) exceeds maximum supported size (2GB). Consider streaming or chunked output.", dataLen),
+			Code:    ErrAlloc,
+		}
+	}
 
 	// Copy the data before freeing
 	data := C.GoBytes(unsafe.Pointer(dataPtr), C.int(dataLen))

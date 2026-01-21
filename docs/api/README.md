@@ -36,9 +36,17 @@ HEDL provides multiple API surfaces to support different use cases and programmi
 | **Parse HEDL** | `hedl::parse()` | `hedl_parse()` | `parse()` |
 | **Convert to JSON** | `hedl::to_json()` | `hedl_to_json()` | `toJson()` |
 | **Convert from JSON** | `hedl::from_json()` | `hedl_from_json()` | `fromJson()` |
+| **Convert to YAML** | `hedl::yaml::to_yaml()` | `hedl_to_yaml()` | `toYaml()` |
+| **Convert from YAML** | `hedl::yaml::from_yaml()` | `hedl_from_yaml()` | `fromYaml()` |
+| **Convert to XML** | `hedl::xml::to_xml()` | `hedl_to_xml()` | `toXml()` |
+| **Convert from XML** | `hedl::xml::from_xml()` | `hedl_from_xml()` | `fromXml()` |
+| **Convert to CSV** | `hedl::csv_file::to_csv()` | `hedl_to_csv()` | `toCsv()` |
+| **Convert from CSV** | `hedl::csv_file::from_csv()` | `hedl_from_csv()` | `fromCsv()` |
+| **Convert to TOON** | `hedl::toon::to_toon()` | `hedl_to_toon()` | `toToon()` |
+| **Convert from TOON** | `hedl::toon::from_toon()` | `hedl_from_toon()` | `fromToon()` |
 | **Validate** | `hedl::validate()` | `hedl_validate()` | `validate()` |
 | **Canonicalize** | `hedl::canonicalize()` | `hedl_canonicalize()` | `format()` |
-| **Lint** | `hedl::lint()` | `hedl_lint()` | N/A |
+| **Lint** | `hedl::lint()` | `hedl_lint()` | `lint()` |
 
 ---
 
@@ -67,7 +75,7 @@ users: @User
 | Boolean | `true`, `false` | `Value::Bool(bool)` | Boolean value |
 | Integer | `42`, `-10` | `Value::Int(i64)` | 64-bit signed integer |
 | Float | `3.14`, `1.5e-10` | `Value::Float(f64)` | 64-bit floating point |
-| String | `"hello"`, `bare` | `Value::String(String)` | UTF-8 text |
+| String | `"hello"`, `bare` | `Value::String(Box<str>)` | UTF-8 text |
 | Reference | `@User:alice` | `Value::Reference` | Entity reference |
 | Tensor | `[1, 2, 3]` | `Value::Tensor` | Multi-dimensional array |
 | Expression | `$(now())` | `Value::Expression` | Deferred computation |
@@ -78,14 +86,14 @@ users: @User
 |---------|------|-----|------|-----|-----|
 | Parsing | ✓ | ✓ | ✓ | ✓ | ✓ |
 | JSON conversion | ✓ | ✓ | ✓ | ✓ | - |
-| YAML conversion | ✓ | ✓ | - | ✓ | - |
-| XML conversion | ✓ | ✓ | - | ✓ | - |
-| CSV conversion | ✓ | ✓ | - | ✓ | - |
+| YAML conversion | ✓ | ✓ | ✓ | ✓ | - |
+| XML conversion | ✓ | ✓ | ✓ | ✓ | - |
+| CSV conversion | ✓ | ✓ | ✓ | ✓ | - |
 | Parquet conversion | ✓ | ✓ | - | ✓ | - |
 | Neo4j/Cypher | ✓ | ✓ | - | ✓ | - |
-| TOON conversion | ✓ | - | - | ✓ | - |
+| TOON conversion | ✓ | ✓ | ✓ | ✓ | - |
 | Validation | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Linting | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Linting | ✓ | ✓ | ✓ | ✓ | - |
 | Canonicalization | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Streaming | ✓ | - | - | ✓ | - |
 | Autocomplete | - | - | - | - | ✓ |
@@ -100,10 +108,10 @@ users: @User
 
 ```toml
 [dependencies]
-hedl = "1.0"
+hedl = "1.2"
 
 # Optional features
-hedl = { version = "1.0", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
+hedl = { version = "1.2", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
 ```
 
 ### C/FFI
@@ -167,13 +175,11 @@ cargo run --bin hedl-lsp
 
 ### Parsing Speed
 
-Approximate throughput on modern hardware:
+Measured throughput (release build, `cargo bench --bench parsing`):
 
-- **Parsing**: 54.6 MB/s
-- **JSON conversion**: 1,549 MB/s (HEDL→JSON), 2,883 MB/s (JSON→HEDL)
-- **YAML conversion**: 246 MB/s (HEDL→YAML), 377 MB/s (YAML→HEDL)
-- **XML conversion**: 2,964 MB/s (HEDL→XML), 953 MB/s (XML→HEDL)
-- **Linting**: 72-931 MB/s
+- **Parsing**: ~33-49 MiB/s depending on document structure
+
+Run `cargo bench -p hedl-bench` for current conversion benchmarks.
 
 ### Token Savings
 

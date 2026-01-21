@@ -18,6 +18,7 @@
 //! Inspect command - HEDL structure visualization
 
 use super::read_file;
+use crate::error::CliError;
 use colored::Colorize;
 use hedl_core::{parse, Item, Value};
 use std::collections::BTreeMap;
@@ -48,7 +49,7 @@ use std::collections::BTreeMap;
 /// ```no_run
 /// use hedl_cli::commands::inspect;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Inspect with basic output
 /// inspect("example.hedl", false)?;
 ///
@@ -67,10 +68,11 @@ use std::collections::BTreeMap;
 /// - Nest relationships (parent > child)
 /// - Root document structure (tree view)
 /// - In verbose mode: field values, schemas, and row details
-pub fn inspect(file: &str, verbose: bool) -> Result<(), String> {
+pub fn inspect(file: &str, verbose: bool) -> Result<(), CliError> {
     let content = read_file(file)?;
 
-    let doc = parse(content.as_bytes()).map_err(|e| format!("Parse error: {}", e))?;
+    let doc =
+        parse(content.as_bytes()).map_err(|e| CliError::parse(format!("Parse error: {e}")))?;
 
     println!("{}", "HEDL Document".bold().underline());
     println!();
@@ -149,9 +151,9 @@ fn format_value(value: &Value) -> String {
         Value::Bool(b) => b.to_string().magenta().to_string(),
         Value::Int(n) => n.to_string().cyan().to_string(),
         Value::Float(f) => f.to_string().cyan().to_string(),
-        Value::String(s) => format!("\"{}\"", s),
-        Value::Tensor(t) => format!("{:?}", t).cyan().to_string(),
+        Value::String(s) => format!("\"{s}\""),
+        Value::Tensor(t) => format!("{t:?}").cyan().to_string(),
         Value::Reference(r) => r.to_ref_string().green().to_string(),
-        Value::Expression(e) => format!("$({})", e).yellow().to_string(),
+        Value::Expression(e) => format!("$({e})").yellow().to_string(),
     }
 }

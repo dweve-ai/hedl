@@ -1,13 +1,51 @@
+# =============================================================================
+# HEDL LSP - crates/hedl-lsp/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-lsp"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 description = "Language Server Protocol (LSP) implementation for HEDL"
-keywords = ["hedl", "lsp", "ide", "editor", "language-server"]
-categories = ["development-tools", "text-editors"]
+documentation = "https://docs.rs/hedl-lsp"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "hedl-lsp"
@@ -21,19 +59,19 @@ hedl-c14n = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tower-lsp = "0.20"
-tokio = { version = "1.0", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-dashmap = "5.5"
-ropey = "1.6"
-parking_lot = "0.12"
+tower-lsp = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dashmap = { workspace = true }
+ropey = { workspace = true }
+parking_lot = { workspace = true }
 
 [dev-dependencies]
-tempfile = "3.8"
-loom = "0.7"
-rand = "0.8"
-proptest = "1.4"
+tempfile = { workspace = true }
+loom = { workspace = true }
+rand = { workspace = true }
+proptest = { workspace = true }
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(loom)'] }
+[features]
+default = []

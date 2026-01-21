@@ -59,6 +59,11 @@
  *
  * When the limit is exceeded, operations will throw HedlException with code
  * ErrorCode::ALLOC and a message suggesting to increase HEDL_MAX_OUTPUT_SIZE.
+ *
+ * IMPORTANT: This check occurs AFTER the output is already allocated in memory.
+ * It protects against returning excessive data to your application code, but does
+ * NOT prevent the underlying memory allocation. For true memory safety with very
+ * large documents, consider using streaming APIs or processing in smaller chunks.
  */
 
 namespace Dweve\Hedl;

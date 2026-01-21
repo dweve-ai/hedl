@@ -6,12 +6,21 @@ HEDL's testing infrastructure and utilities.
 
 ```
 crates/hedl-core/
-├── src/           # Unit tests via #[cfg(test)]
+├── src/                    # Unit tests via #[cfg(test)]
+├── fuzz/
+│   └── fuzz_targets/       # cargo-fuzz targets
+│       ├── fuzz_parse.rs
+│       ├── fuzz_limits.rs
+│       ├── fuzz_references.rs
+│       └── fuzz_nest_depth.rs
 └── tests/
-    ├── unit/
-    ├── integration/
-    ├── property/
-    └── fuzz/
+    ├── conformance/        # Spec compliance tests
+    ├── fuzz/               # Fuzz test utilities
+    ├── property/           # Property-based test regressions
+    ├── conformance_tests.rs
+    ├── property_tests.rs
+    ├── stress_tests.rs
+    └── simd_tests.rs
 ```
 
 ## Test Utilities (hedl-test)

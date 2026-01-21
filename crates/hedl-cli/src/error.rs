@@ -109,7 +109,7 @@ pub enum CliError {
 
     /// JSON serialization/deserialization error.
     ///
-    /// This wraps serde_json errors during formatting.
+    /// This wraps `serde_json` errors during formatting.
     #[error("JSON format error: {message}")]
     JsonFormat {
         /// The error message
@@ -157,6 +157,125 @@ pub enum CliError {
     /// This covers validation failures like invalid type names, empty files, etc.
     #[error("Invalid input: {0}")]
     InvalidInput(String),
+
+    /// Thread pool creation error.
+    ///
+    /// This occurs when creating a local Rayon thread pool fails, typically due to
+    /// invalid configuration (e.g., zero threads) or resource exhaustion.
+    ///
+    /// # Context
+    ///
+    /// * `message` - Detailed error message from Rayon
+    /// * `requested_threads` - The number of threads requested
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_cli::error::CliError;
+    ///
+    /// // Requesting zero threads is invalid
+    /// let err = CliError::thread_pool_error("thread count must be positive", 0);
+    /// ```
+    #[error("Failed to create thread pool: {message}")]
+    ThreadPoolError {
+        /// The error message from Rayon
+        message: String,
+        /// The number of threads requested
+        requested_threads: usize,
+    },
+
+    /// Invalid glob pattern.
+    ///
+    /// This error occurs when a glob pattern is malformed or contains invalid syntax.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_cli::error::CliError;
+    ///
+    /// let err = CliError::GlobPattern {
+    ///     pattern: "[invalid".to_string(),
+    ///     message: "unclosed character class".to_string(),
+    /// };
+    /// ```
+    #[error("Invalid glob pattern '{pattern}': {message}")]
+    GlobPattern {
+        /// The invalid pattern
+        pattern: String,
+        /// The error message
+        message: String,
+    },
+
+    /// No files matched the provided patterns.
+    ///
+    /// This error occurs when glob patterns don't match any files.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_cli::error::CliError;
+    ///
+    /// let err = CliError::NoFilesMatched {
+    ///     patterns: vec!["*.hedl".to_string(), "test/*.hedl".to_string()],
+    /// };
+    /// ```
+    #[error("File discovery failed: no files matched patterns: {}", patterns.join(", "))]
+    NoFilesMatched {
+        /// The patterns that didn't match any files
+        patterns: Vec<String>,
+    },
+
+    /// Directory traversal error.
+    ///
+    /// This error occurs when directory traversal fails due to permissions,
+    /// I/O errors, or other filesystem issues.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_cli::error::CliError;
+    /// use std::path::PathBuf;
+    ///
+    /// let err = CliError::DirectoryTraversal {
+    ///     path: PathBuf::from("/restricted"),
+    ///     message: "permission denied".to_string(),
+    /// };
+    /// ```
+    #[error("Failed to traverse directory '{path}': {message}")]
+    DirectoryTraversal {
+        /// The directory path that caused the error
+        path: PathBuf,
+        /// The error message
+        message: String,
+    },
+
+    /// Resource exhaustion error.
+    ///
+    /// This error occurs when system resources are exhausted (e.g., file handles, memory).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_cli::error::CliError;
+    ///
+    /// let err = CliError::ResourceExhaustion {
+    ///     resource_type: "file_handles".to_string(),
+    ///     message: "too many open files".to_string(),
+    ///     current_usage: 1024,
+    ///     limit: 1024,
+    /// };
+    /// ```
+    #[error("Resource exhaustion: {resource_type} - {message} (usage: {current_usage}/{limit})")]
+    ResourceExhaustion {
+        /// The type of resource exhausted
+        resource_type: String,
+        /// The error message
+        message: String,
+        /// Current resource usage
+        current_usage: u64,
+        /// Resource limit
+        limit: u64,
+    },
 }
 
 impl CliError {
@@ -263,6 +382,154 @@ impl CliError {
     pub fn invalid_input(msg: impl Into<String>) -> Self {
         Self::InvalidInput(msg.into())
     }
+
+    /// Create a JSON conversion error.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The JSON conversion error message
+    pub fn json_conversion(msg: impl Into<String>) -> Self {
+        Self::JsonConversion(msg.into())
+    }
+
+    /// Create a YAML conversion error.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The YAML conversion error message
+    pub fn yaml_conversion(msg: impl Into<String>) -> Self {
+        Self::YamlConversion(msg.into())
+    }
+
+    /// Create an XML conversion error.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The XML conversion error message
+    pub fn xml_conversion(msg: impl Into<String>) -> Self {
+        Self::XmlConversion(msg.into())
+    }
+
+    /// Create a CSV conversion error.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The CSV conversion error message
+    pub fn csv_conversion(msg: impl Into<String>) -> Self {
+        Self::CsvConversion(msg.into())
+    }
+
+    /// Create a Parquet conversion error.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The Parquet conversion error message
+    pub fn parquet_conversion(msg: impl Into<String>) -> Self {
+        Self::ParquetConversion(msg.into())
+    }
+
+    /// Create a thread pool error.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The error message from Rayon
+    /// * `requested_threads` - The number of threads requested
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use hedl_cli::error::CliError;
+    ///
+    /// let err = CliError::thread_pool_error("thread count must be positive", 0);
+    /// ```
+    pub fn thread_pool_error(msg: impl Into<String>, requested_threads: usize) -> Self {
+        Self::ThreadPoolError {
+            message: msg.into(),
+            requested_threads,
+        }
+    }
+
+    /// Check if two errors are similar for grouping purposes.
+    ///
+    /// Errors are considered similar if they have the same variant type,
+    /// allowing aggregation of similar errors in batch processing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_cli::error::CliError;
+    ///
+    /// let err1 = CliError::parse("syntax error");
+    /// let err2 = CliError::parse("unexpected token");
+    /// assert!(err1.similar_to(&err2));
+    ///
+    /// let err3 = CliError::NotCanonical;
+    /// assert!(!err1.similar_to(&err3));
+    /// ```
+    #[must_use]
+    pub fn similar_to(&self, other: &CliError) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+
+    /// Get the error category for reporting.
+    ///
+    /// Categorizes errors into broad types for summary reporting.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use hedl_cli::error::{CliError, ErrorCategory};
+    ///
+    /// let err = CliError::parse("syntax error");
+    /// assert!(matches!(err.category(), ErrorCategory::ParseError));
+    /// ```
+    #[must_use]
+    pub fn category(&self) -> ErrorCategory {
+        match self {
+            CliError::Io { .. } | CliError::FileTooLarge { .. } | CliError::IoTimeout { .. } => {
+                ErrorCategory::IoError
+            }
+            CliError::Parse(_) => ErrorCategory::ParseError,
+            CliError::Canonicalization(_) | CliError::NotCanonical => ErrorCategory::FormatError,
+            CliError::LintErrors => ErrorCategory::LintError,
+            CliError::GlobPattern { .. }
+            | CliError::NoFilesMatched { .. }
+            | CliError::DirectoryTraversal { .. } => ErrorCategory::FileDiscoveryError,
+            CliError::ResourceExhaustion { .. } | CliError::ThreadPoolError { .. } => {
+                ErrorCategory::ResourceError
+            }
+            CliError::JsonConversion(_)
+            | CliError::JsonFormat { .. }
+            | CliError::YamlConversion(_)
+            | CliError::XmlConversion(_)
+            | CliError::CsvConversion(_)
+            | CliError::ParquetConversion(_) => ErrorCategory::ConversionError,
+            CliError::InvalidInput(_) => ErrorCategory::ValidationError,
+        }
+    }
+}
+
+/// Error category for classification and reporting.
+///
+/// Used to group errors by type in batch processing reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorCategory {
+    /// I/O errors (file not found, permission denied, etc.)
+    IoError,
+    /// Parsing errors (syntax errors, malformed input)
+    ParseError,
+    /// Formatting/canonicalization errors
+    FormatError,
+    /// Lint errors and warnings
+    LintError,
+    /// File discovery errors (glob patterns, directory traversal)
+    FileDiscoveryError,
+    /// Resource exhaustion (memory, file handles, threads)
+    ResourceError,
+    /// Format conversion errors (JSON, YAML, XML, CSV, Parquet)
+    ConversionError,
+    /// Input validation errors
+    ValidationError,
 }
 
 // Automatic conversion from serde_json::Error

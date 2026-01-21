@@ -50,10 +50,12 @@ fn count_item_entities(item: &Item, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_node_entities(node: &Node, counts: &mut BTreeMap<String, usize>) {
-    for children in node.children.values() {
-        for child in children {
-            *counts.entry(child.type_name.clone()).or_default() += 1;
-            count_node_entities(child, counts);
+    if let Some(children) = node.children() {
+        for child_nodes in children.values() {
+            for child in child_nodes {
+                *counts.entry(child.type_name.clone()).or_default() += 1;
+                count_node_entities(child, counts);
+            }
         }
     }
 }
@@ -74,25 +76,27 @@ pub fn node_to_json(node: &Node, schema: &[String], include_children: bool) -> J
     }
     obj["fields"] = JsonValue::Object(fields);
 
-    if include_children && !node.children.is_empty() {
-        let mut children = serde_json::Map::new();
-        for (child_type, child_nodes) in &node.children {
-            children.insert(
-                child_type.clone(),
-                JsonValue::Array(
-                    child_nodes
-                        .iter()
-                        .map(|n| {
-                            json!({
-                                "id": n.id,
-                                "type": n.type_name
+    if include_children {
+        if let Some(children_map) = node.children() {
+            let mut children = serde_json::Map::new();
+            for (child_type, child_nodes) in children_map {
+                children.insert(
+                    child_type.clone(),
+                    JsonValue::Array(
+                        child_nodes
+                            .iter()
+                            .map(|n| {
+                                json!({
+                                    "id": n.id,
+                                    "type": n.type_name
+                                })
                             })
-                        })
-                        .collect(),
-                ),
-            );
+                            .collect(),
+                    ),
+                );
+            }
+            obj["children"] = JsonValue::Object(children);
         }
-        obj["children"] = JsonValue::Object(children);
     }
 
     obj
@@ -105,7 +109,7 @@ pub fn value_to_json(value: &Value) -> JsonValue {
         Value::Bool(b) => JsonValue::Bool(*b),
         Value::Int(i) => json!(i),
         Value::Float(f) => json!(f),
-        Value::String(s) => JsonValue::String(s.clone()),
+        Value::String(s) => JsonValue::String(s.to_string()),
         Value::Reference(r) => {
             if let Some(ref t) = r.type_name {
                 json!(format!("@{}:{}", t, r.id))

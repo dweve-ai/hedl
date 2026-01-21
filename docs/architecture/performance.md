@@ -5,38 +5,69 @@
 HEDL is designed for high-performance data processing with multiple optimization layers:
 
 1. **Algorithmic Optimization**: O(n) algorithms where possible
-| **Layer 2** | **Memory Efficiency** | Minimizes allocations during parsing (though AST uses owned Strings) |
+2. **Memory Efficiency**: Minimizes allocations during parsing (though AST uses owned Strings)
 3. **Cache Optimization**: Data structures optimized for cache locality
 4. **SIMD Utilization**: Vectorized hot paths
 5. **Parallel Processing**: Multi-threaded where beneficial
 
 ## Performance Metrics
 
-Based on benchmark suite (`hedl-bench`):
+Based on benchmark suite (`cargo bench --bench parsing`, 2025-01-19):
 
-**Core Operations:**
+**Parsing (release build):**
 
-| Operation | Throughput | Latency | Memory |
-|-----------|------------|---------|--------|
-| Parsing | 54.6 MB/s | 142 µs (small doc) | O(n) |
-| Canonicalization | N/A | 30 µs (small doc) | O(n) |
-| Linting | 72-931 MB/s | 3.67 µs (1K entities) | O(n) |
+| Document Size | Latency | Throughput |
+|---------------|---------|------------|
+| 10 keys flat | ~20 µs | ~42 MiB/s |
+| 50 keys flat | ~115 µs | ~34 MiB/s |
+| 100 keys flat | ~229 µs | ~34 MiB/s |
+| 500 keys flat | ~1.12 ms | ~35 MiB/s |
+| Nested (5 parents, 2 children) | ~41 µs | ~49 MiB/s |
 
-**Format Conversion (HEDL → Other):**
+**JSON Conversion (release build, from `target/criterion/`):**
 
-| Target Format | Throughput | Latency |
-|---------------|------------|---------|
-| JSON | 1,549 MB/s | 292 µs |
-| YAML | 246 MB/s | 1,834 µs |
-| XML | 2,964 MB/s | 153 µs |
+| Direction | Document | Latency |
+|-----------|----------|---------|
+| HEDL→JSON | users/10 | ~3.4 µs |
+| HEDL→JSON | users/100 | ~54 µs |
+| HEDL→JSON | users/1000 | ~576 µs |
+| HEDL→JSON | products/1000 | ~645 µs |
+| JSON→HEDL | users/10 | ~8.9 µs |
+| JSON→HEDL | users/100 | ~84 µs |
+| JSON→HEDL | users/1000 | ~851 µs |
+| JSON→HEDL | products/1000 | ~819 µs |
+| Roundtrip | blog/100 | ~105 µs |
 
-**Format Conversion (Other → HEDL):**
+**FFI Performance (1000 items):**
 
-| Source Format | Throughput | Latency |
-|---------------|------------|---------|
-| JSON | 2,883 MB/s | 442 µs |
-| YAML | 377 MB/s | 3,011 µs |
-| XML | 953 MB/s | 1,130 µs |
+| Method | Latency | Overhead |
+|--------|---------|----------|
+| Native Rust | ~602 µs | baseline |
+| FFI (C ABI) | ~587 µs | ~2.5% faster* |
+
+*FFI can be faster due to different allocation patterns
+
+**Streaming (array_streamer):**
+
+| Items | Latency | Per-item |
+|-------|---------|----------|
+| 1,000 | ~523 µs | ~523 ns |
+| 10,000 | ~5.28 ms | ~528 ns |
+
+**Canonicalization:**
+
+| Algorithm | Latency |
+|-----------|---------|
+| JSON RFC 8785 | ~664 ns |
+
+**Cross-format Comparison:**
+
+| Operation | Latency |
+|-----------|---------|
+| JSON parse via HEDL | ~369 µs |
+| serde_json parse (direct) | ~180 µs |
+
+Run `cargo bench -p hedl-bench` for full benchmark suite.
 
 ## Optimization Layers
 
@@ -79,6 +110,9 @@ fn preprocess(input: &[u8]) -> impl Iterator<Item = &str> {
 }
 
 // Lexing: O(n) line-by-line processing
+// Note: Actual implementation in lex/regions.rs is more complex,
+// handling protected regions (quotes, expressions) to avoid
+// stripping # inside strings.
 fn strip_comment(line: &str) -> &str {
     // SIMD-optimized byte scanning with memchr
     if let Some(pos) = memchr::memchr(b'#', line.as_bytes()) {
@@ -139,9 +173,9 @@ HEDL prioritizes efficient memory usage through:
 
 **Structure of Arrays (SoA) for Matrices (Future Optimization)**:
 ```rust
-// Array of Structures (AoS) - cache unfriendly
-pub struct NodeAoS {
-    fields: Vec<Value>,  // Mixed types, poor locality
+// Current: Array of Structures with SmallVec optimization
+pub struct Node {
+    fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
 }
 
 // Structure of Arrays (SoA) - cache friendly
@@ -159,45 +193,37 @@ pub struct NodeSoA {
 ### SIMD Byte Searching
 
 **memchr for Fast Scanning**:
+
+The codebase uses `memchr` for SIMD-optimized byte searching. Example pattern:
+
 ```rust
-use memchr::memmem;
+use memchr::memchr_iter;
 
-// Find all '@' for reference detection
-pub fn find_references(input: &str) -> Vec<usize> {
-    memmem::find_iter(input.as_bytes(), b"@")
-        .collect()
-}
-
-// Find all '#' for comment detection
-pub fn find_comments(input: &str) -> Vec<usize> {
-    memmem::find_iter(input.as_bytes(), b"#")
-        .collect()
+// Conceptual example - actual usage in preprocess.rs and lex/regions.rs
+// uses memchr for newline detection and comment scanning
+for pos in memchr_iter(b'\n', input) {
+    // Process each line boundary
 }
 ```
 
 **Performance**: 5-10x faster than naive byte-by-byte scanning
 
-### Inline Hints
+### Compiler Optimizations
 
-**Hot Path Functions**:
+The Rust compiler applies automatic inlining based on heuristics. The codebase relies on the compiler's optimization passes rather than manual `#[inline]` hints:
+
 ```rust
-#[inline]
-pub fn parse(input: &str) -> Result<Document> {
-    // Frequently called, small function
-}
-
-#[inline]
+// Small, frequently-called functions are auto-inlined by the compiler
 pub fn is_valid_key_token(s: &str) -> bool {
-    // Simple validation, called frequently
+    // Simple validation, compiler inlines automatically
 }
 
-#[inline(always)]
 pub fn calculate_indent(line: &str) -> usize {
-    // Critical path, always inline
+    // Critical path, auto-inlined at -O2/release
 }
 ```
 
-**Impact**: 5-10% improvement in small document parsing
+**Note**: Manual `#[inline]` hints are avoided unless profiling demonstrates a measurable benefit. The compiler's LTO (Link-Time Optimization) handles cross-crate inlining in release builds.
 
 ### Branch Prediction
 
@@ -236,23 +262,34 @@ for v in values {
 
 ### Parallel Processing
 
-**rayon for Data Parallelism**:
+**Note**: The core HEDL library (`hedl-core`) does not use rayon for parallel processing. Rayon is used only in the benchmark suite (`hedl-bench`) for measuring parallel throughput.
+
+**Benchmark Usage**:
 ```rust
+// In hedl-bench (benchmarks only, not core library)
 use rayon::prelude::*;
 
-// Parallel stats computation
-pub fn compute_stats_parallel(files: &[PathBuf]) -> Vec<Stats> {
-    files.par_iter()
-        .map(|file| {
-            let content = std::fs::read_to_string(file).unwrap();
-            let doc = parse(&content).unwrap();
-            compute_stats(&doc)
-        })
-        .collect()
-}
+// Parallel benchmark computation
+files.par_iter()
+    .map(|file| {
+        let content = std::fs::read_to_string(file).unwrap();
+        let doc = parse(&content).unwrap();
+        compute_stats(&doc)
+    })
+    .collect()
 ```
 
-**Scaling**: Near-linear speedup for independent files
+**For Applications**: If you need parallel HEDL processing, add rayon to your application and parallelize at the file level:
+```rust
+// Your application code
+use rayon::prelude::*;
+
+files.par_iter()
+    .map(|path| hedl::parse(&std::fs::read(path)?))
+    .collect()
+```
+
+**Scaling**: Near-linear speedup for independent files when parallelized at application level
 
 ### Async I/O
 
@@ -437,15 +474,19 @@ cargo flamegraph --bench parsing
 
 ## Performance Budget
 
-Target performance for typical operations:
+Based on criterion benchmarks (2025-01-19, release build):
 
-| Operation | Size | Latency | Throughput | Memory |
-|-----------|------|---------|------------|--------|
-| Parse small doc | 1KB | <1ms | 1000+ docs/s | <10KB |
-| Parse medium doc | 100KB | <50ms | 2000+ KB/s | <1MB |
-| Parse large doc | 10MB | <5s | 2000+ KB/s | <50MB |
-| JSON conversion | 100KB | <20ms | 5000+ KB/s | <500KB |
-| Streaming parse | 1GB | <60s | 17+ MB/s | <10MB |
+| Operation | Target | Measured |
+|-----------|--------|----------|
+| Parse 10 keys flat | <50 µs | ~20 µs |
+| Parse 100 keys flat | <500 µs | ~229 µs |
+| Parse 500 keys flat | <2 ms | ~1.12 ms |
+| HEDL→JSON 1000 users | <1 ms | ~576 µs |
+| JSON→HEDL 1000 users | <1 ms | ~851 µs |
+| Stream 1000 items | <1 ms | ~523 µs |
+| Canonicalize | <5 µs | ~664 ns |
+
+Throughput: ~33-49 MiB/s for parsing (varies by document structure)
 
 ## Optimization Guidelines
 
@@ -488,7 +529,7 @@ cargo bench --bench parsing -- --baseline before
 
 - [Parsing Pipeline](parsing-pipeline.md) - Parser implementation details
 - [Data Flow](data-flow.md) - Data transformation flow
-- [Benchmark Reports](../../crates/hedl-bench/target/) - Detailed performance data
+- `target/criterion/` - Criterion benchmark results (generated locally)
 
 ---
 

@@ -18,45 +18,16 @@
 //! HEDL Command Line Interface
 
 use clap::Parser;
-use hedl_cli::cli::Commands;
+use hedl_cli::CliCommand;
 use std::process::ExitCode;
 
-/// HEDL - Hierarchical Entity Data Language toolkit
-///
-/// A comprehensive command-line interface for working with HEDL files,
-/// providing validation, formatting, linting, format conversion, and
-/// batch processing capabilities.
-///
-/// # Examples
-///
-/// ```bash
-/// # Validate a HEDL file
-/// hedl validate example.hedl
-///
-/// # Format and optimize a HEDL file
-/// hedl format example.hedl --output formatted.hedl
-///
-/// # Convert HEDL to JSON
-/// hedl to-json data.hedl --pretty
-///
-/// # Batch process multiple files
-/// hedl batch-format "*.hedl" --parallel
-/// ```
-#[derive(Parser)]
-#[command(name = "hedl")]
-#[command(author, version, about = "HEDL - Hierarchical Entity Data Language toolkit", long_about = None)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = CliCommand::parse();
 
     match cli.command.execute() {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             ExitCode::FAILURE
         }
     }

@@ -1,15 +1,71 @@
+# =============================================================================
+# HEDL Lint - crates/hedl-lint/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-lint"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 description = "HEDL linting and best practices validation"
+documentation = "https://docs.rs/hedl-lint"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
-hedl-core.workspace = true
-thiserror.workspace = true
+hedl-core = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+similar = "2.3"
+
+rayon = { version = "1.8", optional = true }
 
 [dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+assert_cmd = "2.0"
+tempfile = "3.0"
 
+[features]
+default = ["parallel"]
+parallel = ["rayon"]
+
+[[bench]]
+name = "lint_performance"
+harness = false

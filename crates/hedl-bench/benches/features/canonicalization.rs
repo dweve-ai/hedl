@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Canonicalization (C14N) benchmarks.
 //!
 //! Measures HEDL canonicalization performance across document sizes and complexity levels.
@@ -34,7 +36,7 @@
 //! - Output size reduction from ditto expansion
 //! - Comparison with raw parsing performance
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::measure_with_throughput;
 use hedl_bench::datasets::{
     generate_blog, generate_deep_hierarchy, generate_ditto_heavy, generate_graph,
@@ -48,6 +50,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -117,8 +120,8 @@ impl Default for CanonResult {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<CanonResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<CanonResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -196,7 +199,7 @@ fn canonicalize_json_rfc8785(json_str: &str) -> String {
 fn canonicalize_simple_sort(hedl: &str) -> String {
     // Very naive: just sort lines
     let mut lines: Vec<&str> = hedl.lines().collect();
-    lines.sort();
+    lines.sort_unstable();
     lines.join("\n")
 }
 
@@ -320,7 +323,7 @@ fn bench_c14n_datasets(c: &mut Criterion) {
             b.iter(|| {
                 let canonical = canonicalize(doc).unwrap();
                 black_box(canonical)
-            })
+            });
         });
 
         // Record performance metrics
@@ -330,7 +333,7 @@ fn bench_c14n_datasets(c: &mut Criterion) {
                 black_box(canonical);
             });
 
-        let perf_name = format!("c14n_{}", name);
+        let perf_name = format!("c14n_{name}");
         record_perf(
             &perf_name,
             iterations,
@@ -340,7 +343,7 @@ fn bench_c14n_datasets(c: &mut Criterion) {
 
         // Collect comprehensive results
         let mut result = CanonResult::default();
-        result.dataset = name.to_string();
+        result.dataset = (*name).to_string();
         result.input_size_bytes = hedl.len();
         result.record_count = *size;
         result.strategy = "default".to_string();
@@ -393,7 +396,7 @@ fn bench_ditto_expansion(c: &mut Criterion) {
             b.iter(|| {
                 let canonical = canonicalize(doc).unwrap();
                 black_box(canonical)
-            })
+            });
         });
 
         // Measure ditto expansion overhead
@@ -403,7 +406,7 @@ fn bench_ditto_expansion(c: &mut Criterion) {
                 black_box(canonical);
             });
 
-        let name = format!("ditto_expand_{}", size);
+        let name = format!("ditto_expand_{size}");
         record_perf(
             &name,
             iterations,
@@ -413,7 +416,7 @@ fn bench_ditto_expansion(c: &mut Criterion) {
 
         // Collect comprehensive results
         let mut result = CanonResult::default();
-        result.dataset = format!("ditto_heavy_{}", size);
+        result.dataset = format!("ditto_heavy_{size}");
         result.input_size_bytes = hedl.len();
         result.record_count = size;
         result.strategy = "ditto_expansion".to_string();
@@ -454,7 +457,7 @@ fn bench_reference_resolution(c: &mut Criterion) {
             b.iter(|| {
                 let canonical = canonicalize(doc).unwrap();
                 black_box(canonical)
-            })
+            });
         });
 
         let measurement =
@@ -463,7 +466,7 @@ fn bench_reference_resolution(c: &mut Criterion) {
                 black_box(canonical);
             });
 
-        let name = format!("ref_resolve_{}", size);
+        let name = format!("ref_resolve_{size}");
         record_perf(
             &name,
             iterations,
@@ -473,7 +476,7 @@ fn bench_reference_resolution(c: &mut Criterion) {
 
         // Collect comprehensive results
         let mut result = CanonResult::default();
-        result.dataset = format!("reference_heavy_{}", size);
+        result.dataset = format!("reference_heavy_{size}");
         result.input_size_bytes = hedl.len();
         result.record_count = size;
         result.strategy = "reference_resolution".to_string();
@@ -513,7 +516,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
             b.iter(|| {
                 let canonical = canonicalize(doc).unwrap();
                 black_box(canonical)
-            })
+            });
         });
 
         let measurement =
@@ -522,7 +525,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
                 black_box(canonical);
             });
 
-        let name = format!("deep_nest_{}", size);
+        let name = format!("deep_nest_{size}");
         record_perf(
             &name,
             iterations,
@@ -532,7 +535,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
 
         // Collect comprehensive results
         let mut result = CanonResult::default();
-        result.dataset = format!("deep_hierarchy_{}", size);
+        result.dataset = format!("deep_hierarchy_{size}");
         result.input_size_bytes = hedl.len();
         result.record_count = size;
         result.strategy = "deep_nesting".to_string();
@@ -572,7 +575,7 @@ fn bench_idempotency(c: &mut Criterion) {
             let c2 = canonicalize(&doc2).unwrap();
             assert_eq!(c1, c2, "Canonicalization must be idempotent");
             black_box(c2)
-        })
+        });
     });
 
     group.finish();
@@ -595,7 +598,7 @@ fn bench_memory_efficiency(c: &mut Criterion) {
             b.iter(|| {
                 let canonical = canonicalize(doc).unwrap();
                 black_box(canonical)
-            })
+            });
         });
     }
 
@@ -638,7 +641,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
                     _ => String::new(),
                 };
                 black_box(result)
-            })
+            });
         });
 
         // Collect results
@@ -664,7 +667,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
 
         let mut result = CanonResult::default();
         result.dataset = "users".to_string();
-        result.algorithm = algo_name.to_string();
+        result.algorithm = (*algo_name).to_string();
         result.input_size_bytes = data.len();
         result.normalization_times_ns = times;
         result.memory_overhead_kb = memory_kb;
@@ -707,7 +710,7 @@ fn bench_hash_functions(c: &mut Criterion) {
                 b.iter(|| {
                     let hash = hash_fn(data);
                     black_box(hash)
-                })
+                });
             },
         );
 
@@ -719,7 +722,7 @@ fn bench_hash_functions(c: &mut Criterion) {
                 b.iter(|| {
                     let hash = hash_fn(data);
                     black_box(hash)
-                })
+                });
             },
         );
 
@@ -739,7 +742,7 @@ fn bench_hash_functions(c: &mut Criterion) {
 
         let mut result = CanonResult::default();
         result.dataset = "users".to_string();
-        result.hash_function = hash_name.to_string();
+        result.hash_function = (*hash_name).to_string();
         result.input_size_bytes = canonical_bytes.len();
         result.normalization_times_ns = canon_times;
         result.collisions = 0; // Would need actual collision testing
@@ -781,7 +784,7 @@ fn bench_canonical_benefits(c: &mut Criterion) {
                 b.iter(|| {
                     let hash = hash_string(data);
                     black_box(hash)
-                })
+                });
             },
         );
 
@@ -793,7 +796,7 @@ fn bench_canonical_benefits(c: &mut Criterion) {
                 b.iter(|| {
                     let hash = hash_string(data);
                     black_box(hash)
-                })
+                });
             },
         );
 
@@ -813,7 +816,7 @@ fn bench_canonical_benefits(c: &mut Criterion) {
 
         let mut result = CanonResult::default();
         result.dataset = "users".to_string();
-        result.use_case = use_case.to_string();
+        result.use_case = (*use_case).to_string();
         result.input_size_bytes = canonical.len();
         result.normalization_times_ns = canon_times;
         result.output_size_bytes = hedl.len();
@@ -853,7 +856,7 @@ fn bench_cache_effectiveness(c: &mut Criterion) {
                 cache.insert(key, canonical.clone());
                 black_box(canonical)
             }
-        })
+        });
     });
 
     // Record cache statistics
@@ -1251,7 +1254,7 @@ fn create_canonicalization_algorithms_table(results: &[CanonResult], report: &mu
                 };
 
                 table.rows.push(vec![
-                    TableCell::String(algo_name.to_string()),
+                    TableCell::String((*algo_name).to_string()),
                     TableCell::Float(avg_time / 1000.0),
                     TableCell::Float(avg_memory),
                     TableCell::String(determinism.to_string()),
@@ -1452,12 +1455,12 @@ fn create_production_performance_table(results: &[CanonResult], report: &mut Ben
     };
 
     for result in results {
-        let avg_time_ms = if !result.normalization_times_ns.is_empty() {
+        let avg_time_ms = if result.normalization_times_ns.is_empty() {
+            0.0
+        } else {
             result.normalization_times_ns.iter().sum::<u64>() as f64
                 / result.normalization_times_ns.len() as f64
                 / 1_000_000.0
-        } else {
-            0.0
         };
 
         let records_per_sec = if avg_time_ms > 0.0 {
@@ -1687,7 +1690,7 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
     if non_deterministic > 0 {
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!("{} Non-Deterministic Results Detected", non_deterministic),
+            title: format!("{non_deterministic} Non-Deterministic Results Detected"),
             description: "Some normalizations produced different hashes on reruns".to_string(),
             data_points: vec![
                 "This violates canonical form requirements".to_string(),
@@ -1743,13 +1746,13 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
         let avg_time_ditto: f64 = ditto_heavy
             .iter()
             .filter_map(|r| {
-                if !r.normalization_times_ns.is_empty() {
+                if r.normalization_times_ns.is_empty() {
+                    None
+                } else {
                     Some(
                         r.normalization_times_ns.iter().sum::<u64>() as f64
                             / r.normalization_times_ns.len() as f64,
                     )
-                } else {
-                    None
                 }
             })
             .sum::<f64>()
@@ -1795,7 +1798,7 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
         let throughput_mbs = (total_bytes as f64 * 1e9) / (total_time_ns as f64 * 1_000_000.0);
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Overall Throughput: {:.2} MB/s", throughput_mbs),
+            title: format!("Overall Throughput: {throughput_mbs:.2} MB/s"),
             description: "Aggregate canonicalization throughput across all benchmarks".to_string(),
             data_points: vec![
                 format!("Total data processed: {} bytes", total_bytes),
@@ -1992,7 +1995,7 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
 
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!("HEDL C14N vs Alternatives: {} Fastest", fastest_algo),
+                title: format!("HEDL C14N vs Alternatives: {fastest_algo} Fastest"),
                 description: format!(
                     "Tested {} canonicalization algorithms, {} leads at {:.2}us average",
                     algo_times.len(),
@@ -2034,7 +2037,7 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
             .collect();
         hash_times.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-        let fastest_hash_time = hash_times.first().map(|(_, t)| *t).unwrap_or(1.0);
+        let fastest_hash_time = hash_times.first().map_or(1.0, |(_, t)| *t);
         let data_points: Vec<String> = hash_times
             .iter()
             .map(|(hash, time)| {
@@ -2050,8 +2053,8 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
                 "Hash function choice affects total canonicalization+hashing time by up to {:.1}%",
                 hash_times
                     .last()
-                    .map(|(_, t)| ((t - fastest_hash_time) / fastest_hash_time) * 100.0)
-                    .unwrap_or(0.0)
+                    .map_or(0.0, |(_, t)| ((t - fastest_hash_time) / fastest_hash_time)
+                        * 100.0)
             ),
             data_points,
         });
@@ -2075,8 +2078,8 @@ fn generate_insights(results: &[CanonResult], report: &mut BenchmarkReport) {
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("Caching Effective: {:.1}% Hit Rate", hit_rate),
-            description: format!("Cache prevented {} redundant canonicalizations", total_hits),
+            title: format!("Caching Effective: {hit_rate:.1}% Hit Rate"),
+            description: format!("Cache prevented {total_hits} redundant canonicalizations"),
             data_points: vec![
                 format!(
                     "Cache hits: {} / {} ({:.1}%)",
@@ -2221,7 +2224,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights",
                         new_report.custom_tables.len(),
@@ -2229,10 +2232,10 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
+                    eprintln!("Export failed: {e}");
                     // Fallback to legacy export
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

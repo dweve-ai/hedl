@@ -22,7 +22,7 @@ use crate::error::{clear_error, set_error};
 use crate::memory::is_valid_document_ptr;
 use crate::types::{
     HedlDocument, HEDL_ERR_CSV, HEDL_ERR_JSON, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET,
-    HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
+    HEDL_ERR_TOON, HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
 };
 use crate::utils::allocate_output_string;
 use std::os::raw::{c_char, c_int};
@@ -36,12 +36,12 @@ use std::time::Instant;
 /// Convert a HEDL document to JSON.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `include_metadata` - Non-zero to include HEDL metadata (__type__, __schema__)
-/// * `out_str` - Pointer to store JSON output (must be freed with hedl_free_string)
+/// * `out_str` - Pointer to store JSON output (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn hedl_to_json(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("JSON conversion error: {}", e);
+            let msg = format!("JSON conversion error: {e}");
             set_error(&msg);
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_json", HEDL_ERR_JSON, &msg, duration);
@@ -116,12 +116,12 @@ pub unsafe extern "C" fn hedl_to_json(
 /// Convert a HEDL document to YAML.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `include_metadata` - Non-zero to include HEDL metadata
-/// * `out_str` - Pointer to store YAML output (must be freed with hedl_free_string)
+/// * `out_str` - Pointer to store YAML output (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -180,7 +180,7 @@ pub unsafe extern "C" fn hedl_to_yaml(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("YAML conversion error: {}", e);
+            let msg = format!("YAML conversion error: {e}");
             set_error(&msg);
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_yaml", HEDL_ERR_YAML, &msg, duration);
@@ -196,11 +196,11 @@ pub unsafe extern "C" fn hedl_to_yaml(
 /// Convert a HEDL document to XML.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
-/// * `out_str` - Pointer to store XML output (must be freed with hedl_free_string)
+/// * `doc` - Document handle from `hedl_parse`
+/// * `out_str` - Pointer to store XML output (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -250,7 +250,7 @@ pub unsafe extern "C" fn hedl_to_xml(doc: *const HedlDocument, out_str: *mut *mu
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("XML conversion error: {}", e);
+            let msg = format!("XML conversion error: {e}");
             set_error(&msg);
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_xml", HEDL_ERR_XML, &msg, duration);
@@ -268,11 +268,11 @@ pub unsafe extern "C" fn hedl_to_xml(doc: *const HedlDocument, out_str: *mut *mu
 /// Note: Only works for documents with matrix lists.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
-/// * `out_str` - Pointer to store CSV output (must be freed with hedl_free_string)
+/// * `doc` - Document handle from `hedl_parse`
+/// * `out_str` - Pointer to store CSV output (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -322,7 +322,7 @@ pub unsafe extern "C" fn hedl_to_csv(doc: *const HedlDocument, out_str: *mut *mu
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("CSV conversion error: {}", e);
+            let msg = format!("CSV conversion error: {e}");
             set_error(&msg);
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_csv", HEDL_ERR_CSV, &msg, duration);
@@ -340,13 +340,13 @@ pub unsafe extern "C" fn hedl_to_csv(doc: *const HedlDocument, out_str: *mut *mu
 /// Note: Only works for documents with matrix lists.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `out_data` - Pointer to store output data pointer
 /// * `out_len` - Pointer to store output length
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
-/// The output data must be freed with hedl_free_bytes.
+/// `HEDL_OK` on success, error code on failure.
+/// The output data must be freed with `hedl_free_bytes`.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -390,7 +390,7 @@ pub unsafe extern "C" fn hedl_to_parquet(
     match hedl_parquet::to_parquet_bytes(doc_ref) {
         Ok(bytes) => {
             let len = bytes.len();
-            let ptr = Box::into_raw(bytes.into_boxed_slice()) as *mut u8;
+            let ptr = Box::into_raw(bytes.into_boxed_slice()).cast::<u8>();
             *out_data = ptr;
             *out_len = len;
             audit_call_success("hedl_to_parquet", start.elapsed());
@@ -398,7 +398,7 @@ pub unsafe extern "C" fn hedl_to_parquet(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("Parquet conversion error: {}", e);
+            let msg = format!("Parquet conversion error: {e}");
             set_error(&msg);
             *out_data = ptr::null_mut();
             *out_len = 0;
@@ -417,12 +417,12 @@ pub unsafe extern "C" fn hedl_to_parquet(
 /// Generates CREATE/MERGE statements, constraints, and relationships.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `use_merge` - Non-zero to use MERGE (idempotent), zero for CREATE
-/// * `out_str` - Pointer to store Cypher output (must be freed with hedl_free_string)
+/// * `out_str` - Pointer to store Cypher output (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -470,7 +470,7 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher(
 
     match hedl_neo4j::to_cypher(doc_ref, &config) {
         Ok(cypher) => {
-            let result = allocate_output_string(&cypher.to_string(), out_str, HEDL_ERR_NEO4J);
+            let result = allocate_output_string(&cypher.clone(), out_str, HEDL_ERR_NEO4J);
             if result == HEDL_OK {
                 audit_call_success("hedl_to_neo4j_cypher", start.elapsed());
             } else {
@@ -482,11 +482,87 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("Neo4j conversion error: {}", e);
+            let msg = format!("Neo4j conversion error: {e}");
             set_error(&msg);
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_neo4j_cypher", HEDL_ERR_NEO4J, &msg, duration);
             HEDL_ERR_NEO4J
+        }
+    }
+}
+
+// =============================================================================
+// TOON Conversion (requires "toon" feature)
+// =============================================================================
+
+/// Convert a HEDL document to TOON format.
+///
+/// TOON (Typed Object Outline Notation) is an external format specification
+/// for human-readable data serialization.
+///
+/// # Arguments
+/// * `doc` - Document handle from `hedl_parse`
+/// * `out_str` - Pointer to store TOON output (must be freed with `hedl_free_string`)
+///
+/// # Returns
+/// `HEDL_OK` on success, error code on failure.
+///
+/// # Safety
+/// All pointers must be valid.
+///
+/// # Feature
+/// Requires the "toon" feature to be enabled.
+#[cfg(feature = "toon")]
+#[no_mangle]
+pub unsafe extern "C" fn hedl_to_toon(
+    doc: *const HedlDocument,
+    out_str: *mut *mut c_char,
+) -> c_int {
+    let start = Instant::now();
+
+    audit_call_start(
+        "hedl_to_toon",
+        &[
+            ("doc", &sanitize_pointer(doc)),
+            ("out_str", &sanitize_pointer(out_str)),
+        ],
+    );
+
+    clear_error();
+
+    if !is_valid_document_ptr(doc) || out_str.is_null() {
+        let duration = start.elapsed();
+        set_error("Null pointer argument");
+        audit_call_failure(
+            "hedl_to_toon",
+            HEDL_ERR_NULL_PTR,
+            "Null pointer argument",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    let doc_ref = &(*doc).inner;
+
+    match hedl_toon::hedl_to_toon(doc_ref) {
+        Ok(toon) => {
+            let result = allocate_output_string(&toon, out_str, HEDL_ERR_TOON);
+            if result == HEDL_OK {
+                audit_call_success("hedl_to_toon", start.elapsed());
+            } else {
+                let duration = start.elapsed();
+                let msg = crate::error::get_thread_local_error();
+                audit_call_failure("hedl_to_toon", result, &msg, duration);
+            }
+            result
+        }
+        Err(e) => {
+            let duration = start.elapsed();
+            let msg = format!("TOON conversion error: {e}");
+            set_error(&msg);
+            *out_str = ptr::null_mut();
+            audit_call_failure("hedl_to_toon", HEDL_ERR_TOON, &msg, duration);
+            HEDL_ERR_TOON
         }
     }
 }

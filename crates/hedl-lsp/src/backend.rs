@@ -37,6 +37,7 @@ use crate::completion::get_completions;
 use crate::constants::{DEBOUNCE_MS, POSITION_ZERO};
 use crate::document_manager::{CacheStatistics, DocumentManager};
 use crate::hover::get_hover;
+use crate::rename::{self, RenameOperation};
 use crate::symbols::{get_document_symbols, get_workspace_symbols};
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -44,14 +45,26 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::sleep;
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{
+    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
+    InitializeResult, InitializedParams, Location, MessageType, OneOf, Position,
+    PrepareRenameResponse, Range, ReferenceParams, RenameOptions, RenameParams, SaveOptions,
+    SemanticTokenModifier, SemanticTokenType, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo,
+    SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Url,
+    WorkspaceEdit, WorkspaceSymbolParams,
+};
 use tower_lsp::{Client, LanguageServer};
 use tracing::{debug, error, info, warn};
 
 /// HEDL Language Server backend.
 ///
 /// This backend handles LSP protocol implementation and delegates document
-/// management to the DocumentManager. This provides a clean separation of
+/// management to the `DocumentManager`. This provides a clean separation of
 /// concerns between protocol handling and document lifecycle management.
 pub struct HedlLanguageServer {
     /// LSP client connection.
@@ -68,6 +81,7 @@ impl HedlLanguageServer {
     /// Default settings:
     /// - Max cache size: 1000 documents
     /// - Max document size: 500 MB
+    #[must_use]
     pub fn new(client: Client) -> Self {
         use crate::constants::{DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE};
         Self::with_config(client, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE)
@@ -79,6 +93,7 @@ impl HedlLanguageServer {
     ///
     /// Use `with_config()` instead to configure both cache size and document size limit.
     #[deprecated(since = "0.1.0", note = "Use `with_config()` instead")]
+    #[must_use]
     pub fn with_max_cache_size(client: Client, max_cache_size: usize) -> Self {
         use crate::constants::DEFAULT_MAX_DOCUMENT_SIZE;
         Self::with_config(client, max_cache_size, DEFAULT_MAX_DOCUMENT_SIZE)
@@ -107,6 +122,7 @@ impl HedlLanguageServer {
     ///     )
     /// }
     /// ```
+    #[must_use]
     pub fn with_config(client: Client, max_cache_size: usize, max_document_size: usize) -> Self {
         Self {
             client,
@@ -116,6 +132,7 @@ impl HedlLanguageServer {
     }
 
     /// Get current cache statistics.
+    #[must_use]
     pub fn cache_statistics(&self) -> CacheStatistics {
         self.document_manager.statistics()
     }
@@ -126,6 +143,7 @@ impl HedlLanguageServer {
     }
 
     /// Get current maximum cache size.
+    #[must_use]
     pub fn max_cache_size(&self) -> usize {
         self.document_manager.max_cache_size()
     }
@@ -136,6 +154,7 @@ impl HedlLanguageServer {
     }
 
     /// Get current maximum document size.
+    #[must_use]
     pub fn max_document_size(&self) -> usize {
         self.document_manager.max_document_size()
     }
@@ -153,15 +172,14 @@ impl HedlLanguageServer {
             return;
         }
 
-        let state_arc = match self.document_manager.get_state(uri) {
-            Some(state) => state,
-            None => {
-                warn!(
-                    "Cannot analyze non-existent document: {} (may have been closed/evicted)",
-                    uri
-                );
-                return;
-            }
+        let state_arc = if let Some(state) = self.document_manager.get_state(uri) {
+            state
+        } else {
+            warn!(
+                "Cannot analyze non-existent document: {} (may have been closed/evicted)",
+                uri
+            );
+            return;
         };
 
         let content = {
@@ -299,6 +317,10 @@ impl LanguageServer for HedlLanguageServer {
                 document_symbol_provider: Some(OneOf::Left(true)),
                 workspace_symbol_provider: Some(OneOf::Left(true)),
                 document_formatting_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: Default::default(),
+                })),
                 semantic_tokens_provider: Some(
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
@@ -636,7 +658,9 @@ impl LanguageServer for HedlLanguageServer {
                 let config = hedl_c14n::CanonicalConfig::default();
                 match hedl_c14n::canonicalize_with_config(doc, &config) {
                     Ok(formatted) => {
-                        if formatted != content {
+                        if formatted == content {
+                            debug!("Document {} is already formatted correctly", uri);
+                        } else {
                             let line_count = content.lines().count();
                             let formatted_lines = formatted.lines().count();
                             debug!(
@@ -656,8 +680,6 @@ impl LanguageServer for HedlLanguageServer {
                                 },
                                 new_text: formatted,
                             }]));
-                        } else {
-                            debug!("Document {} is already formatted correctly", uri);
                         }
                     }
                     Err(e) => {
@@ -678,6 +700,152 @@ impl LanguageServer for HedlLanguageServer {
             warn!("Cannot format non-existent document: {}", uri);
         }
 
+        Ok(None)
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let uri = &params.text_document.uri;
+        let position = params.position;
+
+        debug!(
+            "Prepare rename request for {} at {}:{}",
+            uri, position.line, position.character
+        );
+
+        if let Some((content, analysis)) = self.document_manager.get(uri) {
+            // 1. Identify symbol at position
+            let symbol = if let Some(sym) =
+                rename::identify_symbol_at_position(analysis.as_ref(), &content, position)
+            {
+                sym
+            } else {
+                debug!("No renameable symbol at position");
+                return Ok(None);
+            };
+
+            // 2. Find exact range of symbol
+            let range = if let Some(r) =
+                rename::get_symbol_range_at_position(analysis.as_ref(), &content, position, &symbol)
+            {
+                r
+            } else {
+                warn!("Could not determine symbol range");
+                return Ok(None);
+            };
+
+            // 3. Get placeholder text (current name)
+            let placeholder = rename::get_symbol_name(&symbol);
+
+            debug!(
+                "Symbol identified for rename: {:?} with placeholder '{}'",
+                symbol, placeholder
+            );
+
+            return Ok(Some(PrepareRenameResponse::RangeWithPlaceholder {
+                range,
+                placeholder,
+            }));
+        }
+
+        Ok(None)
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let new_name = &params.new_name;
+
+        info!(
+            "Rename request for {} at {}:{} to '{}'",
+            uri, position.line, position.character, new_name
+        );
+
+        if let Some((content, analysis)) = self.document_manager.get(uri) {
+            // 1. Identify symbol
+            let symbol = if let Some(sym) =
+                rename::identify_symbol_at_position(analysis.as_ref(), &content, position)
+            {
+                sym
+            } else {
+                warn!("No renameable symbol found at position");
+                return Ok(None);
+            };
+
+            info!("Renaming symbol: {:?}", symbol);
+
+            // 2. Validate rename across workspace
+            let validation =
+                rename::validate_rename_workspace(&symbol, new_name, &self.document_manager);
+
+            if !validation.valid {
+                error!("Rename validation failed: {:?}", validation.error);
+                return Err(tower_lsp::jsonrpc::Error {
+                    code: tower_lsp::jsonrpc::ErrorCode::InvalidRequest,
+                    message: validation
+                        .error
+                        .unwrap_or_else(|| "Invalid rename".to_string())
+                        .into(),
+                    data: None,
+                });
+            }
+
+            // Log warnings to client
+            for warning in &validation.warnings {
+                self.client
+                    .show_message(MessageType::WARNING, warning)
+                    .await;
+            }
+
+            // 3. Find all occurrences across workspace
+            let occurrences =
+                rename::find_all_occurrences_workspace(&symbol, &self.document_manager);
+
+            info!(
+                "Found {} occurrences across {} files",
+                occurrences.len(),
+                occurrences
+                    .iter()
+                    .map(|l| &l.uri)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+            );
+
+            // 4. Create rename operation
+            let old_name = rename::get_symbol_name(&symbol);
+            let operation = RenameOperation {
+                symbol,
+                old_name,
+                new_name: new_name.clone(),
+                locations: occurrences,
+                validation,
+            };
+
+            // 5. Generate workspace edit
+            match rename::generate_workspace_edit(&operation, &self.document_manager) {
+                Ok(edit) => {
+                    info!(
+                        "Generated workspace edit with {} file(s)",
+                        edit.changes
+                            .as_ref()
+                            .map_or(0, std::collections::HashMap::len)
+                    );
+                    return Ok(Some(edit));
+                }
+                Err(e) => {
+                    error!("Failed to generate workspace edit: {}", e);
+                    return Err(tower_lsp::jsonrpc::Error {
+                        code: tower_lsp::jsonrpc::ErrorCode::InternalError,
+                        message: e.into(),
+                        data: None,
+                    });
+                }
+            }
+        }
+
+        warn!("Document not found: {}", uri);
         Ok(None)
     }
 }

@@ -45,13 +45,13 @@ pub unsafe extern "C" fn hedl_diagnostics_count(diag: *const HedlDiagnostics) ->
 /// # Arguments
 /// * `diag` - Diagnostics handle
 /// * `index` - Diagnostic index
-/// * `out_str` - Pointer to store message (must be freed with hedl_free_string)
+/// * `out_str` - Pointer to store message (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
-/// All pointers must be valid. Returns HEDL_ERR_NULL_PTR if diag is NULL or poisoned.
+/// All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if diag is NULL or poisoned.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_diagnostics_get(
     diag: *const HedlDiagnostics,

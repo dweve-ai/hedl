@@ -18,6 +18,7 @@
 //! Lint command - HEDL best practices and style checking
 
 use super::read_file;
+use crate::error::CliError;
 use colored::Colorize;
 use hedl_core::parse;
 use hedl_lint::{lint_with_config, LintConfig, Severity};
@@ -51,7 +52,7 @@ use hedl_lint::{lint_with_config, LintConfig, Severity};
 /// ```no_run
 /// use hedl_cli::commands::lint;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Lint with text output
 /// lint("example.hedl", "text", false)?;
 ///
@@ -77,10 +78,11 @@ use hedl_lint::{lint_with_config, LintConfig, Severity};
 /// **JSON format**: Structured JSON with:
 /// - File path
 /// - Array of diagnostics with severity, rule, message, line, and suggestion
-pub fn lint(file: &str, format: &str, warn_error: bool) -> Result<(), String> {
+pub fn lint(file: &str, format: &str, warn_error: bool) -> Result<(), CliError> {
     let content = read_file(file)?;
 
-    let doc = parse(content.as_bytes()).map_err(|e| format!("Parse error: {}", e))?;
+    let doc =
+        parse(content.as_bytes()).map_err(|e| CliError::parse(format!("Parse error: {e}")))?;
 
     let config = LintConfig::default();
     let diagnostics = lint_with_config(&doc, config);
@@ -100,8 +102,8 @@ pub fn lint(file: &str, format: &str, warn_error: bool) -> Result<(), String> {
                 }).collect::<Vec<_>>()
             });
             let output = serde_json::to_string_pretty(&json)
-                .map_err(|e| format!("JSON serialization error: {}", e))?;
-            println!("{}", output);
+                .map_err(|e| CliError::json_conversion(format!("JSON serialization error: {e}")))?;
+            println!("{output}");
         }
         _ => {
             if diagnostics.is_empty() {
@@ -126,8 +128,8 @@ pub fn lint(file: &str, format: &str, warn_error: bool) -> Result<(), String> {
                         println!("  {}: {}: {}", file, severity_str, diag.message());
                     }
 
-                    if let Some(ref suggestion) = diag.suggestion() {
-                        println!("    {} {}", "suggestion:".cyan(), suggestion);
+                    if let Some(suggestion) = diag.suggestion() {
+                        println!("    {} {}", "suggestion:".cyan(), &suggestion);
                     }
                 }
             }
@@ -140,7 +142,7 @@ pub fn lint(file: &str, format: &str, warn_error: bool) -> Result<(), String> {
         .any(|d| d.severity() == Severity::Warning);
 
     if has_errors || (warn_error && has_warnings) {
-        Err("Lint errors found".to_string())
+        Err(CliError::LintErrors)
     } else {
         Ok(())
     }

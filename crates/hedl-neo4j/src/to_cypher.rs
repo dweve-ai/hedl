@@ -20,7 +20,7 @@
 //! This module provides the core functionality for exporting HEDL documents to Neo4j-compatible
 //! Cypher queries. It handles:
 //!
-//! - **Node creation**: Converting HEDL MatrixLists to Neo4j nodes
+//! - **Node creation**: Converting HEDL `MatrixLists` to Neo4j nodes
 //! - **Relationship creation**: Converting HEDL references and NEST hierarchies to Neo4j relationships
 //! - **Constraint generation**: Creating uniqueness constraints for node IDs
 //! - **Batch processing**: Using UNWIND for efficient bulk imports
@@ -54,6 +54,8 @@ use crate::mapping::{
     validate_references, Neo4jNode, Neo4jRelationship,
 };
 
+pub mod child_iterator;
+
 /// Default maximum NEST hierarchy depth to prevent stack overflow.
 ///
 /// This limit protects against:
@@ -64,6 +66,99 @@ use crate::mapping::{
 /// The limit of 100 is sufficient for practical use cases while preventing
 /// resource exhaustion.
 const DEFAULT_MAX_NEST_DEPTH: usize = 100;
+
+/// Count total nodes in a document, including NEST children.
+///
+/// This function traverses the entire document tree to count all nodes,
+/// including nested children in NEST hierarchies. It is used for early
+/// limit checking before any memory allocation occurs.
+///
+/// # Arguments
+///
+/// * `doc` - The HEDL document to count nodes in
+///
+/// # Returns
+///
+/// The total number of nodes in the document, including all nested children
+///
+/// # Performance
+///
+/// This is an O(n) operation where n is the number of nodes. It is only called
+/// when a `max_nodes` limit is configured, so there is no overhead for trusted
+/// input with unlimited processing.
+fn count_total_nodes(doc: &Document) -> usize {
+    let mut count = 0;
+
+    for item in doc.root.values() {
+        if let Item::List(matrix_list) = item {
+            count += matrix_list.rows.len();
+            // Also count nested children
+            for node in &matrix_list.rows {
+                count += count_children_recursive(node);
+            }
+        }
+    }
+
+    count
+}
+
+/// Recursively count children in a node's NEST hierarchy.
+///
+/// This function traverses all children of a node and recursively counts
+/// their descendants, providing an accurate total for the entire subtree.
+///
+/// # Arguments
+///
+/// * `node` - The node whose children should be counted
+///
+/// # Returns
+///
+/// The total number of descendant nodes (children, grandchildren, etc.)
+fn count_children_recursive(node: &hedl_core::Node) -> usize {
+    let mut count = 0;
+    if let Some(children_map) = node.children() {
+        for children in children_map.values() {
+            count += children.len();
+            for child in children {
+                count += count_children_recursive(child);
+            }
+        }
+    }
+    count
+}
+
+/// Validate node count against configured limit.
+///
+/// This function checks if the total node count (including NEST children)
+/// exceeds the configured maximum. It should be called early in the conversion
+/// process, before any memory allocation for node conversion occurs.
+///
+/// # Arguments
+///
+/// * `doc` - The HEDL document to validate
+/// * `config` - Configuration containing the `max_nodes` limit
+///
+/// # Returns
+///
+/// * `Ok(())` if within limit or no limit set
+/// * `Err(NodeCountExceeded)` if limit exceeded
+///
+/// # Security
+///
+/// This is a critical security function that prevents `DoS` attacks through
+/// memory exhaustion. It MUST be called before any node processing begins.
+fn validate_node_count(doc: &Document, config: &ToCypherConfig) -> Result<()> {
+    if let Some(max_nodes) = config.max_nodes {
+        let total_nodes = count_total_nodes(doc);
+        if total_nodes > max_nodes {
+            return Err(Neo4jError::NodeCountExceeded {
+                count: total_nodes,
+                max_count: max_nodes,
+            });
+        }
+    }
+    Ok(())
+}
 
 /// Convert a HEDL document to Cypher query statements.
 ///
@@ -84,7 +179,7 @@ const DEFAULT_MAX_NEST_DEPTH: usize = 100;
 ///
 /// # Errors
 ///
-/// Returns `Neo4jError::EmptyMatrixList` if a MatrixList has no rows.
+/// Returns `Neo4jError::EmptyMatrixList` if a `MatrixList` has no rows.
 /// Returns `Neo4jError::RecursionLimitExceeded` if NEST depth exceeds limit.
 ///
 /// # Examples
@@ -107,6 +202,10 @@ pub fn to_cypher_statements(
     doc: &Document,
     config: &ToCypherConfig,
 ) -> Result<Vec<CypherStatement>> {
+    // SECURITY: Validate node count before any allocation
+    // This prevents DoS attacks through memory exhaustion
+    validate_node_count(doc, config)?;
+
     let mut script = CypherScript::new();
 
     // Collect all node types for constraint generation
@@ -186,7 +285,7 @@ pub fn to_cypher_statements(
 ///
 /// # Errors
 ///
-/// Returns `Neo4jError::EmptyMatrixList` if a MatrixList has no rows.
+/// Returns `Neo4jError::EmptyMatrixList` if a `MatrixList` has no rows.
 /// Returns `Neo4jError::RecursionLimitExceeded` if NEST depth exceeds limit.
 ///
 /// # Examples
@@ -229,7 +328,7 @@ pub fn to_cypher(doc: &Document, config: &ToCypherConfig) -> Result<String> {
 ///
 /// # Errors
 ///
-/// Returns `Neo4jError::EmptyMatrixList` if a MatrixList has no rows.
+/// Returns `Neo4jError::EmptyMatrixList` if a `MatrixList` has no rows.
 /// Returns `Neo4jError::RecursionLimitExceeded` if NEST depth exceeds limit.
 ///
 /// # Examples
@@ -287,7 +386,7 @@ pub fn hedl_to_cypher(doc: &Document) -> Result<String> {
 ///
 /// # Errors
 ///
-/// Returns `Neo4jError::EmptyMatrixList` if a MatrixList has no rows.
+/// Returns `Neo4jError::EmptyMatrixList` if a `MatrixList` has no rows.
 /// Returns `Neo4jError::RecursionLimitExceeded` if NEST depth exceeds limit.
 /// Returns I/O errors as `Neo4jError::HedlError`.
 ///
@@ -316,7 +415,7 @@ pub fn hedl_to_cypher(doc: &Document) -> Result<String> {
 /// # Performance Characteristics
 ///
 /// - **Time complexity**: O(n) where n is the number of nodes
-/// - **Memory complexity**: O(batch_size) instead of O(n)
+/// - **Memory complexity**: `O(batch_size)` instead of O(n)
 /// - **I/O pattern**: Sequential writes, optimal for buffered I/O
 /// - **Throughput**: ~same as `to_cypher()`, limited by conversion not I/O
 ///
@@ -333,7 +432,7 @@ type StatementWriter<'a, W> = (
 /// - Comment rendering when enabled
 /// - Parameter inlining
 /// - I/O error handling
-fn create_statement_writer<'a, W: Write>(config: &'a ToCypherConfig) -> StatementWriter<'a, W> {
+fn create_statement_writer<W: Write>(config: &ToCypherConfig) -> StatementWriter<'_, W> {
     let first_statement = std::rc::Rc::new(std::cell::Cell::new(true));
     let first_stmt_clone = first_statement.clone();
 
@@ -348,7 +447,7 @@ fn create_statement_writer<'a, W: Write>(config: &'a ToCypherConfig) -> Statemen
             // Write comment if present and enabled
             if config.include_comments {
                 if let Some(comment) = &stmt.comment {
-                    writeln!(writer, "// {}", comment)
+                    writeln!(writer, "// {comment}")
                         .map_err(|e| Neo4jError::HedlError(e.to_string()))?;
                 }
             }
@@ -394,13 +493,34 @@ fn collect_all_node_types(
         if let Item::List(matrix_list) = item {
             node_types.insert(matrix_list.type_name.clone(), matrix_list.schema.clone());
 
-            // Also collect child types from NEST hierarchies
-            let child_nodes = collect_child_nodes(&matrix_list.rows, &doc.structs, config)?;
-            for (child_type, children) in child_nodes {
-                if !children.is_empty() {
-                    // Infer schema from first child
-                    let schema = infer_child_schema(&children);
-                    node_types.entry(child_type).or_insert(schema);
+            // Collect child types from NEST hierarchies
+            if config.streaming_children {
+                // NEW: Streaming approach to collect type information
+                use crate::to_cypher::child_iterator::{ChildNodeIterator, TypeBatchedChildren};
+
+                let child_iter = ChildNodeIterator::new(&matrix_list.rows, &doc.structs, config);
+                let batched_iter = TypeBatchedChildren::new(child_iter, config.batch_size);
+
+                for batch_result in batched_iter {
+                    let batch = batch_result?;
+                    for (child_type, children) in batch {
+                        if !children.is_empty() {
+                            // Infer schema from first batch of this type
+                            node_types
+                                .entry(child_type)
+                                .or_insert_with(|| infer_child_schema(&children));
+                        }
+                    }
+                }
+            } else {
+                // LEGACY: Eager collection (deprecated)
+                let child_nodes = collect_child_nodes(&matrix_list.rows, &doc.structs, config)?;
+                for (child_type, children) in child_nodes {
+                    if !children.is_empty() {
+                        // Infer schema from first child
+                        let schema = infer_child_schema(&children);
+                        node_types.entry(child_type).or_insert(schema);
+                    }
                 }
             }
         }
@@ -426,17 +546,29 @@ where
             // Stream node creation statements in batches
             stream_node_statements(&nodes, key, config, writer, write_statement)?;
 
-            // Collect and stream child nodes from NEST hierarchies
-            let child_nodes = collect_child_nodes(&matrix_list.rows, &doc.structs, config)?;
-            for (child_type, children) in child_nodes {
-                if !children.is_empty() {
-                    stream_node_statements(
-                        &children,
-                        &child_type.to_lowercase(),
-                        config,
-                        writer,
-                        write_statement,
-                    )?;
+            // Stream child nodes from NEST hierarchies
+            if config.streaming_children {
+                // NEW: Streaming approach - O(batch_size) memory
+                stream_child_nodes(
+                    &matrix_list.rows,
+                    &doc.structs,
+                    config,
+                    writer,
+                    write_statement,
+                )?;
+            } else {
+                // LEGACY: Eager collection (deprecated) - O(total_children) memory
+                let child_nodes = collect_child_nodes(&matrix_list.rows, &doc.structs, config)?;
+                for (child_type, children) in child_nodes {
+                    if !children.is_empty() {
+                        stream_node_statements(
+                            &children,
+                            &child_type.to_lowercase(),
+                            config,
+                            writer,
+                            write_statement,
+                        )?;
+                    }
                 }
             }
         }
@@ -508,14 +640,14 @@ where
 ///
 /// # Errors
 ///
-/// Returns `Neo4jError::EmptyMatrixList` if a MatrixList has no rows.
+/// Returns `Neo4jError::EmptyMatrixList` if a `MatrixList` has no rows.
 /// Returns `Neo4jError::RecursionLimitExceeded` if NEST depth exceeds limit.
 /// Returns I/O errors as `Neo4jError::HedlError`.
 ///
 /// # Performance Characteristics
 ///
 /// - **Time complexity**: O(n) where n is the number of nodes
-/// - **Memory complexity**: O(batch_size) instead of O(n)
+/// - **Memory complexity**: `O(batch_size)` instead of O(n)
 /// - **I/O pattern**: Sequential writes, optimal for buffered I/O
 /// - **Throughput**: ~same as `to_cypher()`, limited by conversion not I/O
 pub fn to_cypher_stream<W: Write>(
@@ -523,6 +655,10 @@ pub fn to_cypher_stream<W: Write>(
     config: &ToCypherConfig,
     writer: &mut W,
 ) -> Result<()> {
+    // SECURITY: Validate node count before any processing
+    // This prevents DoS attacks through memory exhaustion
+    validate_node_count(doc, config)?;
+
     // Create the statement writer closure
     let (mut write_statement, _first_stmt_marker) = create_statement_writer(config);
 
@@ -572,8 +708,11 @@ where
 
     let label = &nodes[0].label;
 
+    // Calculate optimal batch size based on strategy
+    let batch_size = crate::batch_executor::calculate_optimal_batch_size(nodes, config);
+
     // Batch nodes for UNWIND
-    for chunk in nodes.chunks(config.batch_size) {
+    for chunk in nodes.chunks(batch_size) {
         let rows: Vec<CypherValue> = chunk
             .iter()
             .map(|n| n.to_cypher_map(&config.id_property))
@@ -588,14 +727,13 @@ where
         if let Some(first_node) = chunk.first() {
             for prop_name in first_node.properties.keys() {
                 let prop_escaped = escape_identifier(prop_name);
-                set_clauses.push(format!("n.{} = row.{}", prop_escaped, prop_escaped));
+                set_clauses.push(format!("n.{prop_escaped} = row.{prop_escaped}"));
             }
         }
 
         let query = if set_clauses.is_empty() {
             format!(
-                "UNWIND $rows AS row\n{} (n{} {{{}: row.{}}})",
-                create_keyword, label_escaped, id_prop, id_prop
+                "UNWIND $rows AS row\n{create_keyword} (n{label_escaped} {{{id_prop}: row.{id_prop}}})"
             )
         } else {
             format!(
@@ -610,7 +748,7 @@ where
 
         let stmt = CypherStatement::create_node(query)
             .with_param("rows", CypherValue::List(rows))
-            .with_comment(format!("Create {} nodes from {}", label, key));
+            .with_comment(format!("Create {label} nodes from {key}"));
 
         write_statement(&stmt, writer)?;
     }
@@ -693,27 +831,26 @@ fn generate_relationship_query(
 
     format!(
         "UNWIND $rows AS row\n\
-         MATCH (from{} {{{}: row.from_id}})\n\
-         MATCH (to{} {{{}: row.to_id}})\n\
-         {} (from)-[rel{}]->(to){}",
-        from_label_escaped,
-        id_prop,
-        to_label_escaped,
-        id_prop,
-        create_keyword,
-        rel_type_escaped,
-        prop_set
+         MATCH (from{from_label_escaped} {{{id_prop}: row.from_id}})\n\
+         MATCH (to{to_label_escaped} {{{id_prop}: row.to_id}})\n\
+         {create_keyword} (from)-[rel{rel_type_escaped}]->(to){prop_set}"
     )
 }
 
 /// Stream relationship creation statements for a single batch and label combination.
+///
+/// # Performance Note
+///
+/// The `rows` parameter is borrowed to avoid redundant cloning when multiple label
+/// combinations exist in a single batch. The clone only happens once when creating
+/// the statement parameter, rather than N times (where N = number of label groups).
 #[allow(clippy::too_many_arguments)]
 fn stream_relationship_batch<W: Write, F>(
     chunk: &[&Neo4jRelationship],
     rel_type: &str,
     from_label: &str,
     to_label: &str,
-    rows: Vec<CypherValue>,
+    rows: &[CypherValue],
     config: &ToCypherConfig,
     writer: &mut W,
     write_statement: &mut F,
@@ -728,11 +865,11 @@ where
     let query = generate_relationship_query(from_label, to_label, rel_type, config, &prop_set);
 
     // Create and write the statement
+    // Note: Explicit clone here, but only once per statement instead of per label group
     let stmt = CypherStatement::create_relationship(query)
-        .with_param("rows", CypherValue::List(rows))
+        .with_param("rows", CypherValue::List(rows.to_vec()))
         .with_comment(format!(
-            "Create {} relationships from {} to {}",
-            rel_type, from_label, to_label
+            "Create {rel_type} relationships from {from_label} to {to_label}"
         ));
 
     write_statement(&stmt, writer)?;
@@ -762,6 +899,7 @@ where
     for (rel_type, rels) in grouped {
         for chunk in rels.chunks(config.batch_size) {
             // Build data for UNWIND
+            // Note: Shared across all label groups to avoid redundant cloning
             let rows: Vec<CypherValue> = chunk
                 .iter()
                 .map(|rel| relationship_to_cypher_map(rel))
@@ -776,7 +914,7 @@ where
                     &rel_type,
                     &from_label,
                     &to_label,
-                    rows.clone(),
+                    &rows,
                     config,
                     writer,
                     write_statement,
@@ -826,7 +964,7 @@ fn generate_constraints(
 
         statements.push(
             CypherStatement::constraint(query)
-                .with_comment(format!("Ensure unique {} IDs", type_name)),
+                .with_comment(format!("Ensure unique {type_name} IDs")),
         );
     }
 
@@ -846,8 +984,11 @@ fn generate_node_statements(
 
     let label = &nodes[0].label;
 
+    // Calculate optimal batch size based on strategy
+    let batch_size = crate::batch_executor::calculate_optimal_batch_size(nodes, config);
+
     // Batch nodes for UNWIND
-    for chunk in nodes.chunks(config.batch_size) {
+    for chunk in nodes.chunks(batch_size) {
         let rows: Vec<CypherValue> = chunk
             .iter()
             .map(|n| n.to_cypher_map(&config.id_property))
@@ -862,14 +1003,13 @@ fn generate_node_statements(
         if let Some(first_node) = chunk.first() {
             for prop_name in first_node.properties.keys() {
                 let prop_escaped = escape_identifier(prop_name);
-                set_clauses.push(format!("n.{} = row.{}", prop_escaped, prop_escaped));
+                set_clauses.push(format!("n.{prop_escaped} = row.{prop_escaped}"));
             }
         }
 
         let query = if set_clauses.is_empty() {
             format!(
-                "UNWIND $rows AS row\n{} (n{} {{{}: row.{}}})",
-                create_keyword, label_escaped, id_prop, id_prop
+                "UNWIND $rows AS row\n{create_keyword} (n{label_escaped} {{{id_prop}: row.{id_prop}}})"
             )
         } else {
             format!(
@@ -885,20 +1025,26 @@ fn generate_node_statements(
         script.add(
             CypherStatement::create_node(query)
                 .with_param("rows", CypherValue::List(rows))
-                .with_comment(format!("Create {} nodes from {}", label, key)),
+                .with_comment(format!("Create {label} nodes from {key}")),
         );
     }
 
     Ok(())
 }
 
-/// Add relationship creation statement to a Cypher script for a single batch and label combination.
+/// Add a relationship creation statement to the script for a specific label combination.
+///
+/// # Performance Note
+///
+/// The `rows` parameter is borrowed to avoid redundant cloning when multiple label
+/// combinations exist in a single batch. The clone only happens once when creating
+/// the statement parameter, rather than N times (where N = number of label groups).
 fn add_relationship_statement_to_script(
     chunk: &[&Neo4jRelationship],
     rel_type: &str,
     from_label: &str,
     to_label: &str,
-    rows: Vec<CypherValue>,
+    rows: &[CypherValue],
     config: &ToCypherConfig,
     script: &mut CypherScript,
 ) {
@@ -909,12 +1055,12 @@ fn add_relationship_statement_to_script(
     let query = generate_relationship_query(from_label, to_label, rel_type, config, &prop_set);
 
     // Add the statement to the script
+    // Note: Explicit clone here, but only once per statement instead of per label group
     script.add(
         CypherStatement::create_relationship(query)
-            .with_param("rows", CypherValue::List(rows))
+            .with_param("rows", CypherValue::List(rows.to_vec()))
             .with_comment(format!(
-                "Create {} relationships from {} to {}",
-                rel_type, from_label, to_label
+                "Create {rel_type} relationships from {from_label} to {to_label}"
             )),
     );
 }
@@ -938,6 +1084,7 @@ fn generate_relationship_statements(
     for (rel_type, rels) in grouped {
         for chunk in rels.chunks(config.batch_size) {
             // Build data for UNWIND
+            // Note: Shared across all label groups to avoid redundant cloning
             let rows: Vec<CypherValue> = chunk
                 .iter()
                 .map(|rel| relationship_to_cypher_map(rel))
@@ -952,7 +1099,7 @@ fn generate_relationship_statements(
                     &rel_type,
                     &from_label,
                     &to_label,
-                    rows.clone(),
+                    &rows,
                     config,
                     script,
                 );
@@ -963,7 +1110,7 @@ fn generate_relationship_statements(
     Ok(())
 }
 
-/// Group relationships by (from_label, to_label) pairs.
+/// Group relationships by (`from_label`, `to_label`) pairs.
 fn group_by_labels<'a>(
     rels: &[&'a Neo4jRelationship],
 ) -> BTreeMap<(String, String), Vec<&'a Neo4jRelationship>> {
@@ -979,7 +1126,58 @@ fn group_by_labels<'a>(
     groups
 }
 
+/// Stream child nodes directly to output without full materialization.
+///
+/// This function replaces the pattern:
+///   `collect_child_nodes()` → iterate → `stream_node_statements()`
+/// With:
+///   `stream_child_nodes()` - direct streaming
+///
+/// # Memory Usage
+///
+/// - Peak memory: `O(batch_size)` instead of `O(total_children)`
+/// - Memory reduction: ~99% for large NEST hierarchies
+fn stream_child_nodes<W, F>(
+    parent_nodes: &[hedl_core::Node],
+    structs: &BTreeMap<String, Vec<String>>,
+    config: &ToCypherConfig,
+    writer: &mut W,
+    write_statement: &mut F,
+) -> Result<()>
+where
+    W: Write,
+    F: FnMut(&CypherStatement, &mut W) -> Result<()>,
+{
+    use crate::to_cypher::child_iterator::{ChildNodeIterator, TypeBatchedChildren};
+
+    let child_iter = ChildNodeIterator::new(parent_nodes, structs, config);
+    let batched_iter = TypeBatchedChildren::new(child_iter, config.batch_size);
+
+    for batch_result in batched_iter {
+        let batch = batch_result?;
+        for (child_type, children) in batch {
+            if !children.is_empty() {
+                stream_node_statements(
+                    &children,
+                    &child_type.to_lowercase(),
+                    config,
+                    writer,
+                    write_statement,
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Collect child nodes from NEST hierarchies, grouped by type.
+///
+/// # Deprecated
+///
+/// This function uses eager materialization which can cause memory spikes for large
+/// hierarchical documents. Prefer using `stream_child_nodes()` or enable
+/// `config.streaming_children = true` (default) for better memory efficiency.
 fn collect_child_nodes(
     nodes: &[hedl_core::Node],
     structs: &BTreeMap<String, Vec<String>>,
@@ -1003,9 +1201,9 @@ fn collect_child_nodes(
 
 /// Recursively collect children from a node.
 ///
-/// This function traverses child nodes in NEST hierarchies and converts them to Neo4jNode format.
+/// This function traverses child nodes in NEST hierarchies and converts them to `Neo4jNode` format.
 /// It uses the schema definitions from the document's structs to map field indices to proper
-/// column names (e.g., "title" instead of "field_1").
+/// column names (e.g., "title" instead of "`field_1`").
 ///
 /// # Arguments
 ///
@@ -1021,14 +1219,14 @@ fn collect_child_nodes(
 /// For each child node, the function:
 /// 1. Looks up the schema for the child's type in the `structs` map
 /// 2. Maps field indices to schema column names (e.g., fields[1] -> "title")
-/// 3. Falls back to generic names ("field_N") only if schema is not found
+/// 3. Falls back to generic names ("`field_N`") only if schema is not found
 ///
 /// This ensures child nodes have the same property naming convention as parent nodes,
 /// as required by SPEC.md Section 10.5.
 ///
 /// # Errors
 ///
-/// Returns `Neo4jError::RecursionLimitExceeded` if the depth exceeds max_depth.
+/// Returns `Neo4jError::RecursionLimitExceeded` if the depth exceeds `max_depth`.
 fn collect_children_recursive(
     node: &hedl_core::Node,
     structs: &BTreeMap<String, Vec<String>>,
@@ -1043,60 +1241,65 @@ fn collect_children_recursive(
 
     use crate::mapping::value::value_to_cypher;
 
-    for children in node.children.values() {
-        for child in children {
-            // Convert child to Neo4jNode
-            let mut neo4j_node = Neo4jNode::new(&child.type_name, &child.id);
+    if let Some(children_map) = node.children() {
+        for children in children_map.values() {
+            for child in children {
+                // Convert child to Neo4jNode
+                let mut neo4j_node = Neo4jNode::new(&child.type_name, &child.id);
 
-            // Look up schema for this child type
-            if let Some(schema) = structs.get(&child.type_name) {
-                // Use schema column names for properties
-                for (i, field) in child.fields.iter().enumerate() {
-                    // Skip ID field (first column)
-                    if i == 0 {
-                        continue;
+                // Look up schema for this child type
+                if let Some(schema) = structs.get(&child.type_name) {
+                    // Use schema column names for properties
+                    for (i, field) in child.fields.iter().enumerate() {
+                        // Skip ID field (first column)
+                        if i == 0 {
+                            continue;
+                        }
+
+                        // Get the column name from schema
+                        if let Some(column_name) = schema.get(i) {
+                            // Skip references as they become relationships
+                            if !matches!(field, hedl_core::Value::Reference(_)) {
+                                let cypher_value = value_to_cypher(field, column_name, config)?;
+                                neo4j_node
+                                    .properties
+                                    .insert(column_name.clone(), cypher_value);
+                            }
+                        }
                     }
-
-                    // Get the column name from schema
-                    if let Some(column_name) = schema.get(i) {
-                        // Skip references as they become relationships
+                } else {
+                    // Fallback: use generic field names if schema not found
+                    // This maintains backward compatibility for edge cases
+                    for (i, field) in child.fields.iter().enumerate() {
+                        if i == 0 {
+                            continue; // Skip ID field
+                        }
                         if !matches!(field, hedl_core::Value::Reference(_)) {
-                            let cypher_value = value_to_cypher(field, column_name, config)?;
-                            neo4j_node
-                                .properties
-                                .insert(column_name.clone(), cypher_value);
+                            let prop_name = format!("field_{i}");
+                            let cypher_value = value_to_cypher(field, &prop_name, config)?;
+                            neo4j_node.properties.insert(prop_name, cypher_value);
                         }
                     }
                 }
-            } else {
-                // Fallback: use generic field names if schema not found
-                // This maintains backward compatibility for edge cases
-                for (i, field) in child.fields.iter().enumerate() {
-                    if i == 0 {
-                        continue; // Skip ID field
-                    }
-                    if !matches!(field, hedl_core::Value::Reference(_)) {
-                        let prop_name = format!("field_{}", i);
-                        let cypher_value = value_to_cypher(field, &prop_name, config)?;
-                        neo4j_node.properties.insert(prop_name, cypher_value);
-                    }
-                }
+
+                children_by_type
+                    .entry(child.type_name.clone())
+                    .or_default()
+                    .push(neo4j_node);
+
+                // Recurse into nested children with incremented depth
+                let next_depth = depth
+                    .checked_add(1)
+                    .ok_or(Neo4jError::RecursionLimitExceeded { depth, max_depth })?;
+                collect_children_recursive(
+                    child,
+                    structs,
+                    config,
+                    children_by_type,
+                    next_depth,
+                    max_depth,
+                )?;
             }
-
-            children_by_type
-                .entry(child.type_name.clone())
-                .or_default()
-                .push(neo4j_node);
-
-            // Recurse into nested children with incremented depth
-            collect_children_recursive(
-                child,
-                structs,
-                config,
-                children_by_type,
-                depth + 1,
-                max_depth,
-            )?;
         }
     }
 
@@ -1119,6 +1322,7 @@ fn infer_child_schema(nodes: &[Neo4jNode]) -> Vec<String> {
 }
 
 /// Generate Cypher for a single node (inline, no parameters).
+#[must_use]
 pub fn node_to_cypher_inline(node: &Neo4jNode, config: &ToCypherConfig) -> String {
     let label = escape_label(&node.label);
     let id_prop = escape_identifier(&config.id_property);
@@ -1146,6 +1350,7 @@ mod tests {
     use super::*;
     use crate::cypher::StatementType;
     use hedl_core::{MatrixList, Node, Value};
+    use smallvec::SmallVec;
 
     fn make_simple_doc() -> Document {
         let mut root = BTreeMap::new();
@@ -1158,22 +1363,22 @@ mod tests {
                     Node {
                         type_name: "User".to_string(),
                         id: "alice".to_string(),
-                        fields: vec![
-                            Value::String("alice".to_string()),
-                            Value::String("Alice Smith".to_string()),
-                        ],
-                        children: BTreeMap::new(),
-                        child_count: None,
+                        fields: SmallVec::from_vec(vec![
+                            Value::String("alice".to_string().into()),
+                            Value::String("Alice Smith".to_string().into()),
+                        ]),
+                        children: None,
+                        child_count: 0,
                     },
                     Node {
                         type_name: "User".to_string(),
                         id: "bob".to_string(),
-                        fields: vec![
-                            Value::String("bob".to_string()),
-                            Value::String("Bob Jones".to_string()),
-                        ],
-                        children: BTreeMap::new(),
-                        child_count: None,
+                        fields: SmallVec::from_vec(vec![
+                            Value::String("bob".to_string().into()),
+                            Value::String("Bob Jones".to_string().into()),
+                        ]),
+                        children: None,
+                        child_count: 0,
                     },
                 ],
                 count_hint: None,
@@ -1182,6 +1387,7 @@ mod tests {
 
         Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -1259,12 +1465,12 @@ mod tests {
                 rows: vec![Node {
                     type_name: "User".to_string(),
                     id: "alice".to_string(),
-                    fields: vec![
-                        Value::String("alice".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("alice".to_string().into()),
+                        Value::String("Alice".to_string().into()),
+                    ]),
+                    children: None,
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1281,16 +1487,16 @@ mod tests {
                 rows: vec![Node {
                     type_name: "Post".to_string(),
                     id: "p1".to_string(),
-                    fields: vec![
-                        Value::String("p1".to_string()),
-                        Value::String("Hello World".to_string()),
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("p1".to_string().into()),
+                        Value::String("Hello World".to_string().into()),
                         Value::Reference(hedl_core::Reference {
-                            type_name: Some("User".to_string()),
-                            id: "alice".to_string(),
+                            type_name: Some("User".to_string().into()),
+                            id: "alice".to_string().into(),
                         }),
-                    ],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    ]),
+                    children: None,
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1298,6 +1504,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -1348,12 +1555,12 @@ mod tests {
             vec![Node {
                 type_name: "Post".to_string(),
                 id: "post1".to_string(),
-                fields: vec![
-                    Value::String("post1".to_string()),
-                    Value::String("First post".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("post1".to_string().into()),
+                    Value::String("First post".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
         );
 
@@ -1366,12 +1573,12 @@ mod tests {
                 rows: vec![Node {
                     type_name: "User".to_string(),
                     id: "alice".to_string(),
-                    fields: vec![
-                        Value::String("alice".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                    children: alice_children,
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("alice".to_string().into()),
+                        Value::String("Alice".to_string().into()),
+                    ]),
+                    children: Some(Box::new(alice_children)),
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1392,6 +1599,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs,
             nests,
@@ -1445,12 +1653,12 @@ mod tests {
                 rows: vec![Node {
                     type_name: "User".to_string(),
                     id: "alice".to_string(),
-                    fields: vec![
-                        Value::String("alice".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("alice".to_string().into()),
+                        Value::String("Alice".to_string().into()),
+                    ]),
+                    children: None,
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1467,16 +1675,16 @@ mod tests {
                 rows: vec![Node {
                     type_name: "Post".to_string(),
                     id: "p1".to_string(),
-                    fields: vec![
-                        Value::String("p1".to_string()),
-                        Value::String("Hello World".to_string()),
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("p1".to_string().into()),
+                        Value::String("Hello World".to_string().into()),
                         Value::Reference(hedl_core::Reference {
-                            type_name: Some("User".to_string()),
-                            id: "alice".to_string(),
+                            type_name: Some("User".to_string().into()),
+                            id: "alice".to_string().into(),
                         }),
-                    ],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    ]),
+                    children: None,
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1484,6 +1692,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -1515,12 +1724,12 @@ mod tests {
             vec![Node {
                 type_name: "Post".to_string(),
                 id: "post1".to_string(),
-                fields: vec![
-                    Value::String("post1".to_string()),
-                    Value::String("First post".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("post1".to_string().into()),
+                    Value::String("First post".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
         );
 
@@ -1533,12 +1742,12 @@ mod tests {
                 rows: vec![Node {
                     type_name: "User".to_string(),
                     id: "alice".to_string(),
-                    fields: vec![
-                        Value::String("alice".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                    children: alice_children,
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("alice".to_string().into()),
+                        Value::String("Alice".to_string().into()),
+                    ]),
+                    children: Some(Box::new(alice_children)),
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1559,6 +1768,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs,
             nests,
@@ -1647,6 +1857,7 @@ mod tests {
     fn test_streaming_api_empty_document() {
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -1671,13 +1882,13 @@ mod tests {
         for i in 0..5000 {
             rows.push(Node {
                 type_name: "User".to_string(),
-                id: format!("user{}", i),
-                fields: vec![
-                    Value::String(format!("user{}", i)),
-                    Value::String(format!("User {}", i)),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![
+                    Value::String(format!("user{i}").into()),
+                    Value::String(format!("User {i}").into()),
+                ]),
+                children: None,
+                child_count: 0,
             });
         }
 
@@ -1694,6 +1905,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -1731,13 +1943,13 @@ mod tests {
             vec![Node {
                 type_name: "Employee".to_string(),
                 id: "emp1".to_string(),
-                fields: vec![
-                    Value::String("emp1".to_string()),
-                    Value::String("John".to_string()),
-                    Value::String("Engineer".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("emp1".to_string().into()),
+                    Value::String("John".to_string().into()),
+                    Value::String("Engineer".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
         );
 
@@ -1747,12 +1959,12 @@ mod tests {
             vec![Node {
                 type_name: "Department".to_string(),
                 id: "eng".to_string(),
-                fields: vec![
-                    Value::String("eng".to_string()),
-                    Value::String("Engineering".to_string()),
-                ],
-                children: dept_children,
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("eng".to_string().into()),
+                    Value::String("Engineering".to_string().into()),
+                ]),
+                children: Some(Box::new(dept_children)),
+                child_count: 0,
             }],
         );
 
@@ -1765,12 +1977,12 @@ mod tests {
                 rows: vec![Node {
                     type_name: "Organization".to_string(),
                     id: "acme".to_string(),
-                    fields: vec![
-                        Value::String("acme".to_string()),
-                        Value::String("ACME Corp".to_string()),
-                    ],
-                    children: org_children,
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("acme".to_string().into()),
+                        Value::String("ACME Corp".to_string().into()),
+                    ]),
+                    children: Some(Box::new(org_children)),
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -1796,6 +2008,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs,
             nests,
@@ -1831,5 +2044,487 @@ mod tests {
         );
         assert!(cypher.contains("John"), "Should contain employee name");
         assert!(cypher.contains("Engineer"), "Should contain employee role");
+    }
+
+    // SECURITY TESTS: Node count limit enforcement
+
+    #[test]
+    fn test_max_nodes_limit_enforced() {
+        // Create document with 100 nodes
+        let mut rows = Vec::new();
+        for i in 0..100 {
+            rows.push(Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            });
+        }
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        // Set limit to 50 nodes
+        let config = ToCypherConfig::builder().max_nodes(50).build();
+
+        let result = to_cypher_statements(&doc, &config);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Neo4jError::NodeCountExceeded { count, max_count } => {
+                assert_eq!(count, 100);
+                assert_eq!(max_count, 50);
+            }
+            other => panic!("Expected NodeCountExceeded, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_max_nodes_limit_exactly_at_boundary() {
+        // Create document with exactly 50 nodes
+        let mut rows = Vec::new();
+        for i in 0..50 {
+            rows.push(Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            });
+        }
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        // Set limit to exactly 50 nodes (should succeed)
+        let config = ToCypherConfig::builder().max_nodes(50).build();
+
+        let result = to_cypher_statements(&doc, &config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_max_nodes_counts_nest_children() {
+        // Create parent with 10 children
+        let mut parent_children = BTreeMap::new();
+        let mut child_nodes = Vec::new();
+        for i in 0..10 {
+            child_nodes.push(Node {
+                type_name: "Post".to_string(),
+                id: format!("post{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("post{i}").into())]),
+                children: None,
+                child_count: 0,
+            });
+        }
+        parent_children.insert("posts".to_string(), child_nodes);
+
+        let parent = Node {
+            type_name: "User".to_string(),
+            id: "alice".to_string(),
+            fields: SmallVec::from_vec(vec![Value::String("alice".to_string().into())]),
+            children: Some(Box::new(parent_children)),
+            child_count: 0,
+        };
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows: vec![parent],
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        // Total nodes: 1 parent + 10 children = 11
+        // Set limit to 5, should fail
+        let config = ToCypherConfig::builder().max_nodes(5).build();
+
+        let result = to_cypher_statements(&doc, &config);
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            Neo4jError::NodeCountExceeded { count, max_count } => {
+                assert_eq!(count, 11); // 1 + 10
+                assert_eq!(max_count, 5);
+            }
+            other => panic!("Expected NodeCountExceeded, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_max_nodes_counts_deeply_nested() {
+        // Create 3-level hierarchy: Org -> Dept -> Employee
+        // 1 org, 2 depts, 3 employees each = 1 + 2 + 6 = 9 nodes
+
+        fn make_employees(count: usize) -> Vec<Node> {
+            (0..count)
+                .map(|i| Node {
+                    type_name: "Employee".to_string(),
+                    id: format!("emp{i}"),
+                    fields: SmallVec::from_vec(vec![Value::String(format!("emp{i}").into())]),
+                    children: None,
+                    child_count: 0,
+                })
+                .collect()
+        }
+
+        fn make_dept(id: &str, emp_count: usize) -> Node {
+            let mut children = BTreeMap::new();
+            children.insert("employees".to_string(), make_employees(emp_count));
+            Node {
+                type_name: "Department".to_string(),
+                id: id.to_string(),
+                fields: SmallVec::from_vec(vec![Value::String(id.to_string().into())]),
+                children: Some(Box::new(children)),
+                child_count: 0,
+            }
+        }
+
+        let mut org_children = BTreeMap::new();
+        org_children.insert(
+            "departments".to_string(),
+            vec![make_dept("dept1", 3), make_dept("dept2", 3)],
+        );
+
+        let org = Node {
+            type_name: "Organization".to_string(),
+            id: "org1".to_string(),
+            fields: SmallVec::from_vec(vec![Value::String("org1".to_string().into())]),
+            children: Some(Box::new(org_children)),
+            child_count: 0,
+        };
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "organizations".to_string(),
+            Item::List(MatrixList {
+                type_name: "Organization".to_string(),
+                schema: vec!["id".to_string()],
+                rows: vec![org],
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        // Total: 1 org + 2 depts + 6 employees = 9 nodes
+        let config = ToCypherConfig::builder().max_nodes(5).build();
+
+        let result = to_cypher_statements(&doc, &config);
+        assert!(result.is_err());
+
+        if let Err(Neo4jError::NodeCountExceeded { count, .. }) = result {
+            assert_eq!(count, 9);
+        } else {
+            panic!("Expected NodeCountExceeded error");
+        }
+    }
+
+    #[test]
+    fn test_max_nodes_no_limit_by_default() {
+        // Default config has no limit
+        let config = ToCypherConfig::default();
+        assert!(config.max_nodes.is_none());
+
+        // Large document should succeed with default config
+        let mut rows = Vec::new();
+        for i in 0..10000 {
+            rows.push(Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            });
+        }
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        let result = to_cypher_statements(&doc, &config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_for_untrusted_input_has_limit() {
+        let config = ToCypherConfig::for_untrusted_input();
+        assert_eq!(config.max_nodes, Some(100_000));
+    }
+
+    #[test]
+    fn test_max_nodes_streaming_api_enforced() {
+        // Same test for streaming API
+        let mut rows = Vec::new();
+        for i in 0..100 {
+            rows.push(Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            });
+        }
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        let config = ToCypherConfig::builder().max_nodes(50).build();
+
+        let mut output = Vec::new();
+        let result = to_cypher_stream(&doc, &config, &mut output);
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            Neo4jError::NodeCountExceeded { .. }
+        ));
+    }
+
+    #[test]
+    fn test_max_nodes_multiple_matrix_lists() {
+        // Multiple lists should have combined count checked
+        let mut root = BTreeMap::new();
+
+        // Add 30 users
+        let user_rows: Vec<Node> = (0..30)
+            .map(|i| Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            })
+            .collect();
+
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows: user_rows,
+                count_hint: None,
+            }),
+        );
+
+        // Add 30 posts
+        let post_rows: Vec<Node> = (0..30)
+            .map(|i| Node {
+                type_name: "Post".to_string(),
+                id: format!("post{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("post{i}").into())]),
+                children: None,
+                child_count: 0,
+            })
+            .collect();
+
+        root.insert(
+            "posts".to_string(),
+            Item::List(MatrixList {
+                type_name: "Post".to_string(),
+                schema: vec!["id".to_string()],
+                rows: post_rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        // Total: 30 + 30 = 60 nodes
+        // Limit of 50 should fail
+        let config = ToCypherConfig::builder().max_nodes(50).build();
+
+        let result = to_cypher_statements(&doc, &config);
+        assert!(result.is_err());
+
+        if let Err(Neo4jError::NodeCountExceeded { count, .. }) = result {
+            assert_eq!(count, 60);
+        } else {
+            panic!("Expected NodeCountExceeded error");
+        }
+    }
+
+    // SECURITY TESTS: DoS protection
+
+    #[test]
+    fn test_security_dos_protection() {
+        // Verify that untrusted config provides actual protection
+        let config = ToCypherConfig::for_untrusted_input();
+
+        // Create document exceeding limit
+        let mut rows = Vec::new();
+        for i in 0..100_001 {
+            // One more than limit
+            rows.push(Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            });
+        }
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        // MUST fail for untrusted config
+        let result = to_cypher_statements(&doc, &config);
+        assert!(
+            result.is_err(),
+            "for_untrusted_input() MUST reject documents over 100K nodes"
+        );
+    }
+
+    #[test]
+    fn test_security_error_message_is_clear() {
+        let config = ToCypherConfig::builder().max_nodes(10).build();
+
+        let rows: Vec<Node> = (0..20)
+            .map(|i| Node {
+                type_name: "User".to_string(),
+                id: format!("user{i}"),
+                fields: SmallVec::from_vec(vec![Value::String(format!("user{i}").into())]),
+                children: None,
+                child_count: 0,
+            })
+            .collect();
+
+        let mut root = BTreeMap::new();
+        root.insert(
+            "users".to_string(),
+            Item::List(MatrixList {
+                type_name: "User".to_string(),
+                schema: vec!["id".to_string()],
+                rows,
+                count_hint: None,
+            }),
+        );
+
+        let doc = Document {
+            version: (1, 0),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            root,
+        };
+
+        let err = to_cypher_statements(&doc, &config).unwrap_err();
+        let msg = err.to_string();
+
+        // Error message should contain both counts for debugging
+        assert!(msg.contains("20"), "Error should mention actual count");
+        assert!(msg.contains("10"), "Error should mention limit");
     }
 }

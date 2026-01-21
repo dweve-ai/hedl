@@ -19,11 +19,21 @@
 //!
 //! This module implements the inference algorithm that determines the type
 //! of unquoted values based on their textual representation.
+//!
+//! # Bidirectional Type Inference
+//!
+//! The module supports bidirectional type inference with two modes:
+//!
+//! - **Synthesis mode**: Infers the most specific type from the input string
+//! - **Checking mode**: Uses expected type context to disambiguate inference
+//!
+//! This enables both flexible parsing and schema-guided validation.
 
 use crate::error::{HedlError, HedlResult};
 use crate::lex::{
     is_tensor_literal, is_valid_id_token, parse_expression_token, parse_reference, parse_tensor,
 };
+use crate::types::{value_to_expected_type, ExpectedType};
 use crate::value::{Reference, Value};
 use std::collections::{BTreeMap, HashMap};
 
@@ -47,6 +57,16 @@ pub struct InferenceContext<'a> {
     pub column_index: usize,
     /// Current type name (for reference resolution context).
     pub current_type: Option<&'a str>,
+
+    // NEW fields for bidirectional inference:
+    /// Expected type hint from schema or context.
+    pub expected_type: Option<ExpectedType>,
+    /// Column types for matrix rows.
+    pub column_types: Option<&'a [ExpectedType]>,
+    /// Whether to enforce strict type matching.
+    pub strict_types: bool,
+    /// Whether to collect all errors or fail fast.
+    pub error_recovery: bool,
 }
 
 impl<'a> InferenceContext<'a> {
@@ -60,6 +80,10 @@ impl<'a> InferenceContext<'a> {
             prev_row: None,
             column_index: 0,
             current_type: None,
+            expected_type: None,
+            column_types: None,
+            strict_types: false,
+            error_recovery: false,
         }
     }
 
@@ -78,7 +102,35 @@ impl<'a> InferenceContext<'a> {
             prev_row,
             column_index,
             current_type: Some(current_type),
+            expected_type: None,
+            column_types: None,
+            strict_types: false,
+            error_recovery: false,
         }
+    }
+
+    /// Set expected type hint.
+    pub fn with_expected_type(mut self, expected: ExpectedType) -> Self {
+        self.expected_type = Some(expected);
+        self
+    }
+
+    /// Set column types for matrix inference.
+    pub fn with_column_types(mut self, types: &'a [ExpectedType]) -> Self {
+        self.column_types = Some(types);
+        self
+    }
+
+    /// Enable strict type matching.
+    pub fn with_strict_types(mut self, strict: bool) -> Self {
+        self.strict_types = strict;
+        self
+    }
+
+    /// Enable error recovery mode.
+    pub fn with_error_recovery(mut self, recovery: bool) -> Self {
+        self.error_recovery = recovery;
+        self
     }
 
     /// P0 OPTIMIZATION: Pre-expand aliases into HashMap for O(1) lookups
@@ -94,6 +146,181 @@ impl<'a> InferenceContext<'a> {
         }
         cache
     }
+}
+
+/// Confidence level for type inference.
+///
+/// Represents how certain we are about the inferred type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InferenceConfidence {
+    /// Type is certain (explicit or unambiguous)
+    Certain,
+    /// Type is probable (heuristic match)
+    Probable,
+    /// Type is ambiguous (multiple valid interpretations)
+    Ambiguous,
+}
+
+/// Result of type inference with confidence level.
+///
+/// This structure provides detailed information about the outcome of
+/// bidirectional type inference, including the inferred value, its type,
+/// and how confident we are in the inference.
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::inference::{infer_value_synthesize, InferenceContext};
+/// use std::collections::BTreeMap;
+///
+/// let aliases = BTreeMap::new();
+/// let ctx = InferenceContext::for_key_value(&aliases);
+/// let result = infer_value_synthesize("42", &ctx, 1).unwrap();
+/// // result.value is Int(42)
+/// // result.inferred_type is ExpectedType::Int
+/// // result.confidence is InferenceConfidence::Certain
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct InferenceResult {
+    /// The inferred value
+    pub value: Value,
+    /// The inferred type
+    pub inferred_type: ExpectedType,
+    /// Confidence in the inference
+    pub confidence: InferenceConfidence,
+}
+
+/// Infer value type with expected type context (checking mode).
+///
+/// Uses expected type to disambiguate inference when multiple
+/// interpretations are valid. This is the "checking" mode of
+/// bidirectional type inference.
+///
+/// # Arguments
+///
+/// * `input` - The input string to infer
+/// * `expected` - The expected type from context (schema, etc.)
+/// * `ctx` - Inference context with aliases and other settings
+/// * `line_num` - Line number for error reporting
+///
+/// # Returns
+///
+/// An `InferenceResult` with the value, type, and confidence level.
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::inference::{infer_value_with_type, InferenceContext};
+/// use hedl_core::types::ExpectedType;
+/// use std::collections::BTreeMap;
+///
+/// let aliases = BTreeMap::new();
+/// let ctx = InferenceContext::for_key_value(&aliases);
+/// let result = infer_value_with_type("42", &ExpectedType::Float, &ctx, 1).unwrap();
+/// // Returns Float(42.0) because Float was expected
+/// ```
+pub fn infer_value_with_type(
+    input: &str,
+    expected: &ExpectedType,
+    ctx: &InferenceContext<'_>,
+    line_num: usize,
+) -> HedlResult<InferenceResult> {
+    use crate::coercion::{coerce, CoercionMode};
+
+    // First try regular inference
+    let value = infer_value(input, ctx, line_num)?;
+    let inferred_type = value_to_expected_type(&value);
+
+    // If types match exactly, return with high confidence
+    if expected.matches(&value) {
+        return Ok(InferenceResult {
+            value,
+            inferred_type,
+            confidence: InferenceConfidence::Certain,
+        });
+    }
+
+    // Try coercion if types don't match
+    let mode = if ctx.strict_types {
+        CoercionMode::Strict
+    } else {
+        CoercionMode::Lenient
+    };
+
+    match coerce(value.clone(), expected, mode) {
+        crate::coercion::CoercionResult::Matched(v) => Ok(InferenceResult {
+            value: v,
+            inferred_type: expected.clone(),
+            confidence: InferenceConfidence::Certain,
+        }),
+        crate::coercion::CoercionResult::Coerced(v) => Ok(InferenceResult {
+            value: v,
+            inferred_type: expected.clone(),
+            confidence: InferenceConfidence::Probable,
+        }),
+        crate::coercion::CoercionResult::Failed { reason, .. } => {
+            if ctx.error_recovery {
+                // In error recovery mode, return original value with ambiguous confidence
+                Ok(InferenceResult {
+                    value,
+                    inferred_type,
+                    confidence: InferenceConfidence::Ambiguous,
+                })
+            } else {
+                // Fail with type mismatch error
+                Err(HedlError::type_mismatch(
+                    format!(
+                        "type mismatch: expected {}, got {} ({})",
+                        expected.describe(),
+                        crate::types::describe_value_type(&value),
+                        reason
+                    ),
+                    line_num,
+                ))
+            }
+        }
+    }
+}
+
+/// Infer value type without expected context (synthesis mode).
+///
+/// Returns the most specific type that can be inferred from the input.
+/// This is the "synthesis" mode of bidirectional type inference.
+///
+/// # Arguments
+///
+/// * `input` - The input string to infer
+/// * `ctx` - Inference context with aliases and other settings
+/// * `line_num` - Line number for error reporting
+///
+/// # Returns
+///
+/// An `InferenceResult` with the value, type, and confidence level.
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::inference::{infer_value_synthesize, InferenceContext};
+/// use std::collections::BTreeMap;
+///
+/// let aliases = BTreeMap::new();
+/// let ctx = InferenceContext::for_key_value(&aliases);
+/// let result = infer_value_synthesize("42", &ctx, 1).unwrap();
+/// // Returns Int(42) with ExpectedType::Int
+/// ```
+pub fn infer_value_synthesize(
+    input: &str,
+    ctx: &InferenceContext<'_>,
+    line_num: usize,
+) -> HedlResult<InferenceResult> {
+    let value = infer_value(input, ctx, line_num)?;
+    let inferred_type = value_to_expected_type(&value);
+
+    Ok(InferenceResult {
+        value,
+        inferred_type,
+        confidence: InferenceConfidence::Certain,
+    })
 }
 
 /// P2 OPTIMIZATION: Lookup table for common value inference.
@@ -218,7 +445,7 @@ fn try_lookup_common(s: &str) -> Option<Value> {
 ///
 /// P1 OPTIMIZATION: First-byte dispatch for O(1) type detection instead of sequential checks.
 /// P1 OPTIMIZATION: Optimized boolean detection with length-based filter + byte comparison.
-pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResult<Value> {
+pub fn infer_value(s: &str, ctx: &InferenceContext<'_>, line_num: usize) -> HedlResult<Value> {
     let s = s.trim();
 
     // P2 OPTIMIZATION: Fast path for common values (true, false, ~)
@@ -248,7 +475,7 @@ pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResu
         Some(b'[') => {
             if is_tensor_literal(s) {
                 match parse_tensor(s) {
-                    Ok(tensor) => return Ok(Value::Tensor(tensor)),
+                    Ok(tensor) => return Ok(Value::Tensor(Box::new(tensor))),
                     Err(e) => {
                         return Err(HedlError::syntax(
                             format!("invalid tensor literal: {}", e),
@@ -264,8 +491,8 @@ pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResu
         Some(b'@') => match parse_reference(s) {
             Ok(r) => {
                 return Ok(Value::Reference(Reference {
-                    type_name: r.type_name,
-                    id: r.id,
+                    type_name: r.type_name.map(|s| s.into_boxed_str()),
+                    id: r.id.into_boxed_str(),
                 }));
             }
             Err(e) => {
@@ -278,7 +505,7 @@ pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResu
 
         // Expression: starts with "$("
         Some(b'$') if bytes.get(1) == Some(&b'(') => match parse_expression_token(s) {
-            Ok(expr) => return Ok(Value::Expression(expr)),
+            Ok(expr) => return Ok(Value::Expression(Box::new(expr))),
             Err(e) => {
                 return Err(HedlError::syntax(
                     format!("invalid expression: {}", e),
@@ -330,15 +557,15 @@ pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResu
         ));
     }
 
-    Ok(Value::String(s.to_string()))
+    Ok(Value::String(s.to_string().into_boxed_str()))
 }
 
 /// Handle ditto (^) inference separately
 #[inline]
-fn infer_ditto(ctx: &InferenceContext, line_num: usize) -> HedlResult<Value> {
+fn infer_ditto(ctx: &InferenceContext<'_>, line_num: usize) -> HedlResult<Value> {
     if !ctx.is_matrix_cell {
         // In key-value context, ^ is just a string
-        return Ok(Value::String("^".to_string()));
+        return Ok(Value::String("^".into()));
     }
 
     if ctx.is_id_column {
@@ -377,7 +604,7 @@ fn infer_expanded_alias(s: &str, _line_num: usize) -> HedlResult<Value> {
     }
 
     // String
-    Ok(Value::String(s.to_string()))
+    Ok(Value::String(s.to_string().into_boxed_str()))
 }
 
 /// Try to parse a string as a number.
@@ -420,7 +647,7 @@ fn try_parse_number(s: &str) -> Option<Value> {
 pub fn infer_quoted_value(s: &str) -> Value {
     // Process "" escapes
     let unescaped = s.replace("\"\"", "\"");
-    Value::String(unescaped)
+    Value::String(unescaped.into_boxed_str())
 }
 
 #[cfg(test)]
@@ -453,7 +680,7 @@ mod tests {
     #[test]
     fn test_infer_tilde_as_part_of_string() {
         let v = infer_value("~hello", &kv_ctx(), 1).unwrap();
-        assert!(matches!(v, Value::String(s) if s == "~hello"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "~hello"));
     }
 
     #[test]
@@ -574,7 +801,7 @@ mod tests {
     fn test_infer_string() {
         assert!(matches!(
             infer_value("hello", &kv_ctx(), 1).unwrap(),
-            Value::String(s) if s == "hello"
+            Value::String(s) if s.as_ref() == "hello"
         ));
     }
 
@@ -583,7 +810,7 @@ mod tests {
         // Note: value is trimmed, so surrounding spaces are removed
         assert!(matches!(
             infer_value("  hello  ", &kv_ctx(), 1).unwrap(),
-            Value::String(s) if s == "hello"
+            Value::String(s) if s.as_ref() == "hello"
         ));
     }
 
@@ -591,7 +818,7 @@ mod tests {
     fn test_infer_string_unicode() {
         assert!(matches!(
             infer_value("日本語", &kv_ctx(), 1).unwrap(),
-            Value::String(s) if s == "日本語"
+            Value::String(s) if s.as_ref() == "日本語"
         ));
     }
 
@@ -599,7 +826,7 @@ mod tests {
     fn test_infer_string_emoji() {
         assert!(matches!(
             infer_value("🎉", &kv_ctx(), 1).unwrap(),
-            Value::String(s) if s == "🎉"
+            Value::String(s) if s.as_ref() == "🎉"
         ));
     }
 
@@ -611,7 +838,7 @@ mod tests {
         match v {
             Value::Reference(r) => {
                 assert_eq!(r.type_name, None);
-                assert_eq!(r.id, "user_1");
+                assert_eq!(r.id.as_ref(), "user_1");
             }
             _ => panic!("expected reference"),
         }
@@ -622,8 +849,8 @@ mod tests {
         let v = infer_value("@User:user_1", &kv_ctx(), 1).unwrap();
         match v {
             Value::Reference(r) => {
-                assert_eq!(r.type_name, Some("User".to_string()));
-                assert_eq!(r.id, "user_1");
+                assert_eq!(r.type_name.as_deref(), Some("User"));
+                assert_eq!(r.id.as_ref(), "user_1");
             }
             _ => panic!("expected reference"),
         }
@@ -649,8 +876,8 @@ mod tests {
         let v = infer_value("@User:ABC123", &kv_ctx(), 1).unwrap();
         match v {
             Value::Reference(r) => {
-                assert_eq!(r.type_name, Some("User".to_string()));
-                assert_eq!(r.id, "ABC123");
+                assert_eq!(r.type_name.as_deref(), Some("User"));
+                assert_eq!(r.id.as_ref(), "ABC123");
             }
             _ => panic!("Expected reference"),
         }
@@ -665,7 +892,7 @@ mod tests {
         match v {
             Value::Expression(e) => {
                 assert!(
-                    matches!(e, Expression::Call { name, args, .. } if name == "now" && args.is_empty())
+                    matches!(e.as_ref(), Expression::Call { name, args, .. } if name == "now" && args.is_empty())
                 );
             }
             _ => panic!("expected expression"),
@@ -700,7 +927,7 @@ mod tests {
     fn test_dollar_not_expression() {
         // $foo is not an expression (no parens)
         let v = infer_value("$foo", &kv_ctx(), 1).unwrap();
-        assert!(matches!(v, Value::String(s) if s == "$foo"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "$foo"));
     }
 
     // ==================== Tensor inference ====================
@@ -764,7 +991,7 @@ mod tests {
         aliases.insert("name".to_string(), "Alice".to_string());
         let ctx = ctx_with_aliases(&aliases);
         let v = infer_value("%name", &ctx, 1).unwrap();
-        assert!(matches!(v, Value::String(s) if s == "Alice"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "Alice"));
     }
 
     #[test]
@@ -779,13 +1006,13 @@ mod tests {
     #[test]
     fn test_ditto_in_kv_is_string() {
         let v = infer_value("^", &kv_ctx(), 1).unwrap();
-        assert!(matches!(v, Value::String(s) if s == "^"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "^"));
     }
 
     #[test]
     fn test_ditto_in_matrix_cell() {
         let aliases = BTreeMap::new();
-        let prev_row = vec![Value::String("id".to_string()), Value::Int(42)];
+        let prev_row = vec![Value::String("id".to_string().into()), Value::Int(42)];
         let ctx = InferenceContext::for_matrix_cell(&aliases, 1, Some(&prev_row), "User");
         let v = infer_value("^", &ctx, 1).unwrap();
         assert!(matches!(v, Value::Int(42)));
@@ -794,7 +1021,7 @@ mod tests {
     #[test]
     fn test_ditto_in_id_column_error() {
         let aliases = BTreeMap::new();
-        let prev_row = vec![Value::String("id".to_string())];
+        let prev_row = vec![Value::String("id".to_string().into())];
         let ctx = InferenceContext::for_matrix_cell(&aliases, 0, Some(&prev_row), "User");
         let result = infer_value("^", &ctx, 1);
         assert!(result.is_err());
@@ -813,7 +1040,7 @@ mod tests {
     #[test]
     fn test_ditto_column_out_of_range_error() {
         let aliases = BTreeMap::new();
-        let prev_row = vec![Value::String("id".to_string())];
+        let prev_row = vec![Value::String("id".to_string().into())];
         let ctx = InferenceContext::for_matrix_cell(&aliases, 5, Some(&prev_row), "User");
         let result = infer_value("^", &ctx, 1);
         assert!(result.is_err());
@@ -915,7 +1142,7 @@ mod tests {
     #[test]
     fn test_infer_quoted_value_simple() {
         let v = infer_quoted_value("hello");
-        assert!(matches!(v, Value::String(s) if s == "hello"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "hello"));
     }
 
     #[test]
@@ -927,13 +1154,13 @@ mod tests {
     #[test]
     fn test_infer_quoted_value_escaped_quotes() {
         let v = infer_quoted_value("say \"\"hello\"\"");
-        assert!(matches!(v, Value::String(s) if s == "say \"hello\""));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "say \"hello\""));
     }
 
     #[test]
     fn test_infer_quoted_value_multiple_escapes() {
         let v = infer_quoted_value("a\"\"b\"\"c");
-        assert!(matches!(v, Value::String(s) if s == "a\"b\"c"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "a\"b\"c"));
     }
 
     // ==================== InferenceContext tests ====================
@@ -971,7 +1198,7 @@ mod tests {
         let aliases = BTreeMap::new();
         let ctx = InferenceContext::for_matrix_cell(&aliases, 0, None, "User");
         let v = infer_value("user_123", &ctx, 1).unwrap();
-        assert!(matches!(v, Value::String(s) if s == "user_123"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "user_123"));
     }
 
     #[test]
@@ -1021,7 +1248,7 @@ mod tests {
         // Ensure lookup table properly handles non-matches
         // "True" (capitalized) should NOT match "true"
         let v = infer_value("True", &kv_ctx(), 1).unwrap();
-        assert!(matches!(v, Value::String(s) if s == "True"));
+        assert!(matches!(v, Value::String(s) if s.as_ref() == "True"));
     }
 
     #[test]
@@ -1031,6 +1258,238 @@ mod tests {
             let v = infer_value("true", &kv_ctx(), 1).unwrap();
             assert!(matches!(v, Value::Bool(true)));
         }
+    }
+
+    // ==================== Bidirectional Inference Tests ====================
+
+    #[test]
+    fn test_inference_result_structure() {
+        let result = infer_value_synthesize("42", &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.inferred_type, ExpectedType::Int);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_synthesize_int() {
+        let result = infer_value_synthesize("42", &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.inferred_type, ExpectedType::Int);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_synthesize_float() {
+        let result = infer_value_synthesize("3.25", &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Float(f) if (f - 3.25).abs() < 0.001));
+        assert_eq!(result.inferred_type, ExpectedType::Float);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_synthesize_bool() {
+        let result = infer_value_synthesize("true", &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Bool(true)));
+        assert_eq!(result.inferred_type, ExpectedType::Bool);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_synthesize_string() {
+        let result = infer_value_synthesize("hello", &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::String(s) if s.as_ref() == "hello"));
+        assert_eq!(result.inferred_type, ExpectedType::String);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_synthesize_null() {
+        let result = infer_value_synthesize("~", &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Null));
+        assert_eq!(result.inferred_type, ExpectedType::Null);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_exact_match() {
+        let result = infer_value_with_type("42", &ExpectedType::Int, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.inferred_type, ExpectedType::Int);
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_int_to_float_coercion() {
+        let result = infer_value_with_type("42", &ExpectedType::Float, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Float(f) if (f - 42.0).abs() < 0.001));
+        assert_eq!(result.inferred_type, ExpectedType::Float);
+        assert_eq!(result.confidence, InferenceConfidence::Probable);
+    }
+
+    #[test]
+    fn test_checking_string_to_int_lenient() {
+        let ctx = kv_ctx();
+        let result = infer_value_with_type("42", &ExpectedType::Int, &ctx, 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_with_strict_types() {
+        let ctx = kv_ctx().with_strict_types(true);
+        // Int to Float should still work (safe coercion)
+        let result = infer_value_with_type("42", &ExpectedType::Float, &ctx, 1).unwrap();
+        assert!(matches!(result.value, Value::Float(_)));
+    }
+
+    #[test]
+    fn test_checking_type_mismatch_error() {
+        let ctx = kv_ctx().with_strict_types(true);
+        // Bool can't be coerced to Int
+        let result = infer_value_with_type("true", &ExpectedType::Int, &ctx, 1);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("type mismatch"));
+    }
+
+    #[test]
+    fn test_checking_with_error_recovery() {
+        let ctx = kv_ctx().with_strict_types(true).with_error_recovery(true);
+        // Type mismatch, but error recovery returns original value
+        let result = infer_value_with_type("true", &ExpectedType::Int, &ctx, 1).unwrap();
+        assert!(matches!(result.value, Value::Bool(true)));
+        assert_eq!(result.confidence, InferenceConfidence::Ambiguous);
+    }
+
+    #[test]
+    fn test_checking_numeric_accepts_int() {
+        let result = infer_value_with_type("42", &ExpectedType::Numeric, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_numeric_accepts_float() {
+        let result = infer_value_with_type("3.5", &ExpectedType::Numeric, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Float(f) if (f - 3.5).abs() < 0.001));
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_any_accepts_all() {
+        let result = infer_value_with_type("42", &ExpectedType::Any, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+
+        let result = infer_value_with_type("hello", &ExpectedType::Any, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::String(_)));
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_union_type() {
+        use crate::types::ExpectedType;
+        let union = ExpectedType::Union(vec![ExpectedType::Int, ExpectedType::String]);
+        let result = infer_value_with_type("42", &union, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_checking_reference_qualified() {
+        let expected = ExpectedType::Reference {
+            target_type: Some("User".to_string()),
+        };
+        let result = infer_value_with_type("@User:user_1", &expected, &kv_ctx(), 1).unwrap();
+        match result.value {
+            Value::Reference(r) => {
+                assert_eq!(r.type_name.as_deref(), Some("User"));
+                assert_eq!(r.id.as_ref(), "user_1");
+            }
+            _ => panic!("Expected reference"),
+        }
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+    }
+
+    #[test]
+    fn test_context_with_expected_type() {
+        let ctx = kv_ctx().with_expected_type(ExpectedType::Float);
+        assert_eq!(ctx.expected_type, Some(ExpectedType::Float));
+    }
+
+    #[test]
+    fn test_context_with_column_types() {
+        let types = vec![ExpectedType::String, ExpectedType::Int, ExpectedType::Float];
+        let ctx = kv_ctx().with_column_types(&types);
+        assert!(ctx.column_types.is_some());
+        assert_eq!(ctx.column_types.unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_context_builder_pattern() {
+        let types = vec![ExpectedType::Int];
+        let ctx = kv_ctx()
+            .with_expected_type(ExpectedType::Float)
+            .with_column_types(&types)
+            .with_strict_types(true)
+            .with_error_recovery(true);
+
+        assert_eq!(ctx.expected_type, Some(ExpectedType::Float));
+        assert!(ctx.column_types.is_some());
+        assert!(ctx.strict_types);
+        assert!(ctx.error_recovery);
+    }
+
+    #[test]
+    fn test_inference_confidence_levels() {
+        // Certain: Exact match
+        let result = infer_value_with_type("42", &ExpectedType::Int, &kv_ctx(), 1).unwrap();
+        assert_eq!(result.confidence, InferenceConfidence::Certain);
+
+        // Probable: Safe coercion
+        let result = infer_value_with_type("42", &ExpectedType::Float, &kv_ctx(), 1).unwrap();
+        assert_eq!(result.confidence, InferenceConfidence::Probable);
+
+        // Ambiguous: Error recovery mode
+        let ctx = kv_ctx().with_strict_types(true).with_error_recovery(true);
+        let result = infer_value_with_type("true", &ExpectedType::Int, &ctx, 1).unwrap();
+        assert_eq!(result.confidence, InferenceConfidence::Ambiguous);
+    }
+
+    #[test]
+    fn test_synthesize_with_aliases() {
+        let mut aliases = BTreeMap::new();
+        aliases.insert("count".to_string(), "42".to_string());
+        let ctx = ctx_with_aliases(&aliases);
+        let result = infer_value_synthesize("%count", &ctx, 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+        assert_eq!(result.inferred_type, ExpectedType::Int);
+    }
+
+    #[test]
+    fn test_checking_with_ditto() {
+        let aliases = BTreeMap::new();
+        let prev_row = vec![Value::String("id".to_string().into()), Value::Int(42)];
+        let ctx = InferenceContext::for_matrix_cell(&aliases, 1, Some(&prev_row), "User");
+        let result = infer_value_synthesize("^", &ctx, 1).unwrap();
+        assert!(matches!(result.value, Value::Int(42)));
+    }
+
+    #[test]
+    fn test_checking_preserves_expression() {
+        let result =
+            infer_value_with_type("$(now())", &ExpectedType::Expression, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Expression(_)));
+        assert_eq!(result.inferred_type, ExpectedType::Expression);
+    }
+
+    #[test]
+    fn test_checking_preserves_tensor() {
+        let expected = ExpectedType::Tensor {
+            shape: None,
+            dtype: None,
+        };
+        let result = infer_value_with_type("[1, 2, 3]", &expected, &kv_ctx(), 1).unwrap();
+        assert!(matches!(result.value, Value::Tensor(_)));
     }
 
     // ==================== Edge cases ====================

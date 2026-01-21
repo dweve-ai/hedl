@@ -97,10 +97,10 @@ hedl/
 1. **Optional Dependencies**: Users can include only what they need
    ```toml
    # Minimal: just core parsing and JSON
-   hedl = "1.0"
+   hedl = "1.2"
 
    # All formats
-   hedl = { version = "1.0", features = ["all-formats"] }
+   hedl = { version = "1.2", features = ["all-formats"] }
    ```
 
 2. **Parallel Compilation**: Cargo can compile independent crates in parallel

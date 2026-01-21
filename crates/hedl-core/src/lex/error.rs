@@ -37,68 +37,107 @@ pub enum LexError {
     // ==================== Indentation errors ====================
     /// Invalid indentation (must be multiple of 2 spaces).
     #[error("line {}, column {}: invalid indentation: {} spaces (must be multiple of 2)", .pos.line(), .pos.column(), .spaces)]
-    InvalidIndentation { spaces: usize, pos: SourcePos },
+    InvalidIndentation {
+        /// Number of spaces found.
+        spaces: usize,
+        /// Source position of the error.
+        pos: SourcePos,
+    },
 
     /// Tab character in indentation (tabs not allowed).
     #[error("line {}, column {}: tab character not allowed for indentation", .pos.line(), .pos.column())]
-    TabInIndentation { pos: SourcePos },
+    TabInIndentation {
+        /// Source position of the tab.
+        pos: SourcePos,
+    },
 
     /// Indentation too deep.
     #[error("line {}, column {}: indent depth {} exceeds maximum {}", .pos.line(), .pos.column(), .depth, .max)]
     IndentTooDeep {
+        /// Current indentation depth.
         depth: usize,
+        /// Maximum allowed depth.
         max: usize,
+        /// Source position of the error.
         pos: SourcePos,
     },
 
     // ==================== String/expression errors ====================
     /// Unclosed quoted string.
     #[error("line {}, column {}: unclosed quoted string", .pos.line(), .pos.column())]
-    UnclosedQuote { pos: SourcePos },
+    UnclosedQuote {
+        /// Source position of the opening quote.
+        pos: SourcePos,
+    },
 
     /// Unclosed expression.
     #[error("line {}, column {}: unclosed expression", .pos.line(), .pos.column())]
-    UnclosedExpression { pos: SourcePos },
+    UnclosedExpression {
+        /// Source position of the expression start.
+        pos: SourcePos,
+    },
 
     // ==================== Token errors ====================
     /// Invalid reference format.
     #[error("line {}, column {}: invalid reference format: {}", .pos.line(), .pos.column(), .message)]
-    InvalidReference { message: String, pos: SourcePos },
+    InvalidReference {
+        /// Description of the format error.
+        message: String,
+        /// Source position of the reference.
+        pos: SourcePos,
+    },
 
     /// Invalid token.
     #[error("line {}, column {}: invalid token: {}", .pos.line(), .pos.column(), .message)]
-    InvalidToken { message: String, pos: SourcePos },
+    InvalidToken {
+        /// Description of the token error.
+        message: String,
+        /// Source position of the token.
+        pos: SourcePos,
+    },
 
     // ==================== Resource limit errors ====================
     /// String too long.
     #[error("line {}, column {}: string length {} exceeds maximum {}", .pos.line(), .pos.column(), .length, .max)]
     StringTooLong {
+        /// Actual string length.
         length: usize,
+        /// Maximum allowed length.
         max: usize,
+        /// Source position of the string.
         pos: SourcePos,
     },
 
     /// Recursion too deep.
     #[error("line {}, column {}: recursion depth {} exceeds maximum {}", .pos.line(), .pos.column(), .depth, .max)]
     RecursionTooDeep {
+        /// Current recursion depth.
         depth: usize,
+        /// Maximum allowed depth.
         max: usize,
+        /// Source position of the error.
         pos: SourcePos,
     },
 
     /// Too many fields.
     #[error("line {}, column {}: field count {} exceeds maximum {}", .pos.line(), .pos.column(), .count, .max)]
     TooManyFields {
+        /// Actual field count.
         count: usize,
+        /// Maximum allowed count.
         max: usize,
+        /// Source position of the error.
         pos: SourcePos,
     },
 
     /// Parenthesis depth exceeded.
     #[error("line {}, column {}: parenthesis depth {} exceeds maximum {}", .pos.line(), .pos.column(), .depth, .max)]
     ParenthesisDepthExceeded {
+        /// Current parenthesis depth.
         depth: usize,
+        /// Maximum allowed depth.
         max: usize,
+        /// Source position of the error.
         pos: SourcePos,
     },
 

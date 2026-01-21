@@ -1,11 +1,51 @@
+# =============================================================================
+# HEDL Parquet - crates/hedl-parquet/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-parquet"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
-description = "Bidirectional conversion between Parquet and HEDL formats"
+
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL to/from Apache Parquet conversion"
+documentation = "https://docs.rs/hedl-parquet"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
 hedl-core = { workspace = true }
@@ -14,7 +54,21 @@ parquet = { workspace = true }
 arrow = { workspace = true }
 bytes = "1.11"
 
+tokio = { version = "1.35", features = ["fs", "io-util", "rt"], optional = true }
+futures = { version = "0.3", optional = true }
+
 [dev-dependencies]
-tempfile = "3.13"
 hedl-test = { workspace = true }
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { workspace = true }
+proptest = { workspace = true }
+tempfile = "3.13"
+tokio = { version = "1.35", features = ["full", "test-util"] }
+futures = "0.3"
+
+[features]
+default = []
+async-io = ["tokio", "futures"]
+
+[[bench]]
+name = "projection_benchmarks"
+harness = false

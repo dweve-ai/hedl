@@ -33,13 +33,14 @@
 //!
 //! Run with: cargo bench --package hedl-bench --bench comprehensive
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
     ExportConfig, Insight, PerfResult, TableCell,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -50,7 +51,7 @@ use std::time::Instant;
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn ensure_init() {
@@ -105,28 +106,14 @@ struct WorkflowResult {
     canonicalize_ns: u64,
     lint_ns: u64,
     total_ns: u64,
-    memory_kb: usize,
-    features_used: Vec<String>,
 }
 
 #[derive(Clone)]
 struct ComponentResult {
     component: String,
-    operation: String,
     size_category: String,
     time_ns: u64,
     throughput_mbs: f64,
-    relative_cost_pct: f64,
-}
-
-#[derive(Clone)]
-struct BottleneckResult {
-    workflow: String,
-    bottleneck_stage: String,
-    stage_time_ns: u64,
-    total_time_ns: u64,
-    bottleneck_pct: f64,
-    optimization_potential: String,
 }
 
 // ============================================================================
@@ -147,7 +134,7 @@ fn bench_core_parsing(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("users", name), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())).unwrap())
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())).unwrap());
         });
 
         // Collect metrics
@@ -160,7 +147,7 @@ fn bench_core_parsing(c: &mut Criterion) {
         }
 
         record_perf(
-            &format!("parse_users_{}", name),
+            &format!("parse_users_{name}"),
             total_ns,
             iterations,
             Some(bytes * iterations),
@@ -171,7 +158,7 @@ fn bench_core_parsing(c: &mut Criterion) {
     let products = generate_products(sizes::MEDIUM);
     group.throughput(Throughput::Bytes(products.len() as u64));
     group.bench_function("products_medium", |b| {
-        b.iter(|| hedl_core::parse(black_box(products.as_bytes())).unwrap())
+        b.iter(|| hedl_core::parse(black_box(products.as_bytes())).unwrap());
     });
 
     let iterations = 100;
@@ -191,7 +178,7 @@ fn bench_core_parsing(c: &mut Criterion) {
     let blog = generate_blog(sizes::MEDIUM, 5);
     group.throughput(Throughput::Bytes(blog.len() as u64));
     group.bench_function("blog_medium", |b| {
-        b.iter(|| hedl_core::parse(black_box(blog.as_bytes())).unwrap())
+        b.iter(|| hedl_core::parse(black_box(blog.as_bytes())).unwrap());
     });
 
     let mut total_ns = 0u64;
@@ -225,7 +212,7 @@ fn bench_format_conversions(c: &mut Criterion) {
         group.bench_function("to_json", |b| {
             b.iter(|| {
                 let _ = hedl_json::to_json(black_box(&doc), &hedl_json::ToJsonConfig::default());
-            })
+            });
         });
 
         let iterations = 100u64;
@@ -243,7 +230,7 @@ fn bench_format_conversions(c: &mut Criterion) {
         group.bench_function("to_yaml", |b| {
             b.iter(|| {
                 let _ = hedl_yaml::to_yaml(black_box(&doc), &hedl_yaml::ToYamlConfig::default());
-            })
+            });
         });
 
         let iterations = 100u64;
@@ -261,7 +248,7 @@ fn bench_format_conversions(c: &mut Criterion) {
         group.bench_function("to_csv", |b| {
             b.iter(|| {
                 let _ = hedl_csv::to_csv(black_box(&doc));
-            })
+            });
         });
 
         let iterations = 100u64;
@@ -291,7 +278,7 @@ fn bench_feature_operations(c: &mut Criterion) {
     group.bench_function("canonicalize", |b| {
         b.iter(|| {
             let _ = hedl_c14n::canonicalize(black_box(&doc));
-        })
+        });
     });
 
     let iterations = 100u64;
@@ -307,7 +294,7 @@ fn bench_feature_operations(c: &mut Criterion) {
     group.bench_function("lint", |b| {
         b.iter(|| {
             let _ = hedl_lint::lint(black_box(&doc));
-        })
+        });
     });
 
     let mut total_ns = 0u64;
@@ -346,7 +333,7 @@ fn bench_complete_workflows(c: &mut Criterion) {
                     let doc = hedl_core::parse(black_box(input.as_bytes())).unwrap();
                     let _ = hedl_c14n::canonicalize(black_box(&doc)).unwrap();
                     black_box(doc)
-                })
+                });
             },
         );
 
@@ -368,19 +355,19 @@ fn bench_complete_workflows(c: &mut Criterion) {
         }
 
         record_perf(
-            &format!("workflow_parse_canon_{}", name),
+            &format!("workflow_parse_canon_{name}"),
             total_ns,
             iterations,
             Some(bytes * iterations),
         );
         record_perf(
-            &format!("workflow_parse_only_{}", name),
+            &format!("workflow_parse_only_{name}"),
             parse_ns,
             iterations,
             None,
         );
         record_perf(
-            &format!("workflow_canon_only_{}", name),
+            &format!("workflow_canon_only_{name}"),
             canon_ns,
             iterations,
             None,
@@ -400,7 +387,7 @@ fn bench_complete_workflows(c: &mut Criterion) {
                 let _json = hedl_json::to_json(&doc, &hedl_json::ToJsonConfig::default()).unwrap();
                 let _diag = hedl_lint::lint(&doc);
                 black_box(doc)
-            })
+            });
         });
 
         let iterations = 100u64;
@@ -460,7 +447,7 @@ fn bench_cross_dataset(c: &mut Criterion) {
                 let doc = hedl_core::parse(black_box(input.as_bytes())).unwrap();
                 let _ = hedl_c14n::canonicalize(black_box(&doc)).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let iterations = 100u64;
@@ -473,7 +460,7 @@ fn bench_cross_dataset(c: &mut Criterion) {
         }
 
         record_perf(
-            &format!("dataset_workflow_{}", name),
+            &format!("dataset_workflow_{name}"),
             total_ns,
             iterations,
             Some(bytes * iterations),
@@ -503,7 +490,7 @@ fn bench_scaling_performance(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(name), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())).unwrap())
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())).unwrap());
         });
 
         let iterations = if size >= sizes::LARGE { 20 } else { 100 };
@@ -515,7 +502,7 @@ fn bench_scaling_performance(c: &mut Criterion) {
         }
 
         record_perf(
-            &format!("scaling_{}", name),
+            &format!("scaling_{name}"),
             total_ns,
             iterations,
             Some(bytes * iterations),
@@ -546,8 +533,7 @@ fn collect_workflow_results() -> Vec<WorkflowResult> {
                     if perf.name.starts_with(workflow_type) && perf.name.contains(dataset_type) {
                         let size_bytes = perf
                             .throughput_bytes
-                            .map(|b| (b / perf.iterations) as usize)
-                            .unwrap_or(0);
+                            .map_or(0, |b| (b / perf.iterations) as usize);
                         let avg_ns = perf
                             .avg_time_ns
                             .unwrap_or(perf.total_time_ns / perf.iterations);
@@ -602,8 +588,6 @@ fn collect_workflow_results() -> Vec<WorkflowResult> {
                             canonicalize_ns: canon_ns,
                             lint_ns,
                             total_ns: avg_ns,
-                            memory_kb: 0, // Not measured - tracked separately
-                            features_used: vec!["parse".to_string(), "validate".to_string()],
                         });
                     }
                 }
@@ -652,11 +636,9 @@ fn collect_component_results() -> Vec<ComponentResult> {
 
                 results.push(ComponentResult {
                     component: component.to_string(),
-                    operation: perf.name.clone(),
                     size_category: size_category.to_string(),
                     time_ns: avg_ns,
                     throughput_mbs: throughput,
-                    relative_cost_pct: 0.0, // Will be calculated later
                 });
             }
 
@@ -747,8 +729,7 @@ fn create_component_breakdown_table(results: &[ComponentResult], report: &mut Be
         let throughput = results
             .iter()
             .find(|r| r.component == component && r.size_category == size)
-            .map(|r| r.throughput_mbs)
-            .unwrap_or(0.0);
+            .map_or(0.0, |r| r.throughput_mbs);
 
         let pct_of_total = 0.0;
         let rating = if avg_us < 100.0 {
@@ -918,7 +899,7 @@ fn create_scaling_analysis_table(report: &mut BenchmarkReport) {
         if let Some(perf) = report
             .perf_results
             .iter()
-            .find(|p| p.name == format!("scaling_{}", name))
+            .find(|p| p.name == format!("scaling_{name}"))
         {
             let avg_ns = perf
                 .avg_time_ns
@@ -1096,7 +1077,7 @@ fn create_throughput_comparison_table(report: &mut BenchmarkReport) {
         let mut large_throughput = 0.0;
 
         for size in ["small", "medium", "large"] {
-            let perf_name = format!("{}_{}", op, size);
+            let perf_name = format!("{op}_{size}");
             if let Some(perf) = report.perf_results.iter().find(|p| p.name == perf_name) {
                 let throughput = perf.throughput_mbs.unwrap_or(0.0);
                 match size {
@@ -1168,7 +1149,7 @@ fn create_production_readiness_table(report: &mut BenchmarkReport) {
     table.rows.push(vec![
         TableCell::String("Parse throughput".to_string()),
         TableCell::String(">10 MB/s".to_string()),
-        TableCell::String(format!("{:.1} MB/s", avg_throughput)),
+        TableCell::String(format!("{avg_throughput:.1} MB/s")),
         TableCell::String(
             if avg_throughput > 10.0 {
                 "Pass"
@@ -1216,7 +1197,7 @@ fn generate_insights(workflow_results: &[WorkflowResult], report: &mut Benchmark
     // Insight 1: Performance strength
     report.add_insight(Insight {
         category: "strength".to_string(),
-        title: format!("High Throughput: {:.1} MB/s Average", avg_throughput),
+        title: format!("High Throughput: {avg_throughput:.1} MB/s Average"),
         description: "HEDL achieves competitive parsing throughput across all workflow types"
             .to_string(),
         data_points: vec![
@@ -1230,10 +1211,7 @@ fn generate_insights(workflow_results: &[WorkflowResult], report: &mut Benchmark
     if max_parse_pct > 60.0 {
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!(
-                "Parsing Dominates Workflow: {:.0}% of Total Time",
-                max_parse_pct
-            ),
+            title: format!("Parsing Dominates Workflow: {max_parse_pct:.0}% of Total Time"),
             description: "Parse stage is the primary bottleneck in most workflows".to_string(),
             data_points: vec![
                 format!(
@@ -1294,7 +1272,7 @@ fn export_comprehensive_report(c: &mut Criterion) {
             report.print();
 
             if let Err(e) = std::fs::create_dir_all("target") {
-                eprintln!("Failed to create target directory: {}", e);
+                eprintln!("Failed to create target directory: {e}");
                 return;
             }
 
@@ -1305,7 +1283,7 @@ fn export_comprehensive_report(c: &mut Criterion) {
                     report.custom_tables.len(),
                     report.insights.len()
                 ),
-                Err(e) => eprintln!("Failed to export reports: {}", e),
+                Err(e) => eprintln!("Failed to export reports: {e}"),
             }
         }
     });

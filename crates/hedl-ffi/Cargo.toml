@@ -1,42 +1,68 @@
+# =============================================================================
+# HEDL FFI - crates/hedl-ffi/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-ffi"
 version.workspace = true
-edition = "2021"
-description = "HEDL C ABI bindings"
+edition.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
 license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL C ABI bindings"
+documentation = "https://docs.rs/hedl-ffi"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+# FFI crate requires unsafe code by nature
+[lints.rust]
+warnings = "warn"
+rust_2018_idioms = "warn"
+unsafe_code = "allow"
+
+[lints.clippy]
+all = "warn"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
-# Feature flags to control which format converters are included.
-# This helps reduce binary size for specialized use cases.
-[features]
-default = ["all-formats"]
-all-formats = ["json", "yaml", "xml", "csv", "parquet", "neo4j", "toon"]
-
-# Individual format converters - can be selected independently
-json = ["dep:hedl-json"]
-yaml = ["dep:hedl-yaml"]
-xml = ["dep:hedl-xml"]
-csv = ["dep:hedl-csv"]
-parquet = ["dep:hedl-parquet"]
-neo4j = ["dep:hedl-neo4j"]
-toon = ["dep:hedl-toon"]
-
-# Convenience feature groups
-minimal = []  # Core only, no format converters
-web-formats = ["json", "yaml", "xml"]  # Common web formats
-data-formats = ["json", "csv", "parquet"]  # Data processing formats
-
 [dependencies]
-hedl-core.workspace = true
-hedl-c14n.workspace = true
-hedl-lint.workspace = true
+hedl-core = { workspace = true }
+hedl-c14n = { workspace = true }
+hedl-lint = { workspace = true }
+tracing = { workspace = true }
+num_cpus = { workspace = true }
 
-# Logging and tracing
-tracing = "0.1"
-
-# Optional format converters (controlled by features)
 hedl-json = { workspace = true, optional = true }
 hedl-yaml = { workspace = true, optional = true }
 hedl-xml = { workspace = true, optional = true }
@@ -46,10 +72,23 @@ hedl-neo4j = { workspace = true, optional = true }
 hedl-toon = { workspace = true, optional = true }
 
 [build-dependencies]
-cbindgen = "0.27"
+cbindgen = { workspace = true }
 
 [dev-dependencies]
-# For thread safety testing
-parking_lot = "0.12"
-# For testing logging configuration
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+parking_lot = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+default = ["all-formats"]
+all-formats = ["json", "yaml", "xml", "csv", "parquet", "neo4j", "toon"]
+json = ["dep:hedl-json"]
+yaml = ["dep:hedl-yaml"]
+xml = ["dep:hedl-xml"]
+csv = ["dep:hedl-csv"]
+parquet = ["dep:hedl-parquet"]
+neo4j = ["dep:hedl-neo4j"]
+toon = ["dep:hedl-toon"]
+minimal = []
+web-formats = ["json", "yaml", "xml"]
+data-formats = ["json", "csv", "parquet"]
+async-ffi = []

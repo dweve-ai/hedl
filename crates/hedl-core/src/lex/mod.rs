@@ -102,6 +102,7 @@ pub mod tokens;
 // Extended modules from hedl-lex
 pub mod arena;
 pub mod config;
+pub mod count_hint;
 pub mod csv;
 pub mod directives;
 pub mod expression;
@@ -160,7 +161,9 @@ pub use incremental::{IncrementalParser, ParseResult, TextEdit};
 pub use tensor::{is_tensor_literal, parse_tensor, Tensor};
 
 // Re-export arena allocation
-pub use arena::ExpressionArena;
+pub use arena::{ArenaVec, ExpressionArena, InternedString, StringInterner};
+
+// Re-export count hint parsing for header module
 
 #[cfg(test)]
 mod tests {

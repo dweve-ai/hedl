@@ -82,7 +82,7 @@
 //! use tokio::fs::File;
 //!
 //! let file = File::open("large-dataset.hedl").await?;
-//! let parser = AsyncStreamingParser::new(file).await?;
+//! let mut parser = AsyncStreamingParser::new(file).await?;
 //!
 //! while let Some(event) = parser.next_event().await? {
 //!     match event {
@@ -126,20 +126,33 @@
 //! }
 //! ```
 
+#![cfg_attr(not(test), warn(missing_docs))]
+mod buffer_config;
+mod buffer_pool;
 mod error;
 mod event;
 mod parser;
 mod reader;
+
+#[cfg(feature = "compression")]
+pub mod compression;
 
 #[cfg(feature = "async")]
 mod async_parser;
 #[cfg(feature = "async")]
 mod async_reader;
 
+pub use buffer_config::BufferSizeHint;
+pub use buffer_pool::{BufferPool, MemoryLimits};
 pub use error::{StreamError, StreamResult};
 pub use event::{HeaderInfo, NodeEvent, NodeInfo};
 pub use parser::{StreamingParser, StreamingParserConfig};
 pub use reader::LineReader;
+
+#[cfg(feature = "compression")]
+pub use compression::CompressionWriter;
+#[cfg(feature = "compression")]
+pub use compression::{CompressionFormat, CompressionReader};
 
 #[cfg(feature = "async")]
 pub use async_parser::AsyncStreamingParser;

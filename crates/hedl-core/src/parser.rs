@@ -71,9 +71,9 @@ use crate::header::parse_header;
 use crate::inference::{infer_quoted_value, infer_value, InferenceContext};
 use crate::lex::row::parse_csv_row;
 use crate::lex::{calculate_indent, is_valid_key_token, is_valid_type_name, strip_comment};
-use crate::limits::{Limits, TimeoutContext};
+use crate::limits::{Limits, TimeoutCheckExt, TimeoutContext};
 use crate::preprocess::{is_blank_line, is_comment_line, preprocess};
-use crate::reference::{register_node, resolve_references, TypeRegistry};
+use crate::reference::{register_node, resolve_references, ReferenceMode, TypeRegistry};
 use crate::value::Value;
 use std::collections::BTreeMap;
 
@@ -131,7 +131,7 @@ use std::collections::BTreeMap;
 /// use hedl_core::{ParseOptions, Limits};
 ///
 /// let mut opts = ParseOptions::default();
-/// opts.strict_refs = false;
+/// opts.reference_mode = false;
 /// opts.limits.max_nodes = 5000;
 /// ```
 ///
@@ -150,20 +150,26 @@ use std::collections::BTreeMap;
 /// # Fields
 ///
 /// - `limits`: Security limits for parser resources
-/// - `strict_refs`: When true, unresolved references cause errors; when false, ignored
+/// - `reference_mode`: Reference resolution mode (strict or lenient)
 #[derive(Debug, Clone)]
 pub struct ParseOptions {
     /// Security limits.
     pub limits: Limits,
-    /// Strict reference resolution (error on unresolved).
-    pub strict_refs: bool,
+    /// Reference resolution mode (strict or lenient).
+    ///
+    /// Controls how unresolved references are handled:
+    /// - `ReferenceMode::Strict`: Errors on unresolved references (default)
+    /// - `ReferenceMode::Lenient`: Ignores unresolved references
+    ///
+    /// Note: Ambiguous references always error regardless of mode.
+    pub reference_mode: ReferenceMode,
 }
 
 impl Default for ParseOptions {
     fn default() -> Self {
         Self {
             limits: Limits::default(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         }
     }
 }
@@ -204,7 +210,7 @@ impl ParseOptions {
 #[derive(Debug, Clone)]
 pub struct ParseOptionsBuilder {
     limits: Limits,
-    strict_refs: bool,
+    reference_mode: ReferenceMode,
 }
 
 impl ParseOptionsBuilder {
@@ -212,7 +218,7 @@ impl ParseOptionsBuilder {
     pub fn new() -> Self {
         Self {
             limits: Limits::default(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         }
     }
 
@@ -247,23 +253,61 @@ impl ParseOptionsBuilder {
         self.limits.max_nodes = length;
         self
     }
-
-    /// Set strict reference resolution mode.
+    /// Set reference resolution mode.
     ///
-    /// When `true`, unresolved references cause parsing errors.
-    /// When `false`, unresolved references are silently ignored.
-    ///
-    /// # Parameters
-    ///
-    /// - `strict`: Whether to enforce strict reference resolution (default: true)
+    /// # Arguments
+    /// - `mode`: The reference resolution mode to use
     ///
     /// # Examples
     ///
     /// ```text
-    /// ParseOptions::builder().strict(false)
+    /// use hedl_core::{ParseOptionsBuilder, ReferenceMode};
+    ///
+    /// let opts = ParseOptionsBuilder::new()
+    ///     .reference_mode(ReferenceMode::Lenient)
+    ///     .build();
     /// ```
+    pub fn reference_mode(mut self, mode: ReferenceMode) -> Self {
+        self.reference_mode = mode;
+        self
+    }
+
+    /// Enable strict reference resolution (error on unresolved).
+    ///
+    /// Shorthand for `.reference_mode(ReferenceMode::Strict)`.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// let opts = ParseOptions::builder()
+    ///     .strict_refs()
+    ///     .build();
+    /// ```
+    pub fn strict_refs(mut self) -> Self {
+        self.reference_mode = ReferenceMode::Strict;
+        self
+    }
+
+    /// Enable lenient reference resolution (ignore unresolved).
+    ///
+    /// Shorthand for `.reference_mode(ReferenceMode::Lenient)`.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// let opts = ParseOptions::builder()
+    ///     .lenient_refs()
+    ///     .build();
+    /// ```
+    pub fn lenient_refs(mut self) -> Self {
+        self.reference_mode = ReferenceMode::Lenient;
+        self
+    }
+
+    /// Set strict reference resolution mode (legacy compatibility).
+    ///
     pub fn strict(mut self, strict: bool) -> Self {
-        self.strict_refs = strict;
+        self.reference_mode = ReferenceMode::from(strict);
         self
     }
 
@@ -401,7 +445,7 @@ impl ParseOptionsBuilder {
     pub fn build(self) -> ParseOptions {
         ParseOptions {
             limits: self.limits,
-            strict_refs: self.strict_refs,
+            reference_mode: self.reference_mode,
         }
     }
 }
@@ -451,7 +495,7 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
 
     // Phase 4: Reference resolution (with timeout check)
     timeout_ctx.check_timeout(0)?;
-    resolve_references(&doc, options.strict_refs)?;
+    resolve_references(&doc, options.reference_mode)?;
 
     Ok(doc)
 }
@@ -483,6 +527,14 @@ enum Frame {
 
 // --- Body Parsing ---
 
+/// Context for body parsing, holding references to shared state.
+struct ParseContext<'a> {
+    header: &'a crate::header::Header,
+    limits: &'a Limits,
+    type_registries: &'a mut TypeRegistry,
+    node_count: &'a mut usize,
+}
+
 fn parse_body(
     lines: &[(usize, &str)],
     header: &crate::header::Header,
@@ -496,20 +548,24 @@ fn parse_body(
     let mut node_count = 0usize;
     let mut total_keys = 0usize;
     let mut block_string: Option<BlockStringState> = None;
-    let mut iteration_count = 0usize;
 
-    for &(line_num, line) in lines {
-        // Periodic timeout check (every 10,000 iterations to minimize overhead)
-        iteration_count += 1;
-        if iteration_count.is_multiple_of(10_000) {
-            timeout_ctx.check_timeout(line_num)?;
-        }
+    // Create parsing context once for reuse throughout the loop
+    let ctx = ParseContext {
+        header,
+        limits,
+        type_registries,
+        node_count: &mut node_count,
+    };
+
+    // Automatic timeout checking every 10,000 iterations
+    for result in lines.iter().copied().with_timeout_check(timeout_ctx) {
+        let (line_num, line) = result?;
         // Handle block string accumulation mode
         if let Some(ref mut state) = block_string {
             // Process the line and check if block string is complete
             if let Some(full_content) = state.process_line(line, line_num, limits)? {
                 // Block string is complete
-                let value = Value::String(full_content);
+                let value = Value::String(full_content.into());
                 pop_frames(&mut stack, state.indent);
                 insert_into_current(&mut stack, state.key.clone(), Item::Scalar(value));
                 block_string = None;
@@ -554,10 +610,10 @@ fn parse_body(
                 content,
                 indent,
                 line_num,
-                header,
-                limits,
-                type_registries,
-                &mut node_count,
+                ctx.header,
+                ctx.limits,
+                ctx.type_registries,
+                ctx.node_count,
             )?;
         } else {
             // Check if this starts a block string
@@ -653,8 +709,10 @@ fn insert_into_parent(stack: &mut [Frame], key: String, item: Item) {
                 // Attach children to the last node in the list
                 if let Some(parent_node) = list.last_mut() {
                     if let Item::List(child_list) = item {
-                        parent_node
+                        let children = parent_node
                             .children
+                            .get_or_insert_with(|| Box::new(BTreeMap::new()));
+                        children
                             .entry(child_list.type_name.clone())
                             .or_default()
                             .extend(child_list.rows);
@@ -1031,7 +1089,7 @@ fn parse_matrix_row(
     };
 
     // Register node ID
-    register_node(type_registries, &type_name, &id, line_num)?;
+    register_node(type_registries, &type_name, &id, line_num, limits)?;
 
     // Check node count limit with checked arithmetic to prevent overflow
     *node_count = node_count
@@ -1054,7 +1112,7 @@ fn parse_matrix_row(
         // Store values for ditto support before moving to node
         *last_row_values = Some(values.clone());
         // Create node taking ownership of values - no extra clone needed
-        let mut node = Node::new(&type_name, &id, values);
+        let mut node = Node::new(&type_name, &*id, values);
 
         // Store child count from |N| syntax if present
         if let Some(count) = child_count {
@@ -1406,7 +1464,7 @@ mod tests {
         let builder = ParseOptionsBuilder::new();
         let opts = builder.build();
 
-        assert!(opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Strict);
         assert_eq!(opts.limits.max_indent_depth, 50);
         assert_eq!(opts.limits.max_nodes, 10_000_000);
     }
@@ -1418,7 +1476,7 @@ mod tests {
         let opts1 = builder1.build();
         let opts2 = builder2.build();
 
-        assert_eq!(opts1.strict_refs, opts2.strict_refs);
+        assert_eq!(opts1.reference_mode, opts2.reference_mode);
         assert_eq!(opts1.limits.max_indent_depth, opts2.limits.max_indent_depth);
     }
 
@@ -1427,7 +1485,7 @@ mod tests {
     #[test]
     fn test_parse_options_builder_method() {
         let opts = ParseOptions::builder().build();
-        assert!(opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Strict);
     }
 
     // ==================== Chainable method tests ====================
@@ -1450,14 +1508,14 @@ mod tests {
     fn test_builder_strict_true() {
         let opts = ParseOptions::builder().strict(true).build();
 
-        assert!(opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Strict);
     }
 
     #[test]
     fn test_builder_strict_false() {
         let opts = ParseOptions::builder().strict(false).build();
 
-        assert!(!opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Lenient);
     }
 
     #[test]
@@ -1531,7 +1589,7 @@ mod tests {
 
         assert_eq!(opts.limits.max_indent_depth, 100);
         assert_eq!(opts.limits.max_nodes, 5000);
-        assert!(!opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Lenient);
     }
 
     #[test]
@@ -1552,7 +1610,7 @@ mod tests {
 
         assert_eq!(opts.limits.max_indent_depth, 75);
         assert_eq!(opts.limits.max_nodes, 2000);
-        assert!(!opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Lenient);
         assert_eq!(opts.limits.max_file_size, 100 * 1024 * 1024);
         assert_eq!(opts.limits.max_line_length, 256 * 1024);
         assert_eq!(opts.limits.max_aliases, 1000);
@@ -1594,7 +1652,7 @@ mod tests {
         assert_eq!(opts.limits.max_file_size, 1024 * 1024 * 1024);
         assert_eq!(opts.limits.max_line_length, 1024 * 1024);
         assert_eq!(opts.limits.max_nodes, 10_000_000);
-        assert!(opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Strict);
     }
 
     // ==================== Edge case tests ====================
@@ -1632,7 +1690,7 @@ mod tests {
         let builder_opts = ParseOptions::builder().build();
         let default_opts = ParseOptions::default();
 
-        assert_eq!(builder_opts.strict_refs, default_opts.strict_refs);
+        assert_eq!(builder_opts.reference_mode, default_opts.reference_mode);
         assert_eq!(
             builder_opts.limits.max_indent_depth,
             default_opts.limits.max_indent_depth
@@ -1663,7 +1721,7 @@ mod tests {
         // Typical use case: strict parsing with moderate limits
         let opts = ParseOptions::builder().max_depth(100).strict(true).build();
 
-        assert!(opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Strict);
         assert_eq!(opts.limits.max_indent_depth, 100);
     }
 
@@ -1676,7 +1734,7 @@ mod tests {
             .max_block_string_size(50 * 1024 * 1024)
             .build();
 
-        assert!(!opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Lenient);
         assert_eq!(opts.limits.max_nodes, 50_000);
         assert_eq!(opts.limits.max_block_string_size, 50 * 1024 * 1024);
     }
@@ -1696,7 +1754,7 @@ mod tests {
         assert_eq!(opts.limits.max_line_length, 64 * 1024);
         assert_eq!(opts.limits.max_indent_depth, 20);
         assert_eq!(opts.limits.max_nodes, 1000);
-        assert!(opts.strict_refs);
+        assert_eq!(opts.reference_mode, ReferenceMode::Strict);
     }
 
     // ==================== Timeout integration tests ====================

@@ -28,7 +28,7 @@ use tower_lsp::lsp_types::Position;
 
 #[test]
 fn test_reference_index_v2_basic() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Post: [id, title, author]
 ---
@@ -40,9 +40,9 @@ posts: @Post
   | post1, First Post, @User:alice
   | post2, Second Post, @User:bob
   | post3, Third Post, @User:alice
-"#;
+";
 
-    eprintln!("Content:\n{}", content);
+    eprintln!("Content:\n{content}");
     eprintln!("Content length: {}", content.len());
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -91,14 +91,14 @@ posts: @Post
 
 #[test]
 fn test_reference_index_v2_unqualified() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice
 
 ref: @alice
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -109,7 +109,7 @@ ref: @alice
 
 #[test]
 fn test_reference_index_v2_multiple_references() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Post: [id, author]
 ---
@@ -121,7 +121,7 @@ posts: @Post
   | p2, @User:alice
   | p3, @User:alice
   | p4, @alice
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -143,14 +143,14 @@ posts: @Post
 
 #[test]
 fn test_reference_index_v2_character_positions() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice
 
 ref: @User:alice
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -173,7 +173,7 @@ ref: @User:alice
 
 #[test]
 fn test_reference_index_v2_find_at_position() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
@@ -181,7 +181,7 @@ users: @User
 
 ref1: @User:alice
 ref2: @alice
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -217,7 +217,7 @@ ref2: @alice
 
 #[test]
 fn test_reference_index_v2_statistics() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Post: [id, author]
 ---
@@ -228,7 +228,7 @@ users: @User
 posts: @Post
   | p1, @User:alice
   | p2, @User:bob
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -249,7 +249,7 @@ fn test_reference_index_v2_performance() {
     let mut content = String::from("%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n");
 
     for i in 0..1000 {
-        content.push_str(&format!("  | user{}, User {}\n", i, i));
+        content.push_str(&format!("  | user{i}, User {i}\n"));
     }
 
     let analysis = AnalyzedDocument::analyze(&content);
@@ -259,7 +259,7 @@ fn test_reference_index_v2_performance() {
     for i in 0..100 {
         let _ = analysis
             .reference_index_v2
-            .find_definition("User", &format!("user{}", i));
+            .find_definition("User", &format!("user{i}"));
     }
     let duration = start.elapsed();
 
@@ -273,7 +273,7 @@ fn test_reference_index_v2_performance() {
 
 #[test]
 fn test_reference_index_v2_with_special_characters() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
@@ -282,7 +282,7 @@ users: @User
 
 ref1: @User:alice-smith
 ref2: @User:bob_jones
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -306,12 +306,12 @@ ref2: @User:bob_jones
 
 #[test]
 fn test_reference_index_v2_nonexistent() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice
-"#;
+";
 
     let analysis = AnalyzedDocument::analyze(content);
 

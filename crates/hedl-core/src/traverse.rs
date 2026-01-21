@@ -118,13 +118,17 @@ pub trait DocumentVisitor {
     fn begin_document(
         &mut self,
         _doc: &Document,
-        _ctx: &VisitorContext,
+        _ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
 
     /// Called at the end of document traversal.
-    fn end_document(&mut self, _doc: &Document, _ctx: &VisitorContext) -> Result<(), Self::Error> {
+    fn end_document(
+        &mut self,
+        _doc: &Document,
+        _ctx: &VisitorContext<'_>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -133,16 +137,16 @@ pub trait DocumentVisitor {
         &mut self,
         key: &str,
         value: &Value,
-        ctx: &VisitorContext,
+        ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error>;
 
     /// Called at the start of an object (before visiting children).
-    fn begin_object(&mut self, _key: &str, _ctx: &VisitorContext) -> Result<(), Self::Error> {
+    fn begin_object(&mut self, _key: &str, _ctx: &VisitorContext<'_>) -> Result<(), Self::Error> {
         Ok(())
     }
 
     /// Called at the end of an object (after visiting children).
-    fn end_object(&mut self, _key: &str, _ctx: &VisitorContext) -> Result<(), Self::Error> {
+    fn end_object(&mut self, _key: &str, _ctx: &VisitorContext<'_>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -151,7 +155,7 @@ pub trait DocumentVisitor {
         &mut self,
         _key: &str,
         _list: &MatrixList,
-        _ctx: &VisitorContext,
+        _ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -161,7 +165,7 @@ pub trait DocumentVisitor {
         &mut self,
         _key: &str,
         _list: &MatrixList,
-        _ctx: &VisitorContext,
+        _ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -171,14 +175,14 @@ pub trait DocumentVisitor {
         &mut self,
         node: &Node,
         schema: &[String],
-        ctx: &VisitorContext,
+        ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error>;
 
     /// Called at the start of a node's children (nested entities).
     fn begin_node_children(
         &mut self,
         _node: &Node,
-        _ctx: &VisitorContext,
+        _ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -187,7 +191,7 @@ pub trait DocumentVisitor {
     fn end_node_children(
         &mut self,
         _node: &Node,
-        _ctx: &VisitorContext,
+        _ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -214,7 +218,7 @@ fn traverse_item<V: DocumentVisitor>(
     key: &str,
     item: &Item,
     visitor: &mut V,
-    ctx: &VisitorContext,
+    ctx: &VisitorContext<'_>,
 ) -> Result<(), V::Error> {
     match item {
         Item::Scalar(value) => {
@@ -245,25 +249,27 @@ fn traverse_node<V: DocumentVisitor>(
     node: &Node,
     schema: &[String],
     visitor: &mut V,
-    ctx: &VisitorContext,
+    ctx: &VisitorContext<'_>,
 ) -> Result<(), V::Error> {
     visitor.visit_node(node, schema, ctx)?;
 
-    if !node.children.is_empty() {
-        visitor.begin_node_children(node, ctx)?;
+    if let Some(children) = node.children() {
+        if !children.is_empty() {
+            visitor.begin_node_children(node, ctx)?;
 
-        let child_ctx = ctx.child(&node.id);
-        for (child_type, children) in &node.children {
-            // Get schema for child type from document
-            let child_schema = ctx.document.structs.get(child_type);
-            let child_schema = child_schema.map(|s| s.as_slice()).unwrap_or(&[]);
+            let child_ctx = ctx.child(&node.id);
+            for (child_type, child_nodes) in children {
+                // Get schema for child type from document
+                let child_schema = ctx.document.structs.get(child_type);
+                let child_schema = child_schema.map(|s| s.as_slice()).unwrap_or(&[]);
 
-            for child in children {
-                traverse_node(child, child_schema, visitor, &child_ctx)?;
+                for child in child_nodes {
+                    traverse_node(child, child_schema, visitor, &child_ctx)?;
+                }
             }
-        }
 
-        visitor.end_node_children(node, ctx)?;
+            visitor.end_node_children(node, ctx)?;
+        }
     }
 
     Ok(())
@@ -291,14 +297,14 @@ impl DocumentVisitor for StatsCollector {
         &mut self,
         _key: &str,
         _value: &Value,
-        ctx: &VisitorContext,
+        ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         self.scalar_count += 1;
         self.max_depth = self.max_depth.max(ctx.depth);
         Ok(())
     }
 
-    fn begin_object(&mut self, _key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
+    fn begin_object(&mut self, _key: &str, ctx: &VisitorContext<'_>) -> Result<(), Self::Error> {
         self.object_count += 1;
         self.max_depth = self.max_depth.max(ctx.depth);
         Ok(())
@@ -308,7 +314,7 @@ impl DocumentVisitor for StatsCollector {
         &mut self,
         _key: &str,
         _list: &MatrixList,
-        ctx: &VisitorContext,
+        ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         self.list_count += 1;
         self.max_depth = self.max_depth.max(ctx.depth);
@@ -319,7 +325,7 @@ impl DocumentVisitor for StatsCollector {
         &mut self,
         _node: &Node,
         _schema: &[String],
-        ctx: &VisitorContext,
+        ctx: &VisitorContext<'_>,
     ) -> Result<(), Self::Error> {
         self.node_count += 1;
         self.max_depth = self.max_depth.max(ctx.depth);
@@ -411,7 +417,7 @@ mod tests {
                 &mut self,
                 _key: &str,
                 _value: &Value,
-                ctx: &VisitorContext,
+                ctx: &VisitorContext<'_>,
             ) -> Result<(), Self::Error> {
                 self.paths.push(ctx.path_string());
                 Ok(())
@@ -420,7 +426,7 @@ mod tests {
             fn begin_object(
                 &mut self,
                 _key: &str,
-                ctx: &VisitorContext,
+                ctx: &VisitorContext<'_>,
             ) -> Result<(), Self::Error> {
                 self.paths.push(ctx.path_string());
                 Ok(())
@@ -430,7 +436,7 @@ mod tests {
                 &mut self,
                 _node: &Node,
                 _schema: &[String],
-                ctx: &VisitorContext,
+                ctx: &VisitorContext<'_>,
             ) -> Result<(), Self::Error> {
                 self.paths.push(ctx.path_string());
                 Ok(())

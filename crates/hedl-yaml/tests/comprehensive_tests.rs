@@ -31,17 +31,31 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_null_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("value".to_string(), Item::Scalar(Value::Null));
 
     let yaml = hedl_to_yaml(&doc).unwrap();
-    assert!(yaml.contains("null") || yaml.contains("~"));
+    assert!(yaml.contains("null") || yaml.contains('~'));
 }
 
 #[test]
 fn test_bool_true_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("active".to_string(), Item::Scalar(Value::Bool(true)));
 
@@ -51,7 +65,14 @@ fn test_bool_true_to_yaml() {
 
 #[test]
 fn test_bool_false_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("active".to_string(), Item::Scalar(Value::Bool(false)));
 
@@ -61,7 +82,14 @@ fn test_bool_false_to_yaml() {
 
 #[test]
 fn test_int_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("count".to_string(), Item::Scalar(Value::Int(42)));
 
@@ -71,7 +99,14 @@ fn test_int_to_yaml() {
 
 #[test]
 fn test_negative_int_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("value".to_string(), Item::Scalar(Value::Int(-100)));
 
@@ -81,7 +116,14 @@ fn test_negative_int_to_yaml() {
 
 #[test]
 fn test_float_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("pi".to_string(), Item::Scalar(Value::Float(3.5)));
 
@@ -91,10 +133,17 @@ fn test_float_to_yaml() {
 
 #[test]
 fn test_string_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("hello world".to_string())),
+        Item::Scalar(Value::String("hello world".to_string().into())),
     );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
@@ -107,7 +156,14 @@ fn test_string_to_yaml() {
 
 #[test]
 fn test_local_reference_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "ref".to_string(),
         Item::Scalar(Value::Reference(Reference::local("target_id"))),
@@ -119,7 +175,14 @@ fn test_local_reference_to_yaml() {
 
 #[test]
 fn test_qualified_reference_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "ref".to_string(),
         Item::Scalar(Value::Reference(Reference::qualified("User", "alice"))),
@@ -136,8 +199,8 @@ fn test_reference_from_yaml() {
     let doc = yaml_to_hedl(yaml).unwrap();
 
     if let Some(Item::Scalar(Value::Reference(r))) = doc.root.get("ref") {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(r.id.as_ref(), "alice");
     } else {
         panic!("Expected reference");
     }
@@ -151,7 +214,7 @@ fn test_local_reference_from_yaml() {
 
     if let Some(Item::Scalar(Value::Reference(r))) = doc.root.get("ref") {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "some_id");
+        assert_eq!(r.id.as_ref(), "some_id");
     } else {
         panic!("Expected reference");
     }
@@ -163,7 +226,14 @@ fn test_local_reference_from_yaml() {
 
 #[test]
 fn test_expression_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "expr".to_string(),
         Item::Scalar(hedl_test::expr_value("add(x, multiply(y, 2))")),
@@ -191,35 +261,57 @@ fn test_expression_from_yaml() {
 
 #[test]
 fn test_1d_tensor_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let tensor = Tensor::Array(vec![
         Tensor::Scalar(1.0),
         Tensor::Scalar(2.0),
         Tensor::Scalar(3.0),
     ]);
-    doc.root
-        .insert("data".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "data".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
     // Should contain array syntax
-    assert!(yaml.contains("1") && yaml.contains("2") && yaml.contains("3"));
+    assert!(yaml.contains('1') && yaml.contains('2') && yaml.contains('3'));
 }
 
 #[test]
 fn test_2d_tensor_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let tensor = Tensor::Array(vec![
         Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
         Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
     ]);
-    doc.root
-        .insert("matrix".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "matrix".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
     let restored = yaml_to_hedl(&yaml).unwrap();
 
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(rows)))) = restored.root.get("matrix") {
-        assert_eq!(rows.len(), 2);
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = restored.root.get("matrix") {
+        if let Tensor::Array(rows) = tensor_box.as_ref() {
+            assert_eq!(rows.len(), 2);
+        } else {
+            panic!("Expected tensor array");
+        }
     } else {
         panic!("Expected tensor");
     }
@@ -230,8 +322,12 @@ fn test_tensor_from_yaml() {
     let yaml = "data:\n  - 1.0\n  - 2.0\n  - 3.0\n";
     let doc = yaml_to_hedl(yaml).unwrap();
 
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(items)))) = doc.root.get("data") {
-        assert_eq!(items.len(), 3);
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = doc.root.get("data") {
+        if let Tensor::Array(ref items) = **tensor_box {
+            assert_eq!(items.len(), 3);
+        } else {
+            panic!("Expected tensor array");
+        }
     } else {
         panic!("Expected tensor");
     }
@@ -243,7 +339,14 @@ fn test_tensor_from_yaml() {
 
 #[test]
 fn test_nested_object_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let mut inner = BTreeMap::new();
     inner.insert("x".to_string(), Item::Scalar(Value::Int(10)));
     inner.insert("y".to_string(), Item::Scalar(Value::Int(20)));
@@ -265,12 +368,19 @@ fn test_nested_object_to_yaml() {
 
 #[test]
 fn test_deeply_nested_object_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
 
     let mut level3 = BTreeMap::new();
     level3.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("deep".to_string())),
+        Item::Scalar(Value::String("deep".to_string().into())),
     );
 
     let mut level2 = BTreeMap::new();
@@ -289,7 +399,7 @@ fn test_deeply_nested_object_to_yaml() {
     let l3 = l2.get("level3").unwrap().as_object().unwrap();
     assert_eq!(
         l3.get("value").unwrap().as_scalar().unwrap(),
-        &Value::String("deep".to_string())
+        &Value::String("deep".to_string().into())
     );
 }
 
@@ -301,7 +411,7 @@ fn test_object_from_yaml() {
     if let Some(Item::Object(obj)) = doc.root.get("config") {
         assert_eq!(
             obj.get("host").unwrap().as_scalar().unwrap(),
-            &Value::String("localhost".to_string())
+            &Value::String("localhost".to_string().into())
         );
         assert_eq!(
             obj.get("port").unwrap().as_scalar().unwrap(),
@@ -318,7 +428,14 @@ fn test_object_from_yaml() {
 
 #[test]
 fn test_matrix_list_to_yaml() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let mut list = MatrixList::new(
         "User",
         vec!["id".to_string(), "name".to_string(), "age".to_string()],
@@ -327,12 +444,12 @@ fn test_matrix_list_to_yaml() {
     list.add_row(Node::new(
         "User",
         "alice",
-        vec![Value::String("Alice".to_string()), Value::Int(30)],
+        vec![Value::String("Alice".to_string().into()), Value::Int(30)],
     ));
     list.add_row(Node::new(
         "User",
         "bob",
-        vec![Value::String("Bob".to_string()), Value::Int(25)],
+        vec![Value::String("Bob".to_string().into()), Value::Int(25)],
     ));
 
     doc.root.insert("users".to_string(), Item::List(list));
@@ -349,7 +466,7 @@ fn test_matrix_list_to_yaml() {
 
 #[test]
 fn test_matrix_list_from_yaml() {
-    let yaml = r#"
+    let yaml = r"
 users:
   - id: alice
     name: Alice
@@ -357,7 +474,7 @@ users:
   - id: bob
     name: Bob
     age: 25
-"#;
+";
 
     let doc = yaml_to_hedl(yaml).unwrap();
 
@@ -376,7 +493,14 @@ users:
 
 #[test]
 fn test_round_trip_all_scalar_types() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("null_val".to_string(), Item::Scalar(Value::Null));
     doc.root
@@ -387,7 +511,7 @@ fn test_round_trip_all_scalar_types() {
         .insert("float_val".to_string(), Item::Scalar(Value::Float(3.25)));
     doc.root.insert(
         "string_val".to_string(),
-        Item::Scalar(Value::String("test".to_string())),
+        Item::Scalar(Value::String("test".to_string().into())),
     );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
@@ -408,13 +532,20 @@ fn test_round_trip_all_scalar_types() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("test".to_string())
+        &Value::String("test".to_string().into())
     );
 }
 
 #[test]
 fn test_round_trip_reference() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "local_ref".to_string(),
         Item::Scalar(Value::Reference(Reference::local("item1"))),
@@ -429,14 +560,14 @@ fn test_round_trip_reference() {
 
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("local_ref") {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "item1");
+        assert_eq!(r.id.as_ref(), "item1");
     } else {
         panic!("Expected local reference");
     }
 
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("qualified_ref") {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "user1");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(r.id.as_ref(), "user1");
     } else {
         panic!("Expected qualified reference");
     }
@@ -444,7 +575,14 @@ fn test_round_trip_reference() {
 
 #[test]
 fn test_round_trip_expression() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "expr".to_string(),
         Item::Scalar(hedl_test::expr_value("add(x, 1)")),
@@ -462,21 +600,32 @@ fn test_round_trip_expression() {
 
 #[test]
 fn test_round_trip_nested_tensor() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let tensor = Tensor::Array(vec![
         Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
         Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
     ]);
-    doc.root
-        .insert("matrix".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "matrix".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
     let restored = yaml_to_hedl(&yaml).unwrap();
 
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(rows)))) = restored.root.get("matrix") {
-        assert_eq!(rows.len(), 2);
-        if let Tensor::Array(cols) = &rows[0] {
-            assert_eq!(cols.len(), 2);
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = restored.root.get("matrix") {
+        if let Tensor::Array(ref rows) = **tensor_box {
+            assert_eq!(rows.len(), 2);
+            if let Tensor::Array(cols) = &rows[0] {
+                assert_eq!(cols.len(), 2);
+            }
         }
     } else {
         panic!("Expected tensor");
@@ -507,7 +656,14 @@ fn test_non_mapping_root_error() {
 
 #[test]
 fn test_empty_document() {
-    let doc = Document::new((1, 0));
+    let doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let yaml = hedl_to_yaml(&doc).unwrap();
     let restored = yaml_to_hedl(&yaml).unwrap();
 
@@ -516,10 +672,17 @@ fn test_empty_document() {
 
 #[test]
 fn test_empty_string_value() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "empty".to_string(),
-        Item::Scalar(Value::String("".to_string())),
+        Item::Scalar(Value::String(String::new().into())),
     );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
@@ -527,16 +690,23 @@ fn test_empty_string_value() {
 
     assert_eq!(
         restored.root.get("empty").unwrap().as_scalar().unwrap(),
-        &Value::String("".to_string())
+        &Value::String(String::new().into())
     );
 }
 
 #[test]
 fn test_unicode_string() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("Hello 世界 🌍".to_string())),
+        Item::Scalar(Value::String("Hello 世界 🌍".to_string().into())),
     );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
@@ -544,16 +714,23 @@ fn test_unicode_string() {
 
     assert_eq!(
         restored.root.get("text").unwrap().as_scalar().unwrap(),
-        &Value::String("Hello 世界 🌍".to_string())
+        &Value::String("Hello 世界 🌍".to_string().into())
     );
 }
 
 #[test]
 fn test_multiline_string() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("line1\nline2\nline3".to_string())),
+        Item::Scalar(Value::String("line1\nline2\nline3".to_string().into())),
     );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
@@ -570,14 +747,14 @@ fn test_multiline_string() {
 #[test]
 fn test_yaml_anchors_and_aliases() {
     // Test basic anchor and alias (not merge keys which may not be supported)
-    let yaml = r#"
+    let yaml = r"
 defaults: &defaults
   timeout: 30
   retries: 3
 
 production:
   settings: *defaults
-"#;
+";
 
     let doc = yaml_to_hedl(yaml).unwrap();
 
@@ -607,10 +784,19 @@ production:
 
 #[test]
 fn test_special_yaml_characters_in_string() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("colon: value, bracket: [test]".to_string())),
+        Item::Scalar(Value::String(
+            "colon: value, bracket: [test]".to_string().into(),
+        )),
     );
 
     let yaml = hedl_to_yaml(&doc).unwrap();
@@ -618,7 +804,7 @@ fn test_special_yaml_characters_in_string() {
 
     assert_eq!(
         restored.root.get("text").unwrap().as_scalar().unwrap(),
-        &Value::String("colon: value, bracket: [test]".to_string())
+        &Value::String("colon: value, bracket: [test]".to_string().into())
     );
 }
 
@@ -641,11 +827,18 @@ fn test_from_yaml_config_version() {
 
 #[test]
 fn test_to_yaml_config_pretty() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     let mut inner = BTreeMap::new();
     inner.insert(
         "key".to_string(),
-        Item::Scalar(Value::String("value".to_string())),
+        Item::Scalar(Value::String("value".to_string().into())),
     );
     doc.root.insert("object".to_string(), Item::Object(inner));
 
@@ -780,7 +973,7 @@ fn test_scalars_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("hello world".to_string())
+        &Value::String("hello world".to_string().into())
     );
     assert_eq!(
         restored
@@ -789,7 +982,7 @@ fn test_scalars_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String(String::new())
+        &Value::String(String::new().into())
     );
 }
 
@@ -808,7 +1001,7 @@ fn test_special_strings_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("He said \"hello\" and 'goodbye'".to_string())
+        &Value::String("He said \"hello\" and 'goodbye'".to_string().into())
     );
     assert_eq!(
         restored
@@ -817,7 +1010,7 @@ fn test_special_strings_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("path\\to\\file".to_string())
+        &Value::String("path\\to\\file".to_string().into())
     );
     assert_eq!(
         restored
@@ -826,11 +1019,11 @@ fn test_special_strings_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("line1\nline2\nline3".to_string())
+        &Value::String("line1\nline2\nline3".to_string().into())
     );
     assert_eq!(
         restored.root.get("with_tab").unwrap().as_scalar().unwrap(),
-        &Value::String("col1\tcol2\tcol3".to_string())
+        &Value::String("col1\tcol2\tcol3".to_string().into())
     );
     assert_eq!(
         restored
@@ -839,7 +1032,7 @@ fn test_special_strings_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("日本語 中文 한국어 emoji: 🎉".to_string())
+        &Value::String("日本語 中文 한국어 emoji: 🎉".to_string().into())
     );
 }
 
@@ -853,15 +1046,15 @@ fn test_references_roundtrip_yaml() {
     // Verify local reference
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("local_ref") {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "some_id");
+        assert_eq!(r.id.as_ref(), "some_id");
     } else {
         panic!("Expected local_ref");
     }
 
     // Verify typed reference
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("typed_ref") {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(r.id.as_ref(), "alice");
     } else {
         panic!("Expected typed_ref");
     }
@@ -902,32 +1095,36 @@ fn test_tensors_roundtrip_yaml() {
     let restored = yaml_to_hedl(&yaml).unwrap();
 
     // Verify 1D tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(items)))) = restored.root.get("tensor_1d")
-    {
-        assert_eq!(items.len(), 3);
-        if let Tensor::Scalar(v) = items[0] {
-            assert!((v - 1.0).abs() < 0.001);
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = restored.root.get("tensor_1d") {
+        if let Tensor::Array(ref items) = **tensor_box {
+            assert_eq!(items.len(), 3);
+            if let Tensor::Scalar(v) = items[0] {
+                assert!((v - 1.0).abs() < 0.001);
+            }
         }
     } else {
         panic!("Expected tensor_1d");
     }
 
     // Verify 2D tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(rows)))) = restored.root.get("tensor_2d") {
-        assert_eq!(rows.len(), 2);
-        if let Tensor::Array(cols) = &rows[0] {
-            assert_eq!(cols.len(), 2);
-        } else {
-            panic!("Expected array in row");
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = restored.root.get("tensor_2d") {
+        if let Tensor::Array(ref rows) = **tensor_box {
+            assert_eq!(rows.len(), 2);
+            if let Tensor::Array(cols) = &rows[0] {
+                assert_eq!(cols.len(), 2);
+            } else {
+                panic!("Expected array in row");
+            }
         }
     } else {
         panic!("Expected tensor_2d");
     }
 
     // Verify 3D tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(layers)))) = restored.root.get("tensor_3d")
-    {
-        assert_eq!(layers.len(), 2);
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = restored.root.get("tensor_3d") {
+        if let Tensor::Array(ref layers) = **tensor_box {
+            assert_eq!(layers.len(), 2);
+        }
     } else {
         panic!("Expected tensor_3d");
     }
@@ -952,11 +1149,11 @@ fn test_named_values_roundtrip_yaml() {
     // Verify named values are preserved
     assert_eq!(
         restored.root.get("app_name").unwrap().as_scalar().unwrap(),
-        &Value::String("MyApp".to_string())
+        &Value::String("MyApp".to_string().into())
     );
     assert_eq!(
         restored.root.get("version").unwrap().as_scalar().unwrap(),
-        &Value::String("1.0.0".to_string())
+        &Value::String("1.0.0".to_string().into())
     );
     assert_eq!(
         restored
@@ -1070,13 +1267,13 @@ fn test_with_nest_roundtrip_yaml() {
 
         // Verify users and their nested posts are preserved
         let alice = users.rows.iter().find(|n| n.id == "alice").unwrap();
-        assert!(alice.children.contains_key("posts"));
-        let alice_posts = alice.children.get("posts").unwrap();
+        assert!(alice.children().unwrap().contains_key("posts"));
+        let alice_posts = alice.children().unwrap().get("posts").unwrap();
         assert_eq!(alice_posts.len(), 2);
 
         let bob = users.rows.iter().find(|n| n.id == "bob").unwrap();
-        assert!(bob.children.contains_key("posts"));
-        let bob_posts = bob.children.get("posts").unwrap();
+        assert!(bob.children().unwrap().contains_key("posts"));
+        let bob_posts = bob.children().unwrap().get("posts").unwrap();
         assert_eq!(bob_posts.len(), 1);
     } else {
         panic!("Expected users list");
@@ -1099,14 +1296,14 @@ fn test_deep_nest_roundtrip_yaml() {
         assert_eq!(acme.id, "acme");
 
         // Children are preserved with default config
-        assert!(acme.children.contains_key("departments"));
-        let departments = acme.children.get("departments").unwrap();
+        assert!(acme.children().unwrap().contains_key("departments"));
+        let departments = acme.children().unwrap().get("departments").unwrap();
         assert_eq!(departments.len(), 1);
         assert_eq!(departments[0].id, "engineering");
 
         // Nested employees within department
-        assert!(departments[0].children.contains_key("employees"));
-        let employees = departments[0].children.get("employees").unwrap();
+        assert!(departments[0].children().unwrap().contains_key("employees"));
+        let employees = departments[0].children().unwrap().get("employees").unwrap();
         assert_eq!(employees.len(), 2);
     } else {
         panic!("Expected organizations list");
@@ -1166,7 +1363,7 @@ fn test_edge_cases_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("\n\t\r\\\"'".to_string())
+        &Value::String("\n\t\r\\\"'".to_string().into())
     );
 }
 
@@ -1194,7 +1391,7 @@ fn test_comprehensive_roundtrip_yaml() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("1.0.0".to_string())
+        &Value::String("1.0.0".to_string().into())
     );
     assert_eq!(
         restored
@@ -1214,8 +1411,10 @@ fn test_comprehensive_roundtrip_yaml() {
     }
 
     // Verify tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(items)))) = restored.root.get("weights") {
-        assert_eq!(items.len(), 3);
+    if let Some(Item::Scalar(Value::Tensor(tensor_box))) = restored.root.get("weights") {
+        if let Tensor::Array(ref items) = **tensor_box {
+            assert_eq!(items.len(), 3);
+        }
     } else {
         panic!("Expected weights tensor");
     }
@@ -1227,13 +1426,15 @@ fn test_comprehensive_roundtrip_yaml() {
         let alice = users.rows.iter().find(|n| n.id == "alice").unwrap();
         assert_eq!(alice.id, "alice");
         // Children ARE preserved with default YAML config (include_children=true)
-        assert!(alice.children.contains_key("posts"));
-        let alice_posts = alice.children.get("posts").unwrap();
+        assert!(alice.children().unwrap().contains_key("posts"));
+        let alice_posts = alice.children().unwrap().get("posts").unwrap();
         assert_eq!(alice_posts.len(), 1);
 
         // bob has no children in fixture
         let bob = users.rows.iter().find(|n| n.id == "bob").unwrap();
-        assert!(bob.children.is_empty());
+        assert!(bob
+            .children()
+            .map_or(true, std::collections::BTreeMap::is_empty));
     } else {
         panic!("Expected users list");
     }
@@ -1275,4 +1476,461 @@ fn test_empty_roundtrip_yaml() {
     assert!(restored.root.is_empty());
     assert!(restored.structs.is_empty());
     assert!(restored.nests.is_empty());
+}
+
+// =============================================================================
+// Schema Metadata Preservation Tests
+// =============================================================================
+
+#[test]
+fn test_schema_metadata_preserved_on_import() {
+    // Test that __schema__ metadata is honored during import
+    let yaml = r"
+users:
+  __schema__: [id, name, email]
+  items:
+    - id: alice
+      name: Alice
+      email: alice@example.com
+    - id: bob
+      name: Bob
+      email: bob@example.com
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("users") {
+        // Schema should match the __schema__ metadata exactly
+        assert_eq!(list.schema, vec!["id", "name", "email"]);
+        assert_eq!(list.rows.len(), 2);
+
+        // Verify first row has correct field order
+        let alice = &list.rows[0];
+        assert_eq!(alice.id, "alice");
+        assert_eq!(alice.fields.len(), 3);
+        assert_eq!(alice.fields[0], Value::String("alice".to_string().into()));
+        assert_eq!(alice.fields[1], Value::String("Alice".to_string().into()));
+        assert_eq!(
+            alice.fields[2],
+            Value::String("alice@example.com".to_string().into())
+        );
+    } else {
+        panic!("Expected users list");
+    }
+}
+
+#[test]
+fn test_schema_roundtrip_preserves_order() {
+    // Create a document with specific field order
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
+
+    let mut list = MatrixList::new(
+        "User",
+        vec!["id".to_string(), "name".to_string(), "email".to_string()],
+    );
+    list.add_row(Node::new(
+        "User",
+        "alice",
+        vec![
+            Value::String("alice".to_string().into()),
+            Value::String("Alice".to_string().into()),
+            Value::String("alice@example.com".to_string().into()),
+        ],
+    ));
+    doc.root.insert("users".to_string(), Item::List(list));
+
+    // Export with metadata
+    let config = ToYamlConfig {
+        include_metadata: true,
+        flatten_lists: false,
+        include_children: true,
+    };
+    let yaml = to_yaml(&doc, &config).unwrap();
+
+    // Import and verify schema is preserved
+    let restored = yaml_to_hedl(&yaml).unwrap();
+
+    if let Some(Item::List(list)) = restored.root.get("users") {
+        // Schema order should be preserved: [id, name, email]
+        assert_eq!(list.schema, vec!["id", "name", "email"]);
+        assert_eq!(
+            list.rows[0].fields[0],
+            Value::String("alice".to_string().into())
+        );
+        assert_eq!(
+            list.rows[0].fields[1],
+            Value::String("Alice".to_string().into())
+        );
+        assert_eq!(
+            list.rows[0].fields[2],
+            Value::String("alice@example.com".to_string().into())
+        );
+    } else {
+        panic!("Expected users list");
+    }
+}
+
+#[test]
+fn test_schema_without_metadata_infers_order() {
+    // Test that without __schema__ metadata, schema is inferred alphabetically
+    let yaml = r"
+users:
+  - id: alice
+    name: Alice
+    email: alice@example.com
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("users") {
+        // Without __schema__, fields are sorted alphabetically with id first
+        assert_eq!(list.schema, vec!["id", "email", "name"]);
+    } else {
+        panic!("Expected users list");
+    }
+}
+
+#[test]
+fn test_schema_metadata_with_type() {
+    // Test that __schema__ works with __type__ metadata
+    let yaml = r"
+people:
+  __type__: User
+  __schema__: [id, name, age]
+  items:
+    - id: alice
+      name: Alice
+      age: 30
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("people") {
+        assert_eq!(list.type_name, "User");
+        assert_eq!(list.schema, vec!["id", "name", "age"]);
+    } else {
+        panic!("Expected people list");
+    }
+}
+
+#[test]
+fn test_schema_metadata_empty_list() {
+    // Test that __schema__ works even with empty items array
+    let yaml = r"
+users:
+  __schema__: [id, name, email]
+  items: []
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("users") {
+        assert_eq!(list.schema, vec!["id", "name", "email"]);
+        assert_eq!(list.rows.len(), 0);
+    } else {
+        panic!("Expected users list");
+    }
+}
+
+#[test]
+fn test_schema_metadata_partial_fields() {
+    // Test that __schema__ defines all fields even if some rows don't have them
+    let yaml = r#"
+users:
+  __schema__: [id, name, email, phone]
+  items:
+    - id: alice
+      name: Alice
+      email: alice@example.com
+    - id: bob
+      name: Bob
+      phone: "555-1234"
+"#;
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("users") {
+        assert_eq!(list.schema, vec!["id", "name", "email", "phone"]);
+
+        // Alice has email but no phone
+        let alice = &list.rows[0];
+        assert_eq!(alice.fields.len(), 4);
+        assert_eq!(
+            alice.fields[2],
+            Value::String("alice@example.com".to_string().into())
+        );
+        assert_eq!(alice.fields[3], Value::Null); // phone is null
+
+        // Bob has phone but no email
+        let bob = &list.rows[1];
+        assert_eq!(bob.fields.len(), 4);
+        assert_eq!(bob.fields[2], Value::Null); // email is null
+        assert_eq!(bob.fields[3], Value::String("555-1234".to_string().into()));
+    } else {
+        panic!("Expected users list");
+    }
+}
+
+// =============================================================================
+// Issue #1: 'items' field name handling
+// =============================================================================
+
+#[test]
+fn test_items_field_without_metadata_is_regular_field() {
+    // Test that a field named 'items' without metadata is treated as a regular field
+    let yaml = r"
+inventory:
+  - id: warehouse1
+    location: Building A
+    items: 150
+  - id: warehouse2
+    location: Building B
+    items: 220
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("inventory") {
+        assert_eq!(list.type_name, "Inventory");
+        // Schema should include 'items' as a regular field
+        assert!(list.schema.contains(&"items".to_string()));
+        assert_eq!(list.rows.len(), 2);
+
+        // Verify items values are preserved
+        let warehouse1 = &list.rows[0];
+        let items_idx = list.schema.iter().position(|s| s == "items").unwrap();
+        assert_eq!(warehouse1.fields[items_idx], Value::Int(150));
+
+        let warehouse2 = &list.rows[1];
+        assert_eq!(warehouse2.fields[items_idx], Value::Int(220));
+    } else {
+        panic!("Expected inventory list");
+    }
+}
+
+#[test]
+fn test_items_field_with_type_metadata_is_list_wrapper() {
+    // Test that a mapping with 'items' AND __type__ is treated as a list wrapper
+    let yaml = r"
+products:
+  __type__: Product
+  items:
+    - id: p1
+      name: Widget
+    - id: p2
+      name: Gadget
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("products") {
+        assert_eq!(list.type_name, "Product");
+        assert_eq!(list.rows.len(), 2);
+        // Schema should NOT include 'items' as a field
+        assert!(!list.schema.contains(&"items".to_string()));
+    } else {
+        panic!("Expected products list");
+    }
+}
+
+#[test]
+fn test_items_field_with_schema_metadata_is_list_wrapper() {
+    // Test that a mapping with 'items' AND __schema__ is treated as a list wrapper
+    let yaml = r"
+products:
+  __schema__: [id, name, price]
+  items:
+    - id: p1
+      name: Widget
+      price: 9.99
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("products") {
+        assert_eq!(list.schema, vec!["id", "name", "price"]);
+        assert_eq!(list.rows.len(), 1);
+        // Schema should NOT include 'items' as a field
+        assert!(!list.schema.contains(&"items".to_string()));
+    } else {
+        panic!("Expected products list");
+    }
+}
+
+#[test]
+fn test_items_string_field_preserved() {
+    // Test that an 'items' field containing a string value is preserved
+    let yaml = r#"
+catalog:
+  - id: cat1
+    name: Hardware
+    items: "hammers, nails, screws"
+  - id: cat2
+    name: Software
+    items: "licenses, subscriptions"
+"#;
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("catalog") {
+        assert!(list.schema.contains(&"items".to_string()));
+        let cat1 = &list.rows[0];
+        let items_idx = list.schema.iter().position(|s| s == "items").unwrap();
+
+        // Verify items field contains the string value
+        assert_eq!(
+            cat1.fields[items_idx],
+            Value::String("hammers, nails, screws".to_string().into())
+        );
+    } else {
+        panic!("Expected catalog list");
+    }
+}
+
+// =============================================================================
+// Issue #2: Empty child sequences in schema
+// =============================================================================
+
+#[test]
+fn test_empty_child_array_not_in_schema() {
+    // Test that empty child arrays don't pollute the schema
+    let yaml = r"
+users:
+  - id: alice
+    name: Alice
+    email: alice@example.com
+    posts: []
+  - id: bob
+    name: Bob
+    email: bob@example.com
+    posts:
+      - id: post1
+        title: Hello World
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("users") {
+        // Schema should NOT include 'posts' - it's a child relationship
+        assert!(!list.schema.contains(&"posts".to_string()));
+        // Schema should only have user fields
+        assert_eq!(list.schema, vec!["id", "email", "name"]);
+
+        // Alice has no posts (empty array)
+        let alice = &list.rows[0];
+        assert_eq!(alice.fields.len(), 3); // Only id, email, name
+                                           // Children should be empty or contain empty posts array
+        if let Some(children) = alice.children() {
+            if let Some(posts) = children.get("posts") {
+                assert_eq!(posts.len(), 0);
+            }
+        }
+
+        // Bob has one post
+        let bob = &list.rows[1];
+        assert_eq!(bob.fields.len(), 3); // Only id, email, name
+        if let Some(children) = bob.children() {
+            let posts = children.get("posts").expect("Bob should have posts");
+            assert_eq!(posts.len(), 1);
+        } else {
+            panic!("Bob should have children");
+        }
+    } else {
+        panic!("Expected users list");
+    }
+}
+
+#[test]
+fn test_multiple_empty_children_not_in_schema() {
+    // Test that multiple empty child arrays don't pollute the schema
+    let yaml = r"
+departments:
+  - id: engineering
+    name: Engineering
+    employees: []
+    projects: []
+  - id: sales
+    name: Sales
+    employees: []
+    projects: []
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("departments") {
+        // Schema should NOT include 'employees' or 'projects'
+        assert!(!list.schema.contains(&"employees".to_string()));
+        assert!(!list.schema.contains(&"projects".to_string()));
+        // Schema should only have department fields
+        assert_eq!(list.schema, vec!["id", "name"]);
+
+        for dept in &list.rows {
+            assert_eq!(dept.fields.len(), 2); // Only id, name
+        }
+    } else {
+        panic!("Expected departments list");
+    }
+}
+
+#[test]
+fn test_mixed_empty_and_populated_children() {
+    // Test schema consistency when some rows have empty children and others don't
+    let yaml = r"
+organizations:
+  - id: org1
+    name: Org One
+    teams: []
+  - id: org2
+    name: Org Two
+    teams:
+      - id: team1
+        name: Team One
+  - id: org3
+    name: Org Three
+    teams: []
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("organizations") {
+        // Schema should be consistent across all rows
+        assert_eq!(list.schema, vec!["id", "name"]);
+        assert!(!list.schema.contains(&"teams".to_string()));
+
+        for row in &list.rows {
+            assert_eq!(row.fields.len(), 2); // All rows have same field count
+        }
+    } else {
+        panic!("Expected organizations list");
+    }
+}
+
+#[test]
+fn test_empty_tensor_vs_empty_child_sequence() {
+    // Test that empty numeric arrays (tensors) vs empty object arrays (children) are handled correctly
+    let yaml = r"
+data:
+  - id: d1
+    values: []
+    children: []
+";
+
+    let doc = yaml_to_hedl(yaml).unwrap();
+
+    if let Some(Item::List(list)) = doc.root.get("data") {
+        // Empty sequences in YAML become empty matrix lists by default
+        // Neither 'values' nor 'children' should be in schema
+        assert!(!list.schema.contains(&"values".to_string()));
+        assert!(!list.schema.contains(&"children".to_string()));
+        assert_eq!(list.schema, vec!["id"]);
+    } else {
+        panic!("Expected data list");
+    }
 }

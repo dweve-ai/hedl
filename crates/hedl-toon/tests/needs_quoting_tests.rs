@@ -46,7 +46,7 @@ fn test_quoting_through_document() {
     for (key, value) in test_cases {
         doc.root.insert(
             key.to_string(),
-            Item::Scalar(Value::String(value.to_string())),
+            Item::Scalar(Value::String(value.to_string().into())),
         );
     }
 
@@ -73,15 +73,15 @@ fn test_delimiter_specific_quoting() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "comma".to_string(),
-        Item::Scalar(Value::String("a,b".to_string())),
+        Item::Scalar(Value::String("a,b".to_string().into())),
     );
     doc.root.insert(
         "tab".to_string(),
-        Item::Scalar(Value::String("a\tb".to_string())),
+        Item::Scalar(Value::String("a\tb".to_string().into())),
     );
     doc.root.insert(
         "pipe".to_string(),
-        Item::Scalar(Value::String("a|b".to_string())),
+        Item::Scalar(Value::String("a|b".to_string().into())),
     );
 
     // Test with comma delimiter (default)
@@ -132,8 +132,8 @@ fn test_no_quoting_needed() {
 
     for (i, value) in test_cases.iter().enumerate() {
         doc.root.insert(
-            format!("key{}", i),
-            Item::Scalar(Value::String(value.to_string())),
+            format!("key{i}"),
+            Item::Scalar(Value::String((*value).to_string().into())),
         );
     }
 
@@ -143,11 +143,10 @@ fn test_no_quoting_needed() {
     // None of these should have quotes in the output
     for value in test_cases {
         // Check that value appears without quotes
-        let pattern = format!(": {}", value);
+        let pattern = format!(": {value}");
         assert!(
             toon.contains(&pattern),
-            "Expected '{}' to appear unquoted",
-            value
+            "Expected '{value}' to appear unquoted"
         );
     }
 }

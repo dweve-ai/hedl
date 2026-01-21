@@ -1,27 +1,104 @@
+# =============================================================================
+# HEDL Stream - crates/hedl-stream/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-stream"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
-homepage.workspace = true
-description = "Streaming parser for HEDL - memory-efficient processing of large files"
-keywords = ["hedl", "streaming", "parser", "big-data", "iterator"]
-categories = ["parser-implementations", "data-structures"]
+rust-version.workspace = true
 
-[features]
-default = []
-# Enable AVX2 SIMD optimizations for comment scanning (x86_64 only)
-avx2 = []
-# Enable async support with tokio
-async = ["tokio"]
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "Streaming parser for HEDL - memory-efficient processing of large files"
+documentation = "https://docs.rs/hedl-stream"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
 hedl-core = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.35", features = ["io-util"], optional = true }
+
+tokio = { workspace = true, optional = true }
+futures-core = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+zstd = { workspace = true, optional = true }
+lz4_flex = { workspace = true, optional = true }
+async-compression = { workspace = true, optional = true }
 
 [dev-dependencies]
-tempfile = "3.8"
-tokio = { version = "1.35", features = ["io-util", "macros", "rt"] }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+futures = { workspace = true }
+criterion = { workspace = true }
 
+[features]
+default = []
+avx2 = []
+async = ["tokio", "futures-core", "async-compression"]
+compression = ["flate2"]
+compression-zstd = ["zstd"]
+compression-lz4 = ["lz4_flex"]
+compression-all = ["compression", "compression-zstd", "compression-lz4"]
+
+[[example]]
+name = "async_basic"
+required-features = ["async"]
+
+[[example]]
+name = "async_batch_processing"
+required-features = ["async"]
+
+[[example]]
+name = "async_cancellation"
+required-features = ["async"]
+
+[[example]]
+name = "async_concurrent"
+required-features = ["async"]
+
+[[example]]
+name = "async_concurrent_files"
+required-features = ["async"]
+
+[[example]]
+name = "async_file"
+required-features = ["async"]
+
+[[example]]
+name = "async_stream_trait"
+required-features = ["async"]

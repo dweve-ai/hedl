@@ -26,9 +26,13 @@ use hedl_core::Document;
 /// Format types for conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
+    /// JSON format.
     Json,
+    /// YAML format.
     Yaml,
+    /// XML format.
     Xml,
+    /// Canonical HEDL format.
     Canonical,
 }
 
@@ -43,7 +47,7 @@ pub enum Format {
 /// Result containing JSON string.
 pub fn convert_to_json(doc: &Document) -> Result<String> {
     hedl_json::to_json(doc, &hedl_json::ToJsonConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))
 }
 
 /// Converts a HEDL document to YAML.
@@ -57,7 +61,7 @@ pub fn convert_to_json(doc: &Document) -> Result<String> {
 /// Result containing YAML string.
 pub fn convert_to_yaml(doc: &Document) -> Result<String> {
     hedl_yaml::to_yaml(doc, &hedl_yaml::ToYamlConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))
 }
 
 /// Converts a HEDL document to XML.
@@ -71,7 +75,7 @@ pub fn convert_to_yaml(doc: &Document) -> Result<String> {
 /// Result containing XML string.
 pub fn convert_to_xml(doc: &Document) -> Result<String> {
     hedl_xml::to_xml(doc, &hedl_xml::ToXmlConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))
 }
 
 /// Converts a HEDL document to canonical form.
@@ -112,7 +116,7 @@ pub fn convert_from_json(json: &str) -> Result<Document> {
 /// Result containing parsed document.
 pub fn convert_from_yaml(yaml: &str) -> Result<Document> {
     hedl_yaml::from_yaml(yaml, &hedl_yaml::FromYamlConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))
 }
 
 /// Performs round-trip test for a format.
@@ -173,7 +177,7 @@ pub fn convert_to_format(doc: &Document, format: Format) -> Result<String> {
 ///
 /// # Returns
 ///
-/// Tuple of (json_bytes, yaml_bytes, xml_bytes, canonical_bytes).
+/// Tuple of (`json_bytes`, `yaml_bytes`, `xml_bytes`, `canonical_bytes`).
 pub fn compare_format_sizes(doc: &Document) -> Result<(usize, usize, usize, usize)> {
     let json = convert_to_json(doc)?;
     let yaml = convert_to_yaml(doc)?;

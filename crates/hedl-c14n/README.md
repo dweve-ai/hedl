@@ -25,7 +25,7 @@ Comprehensive canonicalization with performance and security:
 
 ```toml
 [dependencies]
-hedl-c14n = "1.0"
+hedl-c14n = "1.2"
 ```
 
 ## Basic Usage
@@ -70,14 +70,13 @@ users: @User[3]
 ### Custom Configuration
 
 ```rust
-use hedl_c14n::{canonicalize_with_config, Config, QuotingStrategy};
+use hedl_c14n::{canonicalize_with_config, CanonicalConfig, QuotingStrategy};
 
-let config = Config::builder()
-    .indent_size(4)                           // 4-space indentation
+let config = CanonicalConfig::builder()
     .use_ditto(true)                          // Enable ditto optimization
     .sort_keys(true)                          // Alphabetically sort fields
     .inline_schemas(true)                     // Inline schemas in headers
-    .quoting_strategy(QuotingStrategy::Minimal)  // Minimal quoting
+    .quoting(QuotingStrategy::Minimal)        // Minimal quoting
     .build();
 
 let canonical = canonicalize_with_config(&doc, &config)?;
@@ -87,7 +86,7 @@ let canonical = canonicalize_with_config(&doc, &config)?;
 
 Replace repeated values with `^` to reduce token count:
 
-### Without Ditto (Default: use_ditto=false)
+### Without Ditto (use_ditto=false)
 
 ```hedl
 orders: @Order[id, customer, status, priority]
@@ -316,33 +315,27 @@ users: @User[id, name, email][2]
 
 ## Configuration Reference
 
-### Config Builder
+### CanonicalConfig Builder
 
 ```rust
-use hedl_c14n::{Config, QuotingStrategy};
+use hedl_c14n::{CanonicalConfig, QuotingStrategy};
 
-let config = Config::builder()
-    .indent_size(2)                           // Spaces per level (default: 2)
-    .use_ditto(true)                          // Enable ^ optimization (default: false)
-    .sort_keys(false)                         // Alphabetic sorting (default: false)
+let config = CanonicalConfig::builder()
+    .use_ditto(true)                          // Enable ^ optimization (default: true)
+    .sort_keys(true)                          // Alphabetic sorting (default: true)
     .inline_schemas(false)                    // Inline vs %STRUCT (default: false)
-    .quoting_strategy(QuotingStrategy::Minimal)  // Quoting mode (default: Minimal)
+    .quoting(QuotingStrategy::Minimal)        // Quoting mode (default: Minimal)
     .build();
 ```
 
 ### Configuration Options
 
-**indent_size** (default: 2)
-- Spaces per indentation level
-- Valid range: 1-8 spaces
-- Recommendation: 2 (HEDL standard) or 4 (alternative)
-
-**use_ditto** (default: false)
+**use_ditto** (default: true)
 - Replace repeated values with `^` operator
 - Reduces token count by 15-40% for repetitive data
 - Trade-off: Slightly less human-readable, much more LLM-efficient
 
-**sort_keys** (default: false)
+**sort_keys** (default: true)
 - Alphabetically sort object fields
 - Deterministic ordering regardless of insertion order
 - Improves git diff readability
@@ -352,7 +345,7 @@ let config = Config::builder()
 - `false`: Separate %STRUCT declarations in header
 - Trade-off: Self-contained vs reusable schemas
 
-**quoting_strategy** (default: Minimal)
+**quoting** (default: Minimal)
 - `QuotingStrategy::Minimal` - Quote only when necessary
 - `QuotingStrategy::Always` - Quote all strings
 - Minimal recommended for token efficiency
@@ -365,7 +358,7 @@ Protection against deeply nested structures:
 const MAX_NESTING_DEPTH: usize = 1000;
 
 // Attempting to canonicalize > 1000 levels deep:
-// Error: C14nError::MaxDepthExceeded { depth: 1001, max: 1000 }
+// Error: HedlError::Syntax { line: ..., message: "Max depth exceeded: 1001 levels (max: 1000)" }
 ```
 
 **Prevents**:
@@ -377,34 +370,29 @@ const MAX_NESTING_DEPTH: usize = 1000;
 
 ## Error Handling
 
-Comprehensive error types:
+Canonicalization uses `HedlError` from `hedl-core`:
 
 ```rust
-use hedl_c14n::{canonicalize, C14nError};
+use hedl_c14n::canonicalize;
+use hedl_core::HedlError;
 
 match canonicalize(&doc) {
     Ok(canonical) => println!("{}", canonical),
-    Err(C14nError::MaxDepthExceeded { depth, max }) => {
-        eprintln!("Nesting too deep: {} levels (max: {})", depth, max);
-    }
-    Err(C14nError::Io(e)) => {
-        eprintln!("I/O error: {}", e);
-    }
-    Err(C14nError::InvalidConfig(msg)) => {
-        eprintln!("Invalid configuration: {}", msg);
+    Err(HedlError::Syntax { line, message }) => {
+        eprintln!("Syntax error at line {}: {}", line, message);
     }
     Err(e) => {
-        eprintln!("Other error: {}", e);
+        eprintln!("Error: {}", e);
     }
 }
 ```
 
-### Error Types
+### Error Conditions
 
-- `MaxDepthExceeded` - Nesting exceeds 1000 levels
-- `Io(std::io::Error)` - Write failures
-- `InvalidConfig(String)` - Invalid configuration parameters
-- `Fmt(std::fmt::Error)` - Formatting errors
+- **Nesting too deep**: Document exceeds 1000-level nesting limit
+- **Write failures**: Internal buffer errors (extremely rare)
+
+Errors include line numbers and context for debugging.
 
 ## Round-Trip Stability
 

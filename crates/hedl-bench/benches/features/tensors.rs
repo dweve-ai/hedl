@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Tensor operations benchmarks.
 //!
 //! Measures HEDL tensor parsing and manipulation performance for multi-dimensional data.
@@ -33,7 +35,7 @@
 //! - Dimension scaling behavior
 //! - SIMD utilization potential
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::{measure, measure_with_throughput};
 use hedl_bench::datasets::generate_analytics;
 use hedl_bench::generators::specialized::generate_tensor_data;
@@ -41,6 +43,7 @@ use hedl_bench::report::BenchmarkReport;
 use hedl_bench::{CustomTable, ExportConfig, Insight, TableCell};
 use std::cell::RefCell;
 use std::fs;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -65,15 +68,10 @@ struct TensorResult {
     input_size_bytes: usize,
     parsing_times_ns: Vec<u64>,
     reshape_times_ns: Vec<u64>,
-    transpose_times_ns: Vec<u64>,
-    slice_times_ns: Vec<u64>,
     memory_usage_kb: usize,
     bytes_per_element: f64,
     elements_per_sec: f64,
     mb_per_sec: f64,
-    is_sparse: bool,
-    sparsity_ratio: f64,
-    precision: String, // f32, f64, int, etc.
 }
 
 impl Default for TensorResult {
@@ -85,15 +83,10 @@ impl Default for TensorResult {
             input_size_bytes: 0,
             parsing_times_ns: Vec::new(),
             reshape_times_ns: Vec::new(),
-            transpose_times_ns: Vec::new(),
-            slice_times_ns: Vec::new(),
             memory_usage_kb: 0,
             bytes_per_element: 0.0,
             elements_per_sec: 0.0,
             mb_per_sec: 0.0,
-            is_sparse: false,
-            sparsity_ratio: 0.0,
-            precision: "f64".to_string(),
         }
     }
 }
@@ -103,8 +96,8 @@ impl Default for TensorResult {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<TensorResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<TensorResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -183,7 +176,7 @@ fn calculate_stats(times: &[u64]) -> (f64, f64, f64, f64, f64) {
 
 fn dims_to_string(dims: &[usize]) -> String {
     dims.iter()
-        .map(|d| d.to_string())
+        .map(std::string::ToString::to_string)
         .collect::<Vec<_>>()
         .join("x")
 }
@@ -210,7 +203,7 @@ fn bench_tensor_parsing_1d(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement = measure("benchmark", iterations, || {
@@ -218,7 +211,7 @@ fn bench_tensor_parsing_1d(c: &mut Criterion) {
             black_box(doc);
         });
         record_perf(
-            &format!("tensor_1d_parse_{}", size),
+            &format!("tensor_1d_parse_{size}"),
             iterations,
             measurement.as_nanos(),
             Some(hedl.len() as u64),
@@ -226,7 +219,7 @@ fn bench_tensor_parsing_1d(c: &mut Criterion) {
 
         // Collect result
         let mut result = TensorResult::default();
-        result.dataset = format!("1d_{}", size);
+        result.dataset = format!("1d_{size}");
         result.dimensions = vec![size];
         result.total_elements = size;
         result.input_size_bytes = hedl.len();
@@ -273,13 +266,13 @@ fn bench_tensor_parsing_2d(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements(size as u64));
         group.bench_with_input(
-            BenchmarkId::new("parse", format!("{}x{}", rows, cols)),
+            BenchmarkId::new("parse", format!("{rows}x{cols}")),
             &hedl,
             |b, input| {
                 b.iter(|| {
                     let doc = hedl_core::parse(input.as_bytes()).unwrap();
                     black_box(doc)
-                })
+                });
             },
         );
 
@@ -288,7 +281,7 @@ fn bench_tensor_parsing_2d(c: &mut Criterion) {
             black_box(doc);
         });
         record_perf(
-            &format!("tensor_2d_parse_{}x{}", rows, cols),
+            &format!("tensor_2d_parse_{rows}x{cols}"),
             iterations,
             measurement.as_nanos(),
             None,
@@ -296,7 +289,7 @@ fn bench_tensor_parsing_2d(c: &mut Criterion) {
 
         // Collect result
         let mut result = TensorResult::default();
-        result.dataset = format!("2d_{}x{}", rows, cols);
+        result.dataset = format!("2d_{rows}x{cols}");
         result.dimensions = vec![rows, cols];
         result.total_elements = size;
         result.input_size_bytes = hedl.len();
@@ -337,13 +330,13 @@ fn bench_tensor_parsing_3d(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements(size as u64));
         group.bench_with_input(
-            BenchmarkId::new("parse", format!("{}x{}x{}", depth, rows, cols)),
+            BenchmarkId::new("parse", format!("{depth}x{rows}x{cols}")),
             &hedl,
             |b, input| {
                 b.iter(|| {
                     let doc = hedl_core::parse(input.as_bytes()).unwrap();
                     black_box(doc)
-                })
+                });
             },
         );
 
@@ -352,7 +345,7 @@ fn bench_tensor_parsing_3d(c: &mut Criterion) {
             black_box(doc);
         });
         record_perf(
-            &format!("tensor_3d_parse_{}x{}x{}", depth, rows, cols),
+            &format!("tensor_3d_parse_{depth}x{rows}x{cols}"),
             iterations,
             measurement.as_nanos(),
             None,
@@ -360,7 +353,7 @@ fn bench_tensor_parsing_3d(c: &mut Criterion) {
 
         // Collect result
         let mut result = TensorResult::default();
-        result.dataset = format!("3d_{}x{}x{}", depth, rows, cols);
+        result.dataset = format!("3d_{depth}x{rows}x{cols}");
         result.dimensions = vec![depth, rows, cols];
         result.total_elements = size;
         result.input_size_bytes = hedl.len();
@@ -399,7 +392,7 @@ fn bench_tensor_analytics_parsing(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -408,7 +401,7 @@ fn bench_tensor_analytics_parsing(c: &mut Criterion) {
                 black_box(doc);
             });
         record_perf(
-            &format!("tensor_analytics_{}", size),
+            &format!("tensor_analytics_{size}"),
             iterations,
             measurement.as_nanos(),
             Some(hedl.len() as u64),
@@ -416,7 +409,7 @@ fn bench_tensor_analytics_parsing(c: &mut Criterion) {
 
         // Collect result
         let mut result = TensorResult::default();
-        result.dataset = format!("analytics_{}", size);
+        result.dataset = format!("analytics_{size}");
         result.dimensions = vec![size];
         result.total_elements = size;
         result.input_size_bytes = hedl.len();
@@ -463,13 +456,13 @@ fn bench_shape_transformations(c: &mut Criterion) {
                     let doc = hedl_core::parse(input.as_bytes()).unwrap();
                     // Simulating reshape by re-parsing
                     black_box(doc)
-                })
+                });
             },
         );
 
         // Collect result
         let mut result = TensorResult::default();
-        result.dataset = format!("reshape_{}x10", from_shape);
+        result.dataset = format!("reshape_{from_shape}x10");
         result.dimensions = vec![from_shape, 10];
         result.total_elements = total;
         result.input_size_bytes = hedl.len();
@@ -553,10 +546,10 @@ fn create_shape_transformation_table(results: &[TensorResult], report: &mut Benc
         .collect();
 
     for result in shape_results {
-        let times = if !result.reshape_times_ns.is_empty() {
-            &result.reshape_times_ns
-        } else {
+        let times = if result.reshape_times_ns.is_empty() {
             &result.parsing_times_ns
+        } else {
+            &result.reshape_times_ns
         };
 
         if times.is_empty() {
@@ -820,7 +813,7 @@ fn generate_insights(results: &[TensorResult], report: &mut BenchmarkReport) {
         let elements_per_sec = (total_elements as f64 * 1e9) / total_time_ns as f64;
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Aggregate Throughput: {:.0} elements/sec", elements_per_sec),
+            title: format!("Aggregate Throughput: {elements_per_sec:.0} elements/sec"),
             description: "Combined tensor parsing throughput across all benchmarks".to_string(),
             data_points: vec![
                 format!("Total elements: {}", total_elements),
@@ -852,7 +845,7 @@ fn generate_insights(results: &[TensorResult], report: &mut BenchmarkReport) {
         report.add_insight(Insight {
             category: "finding".to_string(),
             title: "Dimension Impact on Throughput".to_string(),
-            description: format!("1D: {:.0} elem/s, 2D: {:.0} elem/s", avg_1d, avg_2d),
+            description: format!("1D: {avg_1d:.0} elem/s, 2D: {avg_2d:.0} elem/s"),
             data_points: vec![
                 format!("1D tensors: {} tested", results_1d.len()),
                 format!("2D tensors: {} tested", results_2d.len()),
@@ -884,10 +877,7 @@ fn generate_insights(results: &[TensorResult], report: &mut BenchmarkReport) {
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!(
-                "Memory: {:.1} bytes/element ({})",
-                avg_bytes_per_elem, efficiency
-            ),
+            title: format!("Memory: {avg_bytes_per_elem:.1} bytes/element ({efficiency})"),
             description: "Average serialization overhead per tensor element".to_string(),
             data_points: results
                 .iter()
@@ -949,7 +939,7 @@ fn generate_insights(results: &[TensorResult], report: &mut BenchmarkReport) {
 
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!("Size Scaling: {}", scaling),
+                title: format!("Size Scaling: {scaling}"),
                 description: "How throughput scales with tensor size".to_string(),
                 data_points: vec![
                     format!("Small (<= 100): {:.0} elem/s", small_avg),
@@ -1080,7 +1070,7 @@ fn generate_insights(results: &[TensorResult], report: &mut BenchmarkReport) {
         description: "Parsing performance scales with tensor dimensionality".to_string(),
         data_points: dim_results
             .iter()
-            .map(|(dim, avg_ms)| format!("{}: {:.2}ms average", dim, avg_ms))
+            .map(|(dim, avg_ms)| format!("{dim}: {avg_ms:.2}ms average"))
             .collect(),
     });
 
@@ -1160,7 +1150,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights",
                         new_report.custom_tables.len(),
@@ -1168,10 +1158,10 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
+                    eprintln!("Export failed: {e}");
                     // Fallback to legacy export
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

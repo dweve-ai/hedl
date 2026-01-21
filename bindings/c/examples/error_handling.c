@@ -131,8 +131,9 @@ int main(void) {
 
                 if (hedl_diagnostics_get(diags, i, &message) == HEDL_OK) {
                     int severity = hedl_diagnostics_severity(diags, i);
-                    const char* level = (severity == 0) ? "ERROR" :
-                                      (severity == 1) ? "WARNING" : "INFO";
+                    // Severity: 0=Hint, 1=Warning, 2=Error (per hedl.h)
+                    const char* level = (severity == 0) ? "HINT" :
+                                      (severity == 1) ? "WARNING" : "ERROR";
                     printf("  [%s] %s\n", level, message ? message : "");
                     hedl_free_string(message);
                 }
@@ -212,10 +213,11 @@ int main(void) {
     printf("\nError handling best practices:\n");
     printf("  1. Always check return codes\n");
     printf("  2. Use hedl_get_last_error() for detailed messages\n");
-    printf("  3. Free error strings with hedl_free_string()\n");
-    printf("  4. NULL pointers are safe in free functions\n");
-    printf("  5. Errors are thread-local (safe for multithreading)\n");
-    printf("  6. Use diagnostics for detailed validation feedback\n");
+    printf("  3. Do NOT free hedl_get_last_error() strings (thread-local storage)\n");
+    printf("  4. DO free strings from hedl_diagnostics_get() with hedl_free_string()\n");
+    printf("  5. NULL pointers are safe in free functions\n");
+    printf("  6. Errors are thread-local (safe for multithreading)\n");
+    printf("  7. Use diagnostics for detailed validation feedback\n");
     printf("\nExample complete!\n\n");
 
     return 0;

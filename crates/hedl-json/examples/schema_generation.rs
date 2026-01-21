@@ -52,9 +52,9 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
             }
             (header_lines.join("\n"), body_lines.join("\n"))
         };
-        format!("%VERSION: 1.0\n{}\n---\n{}", header, body)
+        format!("%VERSION: 1.0\n{header}\n---\n{body}")
     } else {
-        format!("%VERSION: 1.0\n---\n{}", input)
+        format!("%VERSION: 1.0\n---\n{input}")
     };
     parse(hedl.as_bytes()).unwrap()
 }
@@ -62,24 +62,24 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Basic Schema Generation
     println!("=== Example 1: Basic Schema ===\n");
-    let hedl = r#"
+    let hedl = r"
 name: Alice
 age: 30
 active: true
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema(&doc, &SchemaConfig::default())?;
-    println!("{}\n", schema);
+    println!("{schema}\n");
 
     // Example 2: Schema with %STRUCT:definitions
     println!("=== Example 2: Schema with %STRUCT:===\n");
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name, email]
 users: @User
   |u1, Alice, alice@example.com
   |u2, Bob, bob@example.com
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let config = SchemaConfig::builder()
@@ -87,11 +87,11 @@ users: @User
         .description("Schema for user management API")
         .build();
     let schema = generate_schema(&doc, &config)?;
-    println!("{}\n", schema);
+    println!("{schema}\n");
 
     // Example 3: Schema with Nested Types (NEST)
     println!("=== Example 3: Schema with %NEST:===\n");
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Team: [id, name]
 %STRUCT: Member: [id, name, role]
 %NEST: Team > Member
@@ -99,20 +99,20 @@ users: @User
 teams: @Team
   |t1, Engineering
   |t2, Design
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema(&doc, &SchemaConfig::default())?;
-    println!("{}\n", schema);
+    println!("{schema}\n");
 
     // Example 4: Strict Schema with Examples
     println!("=== Example 4: Strict Schema with Examples ===\n");
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Product: [id, name, price, in_stock]
 products: @Product
   |p1, Widget, 19.99, true
   |p2, Gadget, 29.99, false
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let config = SchemaConfig::builder()
@@ -122,11 +122,11 @@ products: @Product
         .include_examples(true)
         .build();
     let schema = generate_schema(&doc, &config)?;
-    println!("{}\n", schema);
+    println!("{schema}\n");
 
     // Example 5: Complex Nested Structure
     println!("=== Example 5: Complex Nested Structure ===\n");
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Organization: [id, name, founded]
 %STRUCT: Department: [id, name, budget]
 %STRUCT: Employee: [id, name, email, hire_date]
@@ -136,7 +136,7 @@ products: @Product
 
 organizations: @Organization
   |org1, Acme Corp, 1990
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let config = SchemaConfig::builder()
@@ -145,7 +145,7 @@ organizations: @Organization
         .strict(true)
         .build();
     let schema = generate_schema(&doc, &config)?;
-    println!("{}\n", schema);
+    println!("{schema}\n");
 
     Ok(())
 }

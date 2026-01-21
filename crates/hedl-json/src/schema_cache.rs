@@ -59,6 +59,7 @@ impl SchemaCacheKey {
     /// Create a cache key from a list of field names
     ///
     /// Automatically sorts the fields for consistent hashing.
+    #[must_use]
     pub fn new(mut fields: Vec<String>) -> Self {
         fields.sort();
         Self { fields }
@@ -93,6 +94,7 @@ pub struct CacheStatistics {
 
 impl CacheStatistics {
     /// Calculate cache hit rate (0.0 to 1.0)
+    #[must_use]
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
         if total == 0 {
@@ -103,6 +105,7 @@ impl CacheStatistics {
     }
 
     /// Calculate cache miss rate (0.0 to 1.0)
+    #[must_use]
     pub fn miss_rate(&self) -> f64 {
         1.0 - self.hit_rate()
     }
@@ -170,6 +173,7 @@ impl SchemaCache {
     ///
     /// let cache = SchemaCache::new(100);
     /// ```
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
         Self {
             inner: Arc::new(RwLock::new(SchemaCacheInner {
@@ -204,6 +208,7 @@ impl SchemaCache {
     ///     println!("Found: {:?}", schema);
     /// }
     /// ```
+    #[must_use]
     pub fn get(&self, key: &SchemaCacheKey) -> Option<Vec<String>> {
         let mut inner = self.inner.write().unwrap();
 
@@ -289,6 +294,7 @@ impl SchemaCache {
     /// println!("Hit rate: {:.2}%", stats.hit_rate() * 100.0);
     /// println!("Size: {}/{}", stats.size, stats.capacity);
     /// ```
+    #[must_use]
     pub fn statistics(&self) -> CacheStatistics {
         let inner = self.inner.read().unwrap();
         inner.stats.clone()
@@ -322,6 +328,7 @@ impl SchemaCache {
     /// let cache = SchemaCache::new(100);
     /// assert_eq!(cache.len(), 0);
     /// ```
+    #[must_use]
     pub fn len(&self) -> usize {
         let inner = self.inner.read().unwrap();
         inner.cache.len()
@@ -337,6 +344,7 @@ impl SchemaCache {
     /// let cache = SchemaCache::new(100);
     /// assert!(cache.is_empty());
     /// ```
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -351,6 +359,7 @@ impl SchemaCache {
     /// let cache = SchemaCache::new(100);
     /// assert_eq!(cache.capacity(), 100);
     /// ```
+    #[must_use]
     pub fn capacity(&self) -> usize {
         let inner = self.inner.read().unwrap();
         inner.capacity

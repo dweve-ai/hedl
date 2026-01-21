@@ -23,7 +23,7 @@
 
 use std::fmt;
 
-/// Maximum dataset size to prevent DoS attacks (10 million entities)
+/// Maximum dataset size to prevent `DoS` attacks (10 million entities)
 ///
 /// This limit prevents memory exhaustion from maliciously large dataset requests.
 /// Benchmarks should use a reasonable subset of data for meaningful results.
@@ -107,6 +107,14 @@ pub enum BenchError {
 
     /// Streaming operation failed
     StreamError(String),
+
+    /// Invalid benchmark name
+    InvalidBenchmarkName {
+        /// The invalid name
+        name: String,
+        /// Reason for invalidity
+        reason: String,
+    },
 }
 
 impl fmt::Display for BenchError {
@@ -115,63 +123,53 @@ impl fmt::Display for BenchError {
             BenchError::DatasetTooLarge { requested, max } => {
                 write!(
                     f,
-                    "Dataset size {} exceeds maximum allowed limit of {}",
-                    requested, max
+                    "Dataset size {requested} exceeds maximum allowed limit of {max}"
                 )
             }
             BenchError::InvalidConfig { parameter, reason } => {
-                write!(
-                    f,
-                    "Invalid configuration parameter '{}': {}",
-                    parameter, reason
-                )
+                write!(f, "Invalid configuration parameter '{parameter}': {reason}")
             }
             BenchError::GenerationFailed {
                 dataset_type,
                 message,
             } => {
-                write!(
-                    f,
-                    "Failed to generate {} dataset: {}",
-                    dataset_type, message
-                )
+                write!(f, "Failed to generate {dataset_type} dataset: {message}")
             }
             BenchError::TokenCountFailed { reason } => {
-                write!(f, "Token counting failed: {}", reason)
+                write!(f, "Token counting failed: {reason}")
             }
             BenchError::QuestionGenFailed {
                 question_type,
                 message,
             } => {
-                write!(
-                    f,
-                    "Failed to generate {} questions: {}",
-                    question_type, message
-                )
+                write!(f, "Failed to generate {question_type} questions: {message}")
             }
             BenchError::AccuracyFailed { reason } => {
-                write!(f, "Accuracy measurement failed: {}", reason)
+                write!(f, "Accuracy measurement failed: {reason}")
             }
             BenchError::NormalizationFailed { value, reason } => {
-                write!(f, "Failed to normalize '{}': {}", value, reason)
+                write!(f, "Failed to normalize '{value}': {reason}")
             }
             BenchError::ComparisonFailed { reason } => {
-                write!(f, "Comparison failed: {}", reason)
+                write!(f, "Comparison failed: {reason}")
             }
             BenchError::ConversionError(msg) => {
-                write!(f, "Conversion error: {}", msg)
+                write!(f, "Conversion error: {msg}")
             }
             BenchError::IoError(msg) => {
-                write!(f, "I/O error: {}", msg)
+                write!(f, "I/O error: {msg}")
             }
             BenchError::ParseError(msg) => {
-                write!(f, "Parse error: {}", msg)
+                write!(f, "Parse error: {msg}")
             }
             BenchError::ValidationError(msg) => {
-                write!(f, "Validation error: {}", msg)
+                write!(f, "Validation error: {msg}")
             }
             BenchError::StreamError(msg) => {
-                write!(f, "Stream error: {}", msg)
+                write!(f, "Stream error: {msg}")
+            }
+            BenchError::InvalidBenchmarkName { name, reason } => {
+                write!(f, "Invalid benchmark name '{name}': {reason}")
             }
         }
     }
@@ -239,7 +237,7 @@ mod tests {
             requested: 20_000_000,
             max: MAX_DATASET_SIZE,
         };
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(msg.contains("20000000"));
         assert!(msg.contains("10000000"));
 
@@ -247,7 +245,7 @@ mod tests {
             parameter: "indent".to_string(),
             reason: "must be positive".to_string(),
         };
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(msg.contains("indent"));
         assert!(msg.contains("must be positive"));
     }

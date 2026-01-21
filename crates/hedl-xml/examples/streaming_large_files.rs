@@ -58,10 +58,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Item: key={}, value_type={:?}", item.key, item.value);
                 item_count += 1;
             }
-            Err(e) => eprintln!("Parse error: {}", e),
+            Err(e) => eprintln!("Parse error: {e}"),
         }
     }
-    println!("\nProcessed {} top-level items\n", item_count);
+    println!("\nProcessed {item_count} top-level items\n");
 
     // Example 2: Custom buffer configuration
     println!("Example 2: Custom buffer configuration");
@@ -82,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(item) => {
                 println!("Streaming with custom buffer: {}", item.key);
             }
-            Err(e) => eprintln!("Parse error: {}", e),
+            Err(e) => eprintln!("Parse error: {e}"),
         }
     }
     println!();
@@ -130,12 +130,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_records += 1;
             }
             Err(e) => {
-                eprintln!("Parse error on record {}: {}", total_records, e);
+                eprintln!("Parse error on record {total_records}: {e}");
                 break;
             }
         }
     }
-    println!("\nTotal records processed: {}\n", total_records);
+    println!("\nTotal records processed: {total_records}\n");
 
     // Example 4: Processing with streaming statistics
     println!("Example 4: Streaming with statistics collection");
@@ -152,11 +152,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(item) => {
                 stats.process_item(&item);
             }
-            Err(e) => eprintln!("Parse error: {}", e),
+            Err(e) => eprintln!("Parse error: {e}"),
         }
     }
 
-    println!("{}", stats);
+    println!("{stats}");
 
     Ok(())
 }

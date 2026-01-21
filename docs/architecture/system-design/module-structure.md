@@ -53,8 +53,9 @@ bumpalo = "3.16"    # Arena allocation
 
 **Public API**:
 ```rust
-// Parsing
-pub fn parse(input: &str, options: &ParseOptions) -> Result<Document>;
+// Parsing (bytes input)
+pub fn parse(input: &[u8]) -> HedlResult<Document>;
+pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Document>;
 
 // Data structures
 pub struct Document { /* ... */ }
@@ -139,8 +140,8 @@ pub use hedl_c14n::canonicalize;
 pub use hedl_yaml::{to_yaml, from_yaml};
 
 // Convenience functions
-pub fn parse(input: &str) -> Result<Document> {
-    hedl_core::parse(input, &ParseOptions::default())
+pub fn parse(input: &str) -> Result<Document, HedlError> {
+    hedl_core::parse(input.as_bytes())
 }
 ```
 
@@ -166,12 +167,14 @@ hedl-core = { workspace = true }
 
 **Public API**:
 ```rust
-pub fn canonicalize(doc: &Document, config: &C14nConfig) -> Result<String>;
+pub fn canonicalize(doc: &Document) -> Result<String, HedlError>;
+pub fn canonicalize_with_config(doc: &Document, config: &CanonicalConfig) -> Result<String, HedlError>;
 
-pub struct C14nConfig {
+pub struct CanonicalConfig {
+    pub quoting: QuotingStrategy,
+    pub use_ditto: bool,
     pub sort_keys: bool,
-    pub indent: usize,
-    pub quote_style: QuoteStyle,
+    pub inline_schemas: bool,
 }
 ```
 
@@ -859,13 +862,13 @@ cargo publish -p hedl-cli
 Users choose features:
 ```toml
 # Minimal: core + JSON only
-hedl = "1.0"
+hedl = "1.2"
 
 # With YAML support
-hedl = { version = "1.0", features = ["yaml"] }
+hedl = { version = "1.2", features = ["yaml"] }
 
 # All formats
-hedl = { version = "1.0", features = ["all-formats"] }
+hedl = { version = "1.2", features = ["all-formats"] }
 ```
 
 ## Related Documentation

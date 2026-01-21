@@ -33,7 +33,7 @@ HEDL offers several advantages:
 Yes! HEDL is at version 1.0 and includes:
 - Comprehensive test suite (unit, integration, property-based, fuzz tests)
 - Security hardening (DoS protection, resource limits)
-- Performance optimization (zero-copy parsing, SIMD)
+- Performance optimization (efficient parsing, SIMD)
 - Multiple language bindings (Rust, Python, JavaScript/WASM)
 - Production-grade CLI tool
 
@@ -167,13 +167,15 @@ These protect against DoS attacks and can be customized when using HEDL as a lib
 
 ### How fast is HEDL parsing?
 
-HEDL is highly optimized:
-- **Efficient parsing**: 54.6 MB/s throughput
-- **SIMD optimizations**: Vectorized parsing for strings and numbers
-- **Parallel processing**: Batch operations use all CPU cores (6.19x speedup @ 8 threads)
-- **Format conversion**: Up to 2,964 MB/s (HEDL→XML), 2,883 MB/s (JSON→HEDL)
+HEDL is optimized for performance:
+- **Parsing throughput**: ~33-49 MiB/s depending on document structure
+- **SIMD optimizations**: Uses `memchr` for vectorized byte scanning
+- **Parallel processing**: Batch operations via `rayon` for multi-file processing
 
-Typical latencies: 142 µs for small documents, 1.54 ms for medium documents.
+Based on `cargo bench --bench parsing` (release build, 2025-01-19):
+- 10 keys flat: ~20 µs
+- 100 keys flat: ~229 µs
+- 500 keys flat: ~1.12 ms
 
 ### What's the memory usage?
 
@@ -236,13 +238,13 @@ Generally yes, but with some caveats:
 - Parquet ↔ HEDL (schema preserved)
 
 **May Lose Information:**
-- XML attributes (converted to `_attr_` prefix fields)
+- XML attributes (become regular HEDL fields)
 - CSV → HEDL (type inference may differ)
 - HEDL → CSV (nested structures flattened)
 
 Always validate after conversion:
 ```bash
-hedl from-json data.json | hedl validate -
+hedl from-json data.json -o data.hedl && hedl validate data.hedl
 ```
 
 ### How do I preserve HEDL types when converting?
@@ -263,10 +265,10 @@ Yes! Use HEDL as an intermediary:
 
 ```bash
 # JSON → HEDL → YAML
-hedl from-json input.json | hedl to-yaml - > output.yaml
+hedl from-json input.json -o temp.hedl && hedl to-yaml temp.hedl -o output.yaml
 
 # JSON → HEDL → CSV
-hedl from-json input.json | hedl to-csv - > output.csv
+hedl from-json input.json -o temp.hedl && hedl to-csv temp.hedl -o output.csv
 ```
 
 ### Which format should I use?
@@ -428,7 +430,7 @@ Yes! HEDL provides Rust, Python, and JavaScript (WASM) libraries:
 **Rust:**
 ```toml
 [dependencies]
-hedl = "1.0"
+hedl = "1.2"
 ```
 
 **Python:**

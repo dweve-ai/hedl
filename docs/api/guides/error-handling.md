@@ -16,11 +16,11 @@ HEDL follows these error handling principles:
 ### Basic Result Pattern
 
 ```rust
-use hedl::{parse, HedlError};
+use hedl::{parse, HedlError, HedlErrorKind};
 
 fn load_config(path: &str) -> Result<Config, HedlError> {
     let content = std::fs::read_to_string(path)
-        .map_err(|e| HedlError::new(hedl::HedlErrorKind::IO, e.to_string(), 0))?;
+        .map_err(|e| HedlError::io(e.to_string()))?;
     let doc = parse(&content)?;
     Config::from_document(&doc)
 }
@@ -34,7 +34,7 @@ match load_config("config.hedl") {
 ### Pattern Matching on Error Kind
 
 ```rust
-use hedl::{parse, HedlErrorKind};
+use hedl::{parse_with_limits, ParseOptions, HedlErrorKind, ReferenceMode};
 
 match parse(input) {
     Ok(doc) => process(doc),
@@ -45,7 +45,11 @@ match parse(input) {
         }
         HedlErrorKind::Reference => {
             eprintln!("Reference error, trying lenient mode...");
-            match hedl::parse_lenient(input) {
+            let opts = ParseOptions {
+                reference_mode: ReferenceMode::Lenient,
+                ..Default::default()
+            };
+            match parse_with_limits(input.as_bytes(), opts) {
                 Ok(doc) => process(doc),
                 Err(e2) => fatal_error(e2),
             }
@@ -128,7 +132,7 @@ int process_hedl(const char* input) {
     char* json = NULL;
     int result = 0;
 
-    HedlErrorCode code = hedl_parse(input, -1, 0, &doc);
+    int code = hedl_parse(input, -1, 0, &doc);
     if (code != HEDL_OK) {
         const char* error = hedl_get_last_error();
         fprintf(stderr, "Parse failed (%d): %s\n", code, error);
@@ -162,20 +166,20 @@ cleanup:
 
 class HedlException : public std::runtime_error {
 public:
-    HedlException(HedlErrorCode code, const std::string& msg)
+    HedlException(int code, const std::string& msg)
         : std::runtime_error(msg), code_(code) {}
 
-    HedlErrorCode code() const { return code_; }
+    int code() const { return code_; }
 
 private:
-    HedlErrorCode code_;
+    int code_;
 };
 
 class HedlDocument {
 public:
     HedlDocument(const std::string& input) {
         HedlDocument* raw = nullptr;
-        HedlErrorCode code = hedl_parse(input.c_str(), -1, 0, &raw);
+        int code = hedl_parse(input.c_str(), -1, 0, &raw);
 
         if (code != HEDL_OK) {
             std::string err = hedl_get_last_error();
@@ -187,7 +191,7 @@ public:
 
     std::string to_json() const {
         char* raw_json = nullptr;
-        HedlErrorCode code = hedl_to_json(doc_.get(), 0, &raw_json);
+        int code = hedl_to_json(doc_.get(), 0, &raw_json);
 
         if (code != HEDL_OK) {
             std::string err = hedl_get_last_error();
@@ -218,23 +222,28 @@ try {
 
 ## JavaScript/WASM Error Handling
 
+All HEDL WASM functions throw standard JavaScript `Error` objects on failure. Parse errors include line information in the error message.
+
 ### Try-Catch Pattern
 
 ```typescript
-import { parse, HedlError } from 'hedl-wasm';
+import { parse } from 'hedl-wasm';
 
 function safeParseHedl(input: string) {
     try {
         const doc = parse(input);
         return { success: true, doc };
     } catch (error) {
-        if (error instanceof HedlError) {
+        // Errors are standard JavaScript Error objects
+        if (error instanceof Error) {
+            // Parse errors include line info in message:
+            // "Parse error at line 5: unexpected token"
+            const lineMatch = error.message.match(/line (\d+)/i);
             return {
                 success: false,
                 error: {
-                    kind: error.kind,
                     message: error.message,
-                    line: error.line,
+                    line: lineMatch ? parseInt(lineMatch[1], 10) : undefined,
                 }
             };
         }
@@ -261,10 +270,14 @@ async function loadAndParseHedl(url: string): Promise<any> {
         return doc;
 
     } catch (error) {
-        if (error instanceof HedlError) {
-            console.error(`HEDL parse error at line ${error.line}: ${error.message}`);
-        } else {
-            console.error('Failed to load HEDL:', error);
+        if (error instanceof Error) {
+            // Extract line number from error message if present
+            const lineMatch = error.message.match(/line (\d+)/i);
+            if (lineMatch) {
+                console.error(`HEDL parse error at line ${lineMatch[1]}: ${error.message}`);
+            } else {
+                console.error('Failed to load HEDL:', error.message);
+            }
         }
         throw error;
     }
@@ -278,12 +291,12 @@ type Result<T, E = Error> =
     | { ok: true; value: T }
     | { ok: false; error: E };
 
-function parseHedl(input: string): Result<any, HedlError> {
+function parseHedl(input: string): Result<any, Error> {
     try {
         const doc = parse(input);
         return { ok: true, value: doc };
     } catch (error) {
-        if (error instanceof HedlError) {
+        if (error instanceof Error) {
             return { ok: false, error };
         }
         throw error; // Re-throw unexpected errors
@@ -304,14 +317,19 @@ if (result.ok) {
 ### Lenient Parsing
 
 ```rust
-use hedl::{parse, parse_lenient};
+use hedl::{parse, parse_with_limits, ParseOptions, ReferenceMode, HedlErrorKind, HedlError, Document};
 
 fn parse_with_fallback(input: &str) -> Result<Document, HedlError> {
     match parse(input) {
         Ok(doc) => Ok(doc),
         Err(e) if e.kind == HedlErrorKind::Reference => {
             eprintln!("Warning: Using lenient mode due to unresolved references");
-            parse_lenient(input)
+            // Use lenient mode to ignore unresolved references
+            let opts = ParseOptions {
+                reference_mode: ReferenceMode::Lenient,
+                ..Default::default()
+            };
+            parse_with_limits(input.as_bytes(), opts)
         }
         Err(e) => Err(e),
     }
@@ -321,6 +339,8 @@ fn parse_with_fallback(input: &str) -> Result<Document, HedlError> {
 ### Partial Parsing
 
 ```rust
+use hedl::{parse, Document, HedlError};
+
 fn parse_best_effort(input: &str) -> (Option<Document>, Vec<HedlError>) {
     let mut errors = Vec::new();
 
@@ -339,7 +359,7 @@ fn parse_best_effort(input: &str) -> (Option<Document>, Vec<HedlError>) {
 ### Validation with Warnings
 
 ```rust
-use hedl::{parse, lint};
+use hedl::{parse, lint, HedlError, Document};
 use hedl::lint::{Diagnostic, Severity};
 
 fn parse_with_validation(input: &str) -> Result<(Document, Vec<Diagnostic>), HedlError> {
@@ -366,6 +386,8 @@ fn parse_with_validation(input: &str) -> Result<(Document, Vec<Diagnostic>), Hed
 ### Context Display
 
 ```rust
+use hedl::HedlError;
+
 fn show_error_with_context(input: &str, error: &HedlError) {
     eprintln!("Error at line {}: {}", error.line, error.message);
 
@@ -382,6 +404,8 @@ fn show_error_with_context(input: &str, error: &HedlError) {
 ### Suggestions
 
 ```rust
+use hedl::{HedlError, HedlErrorKind};
+
 fn suggest_fix(error: &HedlError) -> Option<String> {
     match &error.kind {
         HedlErrorKind::Syntax if error.message.contains("colon") => {
@@ -403,7 +427,8 @@ fn suggest_fix(error: &HedlError) -> Option<String> {
 ### Structured Logging
 
 ```rust
-use tracing::{error, warn, info};
+use hedl::{parse, Document, HedlError};
+use tracing::{error, info};
 
 fn parse_with_logging(input: &str) -> Result<Document, HedlError> {
     info!("Parsing HEDL document");
@@ -430,6 +455,7 @@ fn parse_with_logging(input: &str) -> Result<Document, HedlError> {
 ### Error Metrics
 
 ```rust
+use hedl::{parse, Document, HedlError};
 use prometheus::{IntCounter, register_int_counter};
 
 lazy_static! {
@@ -473,7 +499,7 @@ fn parse_with_metrics(input: &str) -> Result<Document, HedlError> {
 ```rust
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use hedl::{parse, parse_with_limits, ParseOptions, Limits, HedlErrorKind};
 
     #[test]
     fn test_syntax_error() {

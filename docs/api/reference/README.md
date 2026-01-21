@@ -82,6 +82,7 @@ let diagnostics = lint(&doc);
 ```
 Document
 ├── version: (u32, u32)
+├── schema_versions: BTreeMap<String, SchemaVersion>
 ├── aliases: BTreeMap<String, String>
 ├── structs: BTreeMap<String, Vec<String>>
 ├── nests: BTreeMap<String, String>
@@ -97,17 +98,17 @@ Value (enum)
 ├── Bool(bool)
 ├── Int(i64)
 ├── Float(f64)
-├── String(String)
-├── Tensor(Tensor)
+├── String(Box<str>)
+├── Tensor(Box<Tensor>)
 ├── Reference(Reference)
-└── Expression(Expression)
+└── Expression(Box<Expression>)
 
 Node (for MatrixList rows)
 ├── type_name: String
 ├── id: String
-├── fields: Vec<Value>
-├── children: BTreeMap<String, Vec<Node>>
-└── child_count: Option<usize>
+├── fields: SmallVec<[Value; 4]>  // Stack-allocated for ≤4 fields
+├── children: Option<Box<BTreeMap<String, Vec<Node>>>>  // Lazy allocation
+└── child_count: u16  // Compact hint
 ```
 
 ## Function Index
@@ -149,7 +150,12 @@ Common error types:
 ```rust
 pub struct ParseOptions {
     pub limits: Limits,
-    pub strict_refs: bool,
+    pub reference_mode: ReferenceMode,
+}
+
+pub enum ReferenceMode {
+    Strict,   // Unresolved references cause errors (default)
+    Lenient,  // Unresolved references are silently ignored
 }
 ```
 

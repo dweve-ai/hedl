@@ -49,7 +49,7 @@ fn test_position_preservation_simple_ordered() {
         list.add_row(Node::new(
             "Item",
             *id,
-            vec![Value::String(id.to_string()), Value::Int(*value)],
+            vec![Value::String((*id).to_string().into()), Value::Int(*value)],
         ));
     }
 
@@ -67,7 +67,7 @@ fn test_position_preservation_simple_ordered() {
             assert_eq!(list.rows[i].id, *expected_id);
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
             assert_eq!(list.rows[i].fields[1], Value::Int(*expected_value));
         }
@@ -86,8 +86,11 @@ fn test_position_preservation_large_dataset() {
     for i in 0..100 {
         list.add_row(Node::new(
             "Row",
-            format!("row_{:03}", i),
-            vec![Value::String(format!("row_{:03}", i)), Value::Int(i as i64)],
+            format!("row_{i:03}"),
+            vec![
+                Value::String(format!("row_{i:03}").into()),
+                Value::Int(i64::from(i)),
+            ],
         ));
     }
 
@@ -102,9 +105,12 @@ fn test_position_preservation_large_dataset() {
         assert_eq!(list.rows.len(), 100);
 
         for i in 0..100 {
-            let expected_id = format!("row_{:03}", i);
+            let expected_id = format!("row_{i:03}");
             assert_eq!(list.rows[i].id, expected_id);
-            assert_eq!(list.rows[i].fields[0], Value::String(expected_id));
+            assert_eq!(
+                list.rows[i].fields[0],
+                Value::String(expected_id.clone().into())
+            );
             assert_eq!(list.rows[i].fields[1], Value::Int(i as i64));
         }
     } else {
@@ -134,7 +140,10 @@ fn test_position_preservation_reverse_sorted() {
         list.add_row(Node::new(
             "Item",
             *id,
-            vec![Value::String(id.to_string()), Value::Int(*priority)],
+            vec![
+                Value::String((*id).to_string().into()),
+                Value::Int(*priority),
+            ],
         ));
     }
 
@@ -152,7 +161,7 @@ fn test_position_preservation_reverse_sorted() {
             assert_eq!(list.rows[i].id, *expected_id);
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
             assert_eq!(list.rows[i].fields[1], Value::Int(*expected_priority));
         }
@@ -178,8 +187,8 @@ fn test_position_preservation_identical_values() {
             "Record",
             *id,
             vec![
-                Value::String(id.to_string()),
-                Value::String("active".to_string()),
+                Value::String((*id).to_string().into()),
+                Value::String("active".to_string().into()),
             ],
         ));
     }
@@ -198,9 +207,12 @@ fn test_position_preservation_identical_values() {
             assert_eq!(list.rows[i].id, *expected_id);
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
-            assert_eq!(list.rows[i].fields[1], Value::String("active".to_string()));
+            assert_eq!(
+                list.rows[i].fields[1],
+                Value::String("active".to_string().into())
+            );
         }
     } else {
         panic!("Expected records list");
@@ -240,9 +252,9 @@ fn test_explicit_position_column_preservation() {
             "Task",
             *id,
             vec![
-                Value::String(id.to_string()),
+                Value::String((*id).to_string().into()),
                 Value::Int(*position),
-                Value::String(title.to_string()),
+                Value::String((*title).to_string().into()),
             ],
         ));
     }
@@ -265,12 +277,12 @@ fn test_explicit_position_column_preservation() {
             // Verify explicit position column
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
             assert_eq!(list.rows[i].fields[1], Value::Int(*expected_position));
             assert_eq!(
                 list.rows[i].fields[2],
-                Value::String(expected_title.to_string())
+                Value::String((*expected_title).to_string().into())
             );
         }
     } else {
@@ -307,9 +319,9 @@ fn test_explicit_position_non_sequential() {
             "Item",
             *id,
             vec![
-                Value::String(id.to_string()),
+                Value::String((*id).to_string().into()),
                 Value::Int(*position),
-                Value::String(value.to_string()),
+                Value::String((*value).to_string().into()),
             ],
         ));
     }
@@ -328,12 +340,12 @@ fn test_explicit_position_non_sequential() {
             assert_eq!(list.rows[i].id, *expected_id);
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
             assert_eq!(list.rows[i].fields[1], Value::Int(*expected_position));
             assert_eq!(
                 list.rows[i].fields[2],
-                Value::String(expected_value.to_string())
+                Value::String((*expected_value).to_string().into())
             );
         }
     } else {
@@ -376,11 +388,11 @@ fn test_position_preservation_mixed_types() {
             "Data",
             *id,
             vec![
-                Value::String(id.to_string()),
+                Value::String((*id).to_string().into()),
                 Value::Int(*int_val),
                 Value::Float(*float_val),
                 Value::Bool(*bool_val),
-                Value::String(string_val.to_string()),
+                Value::String((*string_val).to_string().into()),
             ],
         ));
     }
@@ -401,7 +413,7 @@ fn test_position_preservation_mixed_types() {
             assert_eq!(list.rows[i].id, *expected_id);
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
             assert_eq!(list.rows[i].fields[1], Value::Int(*expected_int));
 
@@ -415,7 +427,7 @@ fn test_position_preservation_mixed_types() {
             assert_eq!(list.rows[i].fields[3], Value::Bool(*expected_bool));
             assert_eq!(
                 list.rows[i].fields[4],
-                Value::String(expected_string.to_string())
+                Value::String((*expected_string).to_string().into())
             );
         }
     } else {
@@ -440,21 +452,25 @@ fn test_position_preservation_with_nulls() {
         "Record",
         "rec1",
         vec![
-            Value::String("rec1".to_string()),
+            Value::String("rec1".to_string().into()),
             Value::Int(100),
-            Value::String("data".to_string()),
+            Value::String("data".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "Record",
         "rec2",
-        vec![Value::String("rec2".to_string()), Value::Null, Value::Null],
+        vec![
+            Value::String("rec2".to_string().into()),
+            Value::Null,
+            Value::Null,
+        ],
     ));
     list.add_row(Node::new(
         "Record",
         "rec3",
         vec![
-            Value::String("rec3".to_string()),
+            Value::String("rec3".to_string().into()),
             Value::Int(300),
             Value::Null,
         ],
@@ -463,9 +479,9 @@ fn test_position_preservation_with_nulls() {
         "Record",
         "rec4",
         vec![
-            Value::String("rec4".to_string()),
+            Value::String("rec4".to_string().into()),
             Value::Null,
-            Value::String("more".to_string()),
+            Value::String("more".to_string().into()),
         ],
     ));
 
@@ -508,7 +524,7 @@ fn test_position_preservation_single_row() {
     list.add_row(Node::new(
         "Item",
         "only",
-        vec![Value::String("only".to_string()), Value::Int(42)],
+        vec![Value::String("only".to_string().into()), Value::Int(42)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -540,10 +556,10 @@ fn test_position_preservation_stress_1000_rows() {
     for i in 0..1000 {
         list.add_row(Node::new(
             "Entry",
-            format!("entry_{:04}", i),
+            format!("entry_{i:04}"),
             vec![
-                Value::String(format!("entry_{:04}", i)),
-                Value::Int(i as i64),
+                Value::String(format!("entry_{i:04}").into()),
+                Value::Int(i64::from(i)),
             ],
         ));
     }
@@ -570,9 +586,12 @@ fn test_position_preservation_stress_1000_rows() {
 
         // Spot check 10 random positions
         for i in (0..1000).step_by(100) {
-            let expected_id = format!("entry_{:04}", i);
+            let expected_id = format!("entry_{i:04}");
             assert_eq!(list.rows[i].id, expected_id);
-            assert_eq!(list.rows[i].fields[0], Value::String(expected_id));
+            assert_eq!(
+                list.rows[i].fields[0],
+                Value::String(expected_id.clone().into())
+            );
             assert_eq!(list.rows[i].fields[1], Value::Int(i as i64));
         }
     } else {
@@ -599,8 +618,8 @@ fn test_position_preservation_unicode_ids() {
             "Item",
             *id,
             vec![
-                Value::String(id.to_string()),
-                Value::String(name.to_string()),
+                Value::String((*id).to_string().into()),
+                Value::String((*name).to_string().into()),
             ],
         ));
     }
@@ -619,11 +638,11 @@ fn test_position_preservation_unicode_ids() {
             assert_eq!(list.rows[i].id, *expected_id);
             assert_eq!(
                 list.rows[i].fields[0],
-                Value::String(expected_id.to_string())
+                Value::String((*expected_id).to_string().into())
             );
             assert_eq!(
                 list.rows[i].fields[1],
-                Value::String(expected_name.to_string())
+                Value::String((*expected_name).to_string().into())
             );
         }
     } else {

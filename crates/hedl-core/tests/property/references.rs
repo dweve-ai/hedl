@@ -27,8 +27,7 @@ proptest! {
     #[test]
     fn prop_valid_reference_ids(id in "[a-z][a-z0-9_-]{0,50}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {}, @{}\n",
-            id, id
+            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -46,8 +45,7 @@ proptest! {
     #[test]
     fn prop_qualified_references(type_name in "[A-Z][a-zA-Z0-9]{0,20}", id in "[a-z][a-z0-9_-]{0,30}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id]\n%STRUCT: Other: [id, ref]\n---\nitems: @{}\n  | {}\nothers: @Other\n  | other1, @{}:{}\n",
-            type_name, type_name, id, type_name, id
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n%STRUCT: Other: [id, ref]\n---\nitems: @{type_name}\n  | {id}\nothers: @Other\n  | other1, @{type_name}:{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -65,12 +63,12 @@ proptest! {
     fn prop_multiple_unique_ids(count in 1_usize..20) {
         let mut ids = Vec::new();
         for i in 0..count {
-            ids.push(format!("id{}", i));
+            ids.push(format!("id{i}"));
         }
 
         let mut doc = String::from("%VERSION: 1.0\n%STRUCT: T: [id]\n---\ndata: @T\n");
         for id in &ids {
-            doc.push_str(&format!("  | {}\n", id));
+            doc.push_str(&format!("  | {id}\n"));
         }
 
         let result = parse(doc.as_bytes());
@@ -91,8 +89,7 @@ proptest! {
     #[test]
     fn prop_self_reference(id in "[a-z][a-z0-9_-]{0,30}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, self_ref]\n---\ndata: @T\n  | {}, @{}\n",
-            id, id
+            "%VERSION: 1.0\n%STRUCT: T: [id, self_ref]\n---\ndata: @T\n  | {id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -124,8 +121,7 @@ mod consistency_tests {
             id in "[a-z][a-z0-9_-]{0,30}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id, ref]\n---\nitems: @{}\n  | {}, @{}\n",
-                type_name, type_name, id, id
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
             );
 
             let result1 = parse(doc.as_bytes());
@@ -153,8 +149,7 @@ mod consistency_tests {
             prop_assume!(type1 != type2);
 
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id]\n%STRUCT: {}: [id, ref]\n---\nitems1: @{}\n  | {}\nitems2: @{}\n  | other, @{}:{}\n",
-                type1, type2, type1, id, type2, type1, id
+                "%VERSION: 1.0\n%STRUCT: {type1}: [id]\n%STRUCT: {type2}: [id, ref]\n---\nitems1: @{type1}\n  | {id}\nitems2: @{type2}\n  | other, @{type1}:{id}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -166,7 +161,7 @@ mod consistency_tests {
 
             prop_assert!(ref_field.is_reference(), "Expected reference");
             let ref_val = ref_field.as_reference().unwrap();
-            prop_assert_eq!(&ref_val.id, &id, "Reference ID wrong");
+            prop_assert_eq!(ref_val.id.as_ref(), &id, "Reference ID wrong");
             prop_assert_eq!(ref_val.type_name.as_deref(), Some(type1.as_str()),
                 "Reference type wrong");
         }
@@ -181,8 +176,7 @@ mod consistency_tests {
             prop_assume!(id1 != id2);
 
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id, ref]\n---\nitems: @{}\n  | {}, @{}\n  | {}, @{}\n",
-                type_name, type_name, id1, id2, id2, id1
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id1}, @{id2}\n  | {id2}, @{id1}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -197,12 +191,11 @@ mod consistency_tests {
             count in 2_usize..20
         ) {
             let mut doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id, ref]\n---\nitems: @{}\n  | {}, ~\n",
-                type_name, type_name, target_id
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {target_id}, ~\n"
             );
 
             for i in 0..count {
-                doc.push_str(&format!("  | ref{}, @{}\n", i, target_id));
+                doc.push_str(&format!("  | ref{i}, @{target_id}\n"));
             }
 
             let result = parse(doc.as_bytes());
@@ -215,7 +208,7 @@ mod consistency_tests {
                 let ref_val = &list.rows[i].fields[1];
                 prop_assert!(ref_val.is_reference(), "Row {} not a reference", i);
                 let r = ref_val.as_reference().unwrap();
-                prop_assert_eq!(&r.id, &target_id, "Row {} wrong target", i);
+                prop_assert_eq!(r.id.as_ref(), &target_id, "Row {} wrong target", i);
             }
         }
 
@@ -226,8 +219,7 @@ mod consistency_tests {
             id in "[a-z][a-z0-9_-]{0,20}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id]\n---\nitems: @{}\n  | {}\nnested:\n  ref: @{}:{}\n",
-                type_name, type_name, id, type_name, id
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nnested:\n  ref: @{type_name}:{id}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -247,8 +239,7 @@ mod consistency_tests {
 fn test_property_duplicate_id_detection() {
     proptest!(ProptestConfig::with_cases(1000), |(id in "[a-z][a-z0-9_-]{1,30}")| {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\ndata: @T\n  | {}, val1\n  | {}, val2\n",
-            id, id
+            "%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\ndata: @T\n  | {id}, val1\n  | {id}, val2\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -263,8 +254,7 @@ fn test_property_unresolved_reference_detection() {
         prop_assume!(id != other_id);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {}, @{}\n",
-            id, other_id
+            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {id}, @{other_id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -281,8 +271,7 @@ fn test_property_forward_references() {
         prop_assume!(id1 != id2);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {}, @{}\n  | {}, ~\n",
-            id1, id2, id2
+            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {id1}, @{id2}\n  | {id2}, ~\n"
         );
 
         let result = parse(doc.as_bytes());

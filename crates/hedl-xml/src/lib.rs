@@ -31,6 +31,52 @@
 //! - Support for nested structures and matrix lists
 //! - Reference and expression preservation
 //!
+//! # Security
+//!
+//! ## XML External Entity (XXE) Prevention
+//!
+//! The hedl-xml crate is **protected against XXE attacks by default** through multiple layers:
+//!
+//! ### Layer 1: Safe Parser (quick-xml)
+//!
+//! The underlying [quick-xml](https://crates.io/crates/quick-xml) library does not:
+//! - Resolve external entities (file://, http://, etc.)
+//! - Process DTD entity declarations
+//! - Expand entity references defined in DOCTYPEs
+//! - Support XInclude directives
+//!
+//! This makes XXE attacks **impossible** regardless of configuration.
+//!
+//! ### Layer 2: Entity Policy Controls
+//!
+//! For defense-in-depth and compliance requirements, explicit entity policies are available:
+//!
+//! ```rust
+//! use hedl_xml::{FromXmlConfig, EntityPolicy};
+//!
+//! // Strictest: Reject any XML with DOCTYPE declarations
+//! let strict_config = FromXmlConfig::strict_security();
+//!
+//! // Default: Allow DOCTYPE but never resolve entities
+//! let default_config = FromXmlConfig::default(); // AllowDtdNoExternal
+//!
+//! // Monitoring: Warn on DTD/entity detection
+//! let warn_config = FromXmlConfig {
+//!     entity_policy: EntityPolicy::WarnOnEntities,
+//!     log_security_events: true,
+//!     ..Default::default()
+//! };
+//! ```
+//!
+//! ### XXE Attack Vectors (Mitigated)
+//!
+//! The following XXE attack patterns are **prevented**:
+//!
+//! - **File Disclosure**: `<!ENTITY xxe SYSTEM "file:///etc/passwd">` - Not expanded
+//! - **Server-Side Request Forgery**: External HTTP entities are not resolved
+//! - **Billion Laughs DoS**: Entity definitions are ignored; no expansion occurs
+//! - **Out-of-Band Exfiltration**: Parameter entities are not resolved or executed
+//!
 //! # Examples
 //!
 //! ## Converting HEDL to XML
@@ -41,7 +87,7 @@
 //! use std::collections::BTreeMap;
 //!
 //! let mut doc = Document::new((1, 0));
-//! doc.root.insert("name".to_string(), Item::Scalar(Value::String("example".to_string())));
+//! doc.root.insert("name".to_string(), Item::Scalar(Value::String("example".to_string().into())));
 //!
 //! let config = ToXmlConfig::default();
 //! let xml = to_xml(&doc, &config).unwrap();
@@ -141,16 +187,19 @@
 //! # }
 //! ```
 
+#![cfg_attr(not(test), warn(missing_docs))]
 mod from_xml;
 pub mod schema;
+pub mod security;
 pub mod streaming;
 mod to_xml;
 
 #[cfg(feature = "async")]
 pub mod async_api;
 
-pub use from_xml::{from_xml, FromXmlConfig};
+pub use from_xml::{from_xml, EntityPolicy, FromXmlConfig};
 pub use schema::{SchemaCache, SchemaValidator, ValidationError};
+pub use security::{SecurityViolation, XmlSecurityValidator};
 pub use streaming::{from_xml_stream, StreamConfig, StreamItem, XmlStreamingParser};
 pub use to_xml::{to_xml, ToXmlConfig};
 
@@ -185,7 +234,7 @@ mod tests {
             .insert("float_val".to_string(), Item::Scalar(Value::Float(3.25)));
         doc.root.insert(
             "string_val".to_string(),
-            Item::Scalar(Value::String("hello".to_string())),
+            Item::Scalar(Value::String("hello".to_string().into())),
         );
 
         let xml = hedl_to_xml(&doc).unwrap();
@@ -201,7 +250,7 @@ mod tests {
         );
         assert_eq!(
             doc2.root.get("string_val").and_then(|i| i.as_scalar()),
-            Some(&Value::String("hello".to_string()))
+            Some(&Value::String("hello".to_string().into()))
         );
     }
 
@@ -211,7 +260,7 @@ mod tests {
         let mut inner = BTreeMap::new();
         inner.insert(
             "name".to_string(),
-            Item::Scalar(Value::String("test".to_string())),
+            Item::Scalar(Value::String("test".to_string().into())),
         );
         inner.insert("value".to_string(), Item::Scalar(Value::Int(100)));
         doc.root.insert("config".to_string(), Item::Object(inner));
@@ -222,7 +271,7 @@ mod tests {
         let config_obj = doc2.root.get("config").and_then(|i| i.as_object()).unwrap();
         assert_eq!(
             config_obj.get("name").and_then(|i| i.as_scalar()),
-            Some(&Value::String("test".to_string()))
+            Some(&Value::String("test".to_string().into()))
         );
         assert_eq!(
             config_obj.get("value").and_then(|i| i.as_scalar()),
@@ -265,27 +314,30 @@ mod tests {
             args: vec![
                 Expression::Identifier {
                     name: "x".to_string(),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 },
                 Expression::Literal {
                     value: ExprLiteral::Int(1),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 },
             ],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         doc.root.insert(
             "expr".to_string(),
-            Item::Scalar(Value::Expression(expr.clone())),
+            Item::Scalar(Value::Expression(Box::new(expr.clone()))),
         );
 
         let xml = hedl_to_xml(&doc).unwrap();
         let doc2 = xml_to_hedl(&xml).unwrap();
 
-        assert_eq!(
-            doc2.root.get("expr").and_then(|i| i.as_scalar()),
-            Some(&Value::Expression(expr))
-        );
+        // Check expression is preserved (span info is lost during XML round-trip)
+        if let Some(Item::Scalar(Value::Expression(e))) = doc2.root.get("expr") {
+            // Compare string representation which ignores spans
+            assert_eq!(e.to_string(), expr.to_string());
+        } else {
+            panic!("Expected expression value");
+        }
     }
 
     #[test]
@@ -297,16 +349,16 @@ mod tests {
             "User",
             "user1",
             vec![
-                Value::String("user1".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("user1".to_string().into()),
+                Value::String("Alice".to_string().into()),
             ],
         );
         let node2 = Node::new(
             "User",
             "user2",
             vec![
-                Value::String("user2".to_string()),
-                Value::String("Bob".to_string()),
+                Value::String("user2".to_string().into()),
+                Value::String("Bob".to_string().into()),
             ],
         );
 
@@ -327,7 +379,7 @@ mod tests {
         doc.root.insert(
             "text".to_string(),
             Item::Scalar(Value::String(
-                "hello & goodbye <tag> \"quoted\"".to_string(),
+                "hello & goodbye <tag> \"quoted\"".to_string().into(),
             )),
         );
 
@@ -348,7 +400,7 @@ mod tests {
         let mut level2 = BTreeMap::new();
         level2.insert(
             "deep".to_string(),
-            Item::Scalar(Value::String("value".to_string())),
+            Item::Scalar(Value::String("value".to_string().into())),
         );
 
         let mut level1 = BTreeMap::new();
@@ -367,7 +419,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "test".to_string(),
-            Item::Scalar(Value::String("value".to_string())),
+            Item::Scalar(Value::String("value".to_string().into())),
         );
 
         let config_pretty = ToXmlConfig {
@@ -437,8 +489,10 @@ mod tests {
             Tensor::Scalar(2.0),
             Tensor::Scalar(3.0),
         ]);
-        doc.root
-            .insert("tensor".to_string(), Item::Scalar(Value::Tensor(tensor)));
+        doc.root.insert(
+            "tensor".to_string(),
+            Item::Scalar(Value::Tensor(Box::new(tensor))),
+        );
 
         let xml = hedl_to_xml(&doc).unwrap();
         assert!(xml.contains("<tensor>"));
@@ -486,7 +540,7 @@ mod tests {
             );
             assert_eq!(
                 obj.get("name").and_then(|i| i.as_scalar()),
-                Some(&Value::String("test".to_string()))
+                Some(&Value::String("test".to_string().into()))
             );
             assert_eq!(
                 obj.get("active").and_then(|i| i.as_scalar()),

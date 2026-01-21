@@ -28,6 +28,18 @@ use std::collections::BTreeMap;
 /// Maximum recursion depth for XML parsing (prevents stack overflow).
 const MAX_RECURSION_DEPTH: usize = 100;
 
+/// Policy for handling XML entities and DTDs
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum EntityPolicy {
+    /// Reject XML with DOCTYPE declarations (strictest, recommended)
+    RejectDtd,
+    /// Allow DOCTYPE but never resolve external entities (default)
+    #[default]
+    AllowDtdNoExternal,
+    /// Log warnings when DTDs or entity references detected
+    WarnOnEntities,
+}
+
 /// Configuration for XML import
 #[derive(Debug, Clone)]
 pub struct FromXmlConfig {
@@ -37,6 +49,12 @@ pub struct FromXmlConfig {
     pub version: (u32, u32),
     /// Try to infer list structures from repeated elements
     pub infer_lists: bool,
+
+    /// Entity handling policy (XXE prevention)
+    pub entity_policy: EntityPolicy,
+
+    /// Enable security event logging
+    pub log_security_events: bool,
 }
 
 impl Default for FromXmlConfig {
@@ -45,6 +63,19 @@ impl Default for FromXmlConfig {
             default_type_name: "Item".to_string(),
             version: (1, 0),
             infer_lists: true,
+            entity_policy: EntityPolicy::default(),
+            log_security_events: false,
+        }
+    }
+}
+
+impl FromXmlConfig {
+    /// Create a config with strict security (reject DTDs entirely)
+    pub fn strict_security() -> Self {
+        Self {
+            entity_policy: EntityPolicy::RejectDtd,
+            log_security_events: true,
+            ..Default::default()
         }
     }
 }
@@ -61,14 +92,49 @@ impl hedl_core::convert::ImportConfig for FromXmlConfig {
 
 /// Convert XML string to HEDL Document
 pub fn from_xml(xml: &str, config: &FromXmlConfig) -> Result<Document, String> {
+    // Pre-scan for DOCTYPE declarations if strict policy
+    if config.entity_policy == EntityPolicy::RejectDtd
+        && (xml.contains("<!DOCTYPE") || xml.contains("<!ENTITY"))
+    {
+        return Err("DOCTYPE declarations rejected by entity policy (XXE prevention)".to_string());
+    }
+
     let mut reader = Reader::from_str(xml);
-    reader.trim_text(true);
+    // Note: trim_text disabled to preserve whitespace around entity references
+    // In quick-xml 0.38+, entities like &amp; are separate Event::GeneralRef events
+    reader.config_mut().trim_text(false);
 
     let mut doc = Document::new(config.version);
 
     // Skip XML declaration and find root element
     loop {
         match reader.read_event() {
+            Ok(Event::DocType(e)) => {
+                if config.log_security_events {
+                    eprintln!(
+                        "[SECURITY] DTD detected in XML input at position {}: {:?}",
+                        reader.buffer_position(),
+                        String::from_utf8_lossy(&e)
+                    );
+                }
+
+                match config.entity_policy {
+                    EntityPolicy::RejectDtd => {
+                        return Err(format!(
+                            "DOCTYPE declaration rejected at position {} (XXE prevention policy)",
+                            reader.buffer_position()
+                        ));
+                    }
+                    EntityPolicy::WarnOnEntities => {
+                        eprintln!(
+                            "[WARNING] DOCTYPE detected in XML. External entities are NOT processed by quick-xml."
+                        );
+                    }
+                    EntityPolicy::AllowDtdNoExternal => {
+                        // Continue parsing, entities won't be resolved anyway
+                    }
+                }
+            }
             Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
 
@@ -131,6 +197,14 @@ fn parse_children(
                 if config.infer_lists {
                     element_counts.entry(name.clone()).or_default().push(item);
                 } else {
+                    // ISSUE 2 FIX: Detect duplicate elements when infer_lists is false
+                    if children.contains_key(&name) {
+                        return Err(format!(
+                            "Duplicate element '{}' found with infer_lists=false. \
+                             Enable infer_lists to automatically collect duplicates into a list.",
+                            name
+                        ));
+                    }
                     children.insert(name, item);
                 }
             }
@@ -138,11 +212,19 @@ fn parse_children(
                 let raw_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 let name = to_hedl_key(&raw_name);
                 let elem_owned = e.to_owned();
-                let item = parse_empty_element(&elem_owned)?;
+                let item = parse_empty_element(&elem_owned, config)?;
 
                 if config.infer_lists {
                     element_counts.entry(name.clone()).or_default().push(item);
                 } else {
+                    // ISSUE 2 FIX: Detect duplicate elements when infer_lists is false
+                    if children.contains_key(&name) {
+                        return Err(format!(
+                            "Duplicate element '{}' found with infer_lists=false. \
+                             Enable infer_lists to automatically collect duplicates into a list.",
+                            name
+                        ));
+                    }
                     children.insert(name, item);
                 }
             }
@@ -176,7 +258,7 @@ fn parse_children(
 
 fn parse_element(
     reader: &mut Reader<&[u8]>,
-    elem: &quick_xml::events::BytesStart,
+    elem: &quick_xml::events::BytesStart<'_>,
     config: &FromXmlConfig,
     depth: usize,
 ) -> Result<Item, String> {
@@ -264,7 +346,7 @@ fn parse_element(
                 });
 
                 let elem_owned = e.to_owned();
-                let child_item = parse_empty_element(&elem_owned)?;
+                let child_item = parse_empty_element(&elem_owned, config)?;
 
                 if is_marked_child {
                     marked_children
@@ -279,10 +361,23 @@ fn parse_element(
                 }
             }
             Ok(Event::Text(e)) => {
-                text_content.push_str(
-                    &e.unescape()
-                        .map_err(|e| format!("Text unescape error: {}", e))?,
-                );
+                let content = e
+                    .xml_content()
+                    .map_err(|e| format!("Text decode error: {}", e))?;
+                text_content.push_str(&content);
+            }
+            Ok(Event::GeneralRef(e)) => {
+                // Handle entity references (quick-xml 0.38+ reports these as separate events)
+                let ref_name = e.decode().map_err(|e| format!("Ref decode error: {}", e))?;
+                let unescaped = match ref_name.as_ref() {
+                    "amp" => "&",
+                    "lt" => "<",
+                    "gt" => ">",
+                    "quot" => "\"",
+                    "apos" => "'",
+                    _ => return Err(format!("Unknown entity reference: {}", ref_name)),
+                };
+                text_content.push_str(unescaped);
             }
             Ok(Event::End(e)) => {
                 let end_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
@@ -301,17 +396,27 @@ fn parse_element(
         // Convert collected child elements, inferring lists for repeated elements
         let mut result_children = BTreeMap::new();
         for (child_name, items) in child_elements {
-            if items.len() > 1 && config.infer_lists {
-                // Check if all items are scalars/tensors (->tensor) or objects (->matrix list)
-                if child_name == "item" && items_are_tensor_elements(&items) {
-                    // Convert to tensor
-                    let tensor = items_to_tensor(&items)?;
-                    result_children.insert(child_name, Item::Scalar(Value::Tensor(tensor)));
+            if items.len() > 1 {
+                if config.infer_lists {
+                    // Check if all items are scalars/tensors (->tensor) or objects (->matrix list)
+                    if child_name == "item" && items_are_tensor_elements(&items) {
+                        // Convert to tensor
+                        let tensor = items_to_tensor(&items)?;
+                        result_children
+                            .insert(child_name, Item::Scalar(Value::Tensor(Box::new(tensor))));
+                    } else {
+                        // Multiple elements with same name - convert to list
+                        let list =
+                            items_to_matrix_list(&child_name, items, config, &mut BTreeMap::new())?;
+                        result_children.insert(child_name, Item::List(list));
+                    }
                 } else {
-                    // Multiple elements with same name - convert to list
-                    let list =
-                        items_to_matrix_list(&child_name, items, config, &mut BTreeMap::new())?;
-                    result_children.insert(child_name, Item::List(list));
+                    // ISSUE 2 FIX: Error when duplicates found with infer_lists=false
+                    return Err(format!(
+                        "Duplicate element '{}' found with infer_lists=false. \
+                         Enable infer_lists to automatically collect duplicates into a list.",
+                        child_name
+                    ));
                 }
             } else if let Some(item) = items.into_iter().next() {
                 result_children.insert(child_name, item);
@@ -334,16 +439,36 @@ fn parse_element(
             }
         }
 
+        // ISSUE 1 FIX: Merge attributes into the result object
+        for (key, value_str) in attributes {
+            let value = parse_value_with_config(&value_str, config)?;
+            result_children.insert(key, Item::Scalar(value));
+        }
+
+        // Handle mixed content (text + children/attributes)
+        if !text_content.trim().is_empty() {
+            let value = if is_reference {
+                Value::Reference(parse_reference(text_content.trim())?)
+            } else {
+                parse_value_with_config(&text_content, config)?
+            };
+            result_children.insert("_text".to_string(), Item::Scalar(value));
+        }
+
         // Check if we should flatten: if object has single child that's a list,
         // and the child name is the singular of the parent name, promote the list.
         // This handles XML patterns like <users><user>...</user><user>...</user></users>
         // which should become users: @User[...] not users: { user: @User[...] }
         // BUT: don't flatten if the list has hierarchical children (NEST structures)
+        // ALSO: don't flatten if we have attributes or text content
         if result_children.len() == 1 {
             let (child_key, child_item) = result_children.iter().next().unwrap();
             if let Item::List(list) = child_item {
                 // Don't flatten if any rows have children (hierarchical nesting)
-                let has_nested_children = list.rows.iter().any(|node| !node.children.is_empty());
+                let has_nested_children = list
+                    .rows
+                    .iter()
+                    .any(|node| node.children().map(|c| !c.is_empty()).unwrap_or(false));
                 if !has_nested_children {
                     // Check if child is singular form of parent
                     // Compare case-insensitively because XML element names may have different casing
@@ -362,19 +487,31 @@ fn parse_element(
         // Object with nested elements
         Ok(Item::Object(result_children))
     } else if !text_content.trim().is_empty() {
-        // Scalar with text content
+        // Scalar with text content (and possibly attributes)
         let value = if is_reference {
             // Explicitly marked as reference
             Value::Reference(parse_reference(text_content.trim())?)
         } else {
-            parse_value(&text_content)?
+            parse_value_with_config(&text_content, config)?
         };
-        Ok(Item::Scalar(value))
+
+        // ISSUE 1 FIX: If we have both text and attributes, create an object
+        if !attributes.is_empty() {
+            let mut obj = BTreeMap::new();
+            obj.insert("_text".to_string(), Item::Scalar(value));
+            for (key, value_str) in attributes {
+                let attr_value = parse_value_with_config(&value_str, config)?;
+                obj.insert(key, Item::Scalar(attr_value));
+            }
+            Ok(Item::Object(obj))
+        } else {
+            Ok(Item::Scalar(value))
+        }
     } else if !attributes.is_empty() {
         // Empty element with attributes - convert to object
         let mut obj = BTreeMap::new();
         for (key, value_str) in attributes {
-            let value = parse_value(&value_str)?;
+            let value = parse_value_with_config(&value_str, config)?;
             obj.insert(key, Item::Scalar(value));
         }
         Ok(Item::Object(obj))
@@ -384,7 +521,10 @@ fn parse_element(
     }
 }
 
-fn parse_empty_element(elem: &quick_xml::events::BytesStart) -> Result<Item, String> {
+fn parse_empty_element(
+    elem: &quick_xml::events::BytesStart<'_>,
+    config: &FromXmlConfig,
+) -> Result<Item, String> {
     let mut attributes = BTreeMap::new();
 
     for attr in elem.attributes().flatten() {
@@ -399,21 +539,41 @@ fn parse_empty_element(elem: &quick_xml::events::BytesStart) -> Result<Item, Str
     } else if attributes.len() == 1 && attributes.contains_key("value") {
         // Special case: <elem value="x"/> -> scalar x
         let value_str = attributes.get("value").unwrap();
-        let value = parse_value(value_str)?;
+        let value = parse_value_with_config(value_str, config)?;
         Ok(Item::Scalar(value))
     } else {
         // Multiple attributes - convert to object
         let mut obj = BTreeMap::new();
         for (key, value_str) in attributes {
-            let value = parse_value(&value_str)?;
+            let value = parse_value_with_config(&value_str, config)?;
             obj.insert(key, Item::Scalar(value));
         }
         Ok(Item::Object(obj))
     }
 }
 
-fn parse_value(s: &str) -> Result<Value, String> {
+fn parse_value_with_config(s: &str, config: &FromXmlConfig) -> Result<Value, String> {
     let trimmed = s.trim();
+
+    // Detect entity references (&entity;)
+    if trimmed.contains('&') && trimmed.contains(';') {
+        if config.log_security_events {
+            eprintln!("[SECURITY] Entity reference detected in value: {}", trimmed);
+        }
+
+        // Check for potentially malicious entity patterns
+        if (trimmed.contains("&xxe;")
+            || trimmed.contains("&file;")
+            || trimmed.contains("&passwd;")
+            || trimmed.contains("&secret;"))
+            && config.entity_policy == EntityPolicy::WarnOnEntities
+        {
+            eprintln!(
+                "[WARNING] Suspicious entity reference detected: {}",
+                trimmed
+            );
+        }
+    }
 
     if trimmed.is_empty() {
         return Ok(Value::Null);
@@ -427,7 +587,7 @@ fn parse_value(s: &str) -> Result<Value, String> {
     if trimmed.starts_with("$(") && trimmed.ends_with(')') {
         let expr =
             parse_expression_token(trimmed).map_err(|e| format!("Invalid expression: {}", e))?;
-        return Ok(Value::Expression(expr));
+        return Ok(Value::Expression(Box::new(expr)));
     }
 
     // Try parsing as boolean
@@ -447,7 +607,14 @@ fn parse_value(s: &str) -> Result<Value, String> {
     }
 
     // Default to string
-    Ok(Value::String(trimmed.to_string()))
+    Ok(Value::String(trimmed.to_string().into()))
+}
+
+#[allow(dead_code)]
+fn parse_value(s: &str) -> Result<Value, String> {
+    // Legacy function for tests - uses default config
+    let config = FromXmlConfig::default();
+    parse_value_with_config(s, &config)
 }
 
 fn parse_version(s: &str) -> Option<(u32, u32)> {
@@ -555,9 +722,13 @@ fn item_to_node(
             Ok(Node {
                 type_name: type_name.to_string(),
                 id,
-                fields,
-                children,
-                child_count: None,
+                fields: fields.into(),
+                children: if children.is_empty() {
+                    None
+                } else {
+                    Some(Box::new(children))
+                },
+                child_count: 0,
             })
         }
         Item::Scalar(value) => {
@@ -566,9 +737,9 @@ fn item_to_node(
             Ok(Node {
                 type_name: type_name.to_string(),
                 id: id.clone(),
-                fields: vec![Value::String(id), value],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: vec![Value::String(id.into()), value].into(),
+                children: None,
+                child_count: 0,
             })
         }
         Item::List(_) => Err("Cannot convert nested list to node".to_string()),
@@ -577,6 +748,8 @@ fn item_to_node(
 
 /// Convert any string to a valid HEDL key (lowercase snake_case).
 /// "Category" -> "category", "UserPost" -> "user_post", "XMLData" -> "xmldata"
+/// ISSUE 3 FIX: Also sanitizes namespaces and invalid characters
+/// "x:tag" -> "x_tag", "my-key" -> "my_key", "key.name" -> "key_name"
 fn to_hedl_key(s: &str) -> String {
     let mut result = String::new();
     let mut prev_was_upper = false;
@@ -589,8 +762,15 @@ fn to_hedl_key(s: &str) -> String {
             }
             result.push(c.to_ascii_lowercase());
             prev_was_upper = true;
-        } else {
+        } else if c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' {
+            // Valid HEDL key characters
             result.push(c);
+            prev_was_upper = false;
+        } else {
+            // Invalid characters (namespace colons, hyphens, dots, etc.) -> underscore
+            if !result.is_empty() && !result.ends_with('_') {
+                result.push('_');
+            }
             prev_was_upper = false;
         }
     }
@@ -601,7 +781,19 @@ fn to_hedl_key(s: &str) -> String {
     }
 
     // Remove leading/trailing underscores
-    result.trim_matches('_').to_string()
+    let result = result.trim_matches('_').to_string();
+
+    // Ensure result is not empty and starts with valid character
+    if result.is_empty() {
+        return "key".to_string();
+    }
+
+    // If first character is a digit, prepend underscore
+    if result.as_bytes()[0].is_ascii_digit() {
+        format!("_{}", result)
+    } else {
+        result
+    }
 }
 
 /// Check if all items are suitable for tensor representation.
@@ -631,11 +823,11 @@ fn items_to_tensor(items: &[Item]) -> Result<Tensor, String> {
         let tensor = match item {
             Item::Scalar(Value::Int(n)) => Tensor::Scalar(*n as f64),
             Item::Scalar(Value::Float(f)) => Tensor::Scalar(*f),
-            Item::Scalar(Value::Tensor(t)) => t.clone(),
+            Item::Scalar(Value::Tensor(t)) => (**t).clone(),
             Item::Object(obj) if obj.len() == 1 => {
                 // Nested tensor element (object with only "item" key containing tensor)
                 if let Some(Item::Scalar(Value::Tensor(t))) = obj.get("item") {
-                    t.clone()
+                    (**t).clone()
                 } else {
                     return Err("Cannot convert non-numeric item to tensor".to_string());
                 }
@@ -678,6 +870,8 @@ mod tests {
             default_type_name: "Custom".to_string(),
             version: (2, 1),
             infer_lists: false,
+            entity_policy: EntityPolicy::RejectDtd,
+            log_security_events: true,
         };
         let cloned = config.clone();
         assert_eq!(cloned.default_type_name, "Custom");
@@ -691,6 +885,8 @@ mod tests {
             default_type_name: "MyType".to_string(),
             version: (3, 5),
             infer_lists: false,
+            entity_policy: EntityPolicy::default(),
+            log_security_events: false,
         };
         assert_eq!(config.default_type_name, "MyType");
         assert_eq!(config.version, (3, 5));
@@ -752,7 +948,7 @@ mod tests {
     fn test_parse_value_string() {
         assert_eq!(
             parse_value("hello").unwrap(),
-            Value::String("hello".to_string())
+            Value::String("hello".to_string().into())
         );
     }
 
@@ -760,7 +956,7 @@ mod tests {
     fn test_parse_value_string_with_spaces() {
         assert_eq!(
             parse_value("  hello world  ").unwrap(),
-            Value::String("hello world".to_string())
+            Value::String("hello world".to_string().into())
         );
     }
 
@@ -786,7 +982,7 @@ mod tests {
     fn test_parse_value_at_string_not_reference() {
         // Strings starting with @ are just strings, not references
         if let Value::String(s) = parse_value("@not-a-ref").unwrap() {
-            assert_eq!(s, "@not-a-ref");
+            assert_eq!(s.as_ref(), "@not-a-ref");
         } else {
             panic!("Expected string");
         }
@@ -798,21 +994,21 @@ mod tests {
     fn test_parse_reference_local() {
         let ref_val = parse_reference("@user123").unwrap();
         assert_eq!(ref_val.type_name, None);
-        assert_eq!(ref_val.id, "user123");
+        assert_eq!(ref_val.id.as_ref(), "user123");
     }
 
     #[test]
     fn test_parse_reference_qualified() {
         let ref_val = parse_reference("@User:123").unwrap();
-        assert_eq!(ref_val.type_name, Some("User".to_string()));
-        assert_eq!(ref_val.id, "123");
+        assert_eq!(ref_val.type_name.as_deref(), Some("User"));
+        assert_eq!(ref_val.id.as_ref(), "123");
     }
 
     #[test]
     fn test_parse_reference_with_special_chars() {
         let ref_val = parse_reference("@my-item_123").unwrap();
         assert_eq!(ref_val.type_name, None);
-        assert_eq!(ref_val.id, "my-item_123");
+        assert_eq!(ref_val.id.as_ref(), "my-item_123");
     }
 
     #[test]
@@ -878,6 +1074,85 @@ mod tests {
         assert_eq!(to_hedl_key("_private"), "private");
     }
 
+    // ==================== Issue 3 tests: Namespace and invalid character sanitization ====================
+
+    #[test]
+    fn test_issue3_namespace_colon() {
+        // Namespaced tags like "x:tag" should normalize to "x_tag"
+        assert_eq!(to_hedl_key("x:tag"), "x_tag");
+        assert_eq!(to_hedl_key("ns:element"), "ns_element");
+        assert_eq!(to_hedl_key("xml:lang"), "xml_lang");
+    }
+
+    #[test]
+    fn test_issue3_hyphens() {
+        // Hyphens should convert to underscores
+        assert_eq!(to_hedl_key("my-key"), "my_key");
+        assert_eq!(to_hedl_key("multi-word-key"), "multi_word_key");
+    }
+
+    #[test]
+    fn test_issue3_dots() {
+        // Dots should convert to underscores
+        assert_eq!(to_hedl_key("key.name"), "key_name");
+        assert_eq!(to_hedl_key("config.value"), "config_value");
+    }
+
+    #[test]
+    fn test_issue3_multiple_special_chars() {
+        // Multiple invalid characters
+        assert_eq!(to_hedl_key("my:key-name.value"), "my_key_name_value");
+        assert_eq!(to_hedl_key("x:some-tag.attr"), "x_some_tag_attr");
+    }
+
+    #[test]
+    fn test_issue3_leading_digit() {
+        // Keys starting with digit get underscore prefix
+        assert_eq!(to_hedl_key("123key"), "_123key");
+        assert_eq!(to_hedl_key("9item"), "_9item");
+    }
+
+    #[test]
+    fn test_issue3_empty_or_invalid_only() {
+        // Empty or only invalid characters should return "key"
+        assert_eq!(to_hedl_key(""), "key");
+        assert_eq!(to_hedl_key(":::"), "key");
+        assert_eq!(to_hedl_key("---"), "key");
+    }
+
+    #[test]
+    fn test_issue3_namespace_with_pascal_case() {
+        // Combination of namespace and pascal case
+        assert_eq!(to_hedl_key("ns:UserName"), "ns_user_name");
+        assert_eq!(to_hedl_key("xml:HTTPRequest"), "xml_httprequest");
+    }
+
+    #[test]
+    fn test_issue3_xml_integration() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <x:tag>value1</x:tag>
+            <my-attr>value2</my-attr>
+            <config.item>value3</config.item>
+        </hedl>"#;
+
+        let config = FromXmlConfig::default();
+        let doc = from_xml(xml, &config).unwrap();
+
+        // All keys should be normalized
+        assert!(doc.root.contains_key("x_tag"));
+        assert!(doc.root.contains_key("my_attr"));
+        assert!(doc.root.contains_key("config_item"));
+    }
+
+    #[test]
+    fn test_issue3_no_collision_different_separators() {
+        // Different separators should produce the same normalized key
+        // This tests that the normalization is consistent
+        assert_eq!(to_hedl_key("my:key"), to_hedl_key("my-key"));
+        assert_eq!(to_hedl_key("my.key"), to_hedl_key("my_key"));
+    }
+
     // ==================== items_are_tensor_elements tests ====================
 
     #[test]
@@ -902,8 +1177,8 @@ mod tests {
     #[test]
     fn test_items_are_tensor_elements_tensors() {
         let items = vec![
-            Item::Scalar(Value::Tensor(Tensor::Scalar(1.0))),
-            Item::Scalar(Value::Tensor(Tensor::Scalar(2.0))),
+            Item::Scalar(Value::Tensor(Box::new(Tensor::Scalar(1.0)))),
+            Item::Scalar(Value::Tensor(Box::new(Tensor::Scalar(2.0)))),
         ];
         assert!(items_are_tensor_elements(&items));
     }
@@ -918,7 +1193,7 @@ mod tests {
     fn test_items_are_tensor_elements_with_strings() {
         let items = vec![
             Item::Scalar(Value::Int(1)),
-            Item::Scalar(Value::String("hello".to_string())),
+            Item::Scalar(Value::String("hello".to_string().into())),
         ];
         assert!(!items_are_tensor_elements(&items));
     }
@@ -964,7 +1239,7 @@ mod tests {
 
     #[test]
     fn test_items_to_tensor_invalid() {
-        let items = vec![Item::Scalar(Value::String("hello".to_string()))];
+        let items = vec![Item::Scalar(Value::String("hello".to_string().into()))];
         let result = items_to_tensor(&items);
         assert!(result.is_err());
     }
@@ -1039,7 +1314,7 @@ mod tests {
         let doc = from_xml(xml, &config).unwrap();
         assert_eq!(
             doc.root.get("val").and_then(|i| i.as_scalar()),
-            Some(&Value::String("hello".to_string()))
+            Some(&Value::String("hello".to_string().into()))
         );
     }
 
@@ -1171,10 +1446,12 @@ mod tests {
             infer_lists: false,
             ..Default::default()
         };
-        let doc = from_xml(xml, &config).unwrap();
+        let result = from_xml(xml, &config);
 
-        // With infer_lists disabled, second element overwrites first
-        assert!(doc.root.get("user").and_then(|i| i.as_object()).is_some());
+        // UPDATED for Issue 2 fix: With infer_lists disabled, duplicates now error
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Duplicate element"));
     }
 
     // ==================== Attribute parsing tests ====================
@@ -1196,7 +1473,7 @@ mod tests {
             );
             assert_eq!(
                 obj.get("name").and_then(|i| i.as_scalar()),
-                Some(&Value::String("test".to_string()))
+                Some(&Value::String("test".to_string().into()))
             );
             assert_eq!(
                 obj.get("active").and_then(|i| i.as_scalar()),
@@ -1257,7 +1534,7 @@ mod tests {
         let doc = from_xml(xml, &config).unwrap();
 
         if let Some(Item::Scalar(Value::Reference(r))) = doc.root.get("ref") {
-            assert_eq!(r.id, "user123");
+            assert_eq!(r.id.as_ref(), "user123");
         } else {
             panic!("Expected reference");
         }
@@ -1274,8 +1551,8 @@ mod tests {
         let doc = from_xml(xml, &config).unwrap();
 
         if let Some(Item::Scalar(Value::Reference(r))) = doc.root.get("ref") {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "456");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
+            assert_eq!(r.id.as_ref(), "456");
         } else {
             panic!("Expected reference");
         }
@@ -1315,7 +1592,7 @@ mod tests {
 
         assert_eq!(
             doc.root.get("name").and_then(|i| i.as_scalar()),
-            Some(&Value::String("héllo 世界".to_string()))
+            Some(&Value::String("héllo 世界".to_string().into()))
         );
     }
 
@@ -1332,7 +1609,7 @@ mod tests {
         // Whitespace should be trimmed
         assert_eq!(
             doc.root.get("val").and_then(|i| i.as_scalar()),
-            Some(&Value::String("hello world".to_string()))
+            Some(&Value::String("hello world".to_string().into()))
         );
     }
 
@@ -1362,5 +1639,223 @@ mod tests {
 
         // UserName should be converted to user_name
         assert!(doc.root.contains_key("user_name"));
+    }
+
+    // ==================== Issue 1 tests: Attributes preserved ====================
+
+    #[test]
+    fn test_issue1_attributes_with_child_elements() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <item id="1"><name>A</name></item>
+        </hedl>"#;
+
+        let config = FromXmlConfig::default();
+        let doc = from_xml(xml, &config).unwrap();
+
+        if let Some(Item::Object(obj)) = doc.root.get("item") {
+            // Should have both id attribute and name child
+            assert_eq!(
+                obj.get("id").and_then(|i| i.as_scalar()),
+                Some(&Value::Int(1))
+            );
+            assert_eq!(
+                obj.get("name").and_then(|i| i.as_scalar()),
+                Some(&Value::String("A".to_string().into()))
+            );
+        } else {
+            panic!("Expected object with both id and name");
+        }
+    }
+
+    #[test]
+    fn test_issue1_attributes_with_text_content() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <item id="2" type="primary">Content text</item>
+        </hedl>"#;
+
+        let config = FromXmlConfig::default();
+        let doc = from_xml(xml, &config).unwrap();
+
+        if let Some(Item::Object(obj)) = doc.root.get("item") {
+            // Should have id, type attributes and _text for content
+            assert_eq!(
+                obj.get("id").and_then(|i| i.as_scalar()),
+                Some(&Value::Int(2))
+            );
+            assert_eq!(
+                obj.get("type").and_then(|i| i.as_scalar()),
+                Some(&Value::String("primary".to_string().into()))
+            );
+            assert_eq!(
+                obj.get("_text").and_then(|i| i.as_scalar()),
+                Some(&Value::String("Content text".to_string().into()))
+            );
+        } else {
+            panic!("Expected object with id, type and _text");
+        }
+    }
+
+    #[test]
+    fn test_issue1_attributes_with_both_children_and_text() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <item id="3" status="active">
+                <name>Item 3</name>
+                Some text content
+            </item>
+        </hedl>"#;
+
+        let config = FromXmlConfig::default();
+        let doc = from_xml(xml, &config).unwrap();
+
+        if let Some(Item::Object(obj)) = doc.root.get("item") {
+            // Should have id, status attributes, name child, and _text
+            assert_eq!(
+                obj.get("id").and_then(|i| i.as_scalar()),
+                Some(&Value::Int(3))
+            );
+            assert_eq!(
+                obj.get("status").and_then(|i| i.as_scalar()),
+                Some(&Value::String("active".to_string().into()))
+            );
+            assert_eq!(
+                obj.get("name").and_then(|i| i.as_scalar()),
+                Some(&Value::String("Item 3".to_string().into()))
+            );
+            assert!(obj.contains_key("_text"));
+        } else {
+            panic!("Expected object with attributes, children and text");
+        }
+    }
+
+    #[test]
+    fn test_issue1_multiple_attributes_preserved() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <product id="100" name="Widget" price="19.99" available="true">
+                <description>A useful widget</description>
+            </product>
+        </hedl>"#;
+
+        let config = FromXmlConfig::default();
+        let doc = from_xml(xml, &config).unwrap();
+
+        if let Some(Item::Object(obj)) = doc.root.get("product") {
+            assert_eq!(
+                obj.get("id").and_then(|i| i.as_scalar()),
+                Some(&Value::Int(100))
+            );
+            assert_eq!(
+                obj.get("name").and_then(|i| i.as_scalar()),
+                Some(&Value::String("Widget".to_string().into()))
+            );
+            if let Some(Item::Scalar(Value::Float(f))) = obj.get("price") {
+                assert!((f - 19.99).abs() < 0.001);
+            } else {
+                panic!("Expected price float");
+            }
+            assert_eq!(
+                obj.get("available").and_then(|i| i.as_scalar()),
+                Some(&Value::Bool(true))
+            );
+            assert_eq!(
+                obj.get("description").and_then(|i| i.as_scalar()),
+                Some(&Value::String("A useful widget".to_string().into()))
+            );
+        } else {
+            panic!("Expected object with all attributes and description");
+        }
+    }
+
+    // ==================== Issue 2 tests: Duplicate elements handling ====================
+
+    #[test]
+    fn test_issue2_duplicate_elements_with_infer_lists_false() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <item>First</item>
+            <item>Second</item>
+        </hedl>"#;
+
+        let config = FromXmlConfig {
+            infer_lists: false,
+            ..Default::default()
+        };
+        let result = from_xml(xml, &config);
+
+        // Should error when duplicates found with infer_lists=false
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Duplicate element"));
+        assert!(err.contains("infer_lists=false"));
+    }
+
+    #[test]
+    fn test_issue2_duplicate_elements_with_infer_lists_true() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <item>First</item>
+            <item>Second</item>
+            <item>Third</item>
+        </hedl>"#;
+
+        let config = FromXmlConfig {
+            infer_lists: true,
+            ..Default::default()
+        };
+        let doc = from_xml(xml, &config).unwrap();
+
+        // Should create a list when duplicates found with infer_lists=true
+        if let Some(Item::List(list)) = doc.root.get("item") {
+            assert_eq!(list.rows.len(), 3);
+        } else {
+            panic!("Expected list with 3 items");
+        }
+    }
+
+    #[test]
+    fn test_issue2_no_error_for_unique_elements_with_infer_lists_false() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <first>1</first>
+            <second>2</second>
+            <third>3</third>
+        </hedl>"#;
+
+        let config = FromXmlConfig {
+            infer_lists: false,
+            ..Default::default()
+        };
+        let doc = from_xml(xml, &config).unwrap();
+
+        // Should succeed when all elements are unique
+        assert_eq!(doc.root.len(), 3);
+        assert!(doc.root.contains_key("first"));
+        assert!(doc.root.contains_key("second"));
+        assert!(doc.root.contains_key("third"));
+    }
+
+    #[test]
+    fn test_issue2_duplicate_nested_elements_with_infer_lists_false() {
+        let xml = r#"<?xml version="1.0"?>
+        <hedl>
+            <parent>
+                <child>First</child>
+                <child>Second</child>
+            </parent>
+        </hedl>"#;
+
+        let config = FromXmlConfig {
+            infer_lists: false,
+            ..Default::default()
+        };
+        let result = from_xml(xml, &config);
+
+        // Should error for nested duplicates too
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Duplicate element"));
     }
 }

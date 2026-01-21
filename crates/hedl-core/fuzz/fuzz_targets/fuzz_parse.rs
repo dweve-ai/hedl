@@ -67,7 +67,7 @@
 //! - Security limits should be enforced
 
 use libfuzzer_sys::fuzz_target;
-use hedl_core::{parse, parse_with_limits, ParseOptions, Limits};
+use hedl_core::{parse, parse_with_limits, ParseOptions, Limits}, ReferenceMode;
 
 fuzz_target!(|data: &[u8]| {
     // Test 1: Parse with default limits
@@ -93,7 +93,7 @@ fuzz_target!(|data: &[u8]| {
 
     let options = ParseOptions {
         limits: restrictive_limits,
-        strict_refs: true,
+        reference_mode: ReferenceMode::Strict,
     };
 
     if let Ok(text) = std::str::from_utf8(data) {
@@ -104,7 +104,7 @@ fuzz_target!(|data: &[u8]| {
     // This tests the reference resolution path that allows unresolved refs
     let options_non_strict = ParseOptions {
         limits: Limits::default(),
-        strict_refs: false,
+        reference_mode: ReferenceMode::Lenient,
     };
 
     if let Ok(text) = std::str::from_utf8(data) {

@@ -27,11 +27,11 @@ use hedl_csv::{from_csv_with_config, FromCsvConfig};
 
 #[test]
 fn test_infer_all_integers() {
-    let csv_data = r#"id,age,count
+    let csv_data = r"id,age,count
 1,30,100
 2,25,200
 3,35,150
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -58,11 +58,11 @@ fn test_infer_all_integers() {
 
 #[test]
 fn test_infer_all_floats() {
-    let csv_data = r#"id,price,score
+    let csv_data = r"id,price,score
 1,99.99,87.5
 2,149.50,92.3
 3,75.25,88.1
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -83,11 +83,11 @@ fn test_infer_all_floats() {
 
 #[test]
 fn test_infer_all_booleans() {
-    let csv_data = r#"id,active,verified
+    let csv_data = r"id,active,verified
 1,true,false
 2,false,true
 3,true,true
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -113,11 +113,11 @@ fn test_infer_all_booleans() {
 
 #[test]
 fn test_infer_all_strings() {
-    let csv_data = r#"id,name,email
+    let csv_data = r"id,name,email
 1,Alice,alice@example.com
 2,Bob,bob@example.com
 3,Charlie,charlie@example.com
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -132,20 +132,23 @@ fn test_infer_all_strings() {
 
     // First row
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // id (numeric)
-    assert_eq!(list.rows[0].fields[1], Value::String("Alice".to_string()));
+    assert_eq!(
+        list.rows[0].fields[1],
+        Value::String("Alice".to_string().into())
+    );
     assert_eq!(
         list.rows[0].fields[2],
-        Value::String("alice@example.com".to_string())
+        Value::String("alice@example.com".to_string().into())
     );
 }
 
 #[test]
 fn test_infer_mixed_types() {
-    let csv_data = r#"id,name,age,score,active
+    let csv_data = r"id,name,age,score,active
 1,Alice,30,95.5,true
 2,Bob,25,87.3,false
 3,Charlie,35,92.1,true
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -166,7 +169,10 @@ fn test_infer_mixed_types() {
 
     // First row - verify each type is correctly inferred
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // id: Int
-    assert_eq!(list.rows[0].fields[1], Value::String("Alice".to_string())); // name: String
+    assert_eq!(
+        list.rows[0].fields[1],
+        Value::String("Alice".to_string().into())
+    ); // name: String
     assert_eq!(list.rows[0].fields[2], Value::Int(30)); // age: Int
     assert_eq!(list.rows[0].fields[3], Value::Float(95.5)); // score: Float
     assert_eq!(list.rows[0].fields[4], Value::Bool(true)); // active: Bool
@@ -176,12 +182,12 @@ fn test_infer_mixed_types() {
 
 #[test]
 fn test_inference_with_nulls() {
-    let csv_data = r#"id,optional_age,optional_name
+    let csv_data = r"id,optional_age,optional_name
 1,30,Alice
 2,,Bob
 3,25,
 4,,
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -202,11 +208,17 @@ fn test_inference_with_nulls() {
 
     // Row 1: has values
     assert_eq!(list.rows[0].fields[1], Value::Int(30));
-    assert_eq!(list.rows[0].fields[2], Value::String("Alice".to_string()));
+    assert_eq!(
+        list.rows[0].fields[2],
+        Value::String("Alice".to_string().into())
+    );
 
     // Row 2: missing age
     assert_eq!(list.rows[1].fields[1], Value::Null);
-    assert_eq!(list.rows[1].fields[2], Value::String("Bob".to_string()));
+    assert_eq!(
+        list.rows[1].fields[2],
+        Value::String("Bob".to_string().into())
+    );
 
     // Row 3: missing name
     assert_eq!(list.rows[2].fields[1], Value::Int(25));
@@ -219,11 +231,11 @@ fn test_inference_with_nulls() {
 
 #[test]
 fn test_inference_all_nulls_column() {
-    let csv_data = r#"id,always_null,value
+    let csv_data = r"id,always_null,value
 1,,100
 2,,200
 3,,300
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -250,11 +262,11 @@ fn test_inference_all_nulls_column() {
 #[test]
 fn test_inference_integers_vs_floats() {
     // Mix of integers and floats should infer as Float
-    let csv_data = r#"id,value
+    let csv_data = r"id,value
 1,10
 2,20.5
 3,30
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -274,11 +286,11 @@ fn test_inference_integers_vs_floats() {
 #[test]
 fn test_inference_string_with_number_looking_values() {
     // Column with mix of numbers and non-numbers should be String
-    let csv_data = r#"id,code
+    let csv_data = r"id,code
 1,123
 2,ABC
 3,456
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -292,18 +304,21 @@ fn test_inference_string_with_number_looking_values() {
     // Column inferred as String, but per-value parsing still happens for
     // values that look like numbers (uses parse_csv_value which does int inference)
     assert_eq!(list.rows[0].fields[1], Value::Int(123)); // Parses as int
-    assert_eq!(list.rows[1].fields[1], Value::String("ABC".to_string()));
+    assert_eq!(
+        list.rows[1].fields[1],
+        Value::String("ABC".to_string().into())
+    );
     assert_eq!(list.rows[2].fields[1], Value::Int(456)); // Parses as int
 }
 
 #[test]
 fn test_inference_bool_with_mixed_values() {
     // Column with true/false and other values should be String
-    let csv_data = r#"id,flag
+    let csv_data = r"id,flag
 1,true
 2,maybe
 3,false
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -317,7 +332,10 @@ fn test_inference_bool_with_mixed_values() {
     // Column inferred as String, but per-value parsing still happens
     // (parse_csv_value converts "true"/"false" to bools)
     assert_eq!(list.rows[0].fields[1], Value::Bool(true));
-    assert_eq!(list.rows[1].fields[1], Value::String("maybe".to_string()));
+    assert_eq!(
+        list.rows[1].fields[1],
+        Value::String("maybe".to_string().into())
+    );
     assert_eq!(list.rows[2].fields[1], Value::Bool(false));
 }
 
@@ -325,13 +343,13 @@ fn test_inference_bool_with_mixed_values() {
 
 #[test]
 fn test_inference_small_sample_size() {
-    let csv_data = r#"id,value
+    let csv_data = r"id,value
 1,10
 2,20
 3,30
 4,not_a_number
 5,50
-"#;
+";
 
     // Sample only first 3 rows - should infer as Int
     let config = FromCsvConfig {
@@ -351,7 +369,7 @@ fn test_inference_small_sample_size() {
     // Row 4 has non-integer but still uses inferred Int type, falls back to String
     assert_eq!(
         list.rows[3].fields[1],
-        Value::String("not_a_number".to_string())
+        Value::String("not_a_number".to_string().into())
     );
 
     // Row 5 is Int
@@ -360,13 +378,13 @@ fn test_inference_small_sample_size() {
 
 #[test]
 fn test_inference_large_sample_size() {
-    let csv_data = r#"id,value
+    let csv_data = r"id,value
 1,10
 2,20
 3,30
 4,not_a_number
 5,50
-"#;
+";
 
     // Sample all rows - should infer as String
     let config = FromCsvConfig {
@@ -385,7 +403,7 @@ fn test_inference_large_sample_size() {
     assert_eq!(list.rows[2].fields[1], Value::Int(30));
     assert_eq!(
         list.rows[3].fields[1],
-        Value::String("not_a_number".to_string())
+        Value::String("not_a_number".to_string().into())
     );
     assert_eq!(list.rows[4].fields[1], Value::Int(50));
 }
@@ -394,10 +412,10 @@ fn test_inference_large_sample_size() {
 
 #[test]
 fn test_schema_inference_vs_no_inference() {
-    let csv_data = r#"id,age,name
+    let csv_data = r"id,age,name
 1,30,Alice
 2,25,Bob
-"#;
+";
 
     // Without inference
     let config_no_infer = FromCsvConfig {
@@ -434,11 +452,11 @@ fn test_schema_inference_vs_no_inference() {
 
 #[test]
 fn test_inference_with_scientific_notation() {
-    let csv_data = r#"id,measurement
+    let csv_data = r"id,measurement
 1,1.5e10
 2,2.3e-5
 3,1000000
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -474,9 +492,9 @@ fn test_inference_empty_csv() {
 
 #[test]
 fn test_inference_single_row() {
-    let csv_data = r#"id,value
+    let csv_data = r"id,value
 1,42
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -495,11 +513,11 @@ fn test_inference_single_row() {
 
 #[test]
 fn test_inference_with_whitespace() {
-    let csv_data = r#"id,value
+    let csv_data = r"id,value
 1,  42
 2,  100
 3,  75
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,
@@ -543,11 +561,11 @@ fn test_inference_with_tab_delimiter() {
 #[test]
 fn test_inference_fallback_to_string() {
     // When type inference fails during parsing, should fallback to string
-    let csv_data = r#"id,value
+    let csv_data = r"id,value
 1,10
 2,20
 3,30
-"#;
+";
 
     let config = FromCsvConfig {
         infer_schema: true,

@@ -14,6 +14,7 @@ graph LR
     HEDL <-->|to_yaml/from_yaml| YAML[hedl-yaml]
     HEDL <-->|to_xml/from_xml| XML[hedl-xml]
     HEDL <-->|to_csv/from_csv| CSV[hedl-csv]
+    HEDL <-->|to_toon/from_toon| TOON[hedl-toon]
     HEDL -->|to_parquet| PARQUET[hedl-parquet]
     HEDL -->|to_cypher| NEO4J[hedl-neo4j]
 
@@ -55,11 +56,15 @@ let doc = from_yaml(yaml_input)?;
 
 **hedl-xml** (`xml` feature):
 ```rust
-use hedl::xml::{to_xml, from_xml, XmlConfig};
+use hedl_xml::{to_xml, from_xml, ToXmlConfig, FromXmlConfig};
 
-let config = XmlConfig::default();
-let xml = to_xml(&doc, &config)?;
-let doc = from_xml(xml_input)?;
+// Export to XML
+let to_config = ToXmlConfig::default();
+let xml = to_xml(&doc, &to_config)?;
+
+// Import from XML
+let from_config = FromXmlConfig::default();
+let doc = from_xml(xml_input, &from_config)?;
 ```
 
 **hedl-csv** (`csv` feature):
@@ -92,6 +97,24 @@ let cypher = to_cypher(&doc)?;
 let doc = from_neo4j_records(records, &config)?;
 ```
 
+**hedl-toon** (`toon` feature):
+```rust
+use hedl_toon::{hedl_to_toon, toon_to_hedl, to_toon, from_toon, ToToonConfig, FromToonConfig, Delimiter};
+
+// Convert HEDL to TOON (convenience function)
+let toon = hedl_to_toon(&doc)?;
+
+// Convert TOON to HEDL (convenience function)
+let doc = toon_to_hedl(toon_input)?;
+
+// With custom configuration
+let config = ToToonConfig {
+    indent: 4,
+    delimiter: Delimiter::Tab,
+};
+let toon = to_toon(&doc, &config)?;
+```
+
 ## Configuration
 
 ### JSON Configuration
@@ -120,13 +143,40 @@ impl Default for ToJsonConfig {
 ### XML Configuration
 
 ```rust
-pub struct XmlConfig {
+pub struct ToXmlConfig {
     /// Root element name
     pub root_element: String,
     /// Pretty print with indentation
     pub pretty: bool,
-    /// Include XML declaration
-    pub include_declaration: bool,
+    /// Include HEDL metadata in output
+    pub include_metadata: bool,
+}
+
+pub struct FromXmlConfig {
+    /// Attempt to infer list structures
+    pub infer_lists: bool,
+}
+```
+
+### TOON Configuration
+
+```rust
+pub struct ToToonConfig {
+    /// Indentation width (default: 2)
+    pub indent: usize,
+    /// Field delimiter for tabular arrays
+    pub delimiter: Delimiter,
+}
+
+pub enum Delimiter {
+    Comma,  // Default
+    Tab,
+    Pipe,
+}
+
+pub struct FromToonConfig {
+    /// Expected indentation width (0 for auto-detection)
+    pub indent_width: usize,
 }
 ```
 
@@ -136,13 +186,13 @@ pub struct XmlConfig {
 
 ```toml
 # Include only JSON (default)
-hedl = "1.0"
+hedl = "1.2"
 
 # Include specific formats
-hedl = { version = "1.0", features = ["yaml", "xml"] }
+hedl = { version = "1.2", features = ["yaml", "xml"] }
 
 # Include all formats
-hedl = { version = "1.0", features = ["all-formats"] }
+hedl = { version = "1.2", features = ["all-formats"] }
 ```
 
 ### Runtime Format Detection
@@ -177,7 +227,7 @@ fn convert_format(input: &[u8], from: &str, to: &str) -> Result<String> {
 > **Note**: JSON Schema generation is available in the `hedl-json` crate.
 
 ```rust
-use hedl::json::schema_gen::{generate_schema, SchemaConfig};
+use hedl_json::schema_gen::{generate_schema, SchemaConfig};
 
 let schema = generate_schema(&doc, &SchemaConfig::builder()
     .title("User Schema")
@@ -198,7 +248,7 @@ let results = query(&doc, "$.users[*].name", &QueryConfig::default())?;
 ### JSON: Streaming
 
 ```rust
-use hedl::json::streaming::{JsonLinesStreamer, StreamConfig};
+use hedl_json::streaming::{JsonLinesStreamer, StreamConfig};
 use std::fs::File;
 
 let file = File::open("large.jsonl")?;
@@ -210,23 +260,26 @@ for result in JsonLinesStreamer::new(file, config) {
 }
 ```
 
-### XML: Streaming Support
+### XML: Streaming Read Support
 
 ```rust
-use hedl::xml::streaming::stream_to_xml;
+use hedl_xml::streaming::from_xml_stream;
 use std::fs::File;
 
-let output = File::create("output.xml")?;
-stream_to_xml(&doc, output)?;  // Memory-efficient for large documents
+let input = File::open("large.xml")?;
+let doc = from_xml_stream(input)?;  // Memory-efficient streaming parser
 ```
+
+> **Note**: Currently only streaming *read* is supported via `from_xml_stream`. Streaming write is not yet implemented.
 
 ## Conversion Fidelity
 
 ### Full Fidelity Formats
 
-These formats preserve all HEDL features:
+These formats preserve all HEDL features with bidirectional conversion:
 - **JSON**: Full bidirectional fidelity with metadata
 - **YAML**: Full bidirectional fidelity
+- **TOON**: Token-Oriented Object Notation optimized for LLMs
 
 ### Partial Fidelity Formats
 
@@ -237,7 +290,8 @@ These formats may lose some information:
 ### Export-Only Formats
 
 These formats are write-only:
-- **TOON**: Token-Oriented Object Notation optimized for LLMs
+- **Parquet**: Apache Parquet for analytics
+- **Cypher**: Neo4j graph queries
 
 ## Performance Considerations
 
@@ -259,10 +313,10 @@ Use streaming APIs for large documents:
 
 ```rust
 // JSON streaming
-use hedl::json::streaming::JsonLinesStreamer;
+use hedl_json::streaming::JsonLinesStreamer;
 
-// XML streaming
-use hedl::xml::streaming::stream_to_xml;
+// XML streaming (read only)
+use hedl_xml::streaming::from_xml_stream;
 ```
 
 ### Zero-Copy Where Possible

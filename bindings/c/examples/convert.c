@@ -72,7 +72,7 @@ int main(void) {
     print_section("Convert to JSON");
 
     char* json = NULL;
-    result = hedl_to_json(doc, 1, &json);  // pretty=1 for formatted output
+    result = hedl_to_json(doc, 1, &json);  // include_metadata=1
 
     if (result == HEDL_OK) {
         printf("%s\n", json);
@@ -136,7 +136,7 @@ int main(void) {
     print_section("Round-trip Test: HEDL -> JSON -> HEDL");
 
     char* json_rt = NULL;
-    result = hedl_to_json(doc, 0, &json_rt);  // pretty=0 for compact
+    result = hedl_to_json(doc, 0, &json_rt);  // include_metadata=0
 
     if (result != HEDL_OK) {
         print_error("JSON conversion for round-trip");

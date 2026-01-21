@@ -65,9 +65,9 @@ Before contributing, ensure you have:
 ### 1. Create a Branch
 
 ```bash
-# Update main
-git checkout main
-git pull upstream main
+# Update master
+git checkout master
+git pull upstream master
 
 # Create feature branch
 git checkout -b feature/your-feature-name
@@ -120,7 +120,7 @@ git commit -m "feat: validate new directive"
 ```bash
 # Regularly sync with upstream
 git fetch upstream
-git rebase upstream/main
+git rebase upstream/master
 
 # Resolve conflicts if needed
 # Edit conflicted files
@@ -135,7 +135,7 @@ git rebase --continue
 cargo fmt --all
 
 # Run linter
-cargo clippy --all -- -D warnings
+cargo clippy --all-features --workspace --lib -- -D warnings
 
 # Run tests
 cargo test --all
@@ -340,7 +340,7 @@ cargo test -- --nocapture
 cargo test test_parse_simple
 
 # Coverage
-cargo tarpaulin --all --out Html
+cargo llvm-cov --all-features --workspace --html
 ```
 
 ---

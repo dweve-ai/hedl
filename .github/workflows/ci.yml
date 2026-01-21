@@ -153,3 +153,78 @@ jobs:
 
       - name: Run conformance tests
         run: cargo test --package hedl-core conformance --all-features
+
+  miri:
+    name: MIRI (Undefined Behavior Detection)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust nightly with MIRI
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+
+      - name: Setup MIRI
+        run: cargo miri setup
+
+      - name: Run MIRI on hedl-core
+        run: |
+          cd crates/hedl-core
+          cargo +nightly miri test
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check
+
+      - name: Run MIRI with stacked borrows
+        run: |
+          cd crates/hedl-core
+          cargo +nightly miri test
+        env:
+          MIRIFLAGS: -Zmiri-tag-raw-pointers
+
+      - name: Run MIRI with tree borrows (experimental)
+        continue-on-error: true  # Tree borrows is experimental
+        run: |
+          cd crates/hedl-core
+          cargo +nightly miri test
+        env:
+          MIRIFLAGS: -Zmiri-tree-borrows
+
+  unsafe-audit:
+    name: Unsafe Code Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare
+
+      - name: Check for new unsafe code in hedl-core
+        run: |
+          # Compare with base branch to detect new unsafe
+          git diff origin/master...HEAD -- 'crates/hedl-core/**/*.rs' > changes.diff
+
+          if grep -q "^+.*unsafe" changes.diff; then
+            echo "::error::New unsafe code detected in hedl-core"
+            echo "New unsafe blocks found:"
+            grep -n "^+.*unsafe" changes.diff
+            echo ""
+            echo "Please complete unsafe code audit:"
+            echo "1. Fill out .plan/security/unsafe-audit-template.md"
+            echo "2. Run MIRI validation"
+            echo "3. Get security review"
+            exit 1
+          fi
+
+          echo "✓ No new unsafe code detected in hedl-core"
+
+      - name: Verify unsafe code inventory is updated
+        if: failure()
+        run: |
+          # If unsafe was added, ensure inventory is updated
+          if ! git diff origin/master...HEAD -- 'docs/unsafe-code-guidelines.md' | grep -q "^+.*|.*|.*|"; then
+            echo "::error::Unsafe code inventory not updated"
+            echo "Please update the table in docs/unsafe-code-guidelines.md"
+            exit 1
+          fi

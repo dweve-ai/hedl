@@ -1,13 +1,51 @@
+# =============================================================================
+# HEDL - crates/hedl/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-description = "HEDL - Hierarchical Entity Data Language"
-readme = "README.md"
+rust-version.workspace = true
+
+authors.workspace = true
+homepage.workspace = true
 repository.workspace = true
-keywords = ["hedl", "data", "serialization", "ai", "ml"]
-categories = ["data-structures", "encoding", "parser-implementations"]
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL - Hierarchical Entity Data Language"
+documentation = "https://docs.rs/hedl"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
 hedl-core = { workspace = true }
@@ -15,15 +53,18 @@ hedl-c14n = { workspace = true }
 hedl-json = { workspace = true }
 hedl-lint = { workspace = true }
 thiserror = { workspace = true }
-serde = { workspace = true, optional = true }
 
-# Optional format converters
+serde = { workspace = true, optional = true }
 hedl-yaml = { workspace = true, optional = true }
 hedl-xml = { workspace = true, optional = true }
 hedl-csv = { workspace = true, optional = true }
 hedl-parquet = { workspace = true, optional = true }
 hedl-neo4j = { workspace = true, optional = true }
 hedl-toon = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+proptest = { workspace = true }
 
 [features]
 default = []
@@ -35,9 +76,3 @@ parquet = ["dep:hedl-parquet"]
 neo4j = ["dep:hedl-neo4j"]
 toon = ["dep:hedl-toon"]
 all-formats = ["yaml", "xml", "csv", "parquet", "neo4j", "toon"]
-
-[dev-dependencies]
-serde_json = { workspace = true }
-proptest = "1.5"
-
-

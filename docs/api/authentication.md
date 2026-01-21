@@ -7,16 +7,25 @@ HEDL API authentication varies by interface:
 - **Rust API**: No authentication required (library dependency)
 - **FFI API**: No authentication required (linked library)
 - **WASM API**: No authentication required (browser/Node.js module)
-- **MCP Server**: Rate limiting and caching only (no authentication features)
+- **MCP Server**: Full authentication support (API Key, JWT, OAuth2)
 - **LSP Server**: No authentication (local editor integration)
 
-## MCP Server Configuration
+## MCP Server Authentication
 
-The HEDL Model Context Protocol (MCP) server does NOT support authentication features like API keys or IP filtering. It provides:
+The HEDL Model Context Protocol (MCP) server provides enterprise-grade authentication with multiple schemes:
 
-- **Rate limiting**: Token bucket algorithm for DoS protection
+- **API Key**: Simple key-based authentication
+- **JWT**: JSON Web Token authentication with claims validation
+- **OAuth2**: Third-party provider integration
+- **Session Management**: Secure session handling
+- **Authorization Policies**: Fine-grained access control
+
+Additionally, the server provides:
+
+- **Rate limiting**: Token bucket algorithm for DoS protection (global and per-client)
 - **Caching**: LRU cache for immutable operations
 - **Root path scoping**: File operations restricted to configured directory
+- **Resource limits**: Request/response size limits, concurrency limits, timeouts
 
 ### Configuration
 
@@ -32,7 +41,7 @@ let config = McpServerConfig {
 
     // Server identification
     name: "hedl-mcp".to_string(),
-    version: "0.1.0".to_string(),
+    version: "1.2.0".to_string(),
 
     // Rate limiting (token bucket)
     rate_limit_burst: 200,         // Maximum burst size
@@ -81,7 +90,7 @@ users: @User
 
 ### Caching
 
-The MCP server caches results of immutable operations (validate, lint, analyze_schema):
+The MCP server caches results of immutable operations (validate, query, stats):
 
 ```rust
 let config = McpServerConfig {
@@ -97,6 +106,112 @@ let config = McpServerConfig {
 - 2-5x speedup on repeated requests
 - Thread-safe using DashMap
 - Automatic eviction of oldest entries
+
+**Cached Operations**:
+- `hedl_validate`: Validation results (key: content hash + strict + lint)
+- `hedl_query`: Query results (key: content hash + type_name + id + include_children)
+- `hedl_stats`: Token statistics (key: content hash + tokenizer)
+
+### API Key Authentication
+
+Simple key-based authentication for straightforward deployments:
+
+```rust
+use hedl_mcp::auth::{ApiKeyAuth, ApiKeyInfo, ApiKeyStore};
+use std::sync::Arc;
+
+pub struct ApiKeyAuth {
+    key_store: Arc<dyn ApiKeyStore>,
+    key_prefix: Option<String>,
+}
+
+impl ApiKeyAuth {
+    pub fn new(key_store: Arc<dyn ApiKeyStore>, key_prefix: Option<String>) -> Self;
+    pub async fn authenticate(&self, key: &str) -> Result<ClientMetadata, AuthError>;
+}
+```
+
+### JWT Authentication
+
+JSON Web Token authentication with claims validation:
+
+```rust
+use hedl_mcp::auth::{JwtAuth, JwtAuthConfig, TokenValidationCache};
+use jsonwebtoken::{EncodingKey, DecodingKey};
+
+pub struct JwtAuth {
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
+    config: JwtAuthConfig,
+    cache: Option<TokenValidationCache>,
+}
+
+impl JwtAuth {
+    pub fn new_with_secret(secret: &str, config: Option<JwtAuthConfig>) -> Self;
+    pub fn authenticate(&self, token: &str) -> Result<ClientMetadata, AuthError>;
+    pub fn create_token(&self, claims: &JwtClaims) -> Result<String, AuthError>;
+}
+```
+
+### Session Management
+
+Secure session handling with configurable timeouts:
+
+```rust
+use hedl_mcp::auth::{SessionManager, SessionConfig, SessionId, Session};
+use dashmap::DashMap;
+use std::sync::Arc;
+
+pub struct SessionManager {
+    sessions: Arc<DashMap<SessionId, Session>>,
+    config: SessionConfig,
+}
+
+impl SessionManager {
+    pub fn new(config: SessionConfig) -> Self;
+    pub fn create_session(&self, client_metadata: ClientMetadata) -> Session;
+    pub fn validate_session(&self, session_id: &SessionId) -> Result<Session, AuthError>;
+    pub fn end_session(&self, session_id: &SessionId) -> Option<Session>;
+    pub fn cleanup_expired(&self) -> usize;
+}
+```
+
+### Authorization Policies
+
+Fine-grained access control with policy rules:
+
+```rust
+use hedl_mcp::auth::{AuthorizationPolicy, PolicyRule, DefaultPolicy};
+
+pub struct AuthorizationPolicy {
+    pub rules: Vec<PolicyRule>,
+    pub default_policy: DefaultPolicy,
+}
+
+pub enum DefaultPolicy {
+    Deny,   // Deny by default (recommended)
+    Allow,  // Allow by default
+}
+
+impl AuthorizationPolicy {
+    pub fn new() -> Self;
+    pub fn add_rule(&mut self, rule: PolicyRule);
+    pub fn check(
+        &self,
+        client: &ClientMetadata,
+        resource: &AuthResource,
+        action: &Action,
+    ) -> AuthResult<()>;
+}
+```
+
+### Credential Security
+
+The auth module provides secure credential handling:
+
+- `CredentialStore`: Encrypted credential storage
+- `ApiKeyHasher`: Secure API key hashing
+- `secure_write`: Safe credential file writes
 
 ## LSP Server Authentication
 
@@ -147,7 +262,7 @@ let server = McpServer::new(config);
 1. **Path traversal protection**: Canonical path validation prevents `../` attacks
 2. **Root path scoping**: Cannot access files outside configured directory
 3. **Rate limiting**: Token bucket prevents request flooding
-4. **No network authentication**: Designed for local stdio communication only
+4. **Authentication**: API Key, JWT, and OAuth2 support for secure access
 
 ### Deployment Recommendations
 
@@ -171,7 +286,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Server identification
         name: "hedl-mcp".to_string(),
-        version: "0.1.0".to_string(),
+        version: "1.2.0".to_string(),
 
         // Conservative rate limiting
         rate_limit_burst: 100,      // Lower burst for production

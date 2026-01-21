@@ -730,8 +730,8 @@ Build a directory watcher that:
 You've mastered batch processing! Continue your learning:
 
 - [Tutorial 4: Streaming Large Files](04-streaming-large-files.md) - Handle files too large for memory
-- [How-To: Optimize Performance](../how-to/optimize-performance.md) - Speed up processing
-- [Reference: CLI Commands](../reference/cli-commands.md) - Complete command reference
+- [Configuration](../reference/configuration.md) - Performance tuning and settings
+- [CLI Guide](../cli-guide.md) - Complete command reference
 
 ---
 

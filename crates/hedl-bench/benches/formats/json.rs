@@ -26,12 +26,10 @@
 //!
 //! ALL DATA IS DERIVED FROM ACTUAL BENCHMARKS - NO HARDCODED VALUES
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use hedl_bench::helpers::{compare_sizes, measure_throughput_ns};
 use hedl_bench::{
     count_tokens, generate_blog, generate_nested, generate_orders, generate_products,
     generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult,
@@ -40,6 +38,7 @@ use hedl_bench::{
 use hedl_json::{from_json, to_json, FromJsonConfig, ToJsonConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::io::Write;
 use std::sync::Once;
 use std::time::Instant;
@@ -47,7 +46,7 @@ use std::time::Instant;
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -67,8 +66,8 @@ fn init_report() {
 fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes
-                .map(|bytes| formats::measure_throughput_ns(bytes as usize, total_ns));
+            let throughput_mbs =
+                throughput_bytes.map(|bytes| measure_throughput_ns(bytes as usize, total_ns));
 
             report.add_perf(PerfResult {
                 name: name.to_string(),
@@ -108,7 +107,7 @@ fn bench_hedl_to_json_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &doc, |b, doc| {
-            b.iter(|| to_json(black_box(doc), &ToJsonConfig::default()))
+            b.iter(|| to_json(black_box(doc), &ToJsonConfig::default()));
         });
 
         // Collect metrics
@@ -117,7 +116,7 @@ fn bench_hedl_to_json_users(c: &mut Criterion) {
             let _ = to_json(&doc, &ToJsonConfig::default());
         });
         add_perf(
-            &format!("hedl_to_json_users_{}", size),
+            &format!("hedl_to_json_users_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -136,7 +135,7 @@ fn bench_hedl_to_json_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &doc, |b, doc| {
-            b.iter(|| to_json(black_box(doc), &ToJsonConfig::default()))
+            b.iter(|| to_json(black_box(doc), &ToJsonConfig::default()));
         });
 
         // Collect metrics
@@ -145,7 +144,7 @@ fn bench_hedl_to_json_products(c: &mut Criterion) {
             let _ = to_json(&doc, &ToJsonConfig::default());
         });
         add_perf(
-            &format!("hedl_to_json_products_{}", size),
+            &format!("hedl_to_json_products_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -169,7 +168,7 @@ fn bench_json_to_hedl_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(json.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &json, |b, json| {
-            b.iter(|| from_json(black_box(json), &FromJsonConfig::default()))
+            b.iter(|| from_json(black_box(json), &FromJsonConfig::default()));
         });
 
         // Collect metrics
@@ -178,7 +177,7 @@ fn bench_json_to_hedl_users(c: &mut Criterion) {
             let _ = from_json(&json, &FromJsonConfig::default());
         });
         add_perf(
-            &format!("json_to_hedl_users_{}", size),
+            &format!("json_to_hedl_users_{size}"),
             iterations,
             total_ns,
             Some(json.len() as u64),
@@ -198,7 +197,7 @@ fn bench_json_to_hedl_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(json.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &json, |b, json| {
-            b.iter(|| from_json(black_box(json), &FromJsonConfig::default()))
+            b.iter(|| from_json(black_box(json), &FromJsonConfig::default()));
         });
 
         // Collect metrics
@@ -207,7 +206,7 @@ fn bench_json_to_hedl_products(c: &mut Criterion) {
             let _ = from_json(&json, &FromJsonConfig::default());
         });
         add_perf(
-            &format!("json_to_hedl_products_{}", size),
+            &format!("json_to_hedl_products_{size}"),
             iterations,
             total_ns,
             Some(json.len() as u64),
@@ -233,7 +232,7 @@ fn bench_roundtrip_json(c: &mut Criterion) {
             b.iter(|| {
                 let json = to_json(doc, &ToJsonConfig::default()).unwrap();
                 let _doc2 = from_json(&json, &FromJsonConfig::default()).unwrap();
-            })
+            });
         });
 
         // Collect metrics
@@ -243,7 +242,7 @@ fn bench_roundtrip_json(c: &mut Criterion) {
             let _doc2 = from_json(&json, &FromJsonConfig::default()).unwrap();
         });
         add_perf(
-            &format!("roundtrip_json_blog_{}", size),
+            &format!("roundtrip_json_blog_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -265,7 +264,7 @@ fn bench_cross_format_comparison(c: &mut Criterion) {
     let json = to_json(&doc, &ToJsonConfig::default()).unwrap();
 
     // Compare sizes
-    let size_comp = formats::compare_sizes(hedl.len(), json.len());
+    let size_comp = compare_sizes(hedl.len(), json.len());
     println!("\n=== HEDL vs JSON Size Comparison ===");
     println!("HEDL size:  {} bytes", size_comp.hedl_bytes);
     println!("JSON size:  {} bytes", size_comp.other_bytes);
@@ -273,16 +272,16 @@ fn bench_cross_format_comparison(c: &mut Criterion) {
     println!("HEDL saves: {:.1}%\n", size_comp.hedl_savings_pct);
 
     group.bench_function("hedl_parse", |b| {
-        b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())))
+        b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())));
     });
 
     group.bench_function("json_parse_via_hedl", |b| {
-        b.iter(|| from_json(black_box(&json), &FromJsonConfig::default()))
+        b.iter(|| from_json(black_box(&json), &FromJsonConfig::default()));
     });
 
     // Compare against serde_json directly
     group.bench_function("serde_json_parse", |b| {
-        b.iter(|| serde_json::from_str::<serde_json::Value>(black_box(&json)))
+        b.iter(|| serde_json::from_str::<serde_json::Value>(black_box(&json)));
     });
 
     group.finish();
@@ -341,7 +340,7 @@ fn bench_type_preservation(c: &mut Criterion) {
             b.iter(|| {
                 let json = to_json(doc, &ToJsonConfig::default()).unwrap();
                 let _doc2 = from_json(&json, &FromJsonConfig::default()).unwrap();
-            })
+            });
         });
     }
 
@@ -360,12 +359,12 @@ fn bench_nesting_depth(c: &mut Criterion) {
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
 
         group.bench_with_input(BenchmarkId::new("hedl_to_json", depth), &doc, |b, doc| {
-            b.iter(|| to_json(black_box(doc), &ToJsonConfig::default()))
+            b.iter(|| to_json(black_box(doc), &ToJsonConfig::default()));
         });
 
         let json = to_json(&doc, &ToJsonConfig::default()).unwrap();
         group.bench_with_input(BenchmarkId::new("json_to_hedl", depth), &json, |b, json| {
-            b.iter(|| from_json(black_box(json), &FromJsonConfig::default()))
+            b.iter(|| from_json(black_box(json), &FromJsonConfig::default()));
         });
     }
 
@@ -389,7 +388,7 @@ fn bench_compression(c: &mut Criterion) {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             encoder.write_all(hedl.as_bytes()).unwrap();
             encoder.finish().unwrap()
-        })
+        });
     });
 
     // Benchmark JSON compression
@@ -398,7 +397,7 @@ fn bench_compression(c: &mut Criterion) {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             encoder.write_all(json.as_bytes()).unwrap();
             encoder.finish().unwrap()
-        })
+        });
     });
 
     group.finish();
@@ -425,7 +424,7 @@ fn bench_error_handling(c: &mut Criterion) {
             |b, json| {
                 b.iter(|| {
                     let _ = from_json(black_box(json), &FromJsonConfig::default());
-                })
+                });
             },
         );
     }
@@ -519,7 +518,7 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "HEDL→JSON".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: hedl_text.len(),
                 output_bytes: json_text.len(),
@@ -540,7 +539,7 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "JSON→HEDL".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: json_text.len(),
                 output_bytes: hedl_text.len(),
@@ -618,10 +617,10 @@ fn collect_nesting_results() -> Vec<NestingResult> {
             100.0
         } else {
             // Partial match - compare by structure
-            let similarity = (orig_canonical.len().min(final_canonical.len()) as f64
+
+            (orig_canonical.len().min(final_canonical.len()) as f64
                 / orig_canonical.len().max(final_canonical.len()).max(1) as f64)
-                * 100.0;
-            similarity
+                * 100.0
         };
 
         results.push(NestingResult {
@@ -693,7 +692,7 @@ fn collect_error_handling_results() -> Vec<ErrorHandlingResult> {
 
         let (error_detected, error_msg) = match result {
             Ok(_) => (false, "No error".to_string()),
-            Err(e) => (true, format!("{}", e)),
+            Err(e) => (true, format!("{e}")),
         };
 
         results.push(ErrorHandlingResult {
@@ -1496,7 +1495,7 @@ fn generate_insights(
         if avg_token_savings > 20.0 {
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("Significant Token Efficiency: {:.1}% savings vs JSON", avg_token_savings),
+                title: format!("Significant Token Efficiency: {avg_token_savings:.1}% savings vs JSON"),
                 description: "HEDL uses substantially fewer tokens than JSON for equivalent data, reducing LLM API costs and context window usage".to_string(),
                 data_points: vec![
                     format!("Average HEDL tokens: {:.0}", hedl_to_json.iter().map(|r| r.input_tokens).sum::<usize>() as f64 / hedl_to_json.len() as f64),
@@ -1519,10 +1518,7 @@ fn generate_insights(
 
     report.add_insight(Insight {
         category: "strength".to_string(),
-        title: format!(
-            "Storage Efficiency: {:.1}% smaller than JSON",
-            avg_byte_savings
-        ),
+        title: format!("Storage Efficiency: {avg_byte_savings:.1}% smaller than JSON"),
         description: "HEDL's compact syntax reduces storage and bandwidth requirements".to_string(),
         data_points: vec![
             format!(
@@ -1546,8 +1542,7 @@ fn generate_insights(
         }
         .to_string(),
         title: format!(
-            "Type Preservation: {:.0}% ({}/{})",
-            preservation_rate, preserved_types, total_types
+            "Type Preservation: {preservation_rate:.0}% ({preserved_types}/{total_types})"
         ),
         description: "Data types preserved through HEDL→JSON→HEDL roundtrip".to_string(),
         data_points: vec![
@@ -1578,10 +1573,7 @@ fn generate_insights(
 
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!(
-                    "Compression: HEDL {:.1}% vs JSON {:.1}%",
-                    hedl_savings, json_savings
-                ),
+                title: format!("Compression: HEDL {hedl_savings:.1}% vs JSON {json_savings:.1}%"),
                 description: "Gzip compression effectiveness comparison".to_string(),
                 data_points: vec![
                     format!(
@@ -1652,10 +1644,7 @@ fn generate_insights(
 
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!(
-                    "Nesting Performance: {:.1}x slowdown at depth 20",
-                    depth_factor
-                ),
+                title: format!("Nesting Performance: {depth_factor:.1}x slowdown at depth 20"),
                 description: "Conversion time scales with nesting depth but remains predictable"
                     .to_string(),
                 data_points: vec![
@@ -1689,7 +1678,7 @@ fn generate_insights(
                 "weakness"
             }
             .to_string(),
-            title: format!("Memory Overhead: {:.1}x input size", median_ratio),
+            title: format!("Memory Overhead: {median_ratio:.1}x input size"),
             description: "Memory usage during conversion relative to input size".to_string(),
             data_points: vec![
                 format!("Median memory ratio: {:.2}x", median_ratio),
@@ -1738,7 +1727,7 @@ fn generate_insights(
                 "finding"
             }
             .to_string(),
-            title: format!("Performance Variability: {:.1}% CV median", median_cv),
+            title: format!("Performance Variability: {median_cv:.1}% CV median"),
             description: "Conversion time consistency across multiple runs".to_string(),
             data_points: vec![
                 format!("Median coefficient of variation: {:.2}%", median_cv),
@@ -1775,8 +1764,7 @@ fn generate_insights(
             }
             .to_string(),
             title: format!(
-                "Error Detection: {:.0}% ({}/{})",
-                detection_rate, detected_count, total_count
+                "Error Detection: {detection_rate:.0}% ({detected_count}/{total_count})"
             ),
             description: "Ability to detect and report malformed JSON inputs".to_string(),
             data_points: vec![
@@ -1834,10 +1822,7 @@ fn generate_insights(
                 "finding"
             }
             .to_string(),
-            title: format!(
-                "Scalability Factor: {:.2}x throughput retention",
-                throughput_ratio
-            ),
+            title: format!("Scalability Factor: {throughput_ratio:.2}x throughput retention"),
             description: "Throughput consistency across dataset sizes (large vs small)".to_string(),
             data_points: vec![
                 format!("Small datasets: {:.1} MB/s average", small_avg_throughput),
@@ -1914,7 +1899,7 @@ fn export_reports() {
 
         let config = ExportConfig::all();
         if let Err(e) = report.save_all("target/conversion_report", &config) {
-            eprintln!("Warning: Failed to export reports: {}", e);
+            eprintln!("Warning: Failed to export reports: {e}");
         } else {
             println!(
                 "\nReports exported with {} custom tables and {} insights:",
@@ -1926,6 +1911,342 @@ fn export_reports() {
             println!("  • target/conversion_report.html");
         }
     }
+}
+
+// ============================================================================
+// Streaming Performance Benchmarks
+// ============================================================================
+
+fn bench_streaming_array(c: &mut Criterion) {
+    use hedl_json::streaming::{JsonArrayStreamer, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("json_streaming");
+
+    for &size in &[100, 1000, 10_000] {
+        // Generate a JSON array with many objects
+        let mut items = Vec::new();
+        for i in 0..size {
+            items.push(format!(
+                r#"{{"id": "{}", "name": "User{}", "age": {}, "active": {}}}"#,
+                i,
+                i,
+                i % 100,
+                i % 2 == 0
+            ));
+        }
+        let json_array = format!("[{}]", items.join(","));
+        let json_bytes = json_array.len() as u64;
+
+        group.throughput(Throughput::Bytes(json_bytes));
+        group.bench_with_input(
+            BenchmarkId::new("array_streamer", size),
+            &json_array,
+            |b, json| {
+                b.iter(|| {
+                    let reader = Cursor::new(json.as_bytes());
+                    let config = StreamConfig::default();
+                    let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                    let count: usize = streamer.count();
+                    black_box(count)
+                });
+            },
+        );
+
+        // Collect metrics
+        let iterations = if size >= 10_000 { 10 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let reader = Cursor::new(json_array.as_bytes());
+            let config = StreamConfig::default();
+            let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+            let count: usize = streamer.count();
+            black_box(count);
+        });
+        add_perf(
+            &format!("json_streaming_array_{size}"),
+            iterations,
+            total_ns,
+            Some(json_bytes),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_streaming_jsonl(c: &mut Criterion) {
+    use hedl_json::streaming::{JsonLinesStreamer, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("jsonl_streaming");
+
+    for &size in &[100, 1000, 10_000] {
+        // Generate JSONL content with many lines
+        let mut lines = Vec::new();
+        for i in 0..size {
+            lines.push(format!(
+                r#"{{"id": "{}", "name": "User{}", "age": {}, "active": {}}}"#,
+                i,
+                i,
+                i % 100,
+                i % 2 == 0
+            ));
+        }
+        let jsonl = lines.join("\n");
+        let jsonl_bytes = jsonl.len() as u64;
+
+        group.throughput(Throughput::Bytes(jsonl_bytes));
+        group.bench_with_input(
+            BenchmarkId::new("jsonl_streamer", size),
+            &jsonl,
+            |b, data| {
+                b.iter(|| {
+                    let reader = Cursor::new(data.as_bytes());
+                    let config = StreamConfig::default();
+                    let streamer = JsonLinesStreamer::new(reader, config);
+                    let count: usize = streamer.count();
+                    black_box(count)
+                });
+            },
+        );
+
+        // Collect metrics
+        let iterations = if size >= 10_000 { 10 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let reader = Cursor::new(jsonl.as_bytes());
+            let config = StreamConfig::default();
+            let streamer = JsonLinesStreamer::new(reader, config);
+            let count: usize = streamer.count();
+            black_box(count);
+        });
+        add_perf(
+            &format!("jsonl_streaming_{size}"),
+            iterations,
+            total_ns,
+            Some(jsonl_bytes),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_streaming_throughput(c: &mut Criterion) {
+    use hedl_json::streaming::{JsonArrayStreamer, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("streaming_throughput");
+
+    // Test throughput with varying object sizes
+    let object_sizes = [
+        ("tiny", r#"{"id":"1"}"#),
+        (
+            "small",
+            r#"{"id":"1","name":"Alice","email":"alice@example.com"}"#,
+        ),
+        (
+            "medium",
+            r#"{"id":"1","name":"Alice","email":"alice@example.com","bio":"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.","tags":["rust","json","streaming"]}"#,
+        ),
+    ];
+
+    for (name, template) in object_sizes {
+        // Create 1000 copies of the object
+        let count = 1000;
+        let items: Vec<_> = (0..count).map(|_| template).collect();
+        let json_array = format!("[{}]", items.join(","));
+        let json_bytes = json_array.len() as u64;
+
+        group.throughput(Throughput::Bytes(json_bytes));
+        group.bench_with_input(
+            BenchmarkId::new("object_size", name),
+            &json_array,
+            |b, json| {
+                b.iter(|| {
+                    let reader = Cursor::new(json.as_bytes());
+                    let config = StreamConfig::default();
+                    let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                    let count: usize = streamer.count();
+                    black_box(count)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark comparing true streaming vs buffered mode
+fn bench_streaming_modes(c: &mut Criterion) {
+    use hedl_json::streaming::{JsonArrayStreamer, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("streaming_modes");
+
+    // Generate JSON arrays of various sizes
+    for &size in &[100, 1_000, 10_000] {
+        let mut items = Vec::new();
+        for i in 0..size {
+            items.push(format!(
+                r#"{{"id":"{}","name":"User{}","email":"user{}@example.com","active":{}}}"#,
+                i,
+                i,
+                i,
+                i % 2 == 0
+            ));
+        }
+        let json_array = format!("[{}]", items.join(","));
+        let json_bytes = json_array.len() as u64;
+
+        group.throughput(Throughput::Bytes(json_bytes));
+
+        // True streaming mode (O(1) memory)
+        group.bench_with_input(
+            BenchmarkId::new("true_streaming", size),
+            &json_array,
+            |b, json| {
+                b.iter(|| {
+                    let reader = Cursor::new(json.as_bytes());
+                    let config = StreamConfig::builder().true_streaming(true).build();
+                    let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                    let count: usize = streamer.count();
+                    black_box(count)
+                });
+            },
+        );
+
+        // Buffered mode (O(n) memory)
+        group.bench_with_input(
+            BenchmarkId::new("buffered", size),
+            &json_array,
+            |b, json| {
+                b.iter(|| {
+                    let reader = Cursor::new(json.as_bytes());
+                    let config = StreamConfig::builder().true_streaming(false).build();
+                    let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                    let count: usize = streamer.count();
+                    black_box(count)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark streaming with different buffer sizes
+fn bench_streaming_buffer_sizes(c: &mut Criterion) {
+    use hedl_json::streaming::{JsonArrayStreamer, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("streaming_buffer_sizes");
+
+    // Generate a 10K object JSON array
+    let mut items = Vec::new();
+    for i in 0..10_000 {
+        items.push(format!(
+            r#"{{"id":"{}","name":"User{}","value":{}}}"#,
+            i,
+            i,
+            i * 10
+        ));
+    }
+    let json_array = format!("[{}]", items.join(","));
+    let json_bytes = json_array.len() as u64;
+
+    group.throughput(Throughput::Bytes(json_bytes));
+
+    // Test various buffer sizes
+    for &buffer_kb in &[8, 32, 64, 128, 256] {
+        let buffer_size = buffer_kb * 1024;
+
+        group.bench_with_input(
+            BenchmarkId::new("buffer_kb", buffer_kb),
+            &json_array,
+            |b, json| {
+                b.iter(|| {
+                    let reader = Cursor::new(json.as_bytes());
+                    let config = StreamConfig::builder()
+                        .buffer_size(buffer_size)
+                        .true_streaming(true)
+                        .build();
+                    let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                    let count: usize = streamer.count();
+                    black_box(count)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark streaming presets (`large_file` vs `low_memory`)
+fn bench_streaming_presets(c: &mut Criterion) {
+    use hedl_json::streaming::{JsonArrayStreamer, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("streaming_presets");
+
+    // Generate a 5K object JSON array
+    let mut items = Vec::new();
+    for i in 0..5_000 {
+        items.push(format!(
+            r#"{{"id":"{}","data":"{}","value":{}}}"#,
+            i,
+            "x".repeat(100),
+            i * 10
+        ));
+    }
+    let json_array = format!("[{}]", items.join(","));
+    let json_bytes = json_array.len() as u64;
+
+    group.throughput(Throughput::Bytes(json_bytes));
+
+    // Default config
+    group.bench_with_input(
+        BenchmarkId::new("preset", "default"),
+        &json_array,
+        |b, json| {
+            b.iter(|| {
+                let reader = Cursor::new(json.as_bytes());
+                let config = StreamConfig::default();
+                let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                let count: usize = streamer.count();
+                black_box(count)
+            });
+        },
+    );
+
+    // Large file config
+    group.bench_with_input(
+        BenchmarkId::new("preset", "large_file"),
+        &json_array,
+        |b, json| {
+            b.iter(|| {
+                let reader = Cursor::new(json.as_bytes());
+                let config = StreamConfig::large_file();
+                let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                let count: usize = streamer.count();
+                black_box(count)
+            });
+        },
+    );
+
+    // Low memory config
+    group.bench_with_input(
+        BenchmarkId::new("preset", "low_memory"),
+        &json_array,
+        |b, json| {
+            b.iter(|| {
+                let reader = Cursor::new(json.as_bytes());
+                let config = StreamConfig::low_memory();
+                let streamer = JsonArrayStreamer::new(reader, config).unwrap();
+                let count: usize = streamer.count();
+                black_box(count)
+            });
+        },
+    );
+
+    group.finish();
 }
 
 criterion_group!(
@@ -1940,6 +2261,12 @@ criterion_group!(
     bench_nesting_depth,
     bench_compression,
     bench_error_handling,
+    bench_streaming_array,
+    bench_streaming_jsonl,
+    bench_streaming_throughput,
+    bench_streaming_modes,
+    bench_streaming_buffer_sizes,
+    bench_streaming_presets,
     bench_export,
 );
 

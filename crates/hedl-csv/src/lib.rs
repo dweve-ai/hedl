@@ -42,7 +42,7 @@
 //! list.add_row(Node::new(
 //!     "Person",
 //!     "1",
-//!     vec![Value::String("Alice".to_string()), Value::Int(30)],
+//!     vec![Value::String("Alice".to_string().into()), Value::Int(30)],
 //! ));
 //!
 //! doc.root.insert("people".to_string(), Item::List(list));
@@ -161,6 +161,7 @@
 //!
 //! Special float values are supported: `NaN`, `Infinity`, `-Infinity`
 
+#![cfg_attr(not(test), warn(missing_docs))]
 mod error;
 mod from_csv;
 mod to_csv;
@@ -168,7 +169,17 @@ mod to_csv;
 // Re-export public API
 pub use error::{CsvError, Result};
 pub use from_csv::{
-    from_csv, from_csv_reader, from_csv_reader_with_config, from_csv_with_config, FromCsvConfig,
+    from_csv,
+    from_csv_reader,
+    from_csv_reader_with_config,
+    from_csv_with_config,
+    FromCsvConfig,
+    DEFAULT_MAX_CELL_SIZE,
+    // Security limit constants
+    DEFAULT_MAX_COLUMNS,
+    DEFAULT_MAX_HEADER_SIZE,
+    DEFAULT_MAX_ROWS,
+    DEFAULT_MAX_TOTAL_SIZE,
 };
 pub use to_csv::{
     to_csv, to_csv_list, to_csv_list_with_config, to_csv_list_writer,
@@ -204,8 +215,8 @@ mod integration_tests {
             "Person",
             "1",
             vec![
-                Value::String("1".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("1".to_string().into()),
+                Value::String("Alice".to_string().into()),
                 Value::Int(30),
                 Value::Float(95.5),
                 Value::Bool(true),
@@ -216,8 +227,8 @@ mod integration_tests {
             "Person",
             "2",
             vec![
-                Value::String("2".to_string()),
-                Value::String("Bob".to_string()),
+                Value::String("2".to_string().into()),
+                Value::String("Bob".to_string().into()),
                 Value::Int(25),
                 Value::Float(87.3),
                 Value::Bool(false),
@@ -238,18 +249,18 @@ mod integration_tests {
 
         // Verify first row
         let row1 = &list2.rows[0];
-        assert_eq!(row1.id, "1");
+        assert_eq!(&*row1.id, "1");
         assert_eq!(row1.fields[0], Value::Int(1)); // ID field
-        assert_eq!(row1.fields[1], Value::String("Alice".to_string()));
+        assert_eq!(row1.fields[1], Value::String("Alice".to_string().into()));
         assert_eq!(row1.fields[2], Value::Int(30));
         assert_eq!(row1.fields[3], Value::Float(95.5));
         assert_eq!(row1.fields[4], Value::Bool(true));
 
         // Verify second row
         let row2 = &list2.rows[1];
-        assert_eq!(row2.id, "2");
+        assert_eq!(&*row2.id, "2");
         assert_eq!(row2.fields[0], Value::Int(2)); // ID field
-        assert_eq!(row2.fields[1], Value::String("Bob".to_string()));
+        assert_eq!(row2.fields[1], Value::String("Bob".to_string().into()));
         assert_eq!(row2.fields[2], Value::Int(25));
         assert_eq!(row2.fields[3], Value::Float(87.3));
         assert_eq!(row2.fields[4], Value::Bool(false));
@@ -264,7 +275,7 @@ mod integration_tests {
         list.add_row(Node::new(
             "Item",
             "1",
-            vec![Value::String("1".to_string()), Value::Null],
+            vec![Value::String("1".to_string().into()), Value::Null],
         ));
         doc.root.insert("items".to_string(), Item::List(list));
 
@@ -286,7 +297,7 @@ mod integration_tests {
             "Item",
             "1",
             vec![
-                Value::String("1".to_string()),
+                Value::String("1".to_string().into()),
                 Value::Reference(hedl_core::Reference::local("user1")),
             ],
         ));
@@ -295,7 +306,7 @@ mod integration_tests {
             "Item",
             "2",
             vec![
-                Value::String("2".to_string()),
+                Value::String("2".to_string().into()),
                 Value::Reference(hedl_core::Reference::qualified("User", "user2")),
             ],
         ));
@@ -310,20 +321,20 @@ mod integration_tests {
         // Check local reference
         assert_eq!(list2.rows[0].fields[0], Value::Int(1)); // ID field
         let ref1 = list2.rows[0].fields[1].as_reference().unwrap();
-        assert_eq!(ref1.id, "user1");
+        assert_eq!(&*ref1.id, "user1");
         assert_eq!(ref1.type_name, None);
 
         // Check qualified reference
         assert_eq!(list2.rows[1].fields[0], Value::Int(2)); // ID field
         let ref2 = list2.rows[1].fields[1].as_reference().unwrap();
-        assert_eq!(ref2.id, "user2");
-        assert_eq!(ref2.type_name, Some("User".to_string()));
+        assert_eq!(&*ref2.id, "user2");
+        assert_eq!(ref2.type_name.as_deref(), Some("User"));
     }
 
     /// Test handling of mixed types
     #[test]
     fn test_mixed_types() {
-        let csv_data = r#"
+        let csv_data = r"
 id,value
 1,42
 2,3.25
@@ -331,7 +342,7 @@ id,value
 4,hello
 5,@ref1
 6,
-"#;
+";
 
         let doc = from_csv(csv_data, "Item", &["value"]).unwrap();
         let list = doc.get("items").unwrap().as_list().unwrap();
@@ -344,7 +355,10 @@ id,value
         assert_eq!(list.rows[2].fields[0], Value::Int(3)); // ID field
         assert_eq!(list.rows[2].fields[1], Value::Bool(true));
         assert_eq!(list.rows[3].fields[0], Value::Int(4)); // ID field
-        assert_eq!(list.rows[3].fields[1], Value::String("hello".to_string()));
+        assert_eq!(
+            list.rows[3].fields[1],
+            Value::String("hello".to_string().into())
+        );
         assert_eq!(list.rows[4].fields[0], Value::Int(5)); // ID field
         assert!(matches!(list.rows[4].fields[1], Value::Reference(_)));
         assert_eq!(list.rows[5].fields[0], Value::Int(6)); // ID field
@@ -360,7 +374,10 @@ id,value
         list.add_row(Node::new(
             "Item",
             "1",
-            vec![Value::String("1".to_string()), expr_value("add(x, y)")],
+            vec![
+                Value::String("1".to_string().into()),
+                expr_value("add(x, y)"),
+            ],
         ));
 
         doc.root.insert("items".to_string(), Item::List(list));

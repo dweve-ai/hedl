@@ -98,7 +98,7 @@ fn test_string_to_json() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("hello world".to_string())),
+        Item::Scalar(Value::String("hello world".to_string().into())),
     );
 
     let json = hedl_to_json(&doc).unwrap();
@@ -110,7 +110,7 @@ fn test_string_with_special_chars_to_json() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("line1\nline2\ttab".to_string())),
+        Item::Scalar(Value::String("line1\nline2\ttab".to_string().into())),
     );
 
     let json = hedl_to_json(&doc).unwrap();
@@ -154,8 +154,8 @@ fn test_reference_from_json() {
     let doc = json_to_hedl(json).unwrap();
 
     if let Some(Item::Scalar(Value::Reference(r))) = doc.root.get("ref") {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name, Some("User".to_string().into()));
+        assert_eq!(r.id, "alice".into());
     } else {
         panic!("Expected reference");
     }
@@ -168,7 +168,7 @@ fn test_local_reference_from_json() {
 
     if let Some(Item::Scalar(Value::Reference(r))) = doc.root.get("ref") {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "some_id");
+        assert_eq!(r.id, "some_id".into());
     } else {
         panic!("Expected reference");
     }
@@ -196,7 +196,7 @@ fn test_expression_from_json() {
     let doc = json_to_hedl(json).unwrap();
 
     if let Some(Item::Scalar(Value::Expression(e))) = doc.root.get("expr") {
-        assert_eq!(format!("{}", e), "add(a, b)");
+        assert_eq!(format!("{e}"), "add(a, b)");
     } else {
         panic!("Expected expression");
     }
@@ -208,7 +208,7 @@ fn test_nested_expression_from_json() {
     let doc = json_to_hedl(json).unwrap();
 
     if let Some(Item::Scalar(Value::Expression(e))) = doc.root.get("expr") {
-        assert_eq!(format!("{}", e), "f(g(x), y)");
+        assert_eq!(format!("{e}"), "f(g(x), y)");
     } else {
         panic!("Expected expression");
     }
@@ -226,8 +226,10 @@ fn test_1d_tensor_to_json() {
         Tensor::Scalar(2.0),
         Tensor::Scalar(3.0),
     ]);
-    doc.root
-        .insert("data".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "data".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let json = hedl_to_json(&doc).unwrap();
     let parsed: JsonValue = serde_json::from_str(&json).unwrap();
@@ -243,8 +245,10 @@ fn test_2d_tensor_to_json() {
         Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
         Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
     ]);
-    doc.root
-        .insert("matrix".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "matrix".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let json = hedl_to_json(&doc).unwrap();
     let parsed: JsonValue = serde_json::from_str(&json).unwrap();
@@ -260,7 +264,7 @@ fn test_tensor_from_json() {
     let doc = json_to_hedl(json).unwrap();
 
     if let Some(Item::Scalar(Value::Tensor(t))) = doc.root.get("data") {
-        if let Tensor::Array(items) = t {
+        if let Tensor::Array(items) = t.as_ref() {
             assert_eq!(items.len(), 3);
         } else {
             panic!("Expected tensor array");
@@ -275,15 +279,19 @@ fn test_nested_tensor_from_json() {
     let json = r#"{"matrix": [[1, 2], [3, 4]]}"#;
     let doc = json_to_hedl(json).unwrap();
 
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(rows)))) = doc.root.get("matrix") {
-        assert_eq!(rows.len(), 2);
-        if let Tensor::Array(cols) = &rows[0] {
-            assert_eq!(cols.len(), 2);
+    if let Some(Item::Scalar(Value::Tensor(t))) = doc.root.get("matrix") {
+        if let Tensor::Array(rows) = t.as_ref() {
+            assert_eq!(rows.len(), 2);
+            if let Tensor::Array(cols) = &rows[0] {
+                assert_eq!(cols.len(), 2);
+            } else {
+                panic!("Expected nested array");
+            }
         } else {
-            panic!("Expected nested array");
+            panic!("Expected nested tensor");
         }
     } else {
-        panic!("Expected nested tensor");
+        panic!("Expected tensor");
     }
 }
 
@@ -314,7 +322,7 @@ fn test_deeply_nested_object_to_json() {
     let mut level3 = BTreeMap::new();
     level3.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("deep".to_string())),
+        Item::Scalar(Value::String("deep".to_string().into())),
     );
 
     let mut level2 = BTreeMap::new();
@@ -339,7 +347,7 @@ fn test_object_from_json() {
     if let Some(Item::Object(obj)) = doc.root.get("config") {
         assert_eq!(
             obj.get("host").unwrap().as_scalar().unwrap(),
-            &Value::String("localhost".to_string())
+            &Value::String("localhost".to_string().into())
         );
         assert_eq!(
             obj.get("port").unwrap().as_scalar().unwrap(),
@@ -365,12 +373,12 @@ fn test_matrix_list_to_json() {
     list.add_row(Node::new(
         "User",
         "alice",
-        vec![Value::String("Alice".to_string()), Value::Int(30)],
+        vec![Value::String("Alice".to_string().into()), Value::Int(30)],
     ));
     list.add_row(Node::new(
         "User",
         "bob",
-        vec![Value::String("Bob".to_string()), Value::Int(25)],
+        vec![Value::String("Bob".to_string().into()), Value::Int(25)],
     ));
 
     doc.root.insert("users".to_string(), Item::List(list));
@@ -393,6 +401,7 @@ fn test_matrix_list_with_metadata() {
         include_metadata: true,
         flatten_lists: false,
         include_children: false,
+        ascii_safe: false,
     };
 
     let json = to_json(&doc, &config).unwrap();
@@ -414,6 +423,7 @@ fn test_matrix_list_flattened() {
         include_metadata: false,
         flatten_lists: true,
         include_children: false,
+        ascii_safe: false,
     };
 
     let json = to_json(&doc, &config).unwrap();
@@ -460,7 +470,7 @@ fn test_round_trip_scalars() {
         .insert("float_val".to_string(), Item::Scalar(Value::Float(3.25)));
     doc.root.insert(
         "string_val".to_string(),
-        Item::Scalar(Value::String("test".to_string())),
+        Item::Scalar(Value::String("test".to_string().into())),
     );
 
     let json = hedl_to_json(&doc).unwrap();
@@ -481,7 +491,7 @@ fn test_round_trip_scalars() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("test".to_string())
+        &Value::String("test".to_string().into())
     );
 }
 
@@ -497,8 +507,8 @@ fn test_round_trip_reference() {
     let restored = json_to_hedl(&json).unwrap();
 
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("ref") {
-        assert_eq!(r.type_name, Some("Type".to_string()));
-        assert_eq!(r.id, "id");
+        assert_eq!(r.type_name, Some("Type".to_string().into()));
+        assert_eq!(r.id, "id".into());
     } else {
         panic!("Expected reference");
     }
@@ -516,7 +526,7 @@ fn test_round_trip_expression() {
     let restored = json_to_hedl(&json).unwrap();
 
     if let Some(Item::Scalar(Value::Expression(e))) = restored.root.get("expr") {
-        assert_eq!(format!("{}", e), "add(x, 1)");
+        assert_eq!(format!("{e}"), "add(x, 1)");
     } else {
         panic!("Expected expression");
     }
@@ -530,14 +540,20 @@ fn test_round_trip_tensor() {
         Tensor::Scalar(2.0),
         Tensor::Scalar(3.0),
     ]);
-    doc.root
-        .insert("data".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "data".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let json = hedl_to_json(&doc).unwrap();
     let restored = json_to_hedl(&json).unwrap();
 
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(items)))) = restored.root.get("data") {
-        assert_eq!(items.len(), 3);
+    if let Some(Item::Scalar(Value::Tensor(t))) = restored.root.get("data") {
+        if let Tensor::Array(items) = t.as_ref() {
+            assert_eq!(items.len(), 3);
+        } else {
+            panic!("Expected tensor array");
+        }
     } else {
         panic!("Expected tensor");
     }
@@ -549,7 +565,7 @@ fn test_round_trip_nested_object() {
     let mut inner = BTreeMap::new();
     inner.insert(
         "key".to_string(),
-        Item::Scalar(Value::String("value".to_string())),
+        Item::Scalar(Value::String("value".to_string().into())),
     );
     doc.root.insert("outer".to_string(), Item::Object(inner));
 
@@ -559,7 +575,7 @@ fn test_round_trip_nested_object() {
     let outer = restored.root.get("outer").unwrap().as_object().unwrap();
     assert_eq!(
         outer.get("key").unwrap().as_scalar().unwrap(),
-        &Value::String("value".to_string())
+        &Value::String("value".to_string().into())
     );
 }
 
@@ -571,7 +587,7 @@ fn test_round_trip_nested_object() {
 fn test_invalid_json_error() {
     let result = json_to_hedl("{ invalid json }");
     assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
+    let err_msg = result.unwrap_err().clone();
     assert!(err_msg.contains("JSON parse error"));
 }
 
@@ -579,7 +595,7 @@ fn test_invalid_json_error() {
 fn test_non_object_root_error() {
     let result = json_to_hedl("[1, 2, 3]");
     assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
+    let err_msg = result.unwrap_err().clone();
     assert!(err_msg.contains("Root must be a JSON object"));
 }
 
@@ -609,7 +625,7 @@ fn test_empty_string_value() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "empty".to_string(),
-        Item::Scalar(Value::String("".to_string())),
+        Item::Scalar(Value::String(String::new().into())),
     );
 
     let json = hedl_to_json(&doc).unwrap();
@@ -617,7 +633,7 @@ fn test_empty_string_value() {
 
     assert_eq!(
         restored.root.get("empty").unwrap().as_scalar().unwrap(),
-        &Value::String("".to_string())
+        &Value::String(String::new().into())
     );
 }
 
@@ -626,7 +642,7 @@ fn test_unicode_string() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("Hello 世界 🌍".to_string())),
+        Item::Scalar(Value::String("Hello 世界 🌍".to_string().into())),
     );
 
     let json = hedl_to_json(&doc).unwrap();
@@ -634,7 +650,7 @@ fn test_unicode_string() {
 
     assert_eq!(
         restored.root.get("text").unwrap().as_scalar().unwrap(),
-        &Value::String("Hello 世界 🌍".to_string())
+        &Value::String("Hello 世界 🌍".to_string().into())
     );
 }
 
@@ -675,7 +691,7 @@ fn test_special_json_characters_in_string() {
     doc.root.insert(
         "text".to_string(),
         Item::Scalar(Value::String(
-            r#"quote: " backslash: \ newline"#.to_string(),
+            r#"quote: " backslash: \ newline"#.to_string().into(),
         )),
     );
 
@@ -733,7 +749,7 @@ fn test_from_json_value_direct() {
 
     assert_eq!(
         doc.root.get("name").unwrap().as_scalar().unwrap(),
-        &Value::String("test".to_string())
+        &Value::String("test".to_string().into())
     );
     assert_eq!(
         doc.root.get("count").unwrap().as_scalar().unwrap(),
@@ -810,7 +826,7 @@ fn test_scalars_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("hello world".to_string())
+        &Value::String("hello world".to_string().into())
     );
     assert_eq!(
         restored
@@ -819,7 +835,7 @@ fn test_scalars_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String(String::new())
+        &Value::String(String::new().into())
     );
 }
 
@@ -841,7 +857,7 @@ fn test_special_strings_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("He said \"hello\" and 'goodbye'".to_string())
+        &Value::String("He said \"hello\" and 'goodbye'".to_string().into())
     );
     assert_eq!(
         restored
@@ -850,7 +866,7 @@ fn test_special_strings_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("path\\to\\file".to_string())
+        &Value::String("path\\to\\file".to_string().into())
     );
     assert_eq!(
         restored
@@ -859,11 +875,11 @@ fn test_special_strings_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("line1\nline2\nline3".to_string())
+        &Value::String("line1\nline2\nline3".to_string().into())
     );
     assert_eq!(
         restored.root.get("with_tab").unwrap().as_scalar().unwrap(),
-        &Value::String("col1\tcol2\tcol3".to_string())
+        &Value::String("col1\tcol2\tcol3".to_string().into())
     );
     assert_eq!(
         restored
@@ -872,7 +888,7 @@ fn test_special_strings_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("日本語 中文 한국어 emoji: 🎉".to_string())
+        &Value::String("日本語 中文 한국어 emoji: 🎉".to_string().into())
     );
 }
 
@@ -889,15 +905,15 @@ fn test_references_roundtrip_json() {
     // Verify local reference
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("local_ref") {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "some_id");
+        assert_eq!(r.id, "some_id".into());
     } else {
         panic!("Expected local_ref");
     }
 
     // Verify typed reference
     if let Some(Item::Scalar(Value::Reference(r))) = restored.root.get("typed_ref") {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name, Some("User".to_string().into()));
+        assert_eq!(r.id, "alice".into());
     } else {
         panic!("Expected typed_ref");
     }
@@ -915,19 +931,19 @@ fn test_expressions_roundtrip_json() {
 
     // Verify expressions are preserved
     if let Some(Item::Scalar(Value::Expression(e))) = restored.root.get("simple_expr") {
-        assert_eq!(format!("{}", e), "now()");
+        assert_eq!(format!("{e}"), "now()");
     } else {
         panic!("Expected simple_expr");
     }
 
     if let Some(Item::Scalar(Value::Expression(e))) = restored.root.get("var_expr") {
-        assert_eq!(format!("{}", e), "user.name");
+        assert_eq!(format!("{e}"), "user.name");
     } else {
         panic!("Expected var_expr");
     }
 
     if let Some(Item::Scalar(Value::Expression(e))) = restored.root.get("complex_expr") {
-        assert_eq!(format!("{}", e), "concat(\"hello\", \"world\")");
+        assert_eq!(format!("{e}"), "concat(\"hello\", \"world\")");
     } else {
         panic!("Expected complex_expr");
     }
@@ -944,29 +960,39 @@ fn test_tensors_roundtrip_json() {
     let restored = json_to_hedl(&json).unwrap();
 
     // Verify 1D tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(items)))) = restored.root.get("tensor_1d")
-    {
-        assert_eq!(items.len(), 3);
+    if let Some(Item::Scalar(Value::Tensor(t))) = restored.root.get("tensor_1d") {
+        if let Tensor::Array(items) = t.as_ref() {
+            assert_eq!(items.len(), 3);
+        } else {
+            panic!("Expected tensor array");
+        }
     } else {
         panic!("Expected tensor_1d");
     }
 
     // Verify 2D tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(rows)))) = restored.root.get("tensor_2d") {
-        assert_eq!(rows.len(), 2);
-        if let Tensor::Array(cols) = &rows[0] {
-            assert_eq!(cols.len(), 2);
+    if let Some(Item::Scalar(Value::Tensor(t))) = restored.root.get("tensor_2d") {
+        if let Tensor::Array(rows) = t.as_ref() {
+            assert_eq!(rows.len(), 2);
+            if let Tensor::Array(cols) = &rows[0] {
+                assert_eq!(cols.len(), 2);
+            } else {
+                panic!("Expected nested array in tensor_2d");
+            }
         } else {
-            panic!("Expected nested array in tensor_2d");
+            panic!("Expected tensor array");
         }
     } else {
         panic!("Expected tensor_2d");
     }
 
     // Verify 3D tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(depth)))) = restored.root.get("tensor_3d")
-    {
-        assert_eq!(depth.len(), 2);
+    if let Some(Item::Scalar(Value::Tensor(t))) = restored.root.get("tensor_3d") {
+        if let Tensor::Array(depth) = t.as_ref() {
+            assert_eq!(depth.len(), 2);
+        } else {
+            panic!("Expected tensor array");
+        }
     } else {
         panic!("Expected tensor_3d");
     }
@@ -994,11 +1020,11 @@ fn test_named_values_roundtrip_json() {
     // Verify named values
     assert_eq!(
         restored.root.get("app_name").unwrap().as_scalar().unwrap(),
-        &Value::String("MyApp".to_string())
+        &Value::String("MyApp".to_string().into())
     );
     assert_eq!(
         restored.root.get("version").unwrap().as_scalar().unwrap(),
-        &Value::String("1.0.0".to_string())
+        &Value::String("1.0.0".to_string().into())
     );
     assert_eq!(
         restored
@@ -1056,12 +1082,15 @@ fn test_user_list_roundtrip_json() {
         // fields[0] = id, fields[1] = email, fields[2] = name
         let alice = &list.rows[0];
         assert_eq!(alice.id, "alice");
-        assert_eq!(alice.fields[0], Value::String("alice".to_string())); // id
+        assert_eq!(alice.fields[0], Value::String("alice".to_string().into())); // id
         assert_eq!(
             alice.fields[1],
-            Value::String("alice@example.com".to_string())
+            Value::String("alice@example.com".to_string().into())
         ); // email
-        assert_eq!(alice.fields[2], Value::String("Alice Smith".to_string())); // name
+        assert_eq!(
+            alice.fields[2],
+            Value::String("Alice Smith".to_string().into())
+        ); // name
     } else {
         panic!("Expected users list");
     }
@@ -1091,7 +1120,7 @@ fn test_mixed_type_list_roundtrip_json() {
         assert_eq!(item1.id, "item1");
 
         // fields[0] = id (string)
-        assert_eq!(item1.fields[0], Value::String("item1".to_string()));
+        assert_eq!(item1.fields[0], Value::String("item1".to_string().into()));
 
         // fields[1] = active (bool)
         assert_eq!(item1.fields[1], Value::Bool(true));
@@ -1100,10 +1129,13 @@ fn test_mixed_type_list_roundtrip_json() {
         assert_eq!(item1.fields[2], Value::Int(100));
 
         // fields[3] = name (string)
-        assert_eq!(item1.fields[3], Value::String("Widget".to_string()));
+        assert_eq!(item1.fields[3], Value::String("Widget".to_string().into()));
 
         // fields[4] = notes (string)
-        assert_eq!(item1.fields[4], Value::String("Best seller".to_string()));
+        assert_eq!(
+            item1.fields[4],
+            Value::String("Best seller".to_string().into())
+        );
 
         // fields[5] = price (float)
         if let Value::Float(f) = item1.fields[5] {
@@ -1142,8 +1174,8 @@ fn test_with_references_roundtrip_json() {
         // fields[0] = id, fields[1] = author (reference), fields[2] = title
         let post1 = &list.rows[0];
         if let Value::Reference(r) = &post1.fields[1] {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "alice");
+            assert_eq!(r.type_name, Some("User".to_string().into()));
+            assert_eq!(r.id, "alice".into());
         } else {
             panic!("Expected reference in post author");
         }
@@ -1161,6 +1193,7 @@ fn test_with_nest_roundtrip_json() {
         include_metadata: false,
         flatten_lists: true,
         include_children: false, // Don't export children for now
+        ascii_safe: false,
     };
     let json = to_json(&doc, &config).unwrap();
 
@@ -1188,6 +1221,7 @@ fn test_deep_nest_roundtrip_json() {
         include_metadata: false,
         flatten_lists: true,
         include_children: false, // Don't export children for now
+        ascii_safe: false,
     };
     let json = to_json(&doc, &config).unwrap();
 
@@ -1249,7 +1283,7 @@ fn test_edge_cases_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("\n\t\r\\\"'".to_string())
+        &Value::String("\n\t\r\\\"'".to_string().into())
     );
 }
 
@@ -1263,6 +1297,7 @@ fn test_comprehensive_roundtrip_json() {
         include_metadata: false,
         flatten_lists: true,
         include_children: false, // Don't include children to allow clean round-trip
+        ascii_safe: false,
     };
     let json = to_json(&doc, &config).unwrap();
 
@@ -1286,7 +1321,7 @@ fn test_comprehensive_roundtrip_json() {
             .unwrap()
             .as_scalar()
             .unwrap(),
-        &Value::String("1.0.0".to_string())
+        &Value::String("1.0.0".to_string().into())
     );
     assert_eq!(
         restored
@@ -1300,14 +1335,18 @@ fn test_comprehensive_roundtrip_json() {
 
     // Verify expression
     if let Some(Item::Scalar(Value::Expression(e))) = restored.root.get("computed") {
-        assert_eq!(format!("{}", e), "multiply(config_max_items, 2)");
+        assert_eq!(format!("{e}"), "multiply(config_max_items, 2)");
     } else {
         panic!("Expected computed expression");
     }
 
     // Verify tensor
-    if let Some(Item::Scalar(Value::Tensor(Tensor::Array(items)))) = restored.root.get("weights") {
-        assert_eq!(items.len(), 3);
+    if let Some(Item::Scalar(Value::Tensor(t))) = restored.root.get("weights") {
+        if let Tensor::Array(items) = t.as_ref() {
+            assert_eq!(items.len(), 3);
+        } else {
+            panic!("Expected tensor array");
+        }
     } else {
         panic!("Expected weights tensor");
     }
@@ -1338,16 +1377,16 @@ fn test_comprehensive_roundtrip_json() {
 
         // Verify author reference
         if let Value::Reference(r) = &comment.fields[1] {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "bob");
+            assert_eq!(r.type_name, Some("User".to_string().into()));
+            assert_eq!(r.id, "bob".into());
         } else {
             panic!("Expected author reference");
         }
 
         // Verify post reference
         if let Value::Reference(r) = &comment.fields[2] {
-            assert_eq!(r.type_name, Some("Post".to_string()));
-            assert_eq!(r.id, "p1");
+            assert_eq!(r.type_name, Some("Post".to_string().into()));
+            assert_eq!(r.id, "p1".into());
         } else {
             panic!("Expected post reference");
         }

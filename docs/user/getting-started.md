@@ -424,16 +424,16 @@ for file in *.json; do
 done
 ```
 
-### Example 4: Pipeline Processing
+### Example 4: Chained Conversions
 
-Use HEDL in Unix pipelines:
+Convert data through multiple formats:
 
 ```bash
 # Convert JSON to HEDL to YAML
-hedl from-json data.json | hedl to-yaml - -o data.yaml
+hedl from-json data.json -o temp.hedl && hedl to-yaml temp.hedl -o data.yaml
 
-# Format and validate in one go
-hedl format data.hedl | hedl validate -
+# Format and validate
+hedl format data.hedl -o formatted.hedl && hedl validate formatted.hedl
 
 # Get statistics for multiple files
 for f in *.hedl; do echo "$f:"; hedl stats "$f"; done

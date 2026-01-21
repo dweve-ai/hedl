@@ -8,19 +8,26 @@ HEDL's format adapters follow a consistent pattern for bidirectional conversion 
 
 ### Uniform Interface
 
-All format adapters implement this interface pattern:
+All format adapters follow this naming pattern:
 
 ```rust
-// HEDL → Format
-pub fn to_format(doc: &Document, config: &ToFormatConfig) -> Result<String>;
+// Convenience wrappers (default config)
+pub fn hedl_to_format(doc: &Document) -> Result<String, String>
+pub fn format_to_hedl(input: &str) -> Result<Document, String>
 
-// Format → HEDL
-pub fn from_format(input: &str, config: &FromFormatConfig) -> Result<Document>;
+// With configuration
+pub fn hedl_to_format_with_config(doc: &Document, config: &ToFormatConfig) -> Result<String, String>
+pub fn format_to_hedl_with_config(input: &str, config: &FromFormatConfig) -> Result<Document, FormatError>
 
-// Configuration
+// Configuration structs (format-specific)
 pub struct ToFormatConfig { /* format-specific options */ }
 pub struct FromFormatConfig { /* format-specific options */ }
 ```
+
+**Examples**:
+- `hedl-json`: `hedl_to_json`, `json_to_hedl`
+- `hedl-yaml`: `hedl_to_yaml`, `yaml_to_hedl`
+- `hedl-xml`: `hedl_to_xml`, `xml_to_hedl`
 
 ### Adapter Architecture
 
@@ -39,6 +46,7 @@ graph TB
         YAML[hedl-yaml]
         XML[hedl-xml]
         CSV[hedl-csv]
+        TOON[hedl-toon]
         PARQUET[hedl-parquet]
         NEO4J[hedl-neo4j]
     end
@@ -52,6 +60,7 @@ graph TB
     FACADE --> YAML
     FACADE --> XML
     FACADE --> CSV
+    FACADE --> TOON
     FACADE --> PARQUET
     FACADE --> NEO4J
 
@@ -59,6 +68,7 @@ graph TB
     YAML --> CORE
     XML --> CORE
     CSV --> CORE
+    TOON --> CORE
     PARQUET --> CORE
     NEO4J --> CORE
 
@@ -80,20 +90,17 @@ graph TB
 
 **Architecture**:
 ```rust
-// HEDL → JSON
-pub fn to_json(doc: &Document, config: &ToJsonConfig) -> Result<String, String> {
-    let value = to_json_value(doc, config)?;
-    let json = serde_json::to_string_pretty(&value)
-        .map_err(|e| format!("JSON serialization error: {}", e))?;
-    Ok(json)
-}
+// Convenience wrappers (default config)
+pub fn hedl_to_json(doc: &Document) -> Result<String, String>
+pub fn json_to_hedl(json: &str) -> Result<Document, String>
 
-// JSON → HEDL
-pub fn from_json(json: &str, config: &FromJsonConfig) -> Result<Document, String> {
-    let value: serde_json::Value = serde_json::from_str(json)
-        .map_err(|e| format!("JSON parsing error: {}", e))?;
-    from_json_value(&value, config)
-}
+// With configuration
+pub fn hedl_to_json_with_config(doc: &Document, config: &ToJsonConfig) -> Result<String, String>
+pub fn json_to_hedl_with_config(json: &str, config: &FromJsonConfig) -> Result<Document, JsonConversionError>
+
+// Lower-level conversion functions
+pub fn to_json_value(doc: &Document, config: &ToJsonConfig) -> Result<JsonValue, String>
+pub fn from_json_value(value: &JsonValue, config: &FromJsonConfig) -> Result<Document, JsonConversionError>
 ```
 
 **Configuration**:
@@ -102,6 +109,7 @@ pub struct ToJsonConfig {
     pub include_metadata: bool,  // Include HEDL metadata (__type__, __schema__)
     pub flatten_lists: bool,      // Flatten matrix lists to plain arrays
     pub include_children: bool,   // Include children as nested arrays
+    pub ascii_safe: bool,         // Escape all non-ASCII as \uXXXX
 }
 
 pub struct FromJsonConfig {
@@ -111,6 +119,13 @@ pub struct FromJsonConfig {
     pub max_array_size: Option<usize>, // Maximum array size
     pub max_string_length: Option<usize>, // Maximum string length
     pub max_object_size: Option<usize>,  // Maximum object size
+    pub surrogate_policy: SurrogatePolicy, // Policy for unpaired UTF-16 surrogates
+}
+
+pub enum SurrogatePolicy {
+    Reject,       // Reject unpaired surrogates with error (default)
+    ReplaceWithFFFD, // Replace with U+FFFD
+    Skip,         // Skip/remove silently
 }
 ```
 
@@ -226,14 +241,19 @@ pub fn stream_from_xml<R: BufRead>(
 **Configuration**:
 ```rust
 pub struct ToXmlConfig {
-    pub root_element: String,
-    pub use_attributes: bool,
-    pub namespace: Option<String>,
+    pub pretty: bool,             // Pretty-print with indentation
+    pub indent: String,           // Indentation string (e.g., "  " or "\t")
+    pub root_element: String,     // Root element name
+    pub include_metadata: bool,   // Include HEDL metadata as attributes
+    pub use_attributes: bool,     // Use attributes for scalar values
 }
 
 pub struct FromXmlConfig {
-    pub attributes_as_fields: bool,
-    pub text_key: String,  // Key for text content
+    pub default_type_name: String,    // Default type name for list items
+    pub version: (u32, u32),          // HEDL version to use
+    pub infer_lists: bool,            // Infer list structures from repeated elements
+    pub entity_policy: EntityPolicy,  // Entity handling policy (XXE prevention)
+    pub log_security_events: bool,    // Enable security event logging
 }
 ```
 
@@ -251,16 +271,21 @@ pub struct FromXmlConfig {
 
 **Architecture**:
 ```rust
-pub fn to_csv(doc: &Document, config: &ToCsvConfig) -> Result<String> {
-    let mut writer = csv::Writer::from_writer(vec![]);
-    write_document(&mut writer, doc, config)?;
-    String::from_utf8(writer.into_inner()?)
-        .map_err(|e| HedlError::conversion(e))
+pub fn to_csv(doc: &Document) -> Result<String> {
+    let list = find_first_matrix_list(doc)?;
+    let mut wtr = csv::Writer::from_writer(vec![]);
+    write_headers(&mut wtr, &list.schema)?;
+    write_rows(&mut wtr, &list)?;
+    String::from_utf8(wtr.into_inner()?)
+        .map_err(|e| CsvError::Utf8Error(e.to_string()))
 }
 
-pub fn from_csv(csv: &str, config: &FromCsvConfig) -> Result<Document> {
-    let mut reader = csv::Reader::from_reader(csv.as_bytes());
-    parse_csv_document(&mut reader, config)
+pub fn from_csv(
+    csv: &str,
+    type_name: &str,
+    schema: &[&str],
+) -> Result<Document> {
+    from_csv_with_config(csv, type_name, schema, FromCsvConfig::default())
 }
 ```
 
@@ -415,6 +440,63 @@ pub fn stream_to_cypher<W: Write>(
     }
     Ok(())
 }
+```
+
+---
+
+### hedl-toon: TOON Adapter
+
+**Purpose**: LLM-optimized compact format conversion
+
+**Key Features**:
+- TOON v3.0 specification compliance
+- Tabular format for primitive arrays
+- Expanded format for complex structures
+- Reference preservation as `@Type:id` strings
+- Depth limit protection (100 levels)
+
+**Architecture**:
+```rust
+pub fn hedl_to_toon(doc: &Document) -> Result<String> {
+    to_toon(doc, &ToToonConfig::default())
+}
+
+pub fn toon_to_hedl(toon: &str) -> Result<Document> {
+    from_toon(toon, &FromToonConfig::default())
+}
+```
+
+**Configuration**:
+```rust
+pub struct ToToonConfig {
+    pub indent: usize,          // Spaces per indent level (default: 2)
+    pub delimiter: Delimiter,   // Column delimiter for tabular format
+}
+
+pub enum Delimiter {
+    Comma,   // ","
+    Tab,     // "\t"
+    Pipe,    // " | "
+}
+
+pub struct FromToonConfig {
+    pub default_type_name: String,  // Default type for untyped arrays
+    pub version: (u32, u32),        // HEDL version to use
+}
+```
+
+**TOON Format Examples**:
+```toon
+// Tabular format (primitive arrays)
+users[2]{id,name}:
+  u1,Alice
+  u2,Bob
+
+// Expanded format (complex structures)
+orders[1]:
+  - id: ord1
+    customer: @User:u1
+    total: 150.00
 ```
 
 ## Common Patterns

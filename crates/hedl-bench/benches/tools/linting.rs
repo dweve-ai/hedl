@@ -15,11 +15,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Linting performance benchmarks for HEDL.
 //!
 //! Measures lint rule execution performance across different rule types and dataset sizes.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_deep_hierarchy, generate_ditto_heavy, generate_graph,
     generate_reference_heavy, generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig,
@@ -29,6 +31,7 @@ use hedl_core::Document;
 use hedl_lint::{lint, lint_with_config, LintConfig, LintRunner, Severity};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 
 /// Comprehensive linting result for detailed analysis
 #[derive(Clone)]
@@ -59,8 +62,8 @@ impl Default for LintResult {
 }
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static LINT_RESULTS: RefCell<Vec<LintResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static LINT_RESULTS: RefCell<Vec<LintResult>> = const { RefCell::new(Vec::new()) };
 }
 
 fn init_report() {
@@ -77,13 +80,233 @@ fn init_report() {
     });
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used for future incremental data collection
 fn add_lint_result(result: LintResult) {
     LINT_RESULTS.with(|r| {
         r.borrow_mut().push(result);
     });
 }
 
+/// Collect lint operation results by running actual measurements.
+/// This is a fallback when benchmark runs don't populate `LINT_RESULTS`.
+/// Uses fewer iterations since this runs at export time.
+fn collect_lint_results() -> Vec<LintResult> {
+    use std::time::Instant;
+
+    let mut results = Vec::new();
+    let iterations = 10; // Reduced for faster export when used as fallback
+
+    // 1. Individual rule benchmarks
+    let hedl = generate_users(sizes::MEDIUM);
+    let doc = parse_hedl(&hedl);
+
+    let rules = [
+        ("id-naming", Severity::Warning),
+        ("unused-schema", Severity::Warning),
+        ("empty-list", Severity::Hint),
+        ("unqualified-kv-ref", Severity::Warning),
+    ];
+
+    for (rule_id, severity) in rules {
+        let mut config = LintConfig::default();
+        config.disable_rule("id-naming");
+        config.disable_rule("unused-schema");
+        config.disable_rule("empty-list");
+        config.disable_rule("unqualified-kv-ref");
+        config.enable_rule(rule_id);
+
+        let mut latencies = Vec::with_capacity(iterations);
+        let mut total_issues = 0;
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let diagnostics = lint_with_config(&doc, config.clone());
+            total_issues += diagnostics.len();
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LintResult {
+            rule: rule_id.to_string(),
+            file_size_bytes: hedl.len(),
+            check_times_ns: latencies,
+            issues_found: total_issues / iterations,
+            false_positives: 0,
+            memory_estimate_kb: (hedl.len() as f64 * 1.5) / 1024.0,
+            incremental_possible: false,
+            severity: format!("{severity:?}").to_lowercase(),
+        });
+    }
+
+    // 2. Combined rules benchmark
+    for num_rules in [1, 2, 3, 4] {
+        let mut config = LintConfig::default();
+        match num_rules {
+            1 => {
+                config.disable_rule("unused-schema");
+                config.disable_rule("empty-list");
+                config.disable_rule("unqualified-kv-ref");
+            }
+            2 => {
+                config.disable_rule("empty-list");
+                config.disable_rule("unqualified-kv-ref");
+            }
+            3 => {
+                config.disable_rule("unqualified-kv-ref");
+            }
+            _ => {} // All rules enabled
+        }
+
+        let mut latencies = Vec::with_capacity(iterations);
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = lint_with_config(&doc, config.clone());
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LintResult {
+            rule: format!("combined_{num_rules}_rules"),
+            file_size_bytes: hedl.len(),
+            check_times_ns: latencies,
+            issues_found: 0,
+            false_positives: 0,
+            memory_estimate_kb: (hedl.len() as f64 * 1.5) / 1024.0,
+            incremental_possible: false,
+            severity: "mixed".to_string(),
+        });
+    }
+
+    // 3. Scaling benchmarks across sizes
+    for &size in &[sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
+        let size_hedl = generate_users(size);
+        let size_doc = parse_hedl(&size_hedl);
+
+        let mut latencies = Vec::with_capacity(iterations);
+        let mut total_issues = 0;
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let diagnostics = lint(&size_doc);
+            total_issues += diagnostics.len();
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LintResult {
+            rule: format!("scaling_{size}"),
+            file_size_bytes: size_hedl.len(),
+            check_times_ns: latencies,
+            issues_found: total_issues / iterations,
+            false_positives: 0,
+            memory_estimate_kb: (size_hedl.len() as f64 * 2.0) / 1024.0,
+            incremental_possible: false,
+            severity: "all".to_string(),
+        });
+    }
+
+    // 4. Complexity benchmarks with different document types
+    let datasets = [
+        ("flat_users", generate_users(sizes::MEDIUM)),
+        ("nested_blog", generate_blog(sizes::MEDIUM, 5)),
+        ("deep_hierarchy", generate_deep_hierarchy(sizes::SMALL)),
+        ("reference_heavy", generate_reference_heavy(sizes::MEDIUM)),
+        ("ditto_heavy", generate_ditto_heavy(sizes::MEDIUM)),
+    ];
+
+    for (name, dataset_hedl) in &datasets {
+        let dataset_doc = parse_hedl(dataset_hedl);
+        let mut latencies = Vec::with_capacity(iterations);
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = lint(&dataset_doc);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LintResult {
+            rule: format!("complexity_{name}"),
+            file_size_bytes: dataset_hedl.len(),
+            check_times_ns: latencies,
+            issues_found: 0,
+            false_positives: 0,
+            memory_estimate_kb: (dataset_hedl.len() as f64 * 2.0) / 1024.0,
+            incremental_possible: false,
+            severity: "all".to_string(),
+        });
+    }
+
+    // 5. Cold vs warm start benchmarks
+    let runner = LintRunner::new(LintConfig::default());
+
+    // Cold start (new runner each time)
+    let mut cold_latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let cold_runner = LintRunner::new(LintConfig::default());
+        let start = Instant::now();
+        let _ = cold_runner.run(&doc);
+        cold_latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(LintResult {
+        rule: "cold_start".to_string(),
+        file_size_bytes: hedl.len(),
+        check_times_ns: cold_latencies,
+        issues_found: 0,
+        false_positives: 0,
+        memory_estimate_kb: (hedl.len() as f64 * 2.0) / 1024.0,
+        incremental_possible: false,
+        severity: "all".to_string(),
+    });
+
+    // Warm start (reuse runner)
+    let mut warm_latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = runner.run(&doc);
+        warm_latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(LintResult {
+        rule: "warm_start".to_string(),
+        file_size_bytes: hedl.len(),
+        check_times_ns: warm_latencies,
+        issues_found: 0,
+        false_positives: 0,
+        memory_estimate_kb: (hedl.len() as f64 * 1.5) / 1024.0,
+        incremental_possible: true,
+        severity: "all".to_string(),
+    });
+
+    // 6. Severity filtering benchmarks
+    for severity in [Severity::Hint, Severity::Warning, Severity::Error] {
+        let severity_name = match severity {
+            Severity::Hint => "hint",
+            Severity::Warning => "warning",
+            Severity::Error => "error",
+        };
+
+        let mut config = LintConfig::default();
+        config.min_severity = severity;
+
+        let mut latencies = Vec::with_capacity(iterations);
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = lint_with_config(&doc, config.clone());
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LintResult {
+            rule: format!("severity_{severity_name}"),
+            file_size_bytes: hedl.len(),
+            check_times_ns: latencies,
+            issues_found: 0,
+            false_positives: 0,
+            memory_estimate_kb: (hedl.len() as f64 * 1.5) / 1024.0,
+            incremental_possible: false,
+            severity: severity_name.to_string(),
+        });
+    }
+
+    results
+}
+
+#[allow(dead_code)] // Reserved for future benchmark-time data collection
 fn add_perf_result(name: &str, time_ns: u64, iterations: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
@@ -108,8 +331,26 @@ fn export_reports() {
         if let Some(ref report) = *r.borrow() {
             let mut new_report = report.clone();
 
-            // Collect all lint results
-            let lint_results = LINT_RESULTS.with(|r| r.borrow().clone());
+            // First try to use data collected during benchmark runs
+            let lint_results = LINT_RESULTS.with(|results| {
+                let stored = results.borrow();
+                if stored.is_empty() {
+                    // Fallback: collect data if benchmarks didn't populate results
+                    println!("\n[Linting] No stored results, collecting measurement data...");
+                    drop(stored); // Release borrow before calling collect
+                    collect_lint_results()
+                } else {
+                    println!(
+                        "\n[Linting] Using {} result sets from benchmark runs",
+                        stored.len()
+                    );
+                    stored.clone()
+                }
+            });
+            println!(
+                "[Linting] Total {} result sets for report",
+                lint_results.len()
+            );
 
             // Create all 16 comprehensive tables
             create_request_latency_distribution_table(&lint_results, &mut new_report);
@@ -133,7 +374,7 @@ fn export_reports() {
             generate_lint_insights(&lint_results, &mut new_report);
 
             if let Err(e) = std::fs::create_dir_all("target") {
-                eprintln!("Failed to create target directory: {}", e);
+                eprintln!("Failed to create target directory: {e}");
                 return;
             }
 
@@ -147,7 +388,7 @@ fn export_reports() {
                         new_report.insights.len()
                     );
                 }
-                Err(e) => eprintln!("Failed to export reports: {}", e),
+                Err(e) => eprintln!("Failed to export reports: {e}"),
             }
 
             new_report.print();
@@ -197,9 +438,9 @@ fn create_request_latency_distribution_table(results: &[LintResult], report: &mu
         let min = latencies[0];
         let max = latencies[len - 1];
         let p50 = latencies[len / 2];
-        let p90 = latencies[len * 90 / 100.max(1)];
-        let p95 = latencies[len * 95 / 100.max(1)];
-        let p99 = latencies[len * 99 / 100.max(1)];
+        let p90 = latencies[len * 90 / 100];
+        let p95 = latencies[len * 95 / 100];
+        let p99 = latencies[len * 99 / 100];
         let sla_target = 50.0; // 50ms SLA for lint rules
         let within_sla = latencies.iter().filter(|&&l| l <= sla_target).count();
         let sla_met_pct = (within_sla as f64 / len as f64) * 100.0;
@@ -267,7 +508,7 @@ fn create_throughput_analysis_table(results: &[LintResult], report: &mut Benchma
             TableCell::Float(files_per_sec),
             TableCell::Integer((files_per_sec / 50.0).ceil() as i64),
             TableCell::Integer(20),
-            TableCell::String(format!("{:.0} files/s", files_per_sec)),
+            TableCell::String(format!("{files_per_sec:.0} files/s")),
             TableCell::String("CPU".to_string()),
             TableCell::String("Linear".to_string()),
         ]);
@@ -371,7 +612,7 @@ fn create_memory_usage_profiling_table(results: &[LintResult], report: &mut Benc
             continue;
         }
         let avg_mem_mb = mems.iter().sum::<f64>() / mems.len() as f64 / 1024.0;
-        let peak_mem_mb = mems.iter().cloned().fold(0.0f64, f64::max) / 1024.0;
+        let peak_mem_mb = mems.iter().copied().fold(0.0f64, f64::max) / 1024.0;
 
         table.rows.push(vec![
             TableCell::String(rule.clone()),
@@ -499,14 +740,14 @@ fn create_document_size_impact_table(results: &[LintResult], report: &mut Benchm
 
     // Only show buckets that have actual measured data
     let mut buckets: Vec<_> = by_size.keys().copied().collect();
-    buckets.sort();
+    buckets.sort_unstable();
 
     for size in buckets {
         if let Some(latencies) = by_size.get(&size) {
             if !latencies.is_empty() {
                 let avg = latencies.iter().sum::<f64>() / latencies.len() as f64;
-                let min = latencies.iter().cloned().fold(f64::MAX, f64::min);
-                let max = latencies.iter().cloned().fold(f64::MIN, f64::max);
+                let min = latencies.iter().copied().fold(f64::MAX, f64::min);
+                let max = latencies.iter().copied().fold(f64::MIN, f64::max);
                 table.rows.push(vec![
                     TableCell::Integer(size as i64),
                     TableCell::Integer(latencies.len() as i64),
@@ -710,13 +951,13 @@ fn create_performance_regression_detection_table(
                 TableCell::Float(avg_latency),
             ]);
 
-            let min_latency = all_latencies.iter().cloned().fold(f64::MAX, f64::min);
+            let min_latency = all_latencies.iter().copied().fold(f64::MAX, f64::min);
             table.rows.push(vec![
                 TableCell::String("Min Latency (ms)".to_string()),
                 TableCell::Float(min_latency),
             ]);
 
-            let max_latency = all_latencies.iter().cloned().fold(f64::MIN, f64::max);
+            let max_latency = all_latencies.iter().copied().fold(f64::MIN, f64::max);
             table.rows.push(vec![
                 TableCell::String("Max Latency (ms)".to_string()),
                 TableCell::Float(max_latency),
@@ -752,10 +993,7 @@ fn generate_lint_insights(results: &[LintResult], report: &mut BenchmarkReport) 
     if avg_latency < 5.0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Excellent Linting Performance: {:.2}ms average",
-                avg_latency
-            ),
+            title: format!("Excellent Linting Performance: {avg_latency:.2}ms average"),
             description: "Lint checks complete fast enough for real-time IDE integration"
                 .to_string(),
             data_points: vec![
@@ -782,7 +1020,7 @@ fn generate_lint_insights(results: &[LintResult], report: &mut BenchmarkReport) 
             "recommendation"
         }
         .to_string(),
-        title: format!("False Positive Rate: {:.1}%", fp_rate),
+        title: format!("False Positive Rate: {fp_rate:.1}%"),
         description: "Low false positive rate ensures developer trust in lint results".to_string(),
         data_points: vec![
             format!("Total issues found: {}", total_issues),
@@ -797,7 +1035,7 @@ fn generate_lint_insights(results: &[LintResult], report: &mut BenchmarkReport) 
         let inc_rate = (incremental_count as f64 / results.len() as f64) * 100.0;
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Incremental Linting Support: {:.0}%", inc_rate),
+            title: format!("Incremental Linting Support: {inc_rate:.0}%"),
             description: "Percentage of lint checks eligible for incremental processing"
                 .to_string(),
             data_points: vec![
@@ -814,7 +1052,7 @@ fn generate_lint_insights(results: &[LintResult], report: &mut BenchmarkReport) 
             category: "finding".to_string(),
             title: format!("Rules Benchmarked: {}", unique_rules.len()),
             description: "Number of unique lint rules tested in this benchmark run".to_string(),
-            data_points: unique_rules.iter().map(|r| r.to_string()).collect(),
+            data_points: unique_rules.iter().map(|r| (*r).clone()).collect(),
         });
     }
 
@@ -877,21 +1115,6 @@ fn bench_individual_rules(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(rule_name), &doc, |b, doc| {
             b.iter(|| lint_with_config(black_box(doc), config.clone()));
         });
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint_with_config(&doc, config.clone());
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("individual_rule_{}", rule_name),
-            total_ns,
-            iterations,
-            None,
-        );
     }
 
     group.finish();
@@ -926,26 +1149,11 @@ fn bench_combined_rules(c: &mut Criterion) {
         }
 
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("{}_rules", num_rules)),
+            BenchmarkId::from_parameter(format!("{num_rules}_rules")),
             &doc,
             |b, doc| {
                 b.iter(|| lint_with_config(black_box(doc), config.clone()));
             },
-        );
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint_with_config(&doc, config.clone());
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("combined_{}_rules", num_rules),
-            total_ns,
-            iterations,
-            None,
         );
     }
 
@@ -964,21 +1172,6 @@ fn bench_scaling(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &doc, |b, doc| {
             b.iter(|| lint(black_box(doc)));
         });
-
-        // Collect metrics for report
-        let iterations = if size >= sizes::STRESS { 10 } else { 100 };
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint(&doc);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("scaling_{}", size),
-            total_ns,
-            iterations,
-            Some(hedl.len() as u64),
-        );
     }
 
     group.finish();
@@ -1003,16 +1196,6 @@ fn bench_rule_types_by_complexity(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(name), &doc, |b, doc| {
             b.iter(|| lint(black_box(doc)));
         });
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint(&doc);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(&format!("complexity_{}", name), total_ns, iterations, None);
     }
 
     group.finish();
@@ -1034,30 +1217,10 @@ fn bench_incremental_linting(c: &mut Criterion) {
         });
     });
 
-    // Collect metrics for cold run
-    let iterations = 100u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let runner = LintRunner::new(LintConfig::default());
-        let _ = runner.run(&doc);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("incremental_cold_run", total_ns, iterations, None);
-
     // Subsequent runs (warm)
     group.bench_function("warm_run", |b| {
         b.iter(|| runner.run(black_box(&doc)));
     });
-
-    // Collect metrics for warm run
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = runner.run(&doc);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("incremental_warm_run", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1072,7 +1235,7 @@ fn bench_error_detection(c: &mut Criterion) {
         let doc = parse_hedl(&hedl);
 
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("{}_issues", issue_count)),
+            BenchmarkId::from_parameter(format!("{issue_count}_issues")),
             &doc,
             |b, doc| {
                 b.iter(|| {
@@ -1080,21 +1243,6 @@ fn bench_error_detection(c: &mut Criterion) {
                     black_box(diagnostics)
                 });
             },
-        );
-
-        // Collect metrics for report
-        let iterations = if issue_count >= 1000 { 50 } else { 100 };
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint(&doc);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("error_detection_{}_issues", issue_count),
-            total_ns,
-            iterations,
-            None,
         );
     }
 
@@ -1126,21 +1274,6 @@ fn bench_severity_filtering(c: &mut Criterion) {
                 b.iter(|| lint_with_config(black_box(doc), config.clone()));
             },
         );
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint_with_config(&doc, config.clone());
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("severity_{}", severity_name),
-            total_ns,
-            iterations,
-            None,
-        );
     }
 
     group.finish();
@@ -1164,34 +1297,10 @@ fn bench_rule_execution_overhead(c: &mut Criterion) {
         b.iter(|| lint_with_config(black_box(&doc), config.clone()));
     });
 
-    // Collect metrics for no rules
-    let iterations = 100u64;
-    let mut config_no_rules = LintConfig::default();
-    config_no_rules.disable_rule("id-naming");
-    config_no_rules.disable_rule("unused-schema");
-    config_no_rules.disable_rule("empty-list");
-    config_no_rules.disable_rule("unqualified-kv-ref");
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = lint_with_config(&doc, config_no_rules.clone());
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("overhead_no_rules", total_ns, iterations, None);
-
     // Benchmark with all rules
     group.bench_function("all_rules", |b| {
         b.iter(|| lint(black_box(&doc)));
     });
-
-    // Collect metrics for all rules
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = lint(&doc);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("overhead_all_rules", total_ns, iterations, None);
 
     group.finish();
 }
@@ -1210,26 +1319,11 @@ fn bench_diagnostic_limits(c: &mut Criterion) {
         config.max_diagnostics = limit;
 
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("limit_{}", limit)),
+            BenchmarkId::from_parameter(format!("limit_{limit}")),
             &doc,
             |b, doc| {
                 b.iter(|| lint_with_config(black_box(doc), config.clone()));
             },
-        );
-
-        // Collect metrics for report
-        let iterations = 10u64; // Fewer iterations for stress test
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint_with_config(&doc, config.clone());
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("diagnostic_limit_{}", limit),
-            total_ns,
-            iterations,
-            None,
         );
     }
 
@@ -1246,26 +1340,11 @@ fn bench_graph_linting(c: &mut Criterion) {
         let doc = parse_hedl(&hedl);
 
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("{}_edges_per_node", edge_density)),
+            BenchmarkId::from_parameter(format!("{edge_density}_edges_per_node")),
             &doc,
             |b, doc| {
                 b.iter(|| lint(black_box(doc)));
             },
-        );
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint(&doc);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("graph_linting_{}_edges", edge_density),
-            total_ns,
-            iterations,
-            None,
         );
     }
 
@@ -1282,26 +1361,11 @@ fn bench_deep_hierarchy_linting(c: &mut Criterion) {
         let doc = parse_hedl(&hedl);
 
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("divisions_{}", divisions)),
+            BenchmarkId::from_parameter(format!("divisions_{divisions}")),
             &doc,
             |b, doc| {
                 b.iter(|| lint(black_box(doc)));
             },
-        );
-
-        // Collect metrics for report
-        let iterations = if divisions >= 200 { 50 } else { 100 };
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = lint(&doc);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("deep_hierarchy_{}_divisions", divisions),
-            total_ns,
-            iterations,
-            None,
         );
     }
 
@@ -1323,22 +1387,6 @@ fn bench_full_workflow(c: &mut Criterion) {
                 black_box(diagnostics)
             });
         });
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let doc = parse_hedl(&hedl);
-            let _ = lint(&doc);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("full_workflow_{}", size),
-            total_ns,
-            iterations,
-            Some(hedl.len() as u64),
-        );
     }
 
     group.finish();
@@ -1356,16 +1404,6 @@ fn bench_config_overhead(c: &mut Criterion) {
         b.iter(|| lint(black_box(&doc)));
     });
 
-    // Collect metrics for default config
-    let iterations = 100u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = lint(&doc);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("config_default", total_ns, iterations, None);
-
     // Custom config with rule modifications
     group.bench_function("custom_config", |b| {
         let mut config = LintConfig::default();
@@ -1374,18 +1412,6 @@ fn bench_config_overhead(c: &mut Criterion) {
 
         b.iter(|| lint_with_config(black_box(&doc), config.clone()));
     });
-
-    // Collect metrics for custom config
-    let mut config_custom = LintConfig::default();
-    config_custom.set_rule_error("unused-schema");
-    config_custom.min_severity = Severity::Warning;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = lint_with_config(&doc, config_custom.clone());
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("config_custom", total_ns, iterations, None);
 
     group.finish();
 }

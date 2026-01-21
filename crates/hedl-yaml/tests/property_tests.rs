@@ -49,7 +49,7 @@ fn arb_scalar_value() -> impl Strategy<Value = Value> {
         4 => any::<bool>().prop_map(Value::Bool),
         4 => any::<i64>().prop_map(Value::Int),
         3 => arb_finite_f64().prop_map(Value::Float),
-        5 => "[a-zA-Z0-9_ ]{0,50}".prop_map(Value::String),
+        5 => "[a-zA-Z0-9_ ]{0,50}".prop_map(|s: String| Value::String(s.into())),
     ]
 }
 
@@ -60,9 +60,13 @@ fn arb_unicode_string() -> impl Strategy<Value = String> {
         3 => "[a-zA-Z0-9_ ]{1,30}",
         // Unicode (safe subset)
         1 => "[\\p{L}\\p{N} ]{1,30}",
-        // Special characters
-        1 => "[!@#$%^&*()_+\\-=\\[\\]{};':\",./<>?]{1,20}",
+        // Special characters (excluding & and * which are YAML anchor/alias markers)
+        1 => "[!@#$%^()_+\\-=\\[\\]{};':\",./<>?]{1,20}",
     ]
+    .prop_filter("Exclude YAML anchor/alias syntax", |s| {
+        // Filter out strings that start with & or * as they look like YAML anchors/aliases
+        !s.starts_with('&') && !s.starts_with('*')
+    })
 }
 
 /// Strategy for generating reference values.
@@ -86,7 +90,7 @@ fn arb_tensor_value() -> impl Strategy<Value = Value> {
         5,  // items per collection
         |inner| prop::collection::vec(inner, 1..6).prop_map(Tensor::Array),
     )
-    .prop_map(Value::Tensor)
+    .prop_map(|t| Value::Tensor(Box::new(t)))
 }
 
 /// Strategy for generating any value type.
@@ -162,9 +166,9 @@ fn arb_matrix_list() -> impl Strategy<Value = MatrixList> {
 
             // Create nodes with matching field count
             for (i, value) in values.iter().enumerate() {
-                let id = format!("id_{}", i);
+                let id = format!("id_{i}");
                 // Per SPEC: fields must include ALL schema columns including ID
-                let mut fields = vec![Value::String(id.clone())]; // ID field
+                let mut fields = vec![Value::String(id.clone().into())]; // ID field
                 fields.push(value.clone()); // First data field
                                             // Pad with nulls to match schema length
                 while fields.len() < final_schema.len() {
@@ -181,7 +185,14 @@ fn arb_matrix_list() -> impl Strategy<Value = MatrixList> {
 /// Strategy for generating documents.
 fn arb_document() -> impl Strategy<Value = Document> {
     (arb_simple_object(), prop::option::of(arb_matrix_list())).prop_map(|(root, maybe_list)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
 
         // Add simple objects to root
         for (key, item) in root {
@@ -294,8 +305,8 @@ fn items_equal(a: &Item, b: &Item) -> bool {
                 // This is a simplification - ideally we'd map by schema column names
                 let mut a_fields = ra.fields.clone();
                 let mut b_fields = rb.fields.clone();
-                a_fields.sort_by(|x, y| format!("{:?}", x).cmp(&format!("{:?}", y)));
-                b_fields.sort_by(|x, y| format!("{:?}", x).cmp(&format!("{:?}", y)));
+                a_fields.sort_by(|x, y| format!("{x:?}").cmp(&format!("{y:?}")));
+                b_fields.sort_by(|x, y| format!("{x:?}").cmp(&format!("{y:?}")));
 
                 if !a_fields
                     .iter()
@@ -326,16 +337,16 @@ proptest! {
     /// - Value (42 → 42, not "42")
     #[test]
     fn roundtrip_preserves_scalars(value in arb_scalar_value()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("test".to_string(), Item::Scalar(value.clone()));
 
         let config = ToYamlConfig::default();
         let yaml = to_yaml(&doc, &config)
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let from_config = FromYamlConfig::default();
         let restored = from_yaml(&yaml, &from_config)
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("test")
             .ok_or_else(|| TestCaseError::fail("Missing 'test' key"))?;
@@ -352,14 +363,14 @@ proptest! {
     /// References should maintain their type_name and id fields.
     #[test]
     fn roundtrip_preserves_references(ref_value in arb_reference()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("ref".to_string(), Item::Scalar(ref_value.clone()));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("ref")
             .ok_or_else(|| TestCaseError::fail("Missing 'ref' key"))?
@@ -375,14 +386,14 @@ proptest! {
     /// Tensor structure and values should be preserved.
     #[test]
     fn roundtrip_preserves_tensors(tensor_value in arb_tensor_value()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("tensor".to_string(), Item::Scalar(tensor_value.clone()));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("tensor")
             .ok_or_else(|| TestCaseError::fail("Missing 'tensor' key"))?
@@ -398,14 +409,14 @@ proptest! {
     /// Object structure, keys, and values should be preserved.
     #[test]
     fn roundtrip_preserves_objects(obj in arb_simple_object()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("obj".to_string(), Item::Object(obj.clone()));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("obj")
             .ok_or_else(|| TestCaseError::fail("Missing 'obj' key"))?
@@ -416,7 +427,7 @@ proptest! {
 
         for (key, value) in &obj {
             let result_value = result.get(key)
-                .ok_or_else(|| TestCaseError::fail(format!("Missing key: {}", key)))?;
+                .ok_or_else(|| TestCaseError::fail(format!("Missing key: {key}")))?;
             prop_assert!(items_equal(value, result_value),
                 "Value mismatch for key '{}': {:?} vs {:?}", key, value, result_value);
         }
@@ -428,14 +439,14 @@ proptest! {
     /// Note: Empty lists may have their type_name changed to a default value.
     #[test]
     fn roundtrip_preserves_matrix_lists(list in arb_matrix_list()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("list".to_string(), Item::List(list.clone()));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("list")
             .ok_or_else(|| TestCaseError::fail("Missing 'list' key"))?
@@ -463,17 +474,17 @@ proptest! {
     #[test]
     fn roundtrip_preserves_documents(doc in arb_document()) {
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         prop_assert_eq!(restored.version, doc.version, "Version mismatch");
         prop_assert_eq!(restored.root.len(), doc.root.len(), "Root size mismatch");
 
         for (key, value) in &doc.root {
             let result_value = restored.root.get(key)
-                .ok_or_else(|| TestCaseError::fail(format!("Missing key: {}", key)))?;
+                .ok_or_else(|| TestCaseError::fail(format!("Missing key: {key}")))?;
             prop_assert!(items_equal(value, result_value),
                 "Value mismatch for key '{}'", key);
         }
@@ -482,7 +493,7 @@ proptest! {
     /// Property: Empty structures roundtrip correctly.
     #[test]
     fn roundtrip_empty_structures(_x in 0..10u32) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
 
         // Empty object
         doc.root.insert("empty_obj".to_string(), Item::Object(BTreeMap::new()));
@@ -492,20 +503,20 @@ proptest! {
         doc.root.insert("empty_list".to_string(), Item::List(empty_list));
 
         // Empty string
-        doc.root.insert("empty_str".to_string(), Item::Scalar(Value::String(String::new())));
+        doc.root.insert("empty_str".to_string(), Item::Scalar(Value::String(String::new().into())));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         prop_assert_eq!(restored.root.len(), 3);
 
         // Verify empty object
         let empty_obj = restored.root.get("empty_obj")
             .and_then(|i| i.as_object());
-        prop_assert!(empty_obj.is_some_and(|o| o.is_empty()));
+        prop_assert!(empty_obj.is_some_and(std::collections::BTreeMap::is_empty));
 
         // Verify empty list
         let empty_list = restored.root.get("empty_list")
@@ -521,14 +532,14 @@ proptest! {
     /// Property: Unicode strings are preserved.
     #[test]
     fn roundtrip_unicode_strings(s in arb_unicode_string()) {
-        let mut doc = Document::new((1, 0));
-        doc.root.insert("text".to_string(), Item::Scalar(Value::String(s.clone())));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
+        doc.root.insert("text".to_string(), Item::Scalar(Value::String(s.clone().into())));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("text")
             .and_then(|i| i.as_scalar())
@@ -540,14 +551,14 @@ proptest! {
     /// Property: Nested objects preserve depth and structure.
     #[test]
     fn roundtrip_nested_objects(obj in arb_object(5)) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("nested".to_string(), Item::Object(obj.clone()));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("nested")
             .ok_or_else(|| TestCaseError::fail("Missing 'nested' key"))?;
@@ -559,14 +570,14 @@ proptest! {
     /// Property: Type preservation - integers stay integers.
     #[test]
     fn type_preservation_integers(n in any::<i64>()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("num".to_string(), Item::Scalar(Value::Int(n)));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("num")
             .and_then(|i| i.as_scalar());
@@ -578,14 +589,14 @@ proptest! {
     /// Property: Type preservation - booleans stay booleans.
     #[test]
     fn type_preservation_booleans(b in any::<bool>()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("flag".to_string(), Item::Scalar(Value::Bool(b)));
 
         let yaml = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml failed: {e}")))?;
 
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
         let result = restored.root.get("flag")
             .and_then(|i| i.as_scalar());
@@ -597,20 +608,20 @@ proptest! {
     /// Property: Multiple roundtrips produce stable results.
     #[test]
     fn multiple_roundtrips_stable(value in arb_scalar_value()) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
         doc.root.insert("test".to_string(), Item::Scalar(value));
 
         // First roundtrip
         let yaml1 = to_yaml(&doc, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml 1 failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml 1 failed: {e}")))?;
         let doc1 = from_yaml(&yaml1, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml 1 failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml 1 failed: {e}")))?;
 
         // Second roundtrip
         let yaml2 = to_yaml(&doc1, &ToYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("to_yaml 2 failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("to_yaml 2 failed: {e}")))?;
         let doc2 = from_yaml(&yaml2, &FromYamlConfig::default())
-            .map_err(|e| TestCaseError::fail(format!("from_yaml 2 failed: {}", e)))?;
+            .map_err(|e| TestCaseError::fail(format!("from_yaml 2 failed: {e}")))?;
 
         // Values should be stable
         let val1 = doc1.root.get("test").and_then(|i| i.as_scalar());
@@ -635,7 +646,14 @@ proptest! {
 
 #[test]
 fn test_null_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("null".to_string(), Item::Scalar(Value::Null));
 
@@ -650,7 +668,14 @@ fn test_null_roundtrip() {
 
 #[test]
 fn test_zero_values_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("zero_int".to_string(), Item::Scalar(Value::Int(0)));
     doc.root
@@ -673,11 +698,18 @@ fn test_zero_values_roundtrip() {
 #[test]
 #[allow(clippy::approx_constant)]
 fn test_negative_numbers_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("neg_int".to_string(), Item::Scalar(Value::Int(-42)));
     doc.root
-        .insert("neg_float".to_string(), Item::Scalar(Value::Float(-3.14)));
+        .insert("neg_float".to_string(), Item::Scalar(Value::Float(-3.15)));
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
@@ -688,7 +720,7 @@ fn test_negative_numbers_roundtrip() {
     );
 
     if let Some(Value::Float(f)) = restored.root.get("neg_float").and_then(|i| i.as_scalar()) {
-        assert!((f + 3.14).abs() < 1e-10);
+        assert!((f + 3.15).abs() < 1e-10);
     } else {
         panic!("Expected negative float");
     }
@@ -696,7 +728,14 @@ fn test_negative_numbers_roundtrip() {
 
 #[test]
 fn test_extreme_integers_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root
         .insert("max_int".to_string(), Item::Scalar(Value::Int(i64::MAX)));
     doc.root
@@ -717,22 +756,29 @@ fn test_extreme_integers_roundtrip() {
 
 #[test]
 fn test_special_strings_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "newline".to_string(),
-        Item::Scalar(Value::String("line1\nline2".to_string())),
+        Item::Scalar(Value::String("line1\nline2".to_string().into())),
     );
     doc.root.insert(
         "tab".to_string(),
-        Item::Scalar(Value::String("col1\tcol2".to_string())),
+        Item::Scalar(Value::String("col1\tcol2".to_string().into())),
     );
     doc.root.insert(
         "quote".to_string(),
-        Item::Scalar(Value::String("He said \"hello\"".to_string())),
+        Item::Scalar(Value::String("He said \"hello\"".to_string().into())),
     );
     doc.root.insert(
         "backslash".to_string(),
-        Item::Scalar(Value::String("path\\to\\file".to_string())),
+        Item::Scalar(Value::String("path\\to\\file".to_string().into())),
     );
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
@@ -774,7 +820,14 @@ fn test_special_strings_roundtrip() {
 
 #[test]
 fn test_deeply_nested_object_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
 
     // Create 5 levels of nesting
     let mut level5 = BTreeMap::new();
@@ -814,7 +867,14 @@ fn test_deeply_nested_object_roundtrip() {
 
 #[test]
 fn test_local_reference_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "ref".to_string(),
         Item::Scalar(Value::Reference(Reference::local("target"))),
@@ -825,7 +885,7 @@ fn test_local_reference_roundtrip() {
 
     if let Some(Value::Reference(r)) = restored.root.get("ref").and_then(|i| i.as_scalar()) {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "target");
+        assert_eq!(r.id.as_ref(), "target");
     } else {
         panic!("Expected local reference");
     }
@@ -833,7 +893,14 @@ fn test_local_reference_roundtrip() {
 
 #[test]
 fn test_qualified_reference_roundtrip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document {
+        version: (1, 0),
+        aliases: BTreeMap::new(),
+        root: BTreeMap::new(),
+        structs: BTreeMap::new(),
+        nests: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+    };
     doc.root.insert(
         "ref".to_string(),
         Item::Scalar(Value::Reference(Reference::qualified("User", "alice"))),
@@ -843,8 +910,8 @@ fn test_qualified_reference_roundtrip() {
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
 
     if let Some(Value::Reference(r)) = restored.root.get("ref").and_then(|i| i.as_scalar()) {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(r.id.as_ref(), "alice");
     } else {
         panic!("Expected qualified reference");
     }

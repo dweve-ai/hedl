@@ -18,7 +18,7 @@
 //!
 //! This test suite validates thread safety across all LSP components:
 //!
-//! 1. **DocumentManager** - Concurrent document operations
+//! 1. **`DocumentManager`** - Concurrent document operations
 //! 2. **Analysis** - Concurrent analysis while reading
 //! 3. **Cache** - LRU eviction under concurrent load
 //! 4. **Reference Index** - Concurrent lookups during updates
@@ -27,16 +27,16 @@
 //!
 //! # Test Strategy
 //!
-//! - **Standard Tests**: Use std::thread for realistic concurrency scenarios
+//! - **Standard Tests**: Use `std::thread` for realistic concurrency scenarios
 //! - **Loom Tests**: Use loom for exhaustive concurrency testing (smaller scenarios)
 //! - **Stress Tests**: High thread count (10+) for finding rare race conditions
 //!
 //! # Thread Safety Requirements
 //!
-//! - DocumentManager uses DashMap (lock-free concurrent hash map)
-//! - DocumentState uses parking_lot::Mutex for fine-grained locking
-//! - AnalyzedDocument is wrapped in Arc for shared ownership
-//! - ReferenceIndex operations must be atomic
+//! - `DocumentManager` uses `DashMap` (lock-free concurrent hash map)
+//! - `DocumentState` uses `parking_lot::Mutex` for fine-grained locking
+//! - `AnalyzedDocument` is wrapped in Arc for shared ownership
+//! - `ReferenceIndex` operations must be atomic
 
 use hedl_lsp::document_manager::DocumentManager;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -58,25 +58,24 @@ fn simple_prng(seed: &mut u32) -> u32 {
 /// Sample HEDL document for testing
 fn sample_document(variant: usize) -> String {
     format!(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: User: [id, name, email]
 %STRUCT: Post: [id, title, author]
 ---
 users: @User
-  | user{}, User {}, user{}@example.com
+  | user{variant}, User {variant}, user{variant}@example.com
   | other, Other User, other@example.com
 
 posts: @Post
-  | post{}, Post {}, @User:user{}
+  | post{variant}, Post {variant}, @User:user{variant}
   | post2, Another Post, @User:other
-"#,
-        variant, variant, variant, variant, variant, variant
+"
     )
 }
 
 /// Create a test URI with variant number
 fn test_uri(id: usize) -> Url {
-    Url::parse(&format!("file:///test{}.hedl", id)).unwrap()
+    Url::parse(&format!("file:///test{id}.hedl")).unwrap()
 }
 
 // ============================================================================
@@ -440,10 +439,7 @@ fn test_concurrent_cache_access_patterns() {
         }
     }
 
-    println!(
-        "Hot documents in cache: {}/{}",
-        hot_docs_present, num_hot_docs
-    );
+    println!("Hot documents in cache: {hot_docs_present}/{num_hot_docs}");
     // Most hot documents should still be present (but not guaranteed due to concurrency)
 }
 
@@ -459,7 +455,7 @@ fn test_concurrent_reference_lookups() {
     let num_threads = 15;
 
     // Insert document with references
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Post: [id, author]
 ---
@@ -474,7 +470,7 @@ posts: @Post
   | p3, @User:alice
   | p4, @User:charlie
   | p5, @User:alice
-"#;
+";
     manager.insert_or_update(&uri, content);
 
     let handles: Vec<_> = (0..num_threads)
@@ -752,8 +748,7 @@ fn test_memory_consistency_after_updates() {
             let uri = uri.clone();
             thread::spawn(move || {
                 let content = format!(
-                    "%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n  | thread_{}\n",
-                    thread_id
+                    "%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n  | thread_{thread_id}\n"
                 );
                 manager.insert_or_update(&uri, &content);
             })
@@ -777,7 +772,7 @@ fn test_memory_consistency_after_updates() {
                 .take_while(|c| c.is_numeric())
                 .collect::<String>();
             if let Ok(thread_num) = thread_num_str.parse::<usize>() {
-                println!("Final document is from thread {}", thread_num);
+                println!("Final document is from thread {thread_num}");
                 assert!(thread_num < num_threads);
             }
         }

@@ -126,7 +126,7 @@ fn test_invalid_integer_type() {
             assert_eq!(expected_type, "xs:integer");
             assert_eq!(value, "thirty");
         }
-        other => panic!("Expected TypeValidationError, got {:?}", other),
+        other => panic!("Expected TypeValidationError, got {other:?}"),
     }
 }
 
@@ -148,7 +148,7 @@ fn test_unknown_element_error() {
         ValidationError::UnknownElement { element, .. } => {
             assert_eq!(element, "phone");
         }
-        other => panic!("Expected UnknownElement, got {:?}", other),
+        other => panic!("Expected UnknownElement, got {other:?}"),
     }
 }
 
@@ -183,16 +183,14 @@ fn test_boolean_type_validation() {
 <product>
   <name>Widget</name>
   <price>19.99</price>
-  <available>{}</available>
+  <available>{bool_val}</available>
   <stock>100</stock>
-</product>"#,
-            bool_val
+</product>"#
         );
 
         assert!(
             validator.validate(&xml).is_ok(),
-            "Failed to validate boolean value: {}",
-            bool_val
+            "Failed to validate boolean value: {bool_val}"
         );
     }
 
@@ -342,7 +340,7 @@ fn test_schema_cache_eviction() {
     // Create 3 schema files
     let mut paths = vec![];
     for i in 0..3 {
-        let path = temp_dir.path().join(format!("schema{}.xsd", i));
+        let path = temp_dir.path().join(format!("schema{i}.xsd"));
         fs::write(&path, PERSON_SCHEMA).unwrap();
         paths.push(path);
     }
@@ -429,7 +427,7 @@ fn test_validator_file_not_found() {
         ValidationError::SchemaNotFound { path } => {
             assert_eq!(path.to_str().unwrap(), "/nonexistent/path/schema.xsd");
         }
-        other => panic!("Expected SchemaNotFound, got {:?}", other),
+        other => panic!("Expected SchemaNotFound, got {other:?}"),
     }
 }
 

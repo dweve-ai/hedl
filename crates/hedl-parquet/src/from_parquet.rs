@@ -64,6 +64,7 @@
 //!
 //! See `SECURITY.md` for detailed threat model and mitigation strategies.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -74,8 +75,38 @@ use arrow::array::{
 use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::arrow::ProjectionMask;
 
 use hedl_core::{Document, HedlError, HedlErrorKind, Item, MatrixList, Node, Value};
+
+use crate::config::{FromParquetConfig, NullIdHandling};
+use crate::predicate::{filter_batch, Predicate};
+
+/// Calculate optimal batch size based on schema characteristics.
+///
+/// Analyzes the schema to determine:
+/// - Number of columns
+/// - Proportion of variable-length string columns
+///
+/// Then delegates to `BatchSize::get_effective_size` for the actual calculation.
+fn calculate_batch_size(
+    schema: &Arc<arrow::datatypes::Schema>,
+    batch_size_config: &crate::config::BatchSize,
+) -> usize {
+    let num_columns = schema.fields().len();
+
+    // Count string columns to determine if schema is string-heavy
+    let string_column_count = schema
+        .fields()
+        .iter()
+        .filter(|f| matches!(f.data_type(), DataType::Utf8 | DataType::LargeUtf8))
+        .count();
+
+    // Consider "many strings" if > 30% of columns are strings
+    let has_many_strings = num_columns > 0 && (string_column_count * 100 / num_columns) > 30;
+
+    batch_size_config.get_effective_size(num_columns, has_many_strings)
+}
 
 /// Maximum decompressed data size in bytes (prevents decompression bombs).
 ///
@@ -84,7 +115,7 @@ use hedl_core::{Document, HedlError, HedlErrorKind, Item, MatrixList, Node, Valu
 /// exhaustion. This limit ensures files are rejected after 100 MB of decompressed data.
 ///
 /// Default: 100 MB
-const MAX_DECOMPRESSED_SIZE: usize = 100 * 1024 * 1024;
+pub(crate) const MAX_DECOMPRESSED_SIZE: usize = 100 * 1024 * 1024;
 
 /// Maximum number of columns in a schema (prevents large schema attacks).
 ///
@@ -93,9 +124,12 @@ const MAX_DECOMPRESSED_SIZE: usize = 100 * 1024 * 1024;
 /// reasonably wide tables.
 ///
 /// Default: 1,000 columns
-const MAX_COLUMNS: usize = 1000;
+pub(crate) const MAX_COLUMNS: usize = 1000;
 
-/// Read a HEDL document from a Parquet file.
+/// Read a HEDL document from a Parquet file with default configuration (strict mode).
+///
+/// This function uses strict mode which rejects null IDs. For lenient parsing,
+/// use `from_parquet_with_config`.
 ///
 /// # Arguments
 ///
@@ -107,6 +141,7 @@ const MAX_COLUMNS: usize = 1000;
 /// - The file cannot be read
 /// - The Parquet format is invalid
 /// - The data cannot be converted to HEDL
+/// - Any ID column contains null values (strict mode)
 ///
 /// # Example
 ///
@@ -117,13 +152,36 @@ const MAX_COLUMNS: usize = 1000;
 /// let doc = from_parquet(Path::new("input.parquet")).unwrap();
 /// ```
 pub fn from_parquet(path: &Path) -> Result<Document, HedlError> {
-    let file = std::fs::File::open(path)
-        .map_err(|e| HedlError::io(format!("Failed to open Parquet file: {}", e)))?;
-
-    read_parquet_from_file(file)
+    from_parquet_with_config(path, &FromParquetConfig::default())
 }
 
-/// Read a HEDL document from Parquet bytes.
+/// Read a HEDL document from a Parquet file with custom configuration.
+///
+/// # Arguments
+///
+/// * `path` - Path to the Parquet file to read
+/// * `config` - Configuration for handling edge cases like null IDs
+///
+/// # Example
+///
+/// ```no_run
+/// use hedl_parquet::{from_parquet_with_config, FromParquetConfig};
+/// use std::path::Path;
+///
+/// let config = FromParquetConfig::lenient();
+/// let doc = from_parquet_with_config(Path::new("input.parquet"), &config).unwrap();
+/// ```
+pub fn from_parquet_with_config(
+    path: &Path,
+    config: &FromParquetConfig,
+) -> Result<Document, HedlError> {
+    let file = std::fs::File::open(path)
+        .map_err(|e| HedlError::io(format!("Failed to open Parquet file: {e}")))?;
+
+    read_parquet_from_file(file, config)
+}
+
+/// Read a HEDL document from Parquet bytes with default configuration (strict mode).
 ///
 /// # Example
 ///
@@ -134,44 +192,87 @@ pub fn from_parquet(path: &Path) -> Result<Document, HedlError> {
 /// let doc = from_parquet_bytes(&bytes).unwrap();
 /// ```
 pub fn from_parquet_bytes(bytes: &[u8]) -> Result<Document, HedlError> {
+    from_parquet_bytes_with_config(bytes, &FromParquetConfig::default())
+}
+
+/// Read a HEDL document from Parquet bytes with custom configuration.
+///
+/// # Example
+///
+/// ```no_run
+/// use hedl_parquet::{from_parquet_bytes_with_config, FromParquetConfig};
+///
+/// let bytes = vec![]; // Some Parquet bytes
+/// let config = FromParquetConfig::lenient();
+/// let doc = from_parquet_bytes_with_config(&bytes, &config).unwrap();
+/// ```
+pub fn from_parquet_bytes_with_config(
+    bytes: &[u8],
+    config: &FromParquetConfig,
+) -> Result<Document, HedlError> {
     // Convert to bytes::Bytes for ChunkReader implementation
     let bytes_data = bytes::Bytes::copy_from_slice(bytes);
 
-    let builder = ParquetRecordBatchReaderBuilder::try_new(bytes_data)
-        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {}", e)))?;
+    let mut builder = ParquetRecordBatchReaderBuilder::try_new(bytes_data)
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {e}")))?;
 
     // Extract file metadata before building reader
     let file_metadata = builder.metadata().file_metadata();
     let hedl_metadata = extract_hedl_metadata(file_metadata);
 
+    // Get schema to determine batch size (clone to avoid borrow issues)
+    let full_schema = builder.schema().clone();
+
+    // Calculate optimal batch size based on schema characteristics
+    let batch_size = calculate_batch_size(&full_schema, &config.batch_size);
+    builder = builder.with_batch_size(batch_size);
+
+    // Apply column projection if specified
+    if let Some(ref column_names) = config.columns {
+        let column_indices = validate_and_map_columns(&full_schema, column_names)?;
+        let projection = ProjectionMask::roots(builder.parquet_schema(), column_indices);
+        builder = builder.with_projection(projection);
+    }
+
     let arrow_reader = builder
         .build()
-        .map_err(|e| HedlError::io(format!("Failed to build Parquet reader: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to build Parquet reader: {e}")))?;
 
-    read_batches(arrow_reader, hedl_metadata)
+    read_batches(arrow_reader, hedl_metadata, config)
 }
 
 /// Read Parquet data from a File.
-fn read_parquet_from_file(file: std::fs::File) -> Result<Document, HedlError> {
-    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
-        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {}", e)))?;
+fn read_parquet_from_file(
+    file: std::fs::File,
+    config: &FromParquetConfig,
+) -> Result<Document, HedlError> {
+    let mut builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {e}")))?;
 
     // Extract file metadata before building reader
     let file_metadata = builder.metadata().file_metadata();
     let hedl_metadata = extract_hedl_metadata(file_metadata);
 
+    // Apply column projection if specified
+    if let Some(ref column_names) = config.columns {
+        let full_schema = builder.schema();
+        let column_indices = validate_and_map_columns(full_schema, column_names)?;
+        let projection = ProjectionMask::roots(builder.parquet_schema(), column_indices);
+        builder = builder.with_projection(projection);
+    }
+
     let arrow_reader = builder
         .build()
-        .map_err(|e| HedlError::io(format!("Failed to build Parquet reader: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to build Parquet reader: {e}")))?;
 
-    read_batches(arrow_reader, hedl_metadata)
+    read_batches(arrow_reader, hedl_metadata, config)
 }
 
 /// HEDL metadata extracted from Parquet file.
 #[derive(Debug, Clone, Default)]
-struct HedlMetadata {
-    type_name: Option<String>,
-    key: Option<String>,
+pub(crate) struct HedlMetadata {
+    pub(crate) type_name: Option<String>,
+    pub(crate) key: Option<String>,
 }
 
 /// Validate that a string is a valid HEDL identifier.
@@ -181,8 +282,7 @@ fn is_valid_identifier(name: &str) -> bool {
         && name
             .chars()
             .next()
-            .map(|c| c.is_alphabetic() || c == '_')
-            .unwrap_or(false)
+            .is_some_and(|c| c.is_alphabetic() || c == '_')
         && name.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
@@ -195,7 +295,9 @@ fn is_valid_identifier(name: &str) -> bool {
 /// - `hedl:key` - The key name for the list in the document
 ///
 /// Both values are validated as valid HEDL identifiers before use.
-fn extract_hedl_metadata(file_metadata: &parquet::file::metadata::FileMetaData) -> HedlMetadata {
+pub(crate) fn extract_hedl_metadata(
+    file_metadata: &parquet::file::metadata::FileMetaData,
+) -> HedlMetadata {
     let mut metadata = HedlMetadata::default();
 
     if let Some(kv_metadata) = file_metadata.key_value_metadata() {
@@ -226,14 +328,15 @@ fn extract_hedl_metadata(file_metadata: &parquet::file::metadata::FileMetaData) 
 fn read_batches(
     arrow_reader: impl Iterator<Item = Result<RecordBatch, arrow::error::ArrowError>>,
     hedl_metadata: HedlMetadata,
+    config: &FromParquetConfig,
 ) -> Result<Document, HedlError> {
     let mut doc = Document::new((1, 0));
     let mut total_bytes = 0usize;
 
     // Read all record batches
     for batch_result in arrow_reader {
-        let batch = batch_result
-            .map_err(|e| HedlError::io(format!("Failed to read record batch: {}", e)))?;
+        let batch =
+            batch_result.map_err(|e| HedlError::io(format!("Failed to read record batch: {e}")))?;
 
         // Security: Track decompressed data size to prevent decompression bombs
         let batch_bytes = estimate_batch_size(&batch);
@@ -244,21 +347,102 @@ fn read_batches(
         if total_bytes > MAX_DECOMPRESSED_SIZE {
             return Err(HedlError::security(
                 format!(
-                    "Decompressed size limit exceeded: {} bytes (max: {} bytes)",
-                    total_bytes, MAX_DECOMPRESSED_SIZE
+                    "Decompressed size limit exceeded: {total_bytes} bytes (max: {MAX_DECOMPRESSED_SIZE} bytes)"
                 ),
                 0,
             ));
         }
 
-        convert_record_batch_to_hedl(&batch, &mut doc, &hedl_metadata)?;
+        convert_record_batch_to_hedl(&batch, &mut doc, &hedl_metadata, config)?;
+    }
+
+    // Validate unique IDs after all batches are processed (defense in depth)
+    for item in doc.root.values() {
+        if let Item::List(list) = item {
+            validate_unique_ids(&list.rows)?;
+        }
     }
 
     Ok(doc)
 }
 
-/// Estimate the size of a RecordBatch in bytes.
-fn estimate_batch_size(batch: &RecordBatch) -> usize {
+/// Read all record batches with optional in-memory predicate filtering.
+///
+/// This function is used when predicate pushdown is enabled. After row group
+/// selection (coarse filtering), this applies fine-grained row-level filtering
+/// to each batch.
+///
+/// # Arguments
+///
+/// * `arrow_reader` - Iterator over record batches from selected row groups
+/// * `hedl_metadata` - HEDL metadata extracted from the Parquet file
+/// * `predicate` - Optional predicate for row-level filtering
+/// * `config` - Configuration for handling edge cases like null IDs
+///
+/// # Performance
+///
+/// When a predicate is provided, rows that don't match are filtered out before
+/// being converted to HEDL, reducing memory usage and processing time.
+///
+/// Note: This function is available for predicate pushdown implementations.
+/// Currently, row group filtering via statistics is the primary optimization path.
+#[allow(dead_code)]
+fn read_batches_filtered(
+    arrow_reader: impl Iterator<Item = Result<RecordBatch, arrow::error::ArrowError>>,
+    hedl_metadata: HedlMetadata,
+    predicate: Option<&Predicate>,
+    config: &FromParquetConfig,
+) -> Result<Document, HedlError> {
+    let mut doc = Document::new((1, 0));
+    let mut total_bytes = 0usize;
+
+    // Read all record batches
+    for batch_result in arrow_reader {
+        let batch =
+            batch_result.map_err(|e| HedlError::io(format!("Failed to read record batch: {e}")))?;
+
+        // Security: Track decompressed data size to prevent decompression bombs
+        let batch_bytes = estimate_batch_size(&batch);
+        total_bytes = total_bytes
+            .checked_add(batch_bytes)
+            .ok_or_else(|| HedlError::security("decompressed size calculation overflow", 0))?;
+
+        if total_bytes > MAX_DECOMPRESSED_SIZE {
+            return Err(HedlError::security(
+                format!(
+                    "Decompressed size limit exceeded: {total_bytes} bytes (max: {MAX_DECOMPRESSED_SIZE} bytes)"
+                ),
+                0,
+            ));
+        }
+
+        // Apply in-memory filtering if a predicate is specified
+        let filtered_batch = if let Some(pred) = predicate {
+            let filtered = filter_batch(&batch, pred)?;
+            // Skip empty batches after filtering
+            if filtered.num_rows() == 0 {
+                continue;
+            }
+            filtered
+        } else {
+            batch
+        };
+
+        convert_record_batch_to_hedl(&filtered_batch, &mut doc, &hedl_metadata, config)?;
+    }
+
+    // Validate unique IDs after all batches are processed (defense in depth)
+    for item in doc.root.values() {
+        if let Item::List(list) = item {
+            validate_unique_ids(&list.rows)?;
+        }
+    }
+
+    Ok(doc)
+}
+
+/// Estimate the size of a `RecordBatch` in bytes.
+pub(crate) fn estimate_batch_size(batch: &RecordBatch) -> usize {
     let mut size = 0;
     for column in batch.columns() {
         size += column.get_array_memory_size();
@@ -266,11 +450,12 @@ fn estimate_batch_size(batch: &RecordBatch) -> usize {
     size
 }
 
-/// Convert a RecordBatch to HEDL structure.
-fn convert_record_batch_to_hedl(
+/// Convert a `RecordBatch` to HEDL structure.
+pub(crate) fn convert_record_batch_to_hedl(
     batch: &RecordBatch,
     doc: &mut Document,
     hedl_metadata: &HedlMetadata,
+    config: &FromParquetConfig,
 ) -> Result<(), HedlError> {
     let schema = batch.schema();
 
@@ -292,7 +477,7 @@ fn convert_record_batch_to_hedl(
     }
 
     // Otherwise, treat it as a matrix list
-    convert_to_matrix_list(batch, doc, hedl_metadata)
+    convert_to_matrix_list(batch, doc, hedl_metadata, config)
 }
 
 /// Check if the schema represents a metadata table (key, value columns).
@@ -341,13 +526,14 @@ fn convert_metadata_table(batch: &RecordBatch, doc: &mut Document) -> Result<(),
 /// Processes rows sequentially to maintain order:
 /// - Iterates from `row_idx = 0` to `batch.num_rows() - 1`
 /// - Converts each row to a Node in order
-/// - Appends nodes to MatrixList preserving order
+/// - Appends nodes to `MatrixList` preserving order
 ///
 /// This guarantees Parquet row `i` → `MatrixList.rows[i]`.
 fn convert_to_matrix_list(
     batch: &RecordBatch,
     doc: &mut Document,
     hedl_metadata: &HedlMetadata,
+    config: &FromParquetConfig,
 ) -> Result<(), HedlError> {
     let schema = batch.schema();
     let num_rows = batch.num_rows();
@@ -363,7 +549,9 @@ fn convert_to_matrix_list(
         .map(|f| {
             let name = f.name();
             // Security: Validate column names are valid identifiers
-            if !is_valid_identifier(name) {
+            if is_valid_identifier(name) {
+                name.clone()
+            } else {
                 // Sanitize invalid identifiers by replacing invalid chars with underscore
                 name.chars()
                     .map(|c| {
@@ -376,8 +564,6 @@ fn convert_to_matrix_list(
                     .collect::<String>()
                     .trim_matches('_')
                     .to_string()
-            } else {
-                name.clone()
             }
         })
         .collect();
@@ -403,24 +589,35 @@ fn convert_to_matrix_list(
         .clone()
         .unwrap_or_else(|| format!("{}s", type_name.to_lowercase()));
 
-    let mut matrix_list = MatrixList::new(&type_name, column_names.clone());
+    // Get or create the matrix list for this type
+    // This ensures we append to existing data when processing multiple batches
+    let matrix_list = if let Some(Item::List(existing_list)) = doc.root.get_mut(&list_key) {
+        existing_list
+    } else {
+        // Create new list and insert it
+        doc.root.insert(
+            list_key.clone(),
+            Item::List(MatrixList::new(&type_name, column_names.clone())),
+        );
+        match doc.root.get_mut(&list_key) {
+            Some(Item::List(list)) => list,
+            _ => unreachable!("Just inserted a list"),
+        }
+    };
 
-    // Convert each row to a Node
+    // Convert each row to a Node and append to existing list
     for row_idx in 0..num_rows {
-        let node = convert_row_to_node(batch, row_idx, &type_name, &column_names)?;
+        let node = convert_row_to_node(batch, row_idx, &type_name, &column_names, config)?;
         matrix_list.add_row(node);
     }
 
-    // Add to document with metadata key or inferred key name
-    doc.root.insert(list_key, Item::List(matrix_list));
-
-    // Track struct schema in document
+    // Track struct schema in document (idempotent)
     doc.structs.insert(type_name.clone(), column_names.clone());
 
     Ok(())
 }
 
-/// Convert a single row in a RecordBatch to a HEDL Node.
+/// Convert a single row in a `RecordBatch` to a HEDL Node.
 ///
 /// # Position Preservation
 ///
@@ -441,11 +638,12 @@ fn convert_row_to_node(
     row_idx: usize,
     type_name: &str,
     _column_names: &[String],
+    config: &FromParquetConfig,
 ) -> Result<Node, HedlError> {
     // First column is the ID
     let id_array = batch.column(0);
     // Note: Position in HedlError represents row index in the Parquet batch for context
-    let id = extract_string_from_array(id_array, row_idx, row_idx)?;
+    let id = extract_id_from_array(id_array, row_idx, config)?;
 
     // Pre-allocate fields vector with exact capacity (one field per column)
     let mut fields = Vec::with_capacity(batch.num_columns());
@@ -459,22 +657,24 @@ fn convert_row_to_node(
     Ok(Node::new(type_name, id, fields))
 }
 
-/// Extract a string value from an array at the given index.
+/// Extract an ID from an array at the given index, handling null values according to config.
 ///
 /// # Parameters
 /// * `array` - The Arrow array to extract from
 /// * `idx` - The row index within the array
-/// * `position` - Error context position (typically row index or encoded row/column)
-fn extract_string_from_array(
+/// * `config` - Configuration for handling null IDs
+fn extract_id_from_array(
     array: &Arc<dyn Array>,
     idx: usize,
-    position: usize,
+    config: &FromParquetConfig,
 ) -> Result<String, HedlError> {
+    // Check if the value is null
     if array.is_null(idx) {
-        return Ok("null".to_string());
+        return handle_null_id(idx, config);
     }
 
-    match array.data_type() {
+    // Check for empty strings (also treated as null/missing ID)
+    let id_str = match array.data_type() {
         DataType::Utf8 => {
             let string_array = array
                 .as_any()
@@ -482,32 +682,107 @@ fn extract_string_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected string array at row {}", idx),
-                        position,
+                        format!("Expected string array at row {idx}"),
+                        idx,
                     )
                 })?;
-            Ok(string_array.value(idx).to_string())
+            string_array.value(idx)
+        }
+        DataType::Dictionary(_, value_type) => {
+            // Handle dictionary-encoded strings
+            if matches!(value_type.as_ref(), DataType::Utf8) {
+                // Cast dictionary to string view
+                use arrow::array::cast::AsArray;
+                let dict_array = array.as_string::<i32>();
+                if dict_array.is_null(idx) {
+                    return handle_null_id(idx, config);
+                }
+                dict_array.value(idx)
+            } else {
+                return Err(HedlError::new(
+                    HedlErrorKind::Syntax,
+                    format!(
+                        "Unsupported dictionary value type for ID at row {idx}: {value_type:?}"
+                    ),
+                    idx,
+                ));
+            }
         }
         DataType::Int64 => {
             let int_array = array.as_any().downcast_ref::<Int64Array>().ok_or_else(|| {
                 HedlError::new(
                     HedlErrorKind::Syntax,
-                    format!("Expected Int64 array at row {}", idx),
-                    position,
+                    format!("Expected Int64 array at row {idx}"),
+                    idx,
                 )
             })?;
-            Ok(int_array.value(idx).to_string())
+            return Ok(int_array.value(idx).to_string());
         }
-        _ => Err(HedlError::new(
-            HedlErrorKind::Syntax,
-            format!(
-                "Unsupported ID column type at row {}: {:?}",
+        _ => {
+            return Err(HedlError::new(
+                HedlErrorKind::Syntax,
+                format!(
+                    "Unsupported ID column type at row {}: {:?}",
+                    idx,
+                    array.data_type()
+                ),
                 idx,
-                array.data_type()
-            ),
-            position,
-        )),
+            ));
+        }
+    };
+
+    // Check for empty string IDs
+    if id_str.is_empty() {
+        return handle_null_id(idx, config);
     }
+
+    Ok(id_str.to_string())
+}
+
+/// Handle null or missing ID values according to the configuration.
+fn handle_null_id(row_idx: usize, config: &FromParquetConfig) -> Result<String, HedlError> {
+    match &config.null_id_handling {
+        NullIdHandling::Error => Err(HedlError::semantic(
+            format!(
+                "Row {row_idx} has null or empty ID. HEDL requires all entities to have non-null IDs. \
+                     Fix your data source or use FromParquetConfig::lenient() to generate IDs. \
+                     Note: Generated IDs are not preserved on round-trip."
+            ),
+            row_idx,
+        )),
+        NullIdHandling::Generate => {
+            // Generate deterministic ID based on row index
+            Ok(format!("__generated_row_{row_idx}"))
+        }
+        NullIdHandling::UseConstant(constant) => {
+            // Use user-specified constant
+            Ok(constant.clone())
+        }
+    }
+}
+
+/// Validate that all IDs in a list of nodes are unique.
+///
+/// This provides defense-in-depth against duplicate IDs that might occur
+/// when using `NullIdHandling::UseConstant` or due to data quality issues.
+fn validate_unique_ids(nodes: &[Node]) -> Result<(), HedlError> {
+    let mut seen_ids: HashMap<&str, usize> = HashMap::new();
+
+    for (idx, node) in nodes.iter().enumerate() {
+        if let Some(&first_idx) = seen_ids.get(node.id.as_str()) {
+            return Err(HedlError::collision(
+                format!(
+                    "Duplicate ID '{}' found at rows {} and {}. \
+                     This may be caused by null IDs being converted to the same value.",
+                    node.id, first_idx, idx
+                ),
+                idx,
+            ));
+        }
+        seen_ids.insert(&node.id, idx);
+    }
+
+    Ok(())
 }
 
 /// Extract a HEDL value from an Arrow array at the given index.
@@ -533,7 +808,7 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected boolean array at row {}", idx),
+                        format!("Expected boolean array at row {idx}"),
                         position,
                     )
                 })?;
@@ -543,37 +818,37 @@ fn extract_value_from_array(
             let int_array = array.as_any().downcast_ref::<Int8Array>().ok_or_else(|| {
                 HedlError::new(
                     HedlErrorKind::Syntax,
-                    format!("Expected Int8 array at row {}", idx),
+                    format!("Expected Int8 array at row {idx}"),
                     position,
                 )
             })?;
-            Ok(Value::Int(int_array.value(idx) as i64))
+            Ok(Value::Int(i64::from(int_array.value(idx))))
         }
         DataType::Int16 => {
             let int_array = array.as_any().downcast_ref::<Int16Array>().ok_or_else(|| {
                 HedlError::new(
                     HedlErrorKind::Syntax,
-                    format!("Expected Int16 array at row {}", idx),
+                    format!("Expected Int16 array at row {idx}"),
                     position,
                 )
             })?;
-            Ok(Value::Int(int_array.value(idx) as i64))
+            Ok(Value::Int(i64::from(int_array.value(idx))))
         }
         DataType::Int32 => {
             let int_array = array.as_any().downcast_ref::<Int32Array>().ok_or_else(|| {
                 HedlError::new(
                     HedlErrorKind::Syntax,
-                    format!("Expected Int32 array at row {}", idx),
+                    format!("Expected Int32 array at row {idx}"),
                     position,
                 )
             })?;
-            Ok(Value::Int(int_array.value(idx) as i64))
+            Ok(Value::Int(i64::from(int_array.value(idx))))
         }
         DataType::Int64 => {
             let int_array = array.as_any().downcast_ref::<Int64Array>().ok_or_else(|| {
                 HedlError::new(
                     HedlErrorKind::Syntax,
-                    format!("Expected Int64 array at row {}", idx),
+                    format!("Expected Int64 array at row {idx}"),
                     position,
                 )
             })?;
@@ -583,11 +858,11 @@ fn extract_value_from_array(
             let int_array = array.as_any().downcast_ref::<UInt8Array>().ok_or_else(|| {
                 HedlError::new(
                     HedlErrorKind::Syntax,
-                    format!("Expected UInt8 array at row {}", idx),
+                    format!("Expected UInt8 array at row {idx}"),
                     position,
                 )
             })?;
-            Ok(Value::Int(int_array.value(idx) as i64))
+            Ok(Value::Int(i64::from(int_array.value(idx))))
         }
         DataType::UInt16 => {
             let int_array = array
@@ -596,11 +871,11 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected UInt16 array at row {}", idx),
+                        format!("Expected UInt16 array at row {idx}"),
                         position,
                     )
                 })?;
-            Ok(Value::Int(int_array.value(idx) as i64))
+            Ok(Value::Int(i64::from(int_array.value(idx))))
         }
         DataType::UInt32 => {
             let int_array = array
@@ -609,11 +884,11 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected UInt32 array at row {}", idx),
+                        format!("Expected UInt32 array at row {idx}"),
                         position,
                     )
                 })?;
-            Ok(Value::Int(int_array.value(idx) as i64))
+            Ok(Value::Int(i64::from(int_array.value(idx))))
         }
         DataType::UInt64 => {
             let int_array = array
@@ -622,7 +897,7 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected UInt64 array at row {}", idx),
+                        format!("Expected UInt64 array at row {idx}"),
                         position,
                     )
                 })?;
@@ -632,8 +907,7 @@ fn extract_value_from_array(
                 return Err(HedlError::new(
                     HedlErrorKind::Syntax,
                     format!(
-                        "UInt64 value {} at row {} exceeds i64::MAX and cannot be represented",
-                        val, idx
+                        "UInt64 value {val} at row {idx} exceeds i64::MAX and cannot be represented"
                     ),
                     position,
                 ));
@@ -647,11 +921,11 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected Float32 array at row {}", idx),
+                        format!("Expected Float32 array at row {idx}"),
                         position,
                     )
                 })?;
-            Ok(Value::Float(float_array.value(idx) as f64))
+            Ok(Value::Float(f64::from(float_array.value(idx))))
         }
         DataType::Float64 => {
             let float_array = array
@@ -660,7 +934,7 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected Float64 array at row {}", idx),
+                        format!("Expected Float64 array at row {idx}"),
                         position,
                     )
                 })?;
@@ -673,7 +947,7 @@ fn extract_value_from_array(
                 .ok_or_else(|| {
                     HedlError::new(
                         HedlErrorKind::Syntax,
-                        format!("Expected string array at row {}", idx),
+                        format!("Expected string array at row {idx}"),
                         position,
                     )
                 })?;
@@ -684,7 +958,31 @@ fn extract_value_from_array(
                 return Ok(parse_reference_string(s));
             }
 
-            Ok(Value::String(s.to_string()))
+            Ok(Value::String(s.to_string().into()))
+        }
+        DataType::Dictionary(_, value_type) => {
+            // Handle dictionary-encoded strings
+            if matches!(value_type.as_ref(), DataType::Utf8) {
+                use arrow::array::cast::AsArray;
+                let dict_array = array.as_string::<i32>();
+                if dict_array.is_null(idx) {
+                    return Ok(Value::Null);
+                }
+                let s = dict_array.value(idx);
+
+                // Try to detect references
+                if s.starts_with('@') {
+                    return Ok(parse_reference_string(s));
+                }
+
+                Ok(Value::String(s.to_string().into()))
+            } else {
+                Err(HedlError::new(
+                    HedlErrorKind::Syntax,
+                    format!("Unsupported dictionary value type at row {idx}: {value_type:?}"),
+                    position,
+                ))
+            }
         }
         _ => Err(HedlError::new(
             HedlErrorKind::Syntax,
@@ -703,7 +1001,7 @@ fn parse_reference_string(s: &str) -> Value {
     // Validate string starts with '@' and has content after it
     let without_at = match s.strip_prefix('@') {
         Some(rest) if !rest.is_empty() => rest,
-        _ => return Value::String(s.to_string()), // Not a valid reference, return as string
+        _ => return Value::String(s.to_string().into()), // Not a valid reference, return as string
     };
 
     if let Some(colon_idx) = without_at.find(':') {
@@ -719,6 +1017,150 @@ fn parse_reference_string(s: &str) -> Value {
     } else {
         Value::Reference(hedl_core::Reference::local(without_at))
     }
+}
+
+/// Validate column names and map to indices for projection.
+///
+/// This function validates that all requested column names exist in the schema
+/// and returns their indices for use with Arrow's projection API.
+///
+/// # Arguments
+///
+/// * `schema` - The Arrow schema containing all available columns
+/// * `column_names` - The requested column names to project
+///
+/// # Returns
+///
+/// A vector of column indices suitable for use with `ProjectionMask::roots()`
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The column list is empty
+/// - Any column name doesn't exist in the schema
+fn validate_and_map_columns(
+    schema: &Arc<arrow::datatypes::Schema>,
+    column_names: &[String],
+) -> Result<Vec<usize>, HedlError> {
+    // Reject empty column lists
+    if column_names.is_empty() {
+        return Err(HedlError::new(
+            HedlErrorKind::Syntax,
+            "Column projection requires at least one column",
+            0,
+        ));
+    }
+
+    let mut indices = Vec::with_capacity(column_names.len());
+
+    for col_name in column_names {
+        if let Ok(idx) = schema.index_of(col_name) {
+            indices.push(idx);
+        } else {
+            // Build helpful error message with available columns
+            let available_columns: Vec<&str> =
+                schema.fields().iter().map(|f| f.name().as_str()).collect();
+
+            return Err(HedlError::new(
+                HedlErrorKind::Syntax,
+                format!(
+                    "Column '{}' not found in schema. Available columns: {}",
+                    col_name,
+                    available_columns.join(", ")
+                ),
+                0,
+            ));
+        }
+    }
+
+    // Ensure indices are sorted for efficient access and consistent ordering
+    indices.sort_unstable();
+
+    Ok(indices)
+}
+
+/// Read Parquet file selecting only specific columns.
+///
+/// Uses projection pushdown to read only the specified columns,
+/// providing significant performance improvement for wide tables.
+///
+/// # Performance
+///
+/// For a 50-column table, reading 5 columns (10%) is typically 8-10x faster
+/// than reading all columns, with proportional I/O and memory reduction.
+///
+/// # Example
+///
+/// ```no_run
+/// use hedl_parquet::from_parquet_select;
+/// use std::path::Path;
+///
+/// // Read only 3 columns from users table
+/// let doc = from_parquet_select(
+///     Path::new("users.parquet"),
+///     vec!["id".into(), "name".into(), "email".into()]
+/// )?;
+/// # Ok::<(), hedl_core::HedlError>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns error if:
+/// - File cannot be read
+/// - Any specified column doesn't exist in schema
+/// - Column list is empty
+pub fn from_parquet_select(path: &Path, columns: Vec<String>) -> Result<Document, HedlError> {
+    from_parquet_with_config(path, &FromParquetConfig::with_columns(columns))
+}
+
+/// Read Parquet bytes selecting only specific columns.
+///
+/// # Example
+///
+/// ```no_run
+/// use hedl_parquet::from_parquet_bytes_select;
+///
+/// # let bytes = vec![]; // Some Parquet bytes
+/// # if !bytes.is_empty() {
+/// let doc = from_parquet_bytes_select(
+///     &bytes,
+///     vec!["id".into(), "name".into()]
+/// )?;
+/// # }
+/// # Ok::<(), hedl_core::HedlError>(())
+/// ```
+pub fn from_parquet_bytes_select(
+    bytes: &[u8],
+    columns: Vec<String>,
+) -> Result<Document, HedlError> {
+    from_parquet_bytes_with_config(bytes, &FromParquetConfig::with_columns(columns))
+}
+
+/// Get column names from a Parquet file without reading data.
+///
+/// Reads only file metadata (no data), returning list of all column names.
+/// Use this to inspect file schema before deciding which columns to read.
+///
+/// # Example
+///
+/// ```no_run
+/// use hedl_parquet::get_parquet_columns;
+/// use std::path::Path;
+///
+/// let columns = get_parquet_columns(Path::new("users.parquet"))?;
+/// println!("Available columns: {:?}", columns);
+/// # Ok::<(), hedl_core::HedlError>(())
+/// ```
+pub fn get_parquet_columns(path: &Path) -> Result<Vec<String>, HedlError> {
+    let file = std::fs::File::open(path)
+        .map_err(|e| HedlError::io(format!("Failed to open Parquet file: {e}")))?;
+
+    let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet reader: {e}")))?;
+
+    let schema = builder.schema();
+
+    Ok(schema.fields().iter().map(|f| f.name().clone()).collect())
 }
 
 #[cfg(test)]
@@ -748,7 +1190,7 @@ mod tests {
         match value {
             Value::Reference(r) => {
                 assert_eq!(r.type_name, None);
-                assert_eq!(r.id, "alice");
+                assert_eq!(&*r.id, "alice");
             }
             _ => panic!("Expected reference value"),
         }
@@ -759,8 +1201,8 @@ mod tests {
         let value = parse_reference_string("@User:alice");
         match value {
             Value::Reference(r) => {
-                assert_eq!(r.type_name, Some("User".to_string()));
-                assert_eq!(r.id, "alice");
+                assert_eq!(r.type_name.as_deref(), Some("User"));
+                assert_eq!(&*r.id, "alice");
             }
             _ => panic!("Expected reference value"),
         }

@@ -90,7 +90,7 @@
 //! let node = Node::new(
 //!     "User",
 //!     "alice",
-//!     vec![Value::String("Alice".to_string()), Value::Int(30)],
+//!     vec![Value::String("Alice".to_string().into()), Value::Int(30)],
 //! );
 //! matrix_list.add_row(node);
 //! doc.root.insert("users".to_string(), Item::List(matrix_list));
@@ -167,15 +167,60 @@
 //!
 //! to_parquet_with_config(&doc, Path::new("output.parquet"), &config).unwrap();
 //! ```
+//!
+//! # Null ID Handling
+//!
+//! HEDL requires all entities to have non-null IDs. By default, Parquet files
+//! with null IDs are rejected:
+//!
+//! ```no_run
+//! use hedl_parquet::{from_parquet_bytes, FromParquetConfig};
+//!
+//! # let parquet_bytes = vec![]; // Assume this has null IDs
+//! # if !parquet_bytes.is_empty() {
+//! // This will return an error if any ID is null
+//! let result = from_parquet_bytes(&parquet_bytes);
+//! assert!(result.is_err());
+//! # }
+//! ```
+//!
+//! For lenient parsing (not recommended), use:
+//!
+//! ```no_run
+//! use hedl_parquet::{from_parquet_bytes_with_config, FromParquetConfig};
+//!
+//! # let parquet_bytes = vec![];
+//! # if !parquet_bytes.is_empty() {
+//! let config = FromParquetConfig::lenient();
+//! let doc = from_parquet_bytes_with_config(&parquet_bytes, &config).unwrap();
+//! // Null IDs become "__generated_row_N"
+//! # }
+//! ```
+//!
+//! # Async I/O Support
+//!
+//! When the `async-io` feature is enabled, async variants of read/write operations
+//! are available in the `async_io` module.
 
+#![cfg_attr(not(test), warn(missing_docs))]
+mod config;
 mod from_parquet;
+pub mod predicate;
 mod to_parquet;
 
+#[cfg(feature = "async-io")]
+pub mod async_io;
+
 // Re-export public API
-pub use from_parquet::{from_parquet, from_parquet_bytes};
+pub use config::{BatchSize, FromParquetConfig, NullIdHandling};
+pub use from_parquet::{
+    from_parquet, from_parquet_bytes, from_parquet_bytes_select, from_parquet_bytes_with_config,
+    from_parquet_select, from_parquet_with_config, get_parquet_columns,
+};
+pub use parquet::file::properties::EnabledStatistics;
 pub use to_parquet::{
     to_parquet, to_parquet_bytes, to_parquet_bytes_with_config, to_parquet_with_config,
-    ToParquetConfig,
+    CompressionStrategy, StatisticsLevel, ToParquetConfig,
 };
 
 #[cfg(test)]
@@ -194,12 +239,12 @@ mod integration_tests {
         let node1 = Node::new(
             "User",
             "alice",
-            vec![Value::String("Alice".to_string()), Value::Int(30)],
+            vec![Value::String("Alice".to_string().into()), Value::Int(30)],
         );
         let node2 = Node::new(
             "User",
             "bob",
-            vec![Value::String("Bob".to_string()), Value::Int(25)],
+            vec![Value::String("Bob".to_string().into()), Value::Int(25)],
         );
 
         matrix_list.add_row(node1);
@@ -241,7 +286,7 @@ mod integration_tests {
             "Data",
             "row1",
             vec![
-                Value::String("row1".to_string()),
+                Value::String("row1".to_string().into()),
                 Value::Int(42),
                 Value::Float(3.25),
                 Value::Bool(true),
@@ -261,7 +306,7 @@ mod integration_tests {
             let row = &list.rows[0];
 
             // fields[0] is now the ID
-            assert!(matches!(row.fields[0], Value::String(ref s) if s == "row1"));
+            assert!(matches!(row.fields[0], Value::String(ref s) if &**s == "row1"));
             assert!(matches!(row.fields[1], Value::Int(42)));
             assert!(matches!(row.fields[2], Value::Float(f) if (f - 3.25).abs() < 0.001));
             assert!(matches!(row.fields[3], Value::Bool(true)));
@@ -278,19 +323,19 @@ mod integration_tests {
         let node1 = Node::new(
             "Data",
             "row1",
-            vec![Value::String("row1".to_string()), Value::Int(42)],
+            vec![Value::String("row1".to_string().into()), Value::Int(42)],
         );
         let node2 = Node::new(
             "Data",
             "row2",
-            vec![Value::String("row2".to_string()), Value::Null],
+            vec![Value::String("row2".to_string().into()), Value::Null],
         );
         let node3 = Node::new(
             "Data",
             "row3",
             vec![
-                Value::String("row3".to_string()),
-                Value::String("test".to_string()),
+                Value::String("row3".to_string().into()),
+                Value::String("test".to_string().into()),
             ],
         );
 
@@ -318,7 +363,7 @@ mod integration_tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "version".to_string(),
-            Item::Scalar(Value::String("1.0".to_string())),
+            Item::Scalar(Value::String("1.0".to_string().into())),
         );
         doc.root
             .insert("count".to_string(), Item::Scalar(Value::Int(42)));
@@ -341,7 +386,7 @@ mod integration_tests {
             "Post",
             "post1",
             vec![
-                Value::String("post1".to_string()),
+                Value::String("post1".to_string().into()),
                 Value::Reference(hedl_core::Reference::qualified("User", "alice")),
             ],
         );
@@ -358,8 +403,8 @@ mod integration_tests {
         if let Some(Item::List(list)) = doc2.root.get("posts") {
             // fields[0] is the ID, fields[1] is the author reference
             if let Value::Reference(r) = &list.rows[0].fields[1] {
-                assert_eq!(r.type_name, Some("User".to_string()));
-                assert_eq!(r.id, "alice");
+                assert_eq!(r.type_name.as_deref(), Some("User"));
+                assert_eq!(&*r.id, "alice");
             } else {
                 panic!("Expected reference value");
             }

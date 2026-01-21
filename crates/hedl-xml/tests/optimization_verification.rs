@@ -17,7 +17,7 @@
 
 //! Optimization verification tests
 //!
-//! These tests verify that the string interning and SmallVec optimizations
+//! These tests verify that the string interning and `SmallVec` optimizations
 //! are working correctly and providing the expected memory reduction.
 
 use hedl_xml::{from_xml, FromXmlConfig};
@@ -142,8 +142,7 @@ fn test_large_document_with_optimizations() {
     // Add 100 users with repeated element and attribute names
     for i in 0..100 {
         xml.push_str(&format!(
-            r#"<user id="{}" name="User {}" email="user{}@example.com" active="true"/>"#,
-            i, i, i
+            r#"<user id="{i}" name="User {i}" email="user{i}@example.com" active="true"/>"#
         ));
     }
 

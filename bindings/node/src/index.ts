@@ -42,8 +42,14 @@
  *
  * RESOURCE LIMITS:
  * ===============
- * The HEDL_MAX_OUTPUT_SIZE environment variable controls the maximum size of
- * output from conversion operations (toJson, toYaml, toXml, etc.).
+ * The HEDL_MAX_OUTPUT_SIZE environment variable sets the maximum allowed size
+ * for output from conversion operations (toJson, toYaml, toXml, etc.).
+ *
+ * IMPORTANT: This is a POST-ALLOCATION check. The Rust FFI layer performs the
+ * full conversion and allocates memory before Node.js can check the size.
+ * This means large outputs will still cause temporary memory allocation before
+ * being rejected. To truly limit memory usage, ensure your input documents are
+ * appropriately sized.
  *
  * Default: 100 MB (conservative, may be too restrictive for many use cases)
  * Recommended for data processing: 500 MB - 1 GB
@@ -380,7 +386,8 @@ export class Document {
   get schemaCount(): number {
     this.checkClosed();
     const count = getLib().hedl_schema_count(this.ptr);
-    if (count < 0) throw HedlError.fromLib(count);
+    // These functions don't set thread-local error messages, so we use a fixed message
+    if (count < 0) throw new HedlError('invalid document handle', count);
     return count;
   }
 
@@ -390,7 +397,8 @@ export class Document {
   get aliasCount(): number {
     this.checkClosed();
     const count = getLib().hedl_alias_count(this.ptr);
-    if (count < 0) throw HedlError.fromLib(count);
+    // These functions don't set thread-local error messages, so we use a fixed message
+    if (count < 0) throw new HedlError('invalid document handle', count);
     return count;
   }
 
@@ -400,7 +408,8 @@ export class Document {
   get rootItemCount(): number {
     this.checkClosed();
     const count = getLib().hedl_root_item_count(this.ptr);
-    if (count < 0) throw HedlError.fromLib(count);
+    // These functions don't set thread-local error messages, so we use a fixed message
+    if (count < 0) throw new HedlError('invalid document handle', count);
     return count;
   }
 
@@ -501,6 +510,16 @@ export class Document {
     if (result !== HEDL_OK) {
       throw HedlError.fromLib(result);
     }
+    // Check for size overflow before converting BigInt to Number
+    // Number.MAX_SAFE_INTEGER is 2^53 - 1
+    if (lenPtr[0] > BigInt(Number.MAX_SAFE_INTEGER)) {
+      // Free the allocated memory before throwing
+      lib.hedl_free_bytes(dataPtr[0], lenPtr[0]);
+      throw new HedlError(
+        `Parquet output size (${lenPtr[0]} bytes) exceeds JavaScript safe integer limit`,
+        HEDL_ERR_ALLOC
+      );
+    }
     const len = Number(lenPtr[0]);
     const buffer = Buffer.from(koffi.decode(dataPtr[0], koffi.array('uint8', len)));
     lib.hedl_free_bytes(dataPtr[0], len);
@@ -567,7 +586,10 @@ export class Document {
 export function parse(content: string, strict: boolean = true): Document {
   const lib = getLib();
   const docPtr: any[] = [null];
-  const result = lib.hedl_parse(content, content.length, strict ? 1 : 0, docPtr);
+  // Use Buffer.byteLength for correct UTF-8 byte count
+  // content.length returns UTF-16 code units which can undercount for non-ASCII
+  const byteLen = Buffer.byteLength(content, 'utf8');
+  const result = lib.hedl_parse(content, byteLen, strict ? 1 : 0, docPtr);
   if (result !== HEDL_OK) {
     throw HedlError.fromLib(result);
   }
@@ -583,7 +605,9 @@ export function parse(content: string, strict: boolean = true): Document {
  */
 export function validate(content: string, strict: boolean = true): boolean {
   const lib = getLib();
-  const result = lib.hedl_validate(content, content.length, strict ? 1 : 0);
+  // Use Buffer.byteLength for correct UTF-8 byte count
+  const byteLen = Buffer.byteLength(content, 'utf8');
+  const result = lib.hedl_validate(content, byteLen, strict ? 1 : 0);
   return result === HEDL_OK;
 }
 
@@ -593,7 +617,9 @@ export function validate(content: string, strict: boolean = true): boolean {
 export function fromJson(content: string): Document {
   const lib = getLib();
   const docPtr: any[] = [null];
-  const result = lib.hedl_from_json(content, content.length, docPtr);
+  // Use Buffer.byteLength for correct UTF-8 byte count
+  const byteLen = Buffer.byteLength(content, 'utf8');
+  const result = lib.hedl_from_json(content, byteLen, docPtr);
   if (result !== HEDL_OK) {
     throw HedlError.fromLib(result);
   }
@@ -606,7 +632,9 @@ export function fromJson(content: string): Document {
 export function fromYaml(content: string): Document {
   const lib = getLib();
   const docPtr: any[] = [null];
-  const result = lib.hedl_from_yaml(content, content.length, docPtr);
+  // Use Buffer.byteLength for correct UTF-8 byte count
+  const byteLen = Buffer.byteLength(content, 'utf8');
+  const result = lib.hedl_from_yaml(content, byteLen, docPtr);
   if (result !== HEDL_OK) {
     throw HedlError.fromLib(result);
   }
@@ -619,7 +647,9 @@ export function fromYaml(content: string): Document {
 export function fromXml(content: string): Document {
   const lib = getLib();
   const docPtr: any[] = [null];
-  const result = lib.hedl_from_xml(content, content.length, docPtr);
+  // Use Buffer.byteLength for correct UTF-8 byte count
+  const byteLen = Buffer.byteLength(content, 'utf8');
+  const result = lib.hedl_from_xml(content, byteLen, docPtr);
   if (result !== HEDL_OK) {
     throw HedlError.fromLib(result);
   }

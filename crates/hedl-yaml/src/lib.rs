@@ -15,6 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Note: Large error types are intentional for rich error context.
+// Boxing would add heap allocation overhead for error paths.
+#![cfg_attr(not(test), warn(missing_docs))]
+#![allow(clippy::result_large_err)]
+
 //! HEDL YAML Conversion
 //!
 //! Provides bidirectional conversion between HEDL documents and YAML format, with comprehensive
@@ -54,9 +59,9 @@
 //! use hedl_yaml::{to_yaml, ToYamlConfig};
 //! use std::collections::BTreeMap;
 //!
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
 //! let mut root = BTreeMap::new();
-//! root.insert("name".to_string(), Item::Scalar(Value::String("example".to_string())));
+//! root.insert("name".to_string(), Item::Scalar(Value::String("example".to_string().into())));
 //! root.insert("count".to_string(), Item::Scalar(Value::Int(42)));
 //! doc.root = root;
 //!
@@ -106,9 +111,9 @@
 //! use std::collections::BTreeMap;
 //!
 //! // Create original document
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
 //! let mut root = BTreeMap::new();
-//! root.insert("test".to_string(), Item::Scalar(Value::String("value".to_string())));
+//! root.insert("test".to_string(), Item::Scalar(Value::String("value".to_string().into())));
 //! doc.root = root;
 //!
 //! // Convert to YAML and back
@@ -129,7 +134,7 @@
 //! use hedl_yaml::{to_yaml, ToYamlConfig};
 //! use std::collections::BTreeMap;
 //!
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
 //! let mut root = BTreeMap::new();
 //! root.insert("count".to_string(), Item::Scalar(Value::Int(42)));
 //! doc.root = root;
@@ -143,9 +148,11 @@
 //! // YAML includes type hints, but they won't prevent data-only schemas
 //! ```
 
+mod anchors;
 pub mod error;
 mod from_yaml;
 mod to_yaml;
+pub mod yaml_scanner;
 
 // Re-export the shared DEFAULT_SCHEMA from hedl-core for internal use
 pub(crate) use hedl_core::convert::DEFAULT_SCHEMA;
@@ -178,7 +185,14 @@ mod tests {
 
     #[test]
     fn test_round_trip_scalars() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         root.insert("null_val".to_string(), Item::Scalar(Value::Null));
@@ -187,7 +201,7 @@ mod tests {
         root.insert("float_val".to_string(), Item::Scalar(Value::Float(3.25)));
         root.insert(
             "string_val".to_string(),
-            Item::Scalar(Value::String("hello".to_string())),
+            Item::Scalar(Value::String("hello".to_string().into())),
         );
 
         doc.root = root;
@@ -211,13 +225,20 @@ mod tests {
                 .unwrap()
                 .as_scalar()
                 .unwrap(),
-            &Value::String("hello".to_string())
+            &Value::String("hello".to_string().into())
         );
     }
 
     #[test]
     fn test_round_trip_reference() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         root.insert(
@@ -237,7 +258,7 @@ mod tests {
         let local_ref = restored.root.get("local_ref").unwrap().as_scalar().unwrap();
         if let Value::Reference(r) = local_ref {
             assert_eq!(r.type_name, None);
-            assert_eq!(r.id, "item1");
+            assert_eq!(r.id.as_ref(), "item1");
         } else {
             panic!("Expected reference");
         }
@@ -249,8 +270,8 @@ mod tests {
             .as_scalar()
             .unwrap();
         if let Value::Reference(r) = qualified_ref {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "user1");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
+            assert_eq!(r.id.as_ref(), "user1");
         } else {
             panic!("Expected qualified reference");
         }
@@ -258,40 +279,61 @@ mod tests {
 
     #[test]
     fn test_round_trip_expression() {
-        // Expression and Span imports commented out until Expression API is fixed
-        // use hedl_core::lex::{Expression, Span};
-        let _doc = Document::new((1, 0));
-        let _root: BTreeMap<String, Item> = BTreeMap::new();
+        use hedl_core::lex::{ExprLiteral, Expression, Span};
 
-        // TODO: Fix Expression API to match new struct-based variants
-        // root.insert(
-        //     "expr".to_string(),
-        //     Item::Scalar(Value::Expression(Expression::Call {
-        //         name: "add".to_string(),
-        //         args: vec![
-        //             Expression::Identifier("x".to_string()),
-        //             Expression::Literal { value: hedl_core::lex::ExprLiteral::Int(1), span: Span::default() }),
-        //         ],
-        //     })),
-        // );
+        let mut doc = Document {
+            version: (1, 0),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+        };
+        let mut root = BTreeMap::new();
 
-        // doc.root = root;
+        // Create expression: add(x, 1)
+        let expr = Expression::Call {
+            name: "add".to_string(),
+            args: vec![
+                Expression::Identifier {
+                    name: "x".to_string(),
+                    span: Span::synthetic(),
+                },
+                Expression::Literal {
+                    value: ExprLiteral::Int(1),
+                    span: Span::synthetic(),
+                },
+            ],
+            span: Span::synthetic(),
+        };
 
-        // TODO: Re-enable after Expression API is fixed
-        // let yaml = hedl_to_yaml(&doc).unwrap();
-        // let restored = yaml_to_hedl(&yaml).unwrap();
-        //
-        // let expr = restored.root.get("expr").unwrap().as_scalar().unwrap();
-        // if let Value::Expression(e) = expr {
-        //     assert_eq!(e.to_string(), "add(x, 1)");
-        // } else {
-        //     panic!("Expected expression");
-        // }
+        root.insert(
+            "expr".to_string(),
+            Item::Scalar(Value::Expression(Box::new(expr))),
+        );
+        doc.root = root;
+
+        let yaml = hedl_to_yaml(&doc).unwrap();
+        let restored = yaml_to_hedl(&yaml).unwrap();
+
+        let restored_expr = restored.root.get("expr").unwrap().as_scalar().unwrap();
+        if let Value::Expression(e) = restored_expr {
+            assert_eq!(e.to_string(), "add(x, 1)");
+        } else {
+            panic!("Expected expression, got {restored_expr:?}");
+        }
     }
 
     #[test]
     fn test_round_trip_tensor() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         let tensor = Tensor::Array(vec![
@@ -299,7 +341,10 @@ mod tests {
             Tensor::Scalar(2.0),
             Tensor::Scalar(3.0),
         ]);
-        root.insert("tensor".to_string(), Item::Scalar(Value::Tensor(tensor)));
+        root.insert(
+            "tensor".to_string(),
+            Item::Scalar(Value::Tensor(Box::new(tensor))),
+        );
 
         doc.root = root;
 
@@ -308,7 +353,7 @@ mod tests {
 
         let restored_tensor = restored.root.get("tensor").unwrap().as_scalar().unwrap();
         if let Value::Tensor(t) = restored_tensor {
-            if let Tensor::Array(items) = t {
+            if let Tensor::Array(ref items) = **t {
                 assert_eq!(items.len(), 3);
             } else {
                 panic!("Expected tensor array");
@@ -320,14 +365,24 @@ mod tests {
 
     #[test]
     fn test_round_trip_nested_tensor() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         let tensor = Tensor::Array(vec![
             Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
             Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
         ]);
-        root.insert("matrix".to_string(), Item::Scalar(Value::Tensor(tensor)));
+        root.insert(
+            "matrix".to_string(),
+            Item::Scalar(Value::Tensor(Box::new(tensor))),
+        );
 
         doc.root = root;
 
@@ -335,7 +390,11 @@ mod tests {
         let restored = yaml_to_hedl(&yaml).unwrap();
 
         let restored_tensor = restored.root.get("matrix").unwrap().as_scalar().unwrap();
-        if let Value::Tensor(Tensor::Array(rows)) = restored_tensor {
+        if let Value::Tensor(tensor_box) = restored_tensor {
+            let rows = match tensor_box.as_ref() {
+                Tensor::Array(r) => r,
+                _ => panic!("Expected tensor array"),
+            };
             assert_eq!(rows.len(), 2);
             if let Tensor::Array(cols) = &rows[0] {
                 assert_eq!(cols.len(), 2);
@@ -349,13 +408,20 @@ mod tests {
 
     #[test]
     fn test_round_trip_object() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         let mut obj = BTreeMap::new();
         obj.insert(
             "name".to_string(),
-            Item::Scalar(Value::String("test".to_string())),
+            Item::Scalar(Value::String("test".to_string().into())),
         );
         obj.insert("age".to_string(), Item::Scalar(Value::Int(30)));
         root.insert("person".to_string(), Item::Object(obj));
@@ -369,7 +435,7 @@ mod tests {
         assert_eq!(person_obj.len(), 2);
         assert_eq!(
             person_obj.get("name").unwrap().as_scalar().unwrap(),
-            &Value::String("test".to_string())
+            &Value::String("test".to_string().into())
         );
         assert_eq!(
             person_obj.get("age").unwrap().as_scalar().unwrap(),
@@ -379,7 +445,14 @@ mod tests {
 
     #[test]
     fn test_round_trip_matrix_list() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         let mut list = MatrixList::new(
@@ -392,8 +465,8 @@ mod tests {
             "User",
             "user1",
             vec![
-                Value::String("user1".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("user1".to_string().into()),
+                Value::String("Alice".to_string().into()),
                 Value::Int(30),
             ],
         );
@@ -401,8 +474,8 @@ mod tests {
             "User",
             "user2",
             vec![
-                Value::String("user2".to_string()),
-                Value::String("Bob".to_string()),
+                Value::String("user2".to_string().into()),
+                Value::String("Bob".to_string().into()),
                 Value::Int(25),
             ],
         );
@@ -419,24 +492,37 @@ mod tests {
         let users_list = restored.root.get("users").unwrap().as_list().unwrap();
         assert_eq!(users_list.rows.len(), 2);
         assert_eq!(users_list.schema.len(), 3);
-        // Schema is sorted alphabetically with id first: [id, age, name]
+        // Schema order is preserved via __schema__ metadata during round-trip
         assert_eq!(
             users_list.schema,
-            vec!["id".to_string(), "age".to_string(), "name".to_string()]
+            vec!["id".to_string(), "name".to_string(), "age".to_string()]
         );
 
         let first_row = &users_list.rows[0];
         assert_eq!(first_row.id, "user1");
         // Per SPEC: fields include ALL schema columns including ID
         assert_eq!(first_row.fields.len(), 3);
-        assert_eq!(first_row.fields[0], Value::String("user1".to_string())); // id
-        assert_eq!(first_row.fields[1], Value::Int(30)); // age
-        assert_eq!(first_row.fields[2], Value::String("Alice".to_string())); // name
+        assert_eq!(
+            first_row.fields[0],
+            Value::String("user1".to_string().into())
+        ); // id
+        assert_eq!(
+            first_row.fields[1],
+            Value::String("Alice".to_string().into())
+        ); // name (original order preserved)
+        assert_eq!(first_row.fields[2], Value::Int(30)); // age
     }
 
     #[test]
     fn test_empty_document() {
-        let doc = Document::new((1, 0));
+        let doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let yaml = hedl_to_yaml(&doc).unwrap();
         let restored = yaml_to_hedl(&yaml).unwrap();
         assert_eq!(restored.version, (1, 0));
@@ -445,7 +531,14 @@ mod tests {
 
     #[test]
     fn test_nested_objects() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document {
+            version: (1, 0),
+            aliases: BTreeMap::new(),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+        };
         let mut root = BTreeMap::new();
 
         let mut inner = BTreeMap::new();
@@ -456,7 +549,7 @@ mod tests {
         outer.insert("point".to_string(), Item::Object(inner));
         outer.insert(
             "label".to_string(),
-            Item::Scalar(Value::String("origin".to_string())),
+            Item::Scalar(Value::String("origin".to_string().into())),
         );
 
         root.insert("config".to_string(), Item::Object(outer));
@@ -496,7 +589,7 @@ mod tests {
     #[test]
     fn test_yaml_with_anchors_and_aliases() {
         // YAML anchors and aliases are automatically resolved by serde_yaml
-        let yaml = r#"
+        let yaml = r"
 defaults: &defaults
   timeout: 30
   retries: 3
@@ -504,7 +597,7 @@ defaults: &defaults
 production:
   config: *defaults
   host: prod.example.com
-"#;
+";
         let doc = yaml_to_hedl(yaml).unwrap();
 
         // Verify that the anchor reference was resolved
@@ -520,7 +613,7 @@ production:
         );
         assert_eq!(
             prod.get("host").unwrap().as_scalar().unwrap(),
-            &Value::String("prod.example.com".to_string())
+            &Value::String("prod.example.com".to_string().into())
         );
     }
 }

@@ -85,8 +85,8 @@ fn basic_validation() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Validating XML document...");
     match validator.validate(valid_xml) {
-        Ok(_) => println!("✓ Document is valid!"),
-        Err(e) => println!("✗ Validation failed: {}", e),
+        Ok(()) => println!("✓ Document is valid!"),
+        Err(e) => println!("✗ Validation failed: {e}"),
     }
 
     Ok(())
@@ -125,8 +125,8 @@ fn type_validation() -> Result<(), Box<dyn std::error::Error>> {
     println!("  - integer: 150");
 
     match validator.validate(xml) {
-        Ok(_) => println!("✓ All types validated successfully!"),
-        Err(e) => println!("✗ Validation failed: {}", e),
+        Ok(()) => println!("✓ All types validated successfully!"),
+        Err(e) => println!("✗ Validation failed: {e}"),
     }
 
     Ok(())
@@ -157,9 +157,9 @@ fn error_handling() -> Result<(), Box<dyn std::error::Error>> {
 </person>"#;
 
     match validator.validate(xml1) {
-        Ok(_) => println!("  Unexpected success"),
+        Ok(()) => println!("  Unexpected success"),
         Err(e) => {
-            println!("  ✓ Expected error: {}", e);
+            println!("  ✓ Expected error: {e}");
             if let ValidationError::TypeValidationError {
                 name,
                 expected_type,
@@ -167,11 +167,11 @@ fn error_handling() -> Result<(), Box<dyn std::error::Error>> {
                 line,
             } = e
             {
-                println!("    Element: {}", name);
-                println!("    Expected: {}", expected_type);
-                println!("    Found: {}", value);
+                println!("    Element: {name}");
+                println!("    Expected: {expected_type}");
+                println!("    Found: {value}");
                 if let Some(l) = line {
-                    println!("    Line: {}", l);
+                    println!("    Line: {l}");
                 }
             }
         }
@@ -187,9 +187,9 @@ fn error_handling() -> Result<(), Box<dyn std::error::Error>> {
 </person>"#;
 
     match validator.validate(xml2) {
-        Ok(_) => println!("  Unexpected success"),
+        Ok(()) => println!("  Unexpected success"),
         Err(e) => {
-            println!("  ✓ Expected error: {}", e);
+            println!("  ✓ Expected error: {e}");
         }
     }
 
@@ -202,9 +202,9 @@ fn error_handling() -> Result<(), Box<dyn std::error::Error>> {
 </person>"#;
 
     match validator.validate(xml3) {
-        Ok(_) => println!("  Unexpected success"),
+        Ok(()) => println!("  Unexpected success"),
         Err(e) => {
-            println!("  ✓ Expected error: {}", e);
+            println!("  ✓ Expected error: {e}");
         }
     }
 
@@ -236,14 +236,14 @@ fn schema_caching() -> Result<(), Box<dyn std::error::Error>> {
     let start = std::time::Instant::now();
     let validator1 = cache.get_or_load(temp_file.path())?;
     let first_load = start.elapsed();
-    println!("  Time: {:?}", first_load);
+    println!("  Time: {first_load:?}");
     println!("  Cache size: {}", cache.size());
 
     println!("\nLoading schema from file (second time - cached)...");
     let start = std::time::Instant::now();
     let validator2 = cache.get_or_load(temp_file.path())?;
     let second_load = start.elapsed();
-    println!("  Time: {:?}", second_load);
+    println!("  Time: {second_load:?}");
     println!("  Cache size: {}", cache.size());
 
     // Verify it's the same instance
@@ -312,14 +312,14 @@ fn complex_validation() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Validating complex library document with multiple books...");
     match validator.validate(xml) {
-        Ok(_) => {
+        Ok(()) => {
             println!("✓ Complex document validated successfully!");
             println!("  Validated:");
             println!("    - 3 book elements");
             println!("    - Required ISBN attributes");
             println!("    - String, integer, and decimal types");
         }
-        Err(e) => println!("✗ Validation failed: {}", e),
+        Err(e) => println!("✗ Validation failed: {e}"),
     }
 
     Ok(())

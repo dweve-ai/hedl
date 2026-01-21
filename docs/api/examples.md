@@ -100,10 +100,11 @@ fn main() {
     let diagnostics = lint(&doc);
 
     for d in diagnostics {
+        // Note: severity() is a method, but rule_id and message are fields
         println!("[{}] {}: {}",
             d.severity(),
-            d.rule_id(),
-            d.message()
+            d.rule_id,      // Field, not method
+            d.message       // Field, not method
         );
     }
 }
@@ -158,10 +159,12 @@ use hedl::{parse, Item, Node};
 fn print_entities(node: &Node, indent: usize) {
     println!("{:indent$}{} ({})", "", node.id, node.type_name, indent = indent);
 
-    for (child_type, children) in &node.children {
-        println!("{:indent$}  {}:", "", child_type, indent = indent);
-        for child in children {
-            print_entities(child, indent + 4);
+    if let Some(ref children_map) = node.children {
+        for (child_type, children) in children_map.iter() {
+            println!("{:indent$}  {}:", "", child_type, indent = indent);
+            for child in children {
+                print_entities(child, indent + 4);
+            }
         }
     }
 }
@@ -579,7 +582,7 @@ async function processHedlFile(inputPath, outputPath) {
         await fs.writeFile(outputPath, json);
         console.log(`Converted ${inputPath} -> ${outputPath}`);
 
-        // Get stats
+        // Get stats (requires 'statistics' or 'token-tools' feature)
         const stats = hedl.getStats(content);
         console.log(`Token savings: ${stats.savingsPercent}%`);
 
@@ -634,7 +637,8 @@ export function HedlEditor({ initialValue = '' }: EditorProps) {
             setDoc(parsed);
             setErrors([]);
 
-            // Get stats
+            // Get stats (requires 'statistics' or 'token-tools' feature)
+            // Note: getStats returns a Result, handle errors appropriately
             const s = getStats(hedl);
             setStats(s);
 

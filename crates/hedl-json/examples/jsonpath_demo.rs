@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! JSONPath query demonstration
+//! `JSONPath` query demonstration
 //!
-//! This example demonstrates how to use JSONPath queries to extract
+//! This example demonstrates how to use `JSONPath` queries to extract
 //! specific data from HEDL documents efficiently.
 
 use hedl_core::parse;
@@ -60,35 +60,35 @@ config:
     println!("1. Simple field access:");
     let results = query(&doc, "$.config.database.host", &config)?;
     if let Some(host) = results.first() {
-        println!("   Database host: {}", host);
+        println!("   Database host: {host}");
     }
     println!();
 
     // Example 2: Query first match
     println!("2. Query first match:");
     if let Some(port) = query_first(&doc, "$.config.database.port", &config)? {
-        println!("   Database port: {}", port);
+        println!("   Database port: {port}");
     }
     println!();
 
     // Example 3: Query single expected value
     println!("3. Query single value:");
     let ttl = query_single(&doc, "$.config.cache.ttl", &config)?;
-    println!("   Cache TTL: {} seconds", ttl);
+    println!("   Cache TTL: {ttl} seconds");
     println!();
 
     // Example 4: Check existence
     println!("4. Check field existence:");
     let has_cache = query_exists(&doc, "$.config.cache", &config)?;
     let has_redis = query_exists(&doc, "$.config.redis", &config)?;
-    println!("   Has cache config: {}", has_cache);
-    println!("   Has redis config: {}", has_redis);
+    println!("   Has cache config: {has_cache}");
+    println!("   Has redis config: {has_redis}");
     println!();
 
     // Example 5: Count matches
     println!("5. Count matches:");
     let field_count = query_count(&doc, "$.config.*", &config)?;
-    println!("   Top-level config fields: {}", field_count);
+    println!("   Top-level config fields: {field_count}");
     println!();
 
     // Example 6: Recursive descent
@@ -96,7 +96,7 @@ config:
     let results = query(&doc, "$..enabled", &config)?;
     println!("   Found {} 'enabled' fields", results.len());
     for (i, result) in results.iter().enumerate() {
-        println!("   [{}] enabled = {}", i, result);
+        println!("   [{i}] enabled = {result}");
     }
     println!();
 
@@ -105,7 +105,7 @@ config:
     let results = query(&doc, "$.config.database.*", &config)?;
     println!("   Database configuration ({} fields):", results.len());
     for result in results {
-        println!("     - {}", result);
+        println!("     - {result}");
     }
     println!();
 
@@ -115,7 +115,7 @@ config:
     let results = query(&doc, "$.config.*", &limited_config)?;
     println!("   Retrieved {} fields (limited from more):", results.len());
     for result in results {
-        println!("     - {}", result);
+        println!("     - {result}");
     }
     println!();
 
@@ -132,7 +132,7 @@ config:
     println!("10. Array bracket notation:");
     let results = query(&doc, "$['config']['database']['host']", &config)?;
     if let Some(host) = results.first() {
-        println!("    Database host (bracket notation): {}", host);
+        println!("    Database host (bracket notation): {host}");
     }
     println!();
 
@@ -140,7 +140,7 @@ config:
     println!("11. Error handling (invalid JSONPath):");
     match query(&doc, "$$invalid", &config) {
         Ok(_) => println!("    Unexpected success"),
-        Err(e) => println!("    Caught error: {}", e),
+        Err(e) => println!("    Caught error: {e}"),
     }
     println!();
 
@@ -150,7 +150,7 @@ config:
     println!("    Found {} 'port' fields:", results.len());
     for result in results {
         if let Some(port) = result.as_i64() {
-            println!("      Port: {}", port);
+            println!("      Port: {port}");
         }
     }
     println!();

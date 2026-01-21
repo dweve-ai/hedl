@@ -22,15 +22,16 @@
 //! - Multi-stage pipeline performance with data from ALL stages
 //! - Comprehensive workflow analysis with 14+ tables and 10+ insights
 //!
-//! Run with: cargo bench --package hedl-bench --bench end_to_end
+//! Run with: cargo bench --package hedl-bench --bench `end_to_end`
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_events, generate_products, generate_users, sizes, BenchmarkReport,
     CustomTable, ExportConfig, Insight, PerfResult, TableCell,
 };
 use hedl_c14n::canonicalize;
 use std::cell::RefCell;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -44,7 +45,7 @@ use hedl_json::{to_json, ToJsonConfig};
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn ensure_init() {
@@ -114,7 +115,7 @@ fn bench_parse_validate(c: &mut Criterion) {
         let elapsed = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("parse_validate_{}", name),
+            &format!("parse_validate_{name}"),
             elapsed,
             iterations,
             Some(bytes * iterations),
@@ -168,19 +169,19 @@ fn bench_parse_canonicalize(c: &mut Criterion) {
         let total_time = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("parse_only_{}", name),
+            &format!("parse_only_{name}"),
             parse_time,
             iterations,
             Some(bytes * iterations),
         );
         record_perf(
-            &format!("parse_canonicalize_{}", name),
+            &format!("parse_canonicalize_{name}"),
             total_time,
             iterations,
             Some(bytes * iterations),
         );
         record_perf(
-            &format!("canonicalize_only_{}", name),
+            &format!("canonicalize_only_{name}"),
             total_time - parse_time,
             iterations,
             None,
@@ -246,25 +247,25 @@ fn bench_full_pipeline(c: &mut Criterion) {
         let full_time = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("full_parse_{}", name),
+            &format!("full_parse_{name}"),
             parse_time,
             iterations,
             Some(bytes * iterations),
         );
         record_perf(
-            &format!("full_convert_{}", name),
+            &format!("full_convert_{name}"),
             parse_convert_time - parse_time,
             iterations,
             None,
         );
         record_perf(
-            &format!("full_canonicalize_{}", name),
+            &format!("full_canonicalize_{name}"),
             full_time - parse_convert_time,
             iterations,
             None,
         );
         record_perf(
-            &format!("full_pipeline_{}", name),
+            &format!("full_pipeline_{name}"),
             full_time,
             iterations,
             Some(bytes * iterations),
@@ -310,7 +311,7 @@ fn bench_dataset_workflows(c: &mut Criterion) {
         let elapsed = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("dataset_workflow_{}", name),
+            &format!("dataset_workflow_{name}"),
             elapsed,
             iterations,
             Some(bytes * iterations),
@@ -360,7 +361,7 @@ fn bench_batch_processing(c: &mut Criterion) {
         let elapsed = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("batch_process_{}", batch_size),
+            &format!("batch_process_{batch_size}"),
             elapsed,
             iterations,
             Some(total_bytes * iterations),
@@ -453,7 +454,7 @@ fn bench_memory_intensive(c: &mut Criterion) {
         let elapsed = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("memory_intensive_{}", name),
+            &format!("memory_intensive_{name}"),
             elapsed,
             iterations,
             Some(bytes * iterations),
@@ -502,7 +503,7 @@ fn bench_concurrent_workflows(c: &mut Criterion) {
         let elapsed = start.elapsed().as_nanos() as u64;
 
         record_perf(
-            &format!("concurrent_sim_{}", level),
+            &format!("concurrent_sim_{level}"),
             elapsed,
             iterations,
             Some(total_bytes * iterations),
@@ -571,17 +572,17 @@ fn collect_pipeline_breakdowns() -> Vec<PipelineBreakdown> {
                 let parse_time = report
                     .perf_results
                     .iter()
-                    .find(|p| p.name == format!("full_parse_{}", size))
+                    .find(|p| p.name == format!("full_parse_{size}"))
                     .and_then(|p| p.avg_time_ns);
                 let convert_time = report
                     .perf_results
                     .iter()
-                    .find(|p| p.name == format!("full_convert_{}", size))
+                    .find(|p| p.name == format!("full_convert_{size}"))
                     .and_then(|p| p.avg_time_ns);
                 let canonicalize_time = report
                     .perf_results
                     .iter()
-                    .find(|p| p.name == format!("full_canonicalize_{}", size))
+                    .find(|p| p.name == format!("full_canonicalize_{size}"))
                     .and_then(|p| p.avg_time_ns);
 
                 if let (Some(parse), Some(convert), Some(canon)) =
@@ -590,7 +591,7 @@ fn collect_pipeline_breakdowns() -> Vec<PipelineBreakdown> {
                     let total = parse + convert + canon;
 
                     breakdowns.push(PipelineBreakdown {
-                        workflow: format!("Users {}", size),
+                        workflow: format!("Users {size}"),
                         parse_pct: (parse as f64 / total as f64) * 100.0,
                         convert_pct: (convert as f64 / total as f64) * 100.0,
                         canonicalize_pct: (canon as f64 / total as f64) * 100.0,
@@ -631,23 +632,20 @@ fn create_e2e_performance_table(results: &[WorkflowResult], report: &mut Benchma
     for size_name in &["small", "medium", "large"] {
         let parse = results
             .iter()
-            .find(|r| r.name == format!("parse_validate_{}", size_name))
-            .map(|r| r.time_ns as f64 / 1000.0)
-            .unwrap_or(0.0);
+            .find(|r| r.name == format!("parse_validate_{size_name}"))
+            .map_or(0.0, |r| r.time_ns as f64 / 1000.0);
 
         let canon = results
             .iter()
-            .find(|r| r.name == format!("canonicalize_only_{}", size_name))
-            .map(|r| r.time_ns as f64 / 1000.0)
-            .unwrap_or(0.0);
+            .find(|r| r.name == format!("canonicalize_only_{size_name}"))
+            .map_or(0.0, |r| r.time_ns as f64 / 1000.0);
 
         let total = parse + canon;
 
         let throughput = results
             .iter()
-            .find(|r| r.name == format!("parse_validate_{}", size_name))
-            .map(|r| r.throughput_mbs)
-            .unwrap_or(0.0);
+            .find(|r| r.name == format!("parse_validate_{size_name}"))
+            .map_or(0.0, |r| r.throughput_mbs);
 
         let records = match *size_name {
             "small" => sizes::SMALL,
@@ -658,9 +656,8 @@ fn create_e2e_performance_table(results: &[WorkflowResult], report: &mut Benchma
 
         let bytes = results
             .iter()
-            .find(|r| r.name == format!("parse_validate_{}", size_name))
-            .and_then(|r| Some(r.bytes_processed))
-            .unwrap_or(0);
+            .find(|r| r.name == format!("parse_validate_{size_name}"))
+            .map_or(0, |r| r.bytes_processed);
 
         let us_per_record = if records > 0 {
             total / records as f64
@@ -669,7 +666,7 @@ fn create_e2e_performance_table(results: &[WorkflowResult], report: &mut Benchma
         };
 
         table.rows.push(vec![
-            TableCell::String(size_name.to_string()),
+            TableCell::String((*size_name).to_string()),
             TableCell::Integer(records as i64),
             TableCell::Integer(bytes as i64),
             TableCell::Float(parse),
@@ -749,13 +746,12 @@ fn create_dataset_comparison_table(results: &[WorkflowResult], report: &mut Benc
     let users_time = results
         .iter()
         .find(|r| r.name == "dataset_workflow_users")
-        .map(|r| r.time_ns as f64 / 1000.0)
-        .unwrap_or(1.0);
+        .map_or(1.0, |r| r.time_ns as f64 / 1000.0);
 
     for (dataset, complexity, chars) in dataset_info {
         if let Some(result) = results
             .iter()
-            .find(|r| r.name == format!("dataset_workflow_{}", dataset))
+            .find(|r| r.name == format!("dataset_workflow_{dataset}"))
         {
             let time_us = result.time_ns as f64 / 1000.0;
             let vs_users = ((time_us - users_time) / users_time) * 100.0;
@@ -794,13 +790,12 @@ fn create_batch_scalability_table(results: &[WorkflowResult], report: &mut Bench
     let baseline_time_per_doc = results
         .iter()
         .find(|r| r.name == "batch_process_1")
-        .map(|r| r.time_ns as f64 / 1000.0)
-        .unwrap_or(1.0);
+        .map_or(1.0, |r| r.time_ns as f64 / 1000.0);
 
     for batch_size in batch_sizes {
         if let Some(result) = results
             .iter()
-            .find(|r| r.name == format!("batch_process_{}", batch_size))
+            .find(|r| r.name == format!("batch_process_{batch_size}"))
         {
             let total_time = result.time_ns as f64 / 1000.0;
             let time_per_doc = total_time / batch_size as f64;
@@ -850,14 +845,12 @@ fn create_error_handling_table(results: &[WorkflowResult], report: &mut Benchmar
     let success_time = results
         .iter()
         .find(|r| r.name == "error_success_path")
-        .map(|r| r.time_ns as f64 / 1000.0)
-        .unwrap_or(1.0);
+        .map_or(1.0, |r| r.time_ns as f64 / 1000.0);
 
     let error_time = results
         .iter()
         .find(|r| r.name == "error_failure_path")
-        .map(|r| r.time_ns as f64 / 1000.0)
-        .unwrap_or(0.0);
+        .map_or(0.0, |r| r.time_ns as f64 / 1000.0);
 
     let overhead = error_time - success_time;
     let vs_success = ((error_time - success_time) / success_time) * 100.0;
@@ -905,7 +898,7 @@ fn create_memory_intensive_table(results: &[WorkflowResult], report: &mut Benchm
     for (name, records) in datasets {
         if let Some(result) = results
             .iter()
-            .find(|r| r.name == format!("memory_intensive_{}", name))
+            .find(|r| r.name == format!("memory_intensive_{name}"))
         {
             let time_ms = result.time_ns as f64 / 1_000_000.0;
             let size_mb = result.bytes_processed as f64 / 1_000_000.0;
@@ -954,13 +947,12 @@ fn create_concurrent_processing_table(results: &[WorkflowResult], report: &mut B
     let baseline = results
         .iter()
         .find(|r| r.name == "concurrent_sim_1")
-        .map(|r| r.time_ns as f64 / 1000.0)
-        .unwrap_or(1.0);
+        .map_or(1.0, |r| r.time_ns as f64 / 1000.0);
 
     for level in levels {
         if let Some(result) = results
             .iter()
-            .find(|r| r.name == format!("concurrent_sim_{}", level))
+            .find(|r| r.name == format!("concurrent_sim_{level}"))
         {
             let total_time = result.time_ns as f64 / 1000.0;
             let time_per_request = total_time / level as f64;
@@ -1110,10 +1102,10 @@ fn create_throughput_comparison_table(results: &[WorkflowResult], report: &mut B
         .map(|r| r.throughput_mbs)
         .collect();
 
-    let avg_throughput = if !all_throughputs.is_empty() {
-        all_throughputs.iter().sum::<f64>() / all_throughputs.len() as f64
-    } else {
+    let avg_throughput = if all_throughputs.is_empty() {
         1.0
+    } else {
+        all_throughputs.iter().sum::<f64>() / all_throughputs.len() as f64
     };
 
     for (pattern, name, use_case) in workflow_patterns {
@@ -1166,7 +1158,7 @@ fn create_average_latency_table(results: &[WorkflowResult], report: &mut Benchma
     ] {
         if let Some(result) = results
             .iter()
-            .find(|r| r.name == format!("parse_canonicalize_{}", size))
+            .find(|r| r.name == format!("parse_canonicalize_{size}"))
         {
             let latency_us = result.time_ns as f64 / 1000.0;
             table.rows.push(vec![
@@ -1284,7 +1276,7 @@ fn create_production_metrics_table(results: &[WorkflowResult], report: &mut Benc
     table.rows.push(vec![
         TableCell::String("Peak Throughput".to_string()),
         TableCell::String(">100 MB/s".to_string()),
-        TableCell::String(format!("{:.1} MB/s", max_throughput)),
+        TableCell::String(format!("{max_throughput:.1} MB/s")),
         TableCell::String(throughput_status.to_string()),
         TableCell::String("Parsing + processing pipeline".to_string()),
     ]);
@@ -1312,7 +1304,7 @@ fn create_production_metrics_table(results: &[WorkflowResult], report: &mut Benc
     table.rows.push(vec![
         TableCell::String("Error Path Overhead".to_string()),
         TableCell::String("<100%".to_string()),
-        TableCell::String(format!("{:.1}%", error_overhead)),
+        TableCell::String(format!("{error_overhead:.1}%")),
         TableCell::String(error_status.to_string()),
         TableCell::String("Fast error detection".to_string()),
     ]);
@@ -1341,7 +1333,7 @@ fn create_production_metrics_table(results: &[WorkflowResult], report: &mut Benc
     table.rows.push(vec![
         TableCell::String("Batch Scaling".to_string()),
         TableCell::String(">85% efficient".to_string()),
-        TableCell::String(format!("{:.1}%", batch_efficiency)),
+        TableCell::String(format!("{batch_efficiency:.1}%")),
         TableCell::String(batch_status.to_string()),
         TableCell::String("Linear scaling at 100x".to_string()),
     ]);
@@ -1434,18 +1426,15 @@ fn create_resource_utilization_table(results: &[WorkflowResult], report: &mut Be
     let small_time = results
         .iter()
         .find(|r| r.name.contains("small"))
-        .map(|r| r.time_ns)
-        .unwrap_or(1);
+        .map_or(1, |r| r.time_ns);
     let medium_time = results
         .iter()
         .find(|r| r.name.contains("medium"))
-        .map(|r| r.time_ns)
-        .unwrap_or(1);
+        .map_or(1, |r| r.time_ns);
     let large_time = results
         .iter()
         .find(|r| r.name.contains("large"))
-        .map(|r| r.time_ns)
-        .unwrap_or(1);
+        .map_or(1, |r| r.time_ns);
 
     let cpu_scalability = if (large_time as f64) < (small_time as f64 * 100.0 * 1.5) {
         "Linear"
@@ -1466,18 +1455,15 @@ fn create_resource_utilization_table(results: &[WorkflowResult], report: &mut Be
     let small_tp = results
         .iter()
         .find(|r| r.name.contains("small"))
-        .map(|r| r.throughput_mbs)
-        .unwrap_or(0.0);
+        .map_or(0.0, |r| r.throughput_mbs);
     let medium_tp = results
         .iter()
         .find(|r| r.name.contains("medium"))
-        .map(|r| r.throughput_mbs)
-        .unwrap_or(0.0);
+        .map_or(0.0, |r| r.throughput_mbs);
     let large_tp = results
         .iter()
         .find(|r| r.name.contains("large"))
-        .map(|r| r.throughput_mbs)
-        .unwrap_or(0.0);
+        .map_or(0.0, |r| r.throughput_mbs);
 
     let tp_scalability = if large_tp > medium_tp * 0.8 {
         "Stable"
@@ -1487,9 +1473,9 @@ fn create_resource_utilization_table(results: &[WorkflowResult], report: &mut Be
 
     table.rows.push(vec![
         TableCell::String("Throughput".to_string()),
-        TableCell::String(format!("{:.1} MB/s", small_tp)),
-        TableCell::String(format!("{:.1} MB/s", medium_tp)),
-        TableCell::String(format!("{:.1} MB/s", large_tp)),
+        TableCell::String(format!("{small_tp:.1} MB/s")),
+        TableCell::String(format!("{medium_tp:.1} MB/s")),
+        TableCell::String(format!("{large_tp:.1} MB/s")),
         TableCell::String(tp_scalability.to_string()),
         TableCell::String("Low".to_string()),
     ]);
@@ -1552,7 +1538,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: category.to_string(),
-            title: format!("Peak Throughput: {:.1} MB/s", max_throughput),
+            title: format!("Peak Throughput: {max_throughput:.1} MB/s"),
             description: assessment.to_string(),
             data_points: vec![
                 format!("Maximum observed: {:.1} MB/s", max_throughput),
@@ -1577,7 +1563,7 @@ fn generate_insights(
                 "finding"
             }
             .to_string(),
-            title: format!("Batch Processing Efficiency: {:.1}%", efficiency),
+            title: format!("Batch Processing Efficiency: {efficiency:.1}%"),
             description: "Linear scaling maintained across batch sizes".to_string(),
             data_points: vec![
                 format!("100x batch scales at {:.1}% efficiency", efficiency),
@@ -1597,7 +1583,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("Fast Error Detection: {:.1}% overhead", overhead_pct),
+            title: format!("Fast Error Detection: {overhead_pct:.1}% overhead"),
             description: "Error paths are optimized for quick failure".to_string(),
             data_points: vec![
                 format!("Success path: {:.1} μs", succ.time_ns as f64 / 1000.0),
@@ -1608,14 +1594,14 @@ fn generate_insights(
     }
 
     // Insight 5: Dataset complexity impact
-    let datasets = vec!["users", "products", "blog", "events"];
+    let datasets = ["users", "products", "blog", "events"];
     let mut times: Vec<(String, f64)> = datasets
         .iter()
         .filter_map(|name| {
             results
                 .iter()
-                .find(|r| r.name == format!("dataset_workflow_{}", name))
-                .map(|r| (name.to_string(), r.time_ns as f64 / 1000.0))
+                .find(|r| r.name == format!("dataset_workflow_{name}"))
+                .map(|r| ((*name).to_string(), r.time_ns as f64 / 1000.0))
         })
         .collect();
 
@@ -1626,7 +1612,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Dataset Complexity Impact: {:.1}x variation", ratio),
+            title: format!("Dataset Complexity Impact: {ratio:.1}x variation"),
             description: "Complex nested structures increase processing time".to_string(),
             data_points: vec![
                 format!("Fastest ({}): {:.0} μs", fastest.0, fastest.1),
@@ -1649,10 +1635,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "recommendation".to_string(),
-            title: format!(
-                "Request Latency Under Load: {:.1}% increase at 16x",
-                degradation
-            ),
+            title: format!("Request Latency Under Load: {degradation:.1}% increase at 16x"),
             description: "Minimal latency degradation under concurrent load".to_string(),
             data_points: vec![
                 format!("Single request: {:.0} μs", baseline_per_request),
@@ -1671,10 +1654,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Large Dataset Processing: {:.0} records/sec",
-                records_per_sec
-            ),
+            title: format!("Large Dataset Processing: {records_per_sec:.0} records/sec"),
             description: "Maintains performance on memory-intensive workloads".to_string(),
             data_points: vec![
                 format!(
@@ -1761,7 +1741,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Full Pipeline Latency: {:.2} ms for 100KB", total_ms),
+            title: format!("Full Pipeline Latency: {total_ms:.2} ms for 100KB"),
             description: "Complete processing latency breakdown for capacity planning".to_string(),
             data_points: vec![
                 format!("Total time: {:.2} ms", total_ms),
@@ -1834,7 +1814,7 @@ fn export_reports(c: &mut Criterion) {
         report.print();
 
         if let Err(e) = std::fs::create_dir_all("target") {
-            eprintln!("Failed to create target directory: {}", e);
+            eprintln!("Failed to create target directory: {e}");
             return;
         }
 
@@ -1845,7 +1825,7 @@ fn export_reports(c: &mut Criterion) {
                 report.custom_tables.len(),
                 report.insights.len()
             ),
-            Err(e) => eprintln!("Failed to export reports: {}", e),
+            Err(e) => eprintln!("Failed to export reports: {e}"),
         }
     }
 }

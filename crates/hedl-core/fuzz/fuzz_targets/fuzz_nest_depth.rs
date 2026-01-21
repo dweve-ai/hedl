@@ -62,7 +62,7 @@
 //! ```
 
 use libfuzzer_sys::fuzz_target;
-use hedl_core::{parse_with_limits, ParseOptions, Limits};
+use hedl_core::{parse_with_limits, ParseOptions, Limits}, ReferenceMode;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(text) = std::str::from_utf8(data) {
@@ -77,7 +77,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options1 = ParseOptions {
             limits: shallow_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let result1 = parse_with_limits(text.as_bytes(), options1);
@@ -99,7 +99,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options2 = ParseOptions {
             limits: moderate_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options2);
@@ -114,7 +114,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options3 = ParseOptions {
             limits: no_nest_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options3);
@@ -129,7 +129,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options4 = ParseOptions {
             limits: zero_nest_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options4);
@@ -145,7 +145,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options5 = ParseOptions {
             limits: deep_strict_limits,
-            strict_refs: true,              // Strict mode for reference validation
+            reference_mode: ReferenceMode::Strict,              // Strict mode for reference validation
         };
 
         let result5 = parse_with_limits(text.as_bytes(), options5);
@@ -169,7 +169,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options6 = ParseOptions {
             limits: tight_both_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options6);
@@ -184,7 +184,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options7 = ParseOptions {
             limits: unusual_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options7);

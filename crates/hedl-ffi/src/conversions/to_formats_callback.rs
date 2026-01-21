@@ -54,6 +54,7 @@
 
 use crate::error::{clear_error, set_error};
 use crate::memory::is_valid_document_ptr;
+use crate::reentrancy::ReentrancyGuard;
 use crate::types::{
     HedlDocument, HEDL_ERR_CSV, HEDL_ERR_JSON, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR, HEDL_ERR_XML,
     HEDL_ERR_YAML, HEDL_OK,
@@ -78,12 +79,32 @@ pub type HedlOutputCallback =
 // Helper Functions
 // =============================================================================
 
+/// Validate that a callback function pointer is not NULL
+#[inline]
+unsafe fn is_valid_callback(callback: HedlOutputCallback) -> bool {
+    // Function pointers in Rust FFI can be checked by casting to usize
+    let callback_addr = callback as usize;
+    callback_addr != 0
+}
+
 /// Helper to invoke callback with output data
 #[inline]
 unsafe fn invoke_callback(output: &str, callback: HedlOutputCallback, user_data: *mut c_void) {
-    let data = output.as_ptr() as *const c_char;
+    // Enter callback context to detect reentrant FFI calls
+    let _guard = if let Ok(guard) = ReentrancyGuard::enter() {
+        guard
+    } else {
+        // Reentrancy detected - this should not happen in normal operation
+        // Log error but don't panic
+        eprintln!("Warning: Reentrant callback detected");
+        return;
+    };
+
+    let data = output.as_ptr().cast::<c_char>();
     let len = output.len();
     callback(data, len, user_data);
+
+    // Guard automatically exits callback context when dropped
 }
 
 // =============================================================================
@@ -96,13 +117,13 @@ unsafe fn invoke_callback(output: &str, callback: HedlOutputCallback, user_data:
 /// to the callback. For smaller outputs, consider using `hedl_to_json`.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `include_metadata` - Non-zero to include HEDL metadata (__type__, __schema__)
 /// * `callback` - Function to receive the output data
 /// * `user_data` - User context pointer passed to callback
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// - All pointers must be valid
@@ -142,7 +163,19 @@ pub unsafe extern "C" fn hedl_to_json_callback(
         audit_call_failure(
             "hedl_to_json_callback",
             HEDL_ERR_NULL_PTR,
-            "NULL or invalid pointer",
+            "NULL or invalid document pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    if !is_valid_callback(callback) {
+        set_error("Null callback function pointer");
+        let duration = start.elapsed();
+        audit_call_failure(
+            "hedl_to_json_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL callback pointer",
             duration,
         );
         return HEDL_ERR_NULL_PTR;
@@ -161,9 +194,9 @@ pub unsafe extern "C" fn hedl_to_json_callback(
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("JSON conversion error: {}", e));
+            set_error(&format!("JSON conversion error: {e}"));
             let duration = start.elapsed();
-            let msg = e.to_string();
+            let msg = e.clone();
             audit_call_failure("hedl_to_json_callback", HEDL_ERR_JSON, &msg, duration);
             HEDL_ERR_JSON
         }
@@ -180,13 +213,13 @@ pub unsafe extern "C" fn hedl_to_json_callback(
 /// to the callback. For smaller outputs, consider using `hedl_to_yaml`.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `include_metadata` - Non-zero to include HEDL metadata
 /// * `callback` - Function to receive the output data
 /// * `user_data` - User context pointer passed to callback
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// - All pointers must be valid
@@ -226,7 +259,19 @@ pub unsafe extern "C" fn hedl_to_yaml_callback(
         audit_call_failure(
             "hedl_to_yaml_callback",
             HEDL_ERR_NULL_PTR,
-            "NULL or invalid pointer",
+            "NULL or invalid document pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    if !is_valid_callback(callback) {
+        set_error("Null callback function pointer");
+        let duration = start.elapsed();
+        audit_call_failure(
+            "hedl_to_yaml_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL callback pointer",
             duration,
         );
         return HEDL_ERR_NULL_PTR;
@@ -245,9 +290,9 @@ pub unsafe extern "C" fn hedl_to_yaml_callback(
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("YAML conversion error: {}", e));
+            set_error(&format!("YAML conversion error: {e}"));
             let duration = start.elapsed();
-            let msg = e.to_string();
+            let msg = e.clone();
             audit_call_failure("hedl_to_yaml_callback", HEDL_ERR_JSON, &msg, duration);
             HEDL_ERR_YAML
         }
@@ -264,12 +309,12 @@ pub unsafe extern "C" fn hedl_to_yaml_callback(
 /// to the callback. For smaller outputs, consider using `hedl_to_xml`.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `callback` - Function to receive the output data
 /// * `user_data` - User context pointer passed to callback
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// - All pointers must be valid
@@ -301,7 +346,19 @@ pub unsafe extern "C" fn hedl_to_xml_callback(
         audit_call_failure(
             "hedl_to_xml_callback",
             HEDL_ERR_NULL_PTR,
-            "NULL or invalid pointer",
+            "NULL or invalid document pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    if !is_valid_callback(callback) {
+        set_error("Null callback function pointer");
+        let duration = start.elapsed();
+        audit_call_failure(
+            "hedl_to_xml_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL callback pointer",
             duration,
         );
         return HEDL_ERR_NULL_PTR;
@@ -316,9 +373,9 @@ pub unsafe extern "C" fn hedl_to_xml_callback(
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("XML conversion error: {}", e));
+            set_error(&format!("XML conversion error: {e}"));
             let duration = start.elapsed();
-            let msg = e.to_string();
+            let msg = e.clone();
             audit_call_failure("hedl_to_xml_callback", HEDL_ERR_JSON, &msg, duration);
             HEDL_ERR_XML
         }
@@ -337,12 +394,12 @@ pub unsafe extern "C" fn hedl_to_xml_callback(
 /// to the callback. For smaller outputs, consider using `hedl_to_csv`.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `callback` - Function to receive the output data
 /// * `user_data` - User context pointer passed to callback
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// - All pointers must be valid
@@ -374,7 +431,19 @@ pub unsafe extern "C" fn hedl_to_csv_callback(
         audit_call_failure(
             "hedl_to_csv_callback",
             HEDL_ERR_NULL_PTR,
-            "NULL or invalid pointer",
+            "NULL or invalid document pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    if !is_valid_callback(callback) {
+        set_error("Null callback function pointer");
+        let duration = start.elapsed();
+        audit_call_failure(
+            "hedl_to_csv_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL callback pointer",
             duration,
         );
         return HEDL_ERR_NULL_PTR;
@@ -389,7 +458,7 @@ pub unsafe extern "C" fn hedl_to_csv_callback(
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("CSV conversion error: {}", e));
+            set_error(&format!("CSV conversion error: {e}"));
             let duration = start.elapsed();
             let msg = e.to_string();
             audit_call_failure("hedl_to_csv_callback", HEDL_ERR_JSON, &msg, duration);
@@ -410,13 +479,13 @@ pub unsafe extern "C" fn hedl_to_csv_callback(
 /// to the callback. For smaller outputs, consider using `hedl_to_neo4j_cypher`.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `use_merge` - Non-zero to use MERGE (idempotent), zero for CREATE
 /// * `callback` - Function to receive the output data
 /// * `user_data` - User context pointer passed to callback
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// - All pointers must be valid
@@ -453,7 +522,19 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher_callback(
         audit_call_failure(
             "hedl_to_neo4j_cypher_callback",
             HEDL_ERR_NULL_PTR,
-            "NULL or invalid pointer",
+            "NULL or invalid document pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    if !is_valid_callback(callback) {
+        set_error("Null callback function pointer");
+        let duration = start.elapsed();
+        audit_call_failure(
+            "hedl_to_neo4j_cypher_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL callback pointer",
             duration,
         );
         return HEDL_ERR_NULL_PTR;
@@ -468,13 +549,13 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher_callback(
 
     match hedl_neo4j::to_cypher(doc_ref, &config) {
         Ok(cypher) => {
-            let cypher_str = cypher.to_string();
+            let cypher_str = cypher.clone();
             invoke_callback(&cypher_str, callback, user_data);
             audit_call_success("hedl_to_neo4j_cypher_callback", start.elapsed());
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("Neo4j conversion error: {}", e));
+            set_error(&format!("Neo4j conversion error: {e}"));
             let duration = start.elapsed();
             let msg = e.to_string();
             audit_call_failure(
@@ -498,12 +579,12 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher_callback(
 /// to the callback. For smaller outputs, consider using `hedl_canonicalize`.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `callback` - Function to receive the output data
 /// * `user_data` - User context pointer passed to callback
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// - All pointers must be valid
@@ -531,7 +612,19 @@ pub unsafe extern "C" fn hedl_canonicalize_callback(
         audit_call_failure(
             "hedl_canonicalize_callback",
             HEDL_ERR_NULL_PTR,
-            "NULL or invalid pointer",
+            "NULL or invalid document pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    if !is_valid_callback(callback) {
+        set_error("Null callback function pointer");
+        let duration = start.elapsed();
+        audit_call_failure(
+            "hedl_canonicalize_callback",
+            HEDL_ERR_NULL_PTR,
+            "NULL callback pointer",
             duration,
         );
         return HEDL_ERR_NULL_PTR;
@@ -546,7 +639,7 @@ pub unsafe extern "C" fn hedl_canonicalize_callback(
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("Canonicalization error: {}", e));
+            set_error(&format!("Canonicalization error: {e}"));
             let duration = start.elapsed();
             let msg = e.to_string();
             audit_call_failure("hedl_canonicalize_callback", HEDL_ERR_JSON, &msg, duration);

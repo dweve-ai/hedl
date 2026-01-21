@@ -36,7 +36,7 @@ proptest! {
     /// Property: Any valid integer should parse correctly and roundtrip.
     #[test]
     fn prop_integer_roundtrips(n in -1_000_000_i64..1_000_000_i64) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {}\n", n);
+        let doc = format!("%VERSION: 1.0\n---\nvalue: {n}\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -50,7 +50,7 @@ proptest! {
     /// Property: Any valid floating-point number should parse correctly.
     #[test]
     fn prop_float_parses(f in -1_000_000.0_f64..1_000_000.0_f64) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {}\n", f);
+        let doc = format!("%VERSION: 1.0\n---\nvalue: {f}\n");
         let result = parse(doc.as_bytes());
 
         if f.is_nan() {
@@ -59,7 +59,7 @@ proptest! {
             let parsed = result.unwrap();
             let val = parsed.get("value").expect("Missing 'value' key");
             let scalar = val.as_scalar().expect("Expected scalar value");
-            prop_assert!(scalar.as_float().map(|x| x.is_nan()).unwrap_or(false));
+            prop_assert!(scalar.as_float().is_some_and(f64::is_nan));
         } else if f.is_finite() {
             prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
             let parsed = result.unwrap();
@@ -80,7 +80,7 @@ proptest! {
     /// Property: Any valid boolean should parse correctly and roundtrip.
     #[test]
     fn prop_bool_roundtrips(b: bool) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {}\n", b);
+        let doc = format!("%VERSION: 1.0\n---\nvalue: {b}\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -95,7 +95,7 @@ proptest! {
     /// Note: Must start with a letter to avoid numeric inference.
     #[test]
     fn prop_simple_string_roundtrips(s in "[a-zA-Z][a-zA-Z0-9_-]{0,99}") {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {}\n", s);
+        let doc = format!("%VERSION: 1.0\n---\nvalue: {s}\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -124,7 +124,7 @@ proptest! {
     /// Note: Keys use snake_case (letters, digits, underscores).
     #[test]
     fn prop_valid_key_names(key in "[a-z][a-z0-9_]{0,50}") {
-        let doc = format!("%VERSION: 1.0\n---\n{}: test\n", key);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: test\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -136,8 +136,8 @@ proptest! {
     /// Property: Numbers with leading zeros should be rejected or parsed as strings.
     #[test]
     fn prop_leading_zeros_handled(zeros in "0{2,5}", digits in "[1-9][0-9]{0,5}") {
-        let num_str = format!("{}{}", zeros, digits);
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {}\n", num_str);
+        let num_str = format!("{zeros}{digits}");
+        let doc = format!("%VERSION: 1.0\n---\nvalue: {num_str}\n");
         let result = parse(doc.as_bytes());
 
         // Should parse successfully (either as int 0 or as string)
@@ -156,7 +156,7 @@ mod determinism_tests {
         /// Property: Integer inference is deterministic (same input -> same output).
         #[test]
         fn prop_integer_inference_deterministic(n in -1_000_000_i64..1_000_000_i64) {
-            let doc = format!("%VERSION: 1.0\n---\nval: {}\n", n);
+            let doc = format!("%VERSION: 1.0\n---\nval: {n}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -173,7 +173,7 @@ mod determinism_tests {
         fn prop_float_inference_deterministic(f in -1_000.0_f64..1_000.0) {
             prop_assume!(f.is_finite());
 
-            let doc = format!("%VERSION: 1.0\n---\nval: {}\n", f);
+            let doc = format!("%VERSION: 1.0\n---\nval: {f}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -195,7 +195,7 @@ mod determinism_tests {
         /// Note: Must start with a letter to avoid numeric inference.
         #[test]
         fn prop_string_inference_deterministic(s in "[a-zA-Z][a-zA-Z0-9_-]{0,99}") {
-            let doc = format!("%VERSION: 1.0\n---\nval: {}\n", s);
+            let doc = format!("%VERSION: 1.0\n---\nval: {s}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -210,7 +210,7 @@ mod determinism_tests {
         /// Property: Bool inference is deterministic.
         #[test]
         fn prop_bool_inference_deterministic(b: bool) {
-            let doc = format!("%VERSION: 1.0\n---\nval: {}\n", b);
+            let doc = format!("%VERSION: 1.0\n---\nval: {b}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -244,8 +244,7 @@ mod determinism_tests {
             id in "[a-z][a-z0-9_]{0,30}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id]\n---\nitems: @{}\n  | {}\nref: @{}:{}\n",
-                type_name, type_name, id, type_name, id
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nref: @{type_name}:{id}\n"
             );
 
             let result1 = parse(doc.as_bytes()).unwrap();
@@ -292,12 +291,12 @@ fn test_property_nested_objects() {
         // Build nested structure
         for d in 0..depth {
             let indent = "  ".repeat(d);
-            doc.push_str(&format!("{}level{}:\n", indent, d));
+            doc.push_str(&format!("{indent}level{d}:\n"));
         }
 
         // Add final value
         let indent = "  ".repeat(depth);
-        doc.push_str(&format!("{}value: 42\n", indent));
+        doc.push_str(&format!("{indent}value: 42\n"));
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse depth {}: {:?}", depth, result.err());
@@ -313,10 +312,10 @@ fn test_property_whitespace_variations() {
         let mut doc = String::from("%VERSION: 1.0\n---\n");
         for d in 0..depth {
             let indent = "  ".repeat(d);
-            doc.push_str(&format!("{}level{}:\n", indent, d));
+            doc.push_str(&format!("{indent}level{d}:\n"));
         }
         let indent = "  ".repeat(depth);
-        doc.push_str(&format!("{}value: 42\n", indent));
+        doc.push_str(&format!("{indent}value: 42\n"));
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed at depth {}: {:?}", depth, result.err());

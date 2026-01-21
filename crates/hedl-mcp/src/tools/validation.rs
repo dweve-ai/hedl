@@ -26,7 +26,7 @@ use hedl_core::parse;
 use hedl_lint::lint;
 use serde_json::{json, Value as JsonValue};
 
-/// Execute hedl_validate tool.
+/// Execute `hedl_validate` tool.
 pub fn execute_hedl_validate(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: ValidateArgs = parse_args(args)?;
 

@@ -74,7 +74,7 @@
 //! let diagnostics = runner.run(&doc);
 //! ```
 //!
-//! ## Using LintContext
+//! ## Using `LintContext`
 //!
 //! ```rust
 //! use hedl_lint::{LintContext, LintRunner, LintConfig};
@@ -92,24 +92,44 @@
 //!
 //! let diagnostics = runner.run_with_context(&doc, context);
 //! ```
+//!
+//! ## Performance
+//!
+//! The linter is optimized for large documents through:
+//! - **Parallel rule execution** (enabled by default with `parallel` feature)
+//! - **Early termination** when diagnostic limits are reached
+//! - **Memory pre-allocation** to reduce allocations
+//! - **Single-pass traversal** option for specific use cases
+//!
+//! For large documents (> 10K nodes), parallel execution provides 3-4x speedup
+//! on multi-core systems. See `PERFORMANCE.md` for detailed benchmarks.
 
+#![cfg_attr(not(test), warn(missing_docs))]
 mod diagnostic;
+pub mod fix;
 mod rules;
 mod runner;
+mod visitor;
 
 pub use diagnostic::{Diagnostic, DiagnosticKind, Severity};
+pub use fix::{
+    Fix, FixApplicator, FixConfig, FixContext, FixError, FixId, FixProvider, FixResult,
+    FixStatistics, SourcePosition, SourceRange,
+};
 pub use rules::{LintRule, RuleConfig};
 pub use runner::{LintConfig, LintContext, LintRunner};
 
 use hedl_core::Document;
 
 /// Run all default lint rules on a document
+#[must_use]
 pub fn lint(doc: &Document) -> Vec<Diagnostic> {
     let runner = LintRunner::new(LintConfig::default());
     runner.run(doc)
 }
 
 /// Run lint with custom configuration
+#[must_use]
 pub fn lint_with_config(doc: &Document, config: LintConfig) -> Vec<Diagnostic> {
     let runner = LintRunner::new(config);
     runner.run(doc)
@@ -133,8 +153,8 @@ mod tests {
 
         // Create a matrix list with short IDs
         let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
-        let node1 = Node::new("User", "a", vec![Value::String("Alice".to_string())]);
-        let node2 = Node::new("User", "b", vec![Value::String("Bob".to_string())]);
+        let node1 = Node::new("User", "a", vec![Value::String("Alice".to_string().into())]);
+        let node2 = Node::new("User", "b", vec![Value::String("Bob".to_string().into())]);
         list.add_row(node1);
         list.add_row(node2);
 
@@ -259,7 +279,7 @@ mod tests {
     #[test]
     fn test_diagnostic_display() {
         let diag = Diagnostic::warning(DiagnosticKind::UnusedSchema, "Test message", "test-rule");
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("warning"));
         assert!(display.contains("Test message"));
         assert!(display.contains("test-rule"));
@@ -268,13 +288,13 @@ mod tests {
     #[test]
     fn test_diagnostic_with_line() {
         let diag = Diagnostic::error(
-            DiagnosticKind::DuplicateKey,
+            DiagnosticKind::Custom("dup-key".to_string()),
             "Duplicate key found",
             "dup-key",
         )
         .with_line(42);
 
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("line 42"));
     }
 }

@@ -123,7 +123,7 @@ export PATH="$HOME/my-tools/bin:$PATH"
 
 **Symptoms:**
 ```
-Error: Parse error at line 5, column 12: unexpected token
+SyntaxError at line 5: unexpected token
 ```
 
 **Solutions:**
@@ -189,7 +189,7 @@ hedl inspect problematic.hedl
 
 **Symptoms:**
 ```
-Error: Invalid UTF-8 sequence at byte 42
+SyntaxError at line 1: invalid UTF-8 sequence at byte 42
 ```
 
 **Solutions:**
@@ -221,7 +221,7 @@ iconv -c -f UTF-8 -t UTF-8 myfile.hedl > clean.hedl
 
 **Symptoms:**
 ```
-Error: Maximum nesting depth (100) exceeded
+SecurityError at line 50: maximum nesting depth (100) exceeded
 ```
 
 **Solutions:**
@@ -291,40 +291,53 @@ hedl to-json source.hedl -o for_api.json
 **Symptoms:**
 ```bash
 hedl from-csv data.csv -o output.hedl
-# Numbers imported as strings
+# Numbers imported as strings, or ID column is lost
 ```
 
 **Example:**
 ```csv
 id,age,active
 1,30,true
+2,25,false
 ```
 
 **Output (undesired):**
 ```hedl
-%STRUCT: Record: [id, age, active]
+%STRUCT: Record: [age, active]
 ---
 records: @Record
-  | 1, 30, true  # Everything is a string!
+  | 30, true  # ID is missing! Only other columns are kept.
+  | 25, false
 ```
+
+**Important Note**: HEDL expects the first CSV column to be an ID column. This column is used as the node identifier and is automatically managed.
 
 **Solutions:**
 
-**1. Specify type name for the matrix list:**
+**1. Ensure first column is an ID:**
+```csv
+# CORRECT - first column is ID, followed by data columns
+id,age,active
+1,30,true
+2,25,false
+```
+
+**2. Specify type name for the matrix list:**
 ```bash
-# Use --type-name to set the struct name
-hedl from-csv data.csv --type-name Record -o output.hedl
+# Use -t or --type-name to set the struct name
+hedl from-csv data.csv -t Record -o output.hedl
 
 # Output (correct types inferred):
-# %STRUCT: Record: [id, age, active]
+# %STRUCT: Record: [age, active]
 # ---
 # records: @Record
 #   | 1, 30, true
+#   | 2, 25, false
 ```
 
-**2. Check CSV format:**
+**3. Check CSV format:**
 ```csv
-# WRONG - numbers in quotes
+# WRONG - numbers in quotes (treated as strings)
 "id","age","active"
 "1","30","true"
 
@@ -333,11 +346,11 @@ id,age,active
 1,30,true
 ```
 
-**3. Manually fix after import:**
+**4. Manually fix after import:**
 ```bash
 hedl from-csv data.csv > temp.hedl
 hedl format temp.hedl -o corrected.hedl
-# Then manually edit types if needed
+# Then manually edit types in the HEDL file if needed
 ```
 
 ---
@@ -356,13 +369,15 @@ Converts to unexpected structure.
 **Solutions:**
 
 **1. Understand attribute conversion:**
-XML attributes become `_attr_` prefixed fields:
+XML attributes become regular HEDL fields (no prefix):
 
 ```hedl
-book @Book 1
-  _attr_id "b1"
-  _attr_format "hardcover"
-  title "Example"
+%VERSION: 1.0
+---
+book:
+  id: b1
+  format: hardcover
+  title: Example
 ```
 
 **2. Convert back preserves attributes:**
@@ -372,10 +387,10 @@ hedl to-xml data.hedl -o restored.xml
 # Attributes are preserved
 ```
 
-**3. For clean structure, preprocess XML:**
+**3. Verify conversion output:**
 ```bash
-# Use XSLT or xmlstarlet to convert attributes to elements first
-xmlstarlet tr attributes-to-elements.xsl data.xml | hedl from-xml -
+# Check how attributes were converted
+hedl from-xml data.xml -o data.hedl && hedl inspect data.hedl
 ```
 
 ---
@@ -384,7 +399,7 @@ xmlstarlet tr attributes-to-elements.xsl data.xml | hedl from-xml -
 
 **Symptoms:**
 ```
-Error: Parquet conversion failed: schema inference error
+ConversionError at line 1: Parquet schema inference failed
 ```
 
 **Solutions:**
@@ -543,8 +558,7 @@ ls *.hedl | parallel -j 8 'hedl format {} -o formatted/{}'
 
 **Symptoms:**
 ```
-Error: File 'large.hedl' is too large (2000000000 bytes).
-Maximum allowed size is 1073741824 bytes (1024 MB).
+LimitError at line 0: file 'large.hedl' exceeds maximum size (2000000000 bytes > 1073741824 bytes)
 ```
 
 **Solutions:**
@@ -573,7 +587,7 @@ hedl to-parquet large.hedl -o compressed.parquet
 
 **Symptoms:**
 ```
-Error: Failed to write 'output.hedl': Permission denied
+IOError at line 0: failed to write 'output.hedl': permission denied
 ```
 
 **Solutions:**
@@ -610,7 +624,7 @@ sudo hedl format data.hedl -o /etc/config.hedl
 
 **Symptoms:**
 ```
-Error: Failed to read 'data.hedl': No such file or directory
+IOError at line 0: failed to read 'data.hedl': no such file or directory
 ```
 
 **Solutions:**
@@ -648,7 +662,7 @@ ls *.hedl
 
 **Symptoms:**
 ```
-Error: Validation failed: Missing required field 'name'
+ValidationError at line 5: missing required field 'name' in struct User
 ```
 
 **Solutions:**
@@ -799,7 +813,7 @@ git diff  # Review changes
 
 **Symptoms:**
 ```
-Parse error: unexpected character '\r'
+SyntaxError at line 1: unexpected character '\\r' (Windows line ending)
 ```
 
 **Solutions:**
@@ -826,7 +840,7 @@ dos2unix data.hedl
 
 **Symptoms:**
 ```
-Error: Failed to read 'C:\path\data.hedl'
+IOError at line 0: failed to read 'C:\\path\\data.hedl'
 ```
 
 **Solutions:**

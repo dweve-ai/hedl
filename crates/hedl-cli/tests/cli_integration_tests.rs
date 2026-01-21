@@ -17,6 +17,7 @@
 
 //! Comprehensive CLI integration tests
 
+use assert_cmd::cargo_bin;
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
@@ -24,7 +25,7 @@ use tempfile::NamedTempFile;
 
 // Test helper to create a HEDL command
 fn hedl_cmd() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    Command::new(cargo_bin!("hedl"))
 }
 
 // Test helper to create a temporary file with content
@@ -69,11 +70,11 @@ fn test_no_subcommand_fails() {
 
 #[test]
 fn test_validate_valid_file() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -89,10 +90,10 @@ b: 2
 
 #[test]
 fn test_validate_invalid_file() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a:1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -110,16 +111,16 @@ fn test_validate_missing_file() {
         .arg("/nonexistent/file.hedl")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Failed to"));
+        .stderr(predicate::str::contains("No such file or directory"));
 }
 
 #[test]
 fn test_validate_with_strict_mode() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -134,11 +135,11 @@ b: 2
 
 #[test]
 fn test_format_to_stdout() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -153,11 +154,11 @@ b: 2
 
 #[test]
 fn test_format_to_output_file() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let input_file = create_temp_file(content, ".hedl");
     let output_file = NamedTempFile::new().expect("Failed to create output file");
 
@@ -176,11 +177,11 @@ b: 2
 
 #[test]
 fn test_format_check_mode_canonical() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -193,10 +194,10 @@ b: 2
 
 #[test]
 fn test_format_check_mode_not_canonical() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a:1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -209,13 +210,13 @@ a:1
 
 #[test]
 fn test_format_with_ditto() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
   | y,1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -229,13 +230,13 @@ d: @T
 
 #[test]
 fn test_format_with_counts() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 teams: @Team
   | t1,Warriors
   | t2,Lakers
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -251,11 +252,11 @@ teams: @Team
 
 #[test]
 fn test_lint_valid_file_text_format() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -269,11 +270,11 @@ b: 2
 
 #[test]
 fn test_lint_json_format() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -290,10 +291,10 @@ b: 2
 #[test]
 fn test_lint_warn_error_flag() {
     // This test may need adjustment based on actual lint rules
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     // Without --warn-error, warnings don't fail
@@ -302,8 +303,8 @@ a: 1
     // Store the exit code for comparison
     let exit_code_without_flag = result.get_output().status.code();
 
-    // Test with --warn-error
-    hedl_cmd()
+    // Test with --warn-error - just verify command executes
+    let _ = hedl_cmd()
         .arg("lint")
         .arg(file.path())
         .arg("--warn-error")
@@ -317,11 +318,11 @@ a: 1
 
 #[test]
 fn test_to_json_stdout() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -336,11 +337,11 @@ b: 2
 
 #[test]
 fn test_to_json_with_output_file() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let input_file = create_temp_file(content, ".hedl");
     let output_file = NamedTempFile::new().expect("Failed to create output file");
 
@@ -358,11 +359,11 @@ b: 2
 
 #[test]
 fn test_to_json_pretty() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -376,11 +377,11 @@ b: 2
 
 #[test]
 fn test_to_json_with_metadata() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -408,11 +409,11 @@ fn test_from_json_to_hedl() {
 
 #[test]
 fn test_json_roundtrip() {
-    let original_hedl = r#"%VERSION: 1.0
+    let original_hedl = r"%VERSION: 1.0
 ---
 name: John
 age: 30
-"#;
+";
     let hedl_file = create_temp_file(original_hedl, ".hedl");
     let json_file = NamedTempFile::new().expect("Failed to create json file");
     let hedl_output_file = NamedTempFile::new().expect("Failed to create output file");
@@ -444,11 +445,11 @@ age: 30
 
 #[test]
 fn test_to_yaml_stdout() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -477,11 +478,11 @@ fn test_from_yaml_to_hedl() {
 
 #[test]
 fn test_yaml_roundtrip() {
-    let original_hedl = r#"%VERSION: 1.0
+    let original_hedl = r"%VERSION: 1.0
 ---
 city: Paris
 population: 2000000
-"#;
+";
     let hedl_file = create_temp_file(original_hedl, ".hedl");
     let yaml_file = NamedTempFile::new().expect("Failed to create yaml file");
     let hedl_output_file = NamedTempFile::new().expect("Failed to create output file");
@@ -513,11 +514,11 @@ population: 2000000
 
 #[test]
 fn test_to_xml_stdout() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -531,11 +532,11 @@ b: 2
 
 #[test]
 fn test_to_xml_pretty() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -562,11 +563,11 @@ fn test_from_xml_to_hedl() {
 
 #[test]
 fn test_xml_roundtrip() {
-    let original_hedl = r#"%VERSION: 1.0
+    let original_hedl = r"%VERSION: 1.0
 ---
 title: Book
 pages: 300
-"#;
+";
     let hedl_file = create_temp_file(original_hedl, ".hedl");
     let xml_file = NamedTempFile::new().expect("Failed to create xml file");
     let hedl_output_file = NamedTempFile::new().expect("Failed to create output file");
@@ -597,13 +598,13 @@ pages: 300
 
 #[test]
 fn test_to_csv_stdout() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
   | y,2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -616,13 +617,13 @@ d: @T
 
 #[test]
 fn test_to_csv_with_headers() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
   | y,2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -666,12 +667,12 @@ fn test_from_csv_with_type_name() {
 
 #[test]
 fn test_to_parquet_requires_output() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
     let output_file = NamedTempFile::new().expect("Failed to create output file");
 
@@ -691,10 +692,10 @@ d: @T
 
 #[test]
 fn test_to_parquet_missing_output_flag() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -706,13 +707,13 @@ a: 1
 
 #[test]
 fn test_from_parquet_to_hedl() {
-    let hedl_content = r#"%VERSION: 1.0
+    let hedl_content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
   | y,2
-"#;
+";
     let hedl_file = create_temp_file(hedl_content, ".hedl");
     let parquet_file = NamedTempFile::new().expect("Failed to create parquet file");
 
@@ -736,13 +737,13 @@ d: @T
 
 #[test]
 fn test_parquet_roundtrip() {
-    let original_hedl = r#"%VERSION: 1.0
+    let original_hedl = r"%VERSION: 1.0
 %STRUCT: Person: [id,name,age]
 ---
 people: @Person
   | p1,Alice,30
   | p2,Bob,25
-"#;
+";
     let hedl_file = create_temp_file(original_hedl, ".hedl");
     let parquet_file = NamedTempFile::new().expect("Failed to create parquet file");
     let hedl_output_file = NamedTempFile::new().expect("Failed to create output file");
@@ -774,11 +775,11 @@ people: @Person
 
 #[test]
 fn test_inspect_basic() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -790,12 +791,12 @@ b: 2
 
 #[test]
 fn test_inspect_verbose() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -832,11 +833,11 @@ nested:
 
 #[test]
 fn test_stats_basic() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd().arg("stats").arg(file.path()).assert().success();
@@ -844,13 +845,13 @@ b: 2
 
 #[test]
 fn test_stats_with_tokens() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
   | y,2
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd()
@@ -864,14 +865,14 @@ d: @T
 
 #[test]
 fn test_stats_shows_size_comparison() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: Person: [id,name,age]
 ---
 people: @Person
   | p1,Alice,30
   | p2,Bob,25
   | p3,Charlie,35
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     hedl_cmd().arg("stats").arg(file.path()).assert().success();
@@ -891,19 +892,19 @@ fn test_missing_required_argument() {
 
 #[test]
 fn test_invalid_format_option() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
-    hedl_cmd()
+    // Command may succeed but use default format or show warning
+    let _ = hedl_cmd()
         .arg("lint")
         .arg(file.path())
         .arg("--format")
         .arg("invalid-format")
         .assert();
-    // Command may succeed but use default format or show warning
 }
 
 #[test]
@@ -931,11 +932,11 @@ fn test_format_parse_error() {
 #[test]
 fn test_multiple_conversions_pipeline() {
     // Test HEDL -> JSON -> HEDL -> YAML -> HEDL
-    let original = r#"%VERSION: 1.0
+    let original = r"%VERSION: 1.0
 ---
 test: value
 number: 42
-"#;
+";
     let hedl1 = create_temp_file(original, ".hedl");
     let json_file = NamedTempFile::new().unwrap();
     let hedl2 = NamedTempFile::new().unwrap();
@@ -986,11 +987,11 @@ number: 42
 
 #[test]
 fn test_format_then_validate() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let input_file = create_temp_file(content, ".hedl");
     let formatted_file = NamedTempFile::new().unwrap();
 
@@ -1013,11 +1014,11 @@ b: 2
 
 #[test]
 fn test_format_then_lint() {
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     let input_file = create_temp_file(content, ".hedl");
     let formatted_file = NamedTempFile::new().unwrap();
 
@@ -1041,10 +1042,10 @@ b: 2
 #[test]
 fn test_concurrent_operations() {
     // Test that multiple operations can work with the same file
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 ---
 key: value
-"#;
+";
     let file = create_temp_file(content, ".hedl");
 
     // Run multiple operations

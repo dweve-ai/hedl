@@ -28,11 +28,13 @@
 //! - `hedl_convert_to`: Convert HEDL to other formats
 //! - `hedl_convert_from`: Convert other formats to HEDL
 //! - `hedl_stream`: Stream parse a large HEDL document
+//! - `batch`: Execute multiple operations in a single request
 
+mod batch_tool;
 mod conversion;
 mod file_ops;
 mod formatting;
-mod helpers;
+pub mod helpers;
 mod inspection;
 mod json_utils;
 #[macro_use]
@@ -42,6 +44,7 @@ mod types;
 mod validation;
 
 // Re-export public APIs
+pub use batch_tool::execute_batch;
 pub use conversion::{execute_hedl_convert_from, execute_hedl_convert_to};
 pub use file_ops::{execute_hedl_read, execute_hedl_write};
 pub use formatting::{execute_hedl_format, execute_hedl_optimize};
@@ -58,6 +61,7 @@ use std::path::Path;
 use serde_json::json;
 
 /// Get all available HEDL tools.
+#[must_use]
 pub fn get_tools() -> Vec<Tool> {
     let (strict, lint) = validation_args!();
     let (limit, offset) = pagination_args!();
@@ -151,24 +155,24 @@ pub fn get_tools() -> Vec<Tool> {
         },
         Tool {
             name: "hedl_convert_to".to_string(),
-            description: "Convert HEDL to other formats: json, yaml, csv, parquet, cypher (Neo4j).".to_string(),
+            description: "Convert HEDL to other formats: json, yaml, xml, csv, parquet, cypher (Neo4j), toon.".to_string(),
             input_schema: tool_schema! {
                 required: ["hedl", "format"],
                 properties: {
                     hedl: hedl_content_arg!("HEDL document content to convert"),
-                    format: format_arg!(["json", "yaml", "csv", "parquet", "cypher"], "Target format"),
+                    format: format_arg!(["json", "yaml", "xml", "csv", "parquet", "cypher", "toon"], "Target format"),
                     options: convert_to_options!()
                 }
             },
         },
         Tool {
             name: "hedl_convert_from".to_string(),
-            description: "Convert other formats to HEDL: json, yaml, csv, parquet.".to_string(),
+            description: "Convert other formats to HEDL: json, yaml, xml, csv, parquet, toon.".to_string(),
             input_schema: tool_schema! {
                 required: ["content", "format"],
                 properties: {
                     content: schema_string!("Content to convert (base64 for parquet)"),
-                    format: format_arg!(["json", "yaml", "csv", "parquet"], "Source format"),
+                    format: format_arg!(["json", "yaml", "xml", "csv", "parquet", "toon"], "Source format"),
                     options: convert_from_options!()
                 }
             },
@@ -183,6 +187,35 @@ pub fn get_tools() -> Vec<Tool> {
                     limit: limit,
                     offset: offset,
                     type_filter: schema_string!("Only return entities of this type")
+                }
+            },
+        },
+        Tool {
+            name: "batch".to_string(),
+            description: "Execute multiple operations in a single request. Supports dependency resolution, parallel execution, and transaction semantics.".to_string(),
+            input_schema: tool_schema! {
+                required: ["operations"],
+                properties: {
+                    operations: schema_array!(
+                        "List of operations to execute",
+                        items: {
+                            "type": "object",
+                            "required": ["id", "tool"],
+                            "properties": {
+                                "id": schema_string!("Unique identifier for this operation"),
+                                "tool": schema_string!("Tool name to execute (e.g., 'hedl_validate', 'hedl_format')"),
+                                "arguments": {
+                                    "type": "object",
+                                    "description": "Tool arguments matching the tool's input schema"
+                                },
+                                "depends_on": schema_array!("List of operation IDs this operation depends on", items: {"type": "string"})
+                            }
+                        }
+                    ),
+                    mode: schema_enum!(["continue_on_error", "stop_on_error"], "Execution mode", default: "continue_on_error"),
+                    parallel: schema_bool!("Enable parallel execution for independent operations", default: true),
+                    transaction: schema_bool!("All-or-nothing transaction semantics", default: false),
+                    timeout: schema_integer!("Maximum execution time in seconds (1-3600)", minimum: 1, maximum: 3600)
                 }
             },
         },
@@ -217,7 +250,7 @@ mod tests {
     #[test]
     fn test_get_tools_returns_all_tools() {
         let tools = get_tools();
-        assert_eq!(tools.len(), 10);
+        assert_eq!(tools.len(), 11);
 
         let names: Vec<_> = tools.iter().map(|t| t.name.as_str()).collect();
         // Core tools
@@ -232,6 +265,8 @@ mod tests {
         assert!(names.contains(&"hedl_convert_to"));
         assert!(names.contains(&"hedl_convert_from"));
         assert!(names.contains(&"hedl_stream"));
+        // Batch tool
+        assert!(names.contains(&"batch"));
     }
 
     #[test]

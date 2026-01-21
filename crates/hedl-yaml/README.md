@@ -33,7 +33,7 @@ When converting HEDL → YAML → HEDL, you get the data back but schemas must b
 
 ```toml
 [dependencies]
-hedl-yaml = "1.0"
+hedl-yaml = "1.2"
 ```
 
 ## Bidirectional Conversion
@@ -45,14 +45,16 @@ Convert HEDL documents to YAML for deployment in existing infrastructure:
 ```rust
 use hedl_yaml::{to_yaml, ToYamlConfig};
 
-let doc = hedl_core::parse(br#"
+// Parse HEDL document (using hedl-core's parser)
+let hedl_source = br#"
 %STRUCT: Service: [name, image, port]
 %NEST: Service > Environment
 ---
 services: @Service
   | web, nginx:latest, 80
   | api, node:18, 3000
-"#)?;
+"#;
+let doc = hedl_core::parse(hedl_source)?;
 
 // Configure YAML output
 let config = ToYamlConfig {
@@ -133,7 +135,7 @@ let strict_config = FromYamlConfig::builder()
 let doc = from_yaml(untrusted_yaml, &strict_config)?;
 ```
 
-Exceeding limits raises `YamlError::ResourceLimitExceeded`, `MaxDepthExceeded`, `DocumentTooLarge`, or `ArrayTooLong`.
+Exceeding limits raises `YamlError::ResourceLimitExceeded`, `YamlError::MaxDepthExceeded`, `YamlError::DocumentTooLarge`, or `YamlError::ArrayTooLong`.
 
 ## Configuration Options
 
@@ -151,7 +153,7 @@ let config = ToYamlConfig {
 };
 ```
 
-**include_metadata**: When `true`, adds `__type__` (entity type name) and `__schema__` (field names) to YAML output. Helps reconstruction but clutters output. Use for round-tripping, omit for clean deployment YAML.
+**include_metadata**: When `true`, adds `__type__` (entity type name) and `__schema__` (field names) to YAML output as hints for reconstruction. Note: These hints are informational only and do not prevent schema loss during YAML conversion. Use for round-tripping when you want type names preserved in the YAML; omit for clean deployment YAML.
 
 **flatten_lists**: When `false`, matrix lists remain as arrays of objects. When `true`, converts to plain arrays where possible (loses structure).
 
@@ -253,7 +255,7 @@ users:
 | `"$(...)"` | HEDL expression | String pattern triggers expression parsing |
 | Primitives | Direct mapping | Null, bool, number, string |
 
-Schema inference for matrix lists: When converting uniform object arrays, field names are collected and sorted alphabetically with `id` first if present.
+Schema inference for matrix lists: When converting YAML arrays without `__schema__` metadata, field names are collected and sorted alphabetically with `id` first if present. When `__schema__` metadata is present (the default when using `ToYamlConfig::default()`), the original field order is preserved.
 
 ## Round-Trip Behavior
 
@@ -261,23 +263,24 @@ Schema inference for matrix lists: When converting uniform object arrays, field 
 use hedl_yaml::{to_yaml, from_yaml, ToYamlConfig, FromYamlConfig};
 
 // Original HEDL with schema declaration
-let original = hedl_core::parse(br#"
+let hedl_source = br#"
 %STRUCT: User: [id, name, email]
 ---
 users: @User
   | alice, Alice Smith, alice@example.com
   | bob, Bob Jones, bob@example.com
-"#)?;
+"#;
+let original = hedl_core::parse(hedl_source)?;
 
-// Convert to YAML
+// Convert to YAML with metadata (default config includes metadata)
 let yaml = to_yaml(&original, &ToYamlConfig::default())?;
 // YAML contains data but not %STRUCT declaration
 
 // Convert back to HEDL
 let restored = from_yaml(&yaml, &FromYamlConfig::default())?;
 // Data preserved: users with alice and bob entries
-// Schema INFERRED: [email, id, name] (alphabetically sorted with id first)
-// Schema LOST: Original %STRUCT declaration and field order
+// Schema PRESERVED: [id, name, email] (via __schema__ metadata in YAML)
+// Schema LOST: Original %STRUCT declaration (but field order preserved)
 ```
 
 The restored document has all data values and a matrix list with **inferred** schema. The original `%STRUCT` declaration is gone—if you need validation, redefine schemas in HEDL.
@@ -307,7 +310,7 @@ The restored document has all data values and a matrix list with **inferred** sc
 ## Dependencies
 
 - `serde_yaml` 0.9 - YAML parsing and serialization (handles anchors, aliases, multi-line strings)
-- `hedl-core` 1.0 - HEDL parsing and data model
+- `hedl-core` 1.2 - HEDL parsing and data model
 - `thiserror` 1.0 - Error type definitions
 
 ## Performance Characteristics

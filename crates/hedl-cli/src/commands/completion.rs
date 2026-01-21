@@ -17,6 +17,7 @@
 
 //! Shell completion generation - Tab completion for various shells
 
+use crate::error::CliError;
 use clap::Command;
 use clap_complete::{generate, Generator};
 use std::io;
@@ -28,7 +29,7 @@ use std::io;
 ///
 /// # Arguments
 ///
-/// * `generator` - The shell generator (Bash, Zsh, Fish, PowerShell, or Elvish)
+/// * `generator` - The shell generator (Bash, Zsh, Fish, `PowerShell`, or Elvish)
 /// * `cmd` - The clap Command to generate completions for
 ///
 /// # Returns
@@ -47,7 +48,7 @@ use std::io;
 /// use clap_complete::shells::Bash;
 /// use hedl_cli::commands::generate_completion_for_command;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let mut cmd = Command::new("hedl");
 /// generate_completion_for_command(Bash, &mut cmd)?;
 /// # Ok(())
@@ -61,7 +62,7 @@ use std::io;
 pub fn generate_completion_for_command<G: Generator>(
     generator: G,
     cmd: &mut Command,
-) -> Result<(), String> {
+) -> Result<(), CliError> {
     generate(
         generator,
         cmd,
@@ -108,12 +109,13 @@ pub fn generate_completion_for_command<G: Generator>(
 /// - **bash**: Instructions for ~/.bashrc and bash-completion directories
 /// - **zsh**: Instructions for ~/.zshrc and $fpath completion directories
 /// - **fish**: Instructions for ~/.config/fish/completions/
-/// - **powershell/pwsh**: Instructions for PowerShell profile
+/// - **powershell/pwsh**: Instructions for `PowerShell` profile
 /// - **elvish**: Instructions for ~/.elvish/rc.elv
 ///
 /// # Case Sensitivity
 ///
 /// Shell names are case-insensitive (e.g., "BASH", "Bash", "bash" all work).
+#[must_use]
 pub fn print_installation_instructions(shell: &str) -> String {
     match shell.to_lowercase().as_str() {
         "bash" => {
@@ -143,16 +145,16 @@ hedl completion zsh > ~/.zsh/completions/_hedl
 "#
         }
         "fish" => {
-            r#"# Fish completion installation:
+            r"# Fish completion installation:
 
 # Save to fish completions directory:
 hedl completion fish > ~/.config/fish/completions/hedl.fish
 
 # Completions will be available in new fish sessions
-"#
+"
         }
         "powershell" | "pwsh" => {
-            r#"# PowerShell completion installation:
+            r"# PowerShell completion installation:
 
 # For current session only:
 hedl completion powershell | Out-String | Invoke-Expression
@@ -161,17 +163,17 @@ hedl completion powershell | Out-String | Invoke-Expression
 # Find profile location with: $PROFILE
 # Then add this line:
 hedl completion powershell | Out-String | Invoke-Expression
-"#
+"
         }
         "elvish" => {
-            r#"# Elvish completion installation:
+            r"# Elvish completion installation:
 
 # For current session only:
 eval (hedl completion elvish)
 
 # For persistent installation, add to your ~/.elvish/rc.elv:
 eval (hedl completion elvish)
-"#
+"
         }
         _ => "Unsupported shell",
     }

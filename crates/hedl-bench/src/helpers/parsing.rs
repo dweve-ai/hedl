@@ -37,6 +37,7 @@ use std::time::{Duration, Instant};
 /// # Panics
 ///
 /// Panics if parsing fails.
+#[must_use]
 pub fn parse_with_timing(input: &str) -> (Document, Duration) {
     let start = Instant::now();
     let doc = hedl_core::parse(input.as_bytes()).expect("Parse should succeed for benchmark data");
@@ -53,6 +54,7 @@ pub fn parse_with_timing(input: &str) -> (Document, Duration) {
 /// # Returns
 ///
 /// Vector of Results, one per input.
+#[must_use]
 pub fn parse_batch(inputs: &[&str]) -> Vec<Result<Document>> {
     inputs
         .iter()
@@ -89,6 +91,7 @@ pub fn parse_safe(input: &str) -> Result<Document> {
 ///
 /// Parsed document.
 #[inline]
+#[must_use]
 pub fn parse_unchecked(input: &str) -> Document {
     hedl_core::parse(input.as_bytes()).expect("HEDL parsing should not fail for benchmark data")
 }
@@ -103,6 +106,7 @@ pub fn parse_unchecked(input: &str) -> Document {
 ///
 /// Parsed document.
 #[inline]
+#[must_use]
 pub fn parse_bytes(bytes: &[u8]) -> Document {
     hedl_core::parse(bytes).expect("HEDL parsing should not fail for benchmark data")
 }
@@ -136,11 +140,11 @@ mod tests {
 
     #[test]
     fn test_parse_batch() {
-        let inputs = vec![generate_users(5), generate_users(10)];
-        let refs: Vec<&str> = inputs.iter().map(|s| s.as_str()).collect();
+        let inputs = [generate_users(5), generate_users(10)];
+        let refs: Vec<&str> = inputs.iter().map(std::string::String::as_str).collect();
         let results = parse_batch(&refs);
         assert_eq!(results.len(), 2);
-        assert!(results.iter().all(|r| r.is_ok()));
+        assert!(results.iter().all(std::result::Result::is_ok));
     }
 
     #[test]

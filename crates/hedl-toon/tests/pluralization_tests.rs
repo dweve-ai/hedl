@@ -37,32 +37,33 @@ fn test_child_pluralization() {
         "Parent",
         "p1",
         vec![
-            Value::String("p1".to_string()),
-            Value::String("John".to_string()),
+            Value::String("p1".to_string().into()),
+            Value::String("John".to_string().into()),
         ],
     );
 
     // Add children to parent
-    parent_node.children.insert(
-        "Child".to_string(),
-        vec![
-            Node::new(
-                "Child",
-                "c1",
-                vec![
-                    Value::String("c1".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-            ),
-            Node::new(
-                "Child",
-                "c2",
-                vec![
-                    Value::String("c2".to_string()),
-                    Value::String("Bob".to_string()),
-                ],
-            ),
-        ],
+    parent_node.add_child(
+        "Child",
+        Node::new(
+            "Child",
+            "c1",
+            vec![
+                Value::String("c1".to_string().into()),
+                Value::String("Alice".to_string().into()),
+            ],
+        ),
+    );
+    parent_node.add_child(
+        "Child",
+        Node::new(
+            "Child",
+            "c2",
+            vec![
+                Value::String("c2".to_string().into()),
+                Value::String("Bob".to_string().into()),
+            ],
+        ),
     );
 
     parent_list.add_row(parent_node);
@@ -74,13 +75,11 @@ fn test_child_pluralization() {
     // Should use "children" not "childs"
     assert!(
         result.contains("children[2]{id,name}:"),
-        "Expected 'children' but got:\n{}",
-        result
+        "Expected 'children' but got:\n{result}"
     );
     assert!(
         !result.contains("childs"),
-        "Should not contain 'childs':\n{}",
-        result
+        "Should not contain 'childs':\n{result}"
     );
 }
 
@@ -97,32 +96,33 @@ fn test_person_pluralization() {
         "Team",
         "t1",
         vec![
-            Value::String("t1".to_string()),
-            Value::String("Alpha Team".to_string()),
+            Value::String("t1".to_string().into()),
+            Value::String("Alpha Team".to_string().into()),
         ],
     );
 
     // Add people to team
-    team_node.children.insert(
-        "Person".to_string(),
-        vec![
-            Node::new(
-                "Person",
-                "p1",
-                vec![
-                    Value::String("p1".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-            ),
-            Node::new(
-                "Person",
-                "p2",
-                vec![
-                    Value::String("p2".to_string()),
-                    Value::String("Bob".to_string()),
-                ],
-            ),
-        ],
+    team_node.add_child(
+        "Person",
+        Node::new(
+            "Person",
+            "p1",
+            vec![
+                Value::String("p1".to_string().into()),
+                Value::String("Alice".to_string().into()),
+            ],
+        ),
+    );
+    team_node.add_child(
+        "Person",
+        Node::new(
+            "Person",
+            "p2",
+            vec![
+                Value::String("p2".to_string().into()),
+                Value::String("Bob".to_string().into()),
+            ],
+        ),
     );
 
     team_list.add_row(team_node);
@@ -133,13 +133,11 @@ fn test_person_pluralization() {
     // Should use "people" not "persons"
     assert!(
         result.contains("people[2]{id,name}:"),
-        "Expected 'people' but got:\n{}",
-        result
+        "Expected 'people' but got:\n{result}"
     );
     assert!(
         !result.contains("persons"),
-        "Should not contain 'persons':\n{}",
-        result
+        "Should not contain 'persons':\n{result}"
     );
 }
 
@@ -156,32 +154,33 @@ fn test_mouse_pluralization() {
         "Lab",
         "lab1",
         vec![
-            Value::String("lab1".to_string()),
-            Value::String("Research Lab".to_string()),
+            Value::String("lab1".to_string().into()),
+            Value::String("Research Lab".to_string().into()),
         ],
     );
 
     // Add mice to lab
-    lab_node.children.insert(
-        "Mouse".to_string(),
-        vec![
-            Node::new(
-                "Mouse",
-                "m1",
-                vec![
-                    Value::String("m1".to_string()),
-                    Value::String("Mickey".to_string()),
-                ],
-            ),
-            Node::new(
-                "Mouse",
-                "m2",
-                vec![
-                    Value::String("m2".to_string()),
-                    Value::String("Minnie".to_string()),
-                ],
-            ),
-        ],
+    lab_node.add_child(
+        "Mouse",
+        Node::new(
+            "Mouse",
+            "m1",
+            vec![
+                Value::String("m1".to_string().into()),
+                Value::String("Mickey".to_string().into()),
+            ],
+        ),
+    );
+    lab_node.add_child(
+        "Mouse",
+        Node::new(
+            "Mouse",
+            "m2",
+            vec![
+                Value::String("m2".to_string().into()),
+                Value::String("Minnie".to_string().into()),
+            ],
+        ),
     );
 
     lab_list.add_row(lab_node);
@@ -192,13 +191,11 @@ fn test_mouse_pluralization() {
     // Should use "mice" not "mouses"
     assert!(
         result.contains("mice[2]{id,name}:"),
-        "Expected 'mice' but got:\n{}",
-        result
+        "Expected 'mice' but got:\n{result}"
     );
     assert!(
         !result.contains("mouses"),
-        "Should not contain 'mouses':\n{}",
-        result
+        "Should not contain 'mouses':\n{result}"
     );
 }
 
@@ -215,32 +212,33 @@ fn test_regular_pluralization_still_works() {
         "Order",
         "o1",
         vec![
-            Value::String("o1".to_string()),
-            Value::String("Order 1".to_string()),
+            Value::String("o1".to_string().into()),
+            Value::String("Order 1".to_string().into()),
         ],
     );
 
     // Add items to order
-    order_node.children.insert(
-        "Item".to_string(),
-        vec![
-            Node::new(
-                "Item",
-                "i1",
-                vec![
-                    Value::String("i1".to_string()),
-                    Value::String("Product A".to_string()),
-                ],
-            ),
-            Node::new(
-                "Item",
-                "i2",
-                vec![
-                    Value::String("i2".to_string()),
-                    Value::String("Product B".to_string()),
-                ],
-            ),
-        ],
+    order_node.add_child(
+        "Item",
+        Node::new(
+            "Item",
+            "i1",
+            vec![
+                Value::String("i1".to_string().into()),
+                Value::String("Product A".to_string().into()),
+            ],
+        ),
+    );
+    order_node.add_child(
+        "Item",
+        Node::new(
+            "Item",
+            "i2",
+            vec![
+                Value::String("i2".to_string().into()),
+                Value::String("Product B".to_string().into()),
+            ],
+        ),
     );
 
     order_list.add_row(order_node);
@@ -252,8 +250,7 @@ fn test_regular_pluralization_still_works() {
     // Should use regular plural "items"
     assert!(
         result.contains("items[2]{id,name}:"),
-        "Expected 'items' but got:\n{}",
-        result
+        "Expected 'items' but got:\n{result}"
     );
 }
 
@@ -270,32 +267,33 @@ fn test_tooth_pluralization() {
         "Mouth",
         "m1",
         vec![
-            Value::String("m1".to_string()),
-            Value::String("Patient 1".to_string()),
+            Value::String("m1".to_string().into()),
+            Value::String("Patient 1".to_string().into()),
         ],
     );
 
     // Add teeth to mouth
-    mouth_node.children.insert(
-        "Tooth".to_string(),
-        vec![
-            Node::new(
-                "Tooth",
-                "t1",
-                vec![
-                    Value::String("t1".to_string()),
-                    Value::String("upper-left".to_string()),
-                ],
-            ),
-            Node::new(
-                "Tooth",
-                "t2",
-                vec![
-                    Value::String("t2".to_string()),
-                    Value::String("upper-right".to_string()),
-                ],
-            ),
-        ],
+    mouth_node.add_child(
+        "Tooth",
+        Node::new(
+            "Tooth",
+            "t1",
+            vec![
+                Value::String("t1".to_string().into()),
+                Value::String("upper-left".to_string().into()),
+            ],
+        ),
+    );
+    mouth_node.add_child(
+        "Tooth",
+        Node::new(
+            "Tooth",
+            "t2",
+            vec![
+                Value::String("t2".to_string().into()),
+                Value::String("upper-right".to_string().into()),
+            ],
+        ),
     );
 
     mouth_list.add_row(mouth_node);
@@ -307,13 +305,11 @@ fn test_tooth_pluralization() {
     // Should use "teeth" not "tooths"
     assert!(
         result.contains("teeth[2]{id,position}:"),
-        "Expected 'teeth' but got:\n{}",
-        result
+        "Expected 'teeth' but got:\n{result}"
     );
     assert!(
         !result.contains("tooths"),
-        "Should not contain 'tooths':\n{}",
-        result
+        "Should not contain 'tooths':\n{result}"
     );
 }
 
@@ -328,32 +324,33 @@ fn test_ox_pluralization() {
         "Farm",
         "f1",
         vec![
-            Value::String("f1".to_string()),
-            Value::String("Green Acres".to_string()),
+            Value::String("f1".to_string().into()),
+            Value::String("Green Acres".to_string().into()),
         ],
     );
 
     // Add oxen to farm
-    farm_node.children.insert(
-        "Ox".to_string(),
-        vec![
-            Node::new(
-                "Ox",
-                "ox1",
-                vec![
-                    Value::String("ox1".to_string()),
-                    Value::String("Babe".to_string()),
-                ],
-            ),
-            Node::new(
-                "Ox",
-                "ox2",
-                vec![
-                    Value::String("ox2".to_string()),
-                    Value::String("Paul".to_string()),
-                ],
-            ),
-        ],
+    farm_node.add_child(
+        "Ox",
+        Node::new(
+            "Ox",
+            "ox1",
+            vec![
+                Value::String("ox1".to_string().into()),
+                Value::String("Babe".to_string().into()),
+            ],
+        ),
+    );
+    farm_node.add_child(
+        "Ox",
+        Node::new(
+            "Ox",
+            "ox2",
+            vec![
+                Value::String("ox2".to_string().into()),
+                Value::String("Paul".to_string().into()),
+            ],
+        ),
     );
 
     farm_list.add_row(farm_node);
@@ -364,13 +361,11 @@ fn test_ox_pluralization() {
     // Should use "oxen" not "oxs"
     assert!(
         result.contains("oxen[2]{id,name}:"),
-        "Expected 'oxen' but got:\n{}",
-        result
+        "Expected 'oxen' but got:\n{result}"
     );
     assert!(
         !result.contains("oxs"),
-        "Should not contain 'oxs':\n{}",
-        result
+        "Should not contain 'oxs':\n{result}"
     );
 }
 
@@ -387,32 +382,33 @@ fn test_cactus_pluralization() {
         "Garden",
         "g1",
         vec![
-            Value::String("g1".to_string()),
-            Value::String("Desert Garden".to_string()),
+            Value::String("g1".to_string().into()),
+            Value::String("Desert Garden".to_string().into()),
         ],
     );
 
     // Add cacti to garden
-    garden_node.children.insert(
-        "Cactus".to_string(),
-        vec![
-            Node::new(
-                "Cactus",
-                "c1",
-                vec![
-                    Value::String("c1".to_string()),
-                    Value::String("Saguaro".to_string()),
-                ],
-            ),
-            Node::new(
-                "Cactus",
-                "c2",
-                vec![
-                    Value::String("c2".to_string()),
-                    Value::String("Barrel".to_string()),
-                ],
-            ),
-        ],
+    garden_node.add_child(
+        "Cactus",
+        Node::new(
+            "Cactus",
+            "c1",
+            vec![
+                Value::String("c1".to_string().into()),
+                Value::String("Saguaro".to_string().into()),
+            ],
+        ),
+    );
+    garden_node.add_child(
+        "Cactus",
+        Node::new(
+            "Cactus",
+            "c2",
+            vec![
+                Value::String("c2".to_string().into()),
+                Value::String("Barrel".to_string().into()),
+            ],
+        ),
     );
 
     garden_list.add_row(garden_node);
@@ -424,17 +420,14 @@ fn test_cactus_pluralization() {
     // Should use "cacti" not "cactuss" or "cactuses"
     assert!(
         result.contains("cacti[2]{id,species}:"),
-        "Expected 'cacti' but got:\n{}",
-        result
+        "Expected 'cacti' but got:\n{result}"
     );
     assert!(
         !result.contains("cactuss"),
-        "Should not contain 'cactuss':\n{}",
-        result
+        "Should not contain 'cactuss':\n{result}"
     );
     assert!(
         !result.contains("cactuses"),
-        "Should not contain 'cactuses':\n{}",
-        result
+        "Should not contain 'cactuses':\n{result}"
     );
 }

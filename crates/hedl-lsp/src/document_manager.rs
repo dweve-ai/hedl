@@ -30,7 +30,7 @@
 //!
 //! # Design
 //!
-//! The DocumentManager maintains a cache of analyzed documents with the following features:
+//! The `DocumentManager` maintains a cache of analyzed documents with the following features:
 //!
 //! - **LRU Eviction**: Automatically evicts least recently used documents when cache is full
 //! - **Dirty Tracking**: Tracks which documents need re-analysis via content hashing
@@ -86,12 +86,12 @@ pub struct CacheStatistics {
 
 /// Document manager with LRU caching and dirty tracking.
 ///
-/// The DocumentManager is the single source of truth for all document state
+/// The `DocumentManager` is the single source of truth for all document state
 /// in the LSP server. It handles document lifecycle, caching, and eviction.
 ///
 /// # Thread Safety
 ///
-/// The DocumentManager uses DashMap for concurrent access and parking_lot::Mutex
+/// The `DocumentManager` uses `DashMap` for concurrent access and `parking_lot::Mutex`
 /// for fine-grained locking. It can be safely shared across threads.
 ///
 /// # Example
@@ -134,6 +134,7 @@ impl DocumentManager {
     /// // Create with custom limits
     /// let manager = DocumentManager::new(2000, 1024 * 1024 * 1024);
     /// ```
+    #[must_use]
     pub fn new(max_cache_size: usize, max_document_size: usize) -> Self {
         Self {
             documents: DashMap::new(),
@@ -149,6 +150,7 @@ impl DocumentManager {
     /// Get current cache statistics.
     ///
     /// This method provides a snapshot of cache performance metrics.
+    #[must_use]
     pub fn statistics(&self) -> CacheStatistics {
         let mut stats = self.cache_stats.lock();
         stats.current_size = self.documents.len();
@@ -165,6 +167,7 @@ impl DocumentManager {
     }
 
     /// Get current maximum cache size.
+    #[must_use]
     pub fn max_cache_size(&self) -> usize {
         *self.max_cache_size.read()
     }
@@ -177,6 +180,7 @@ impl DocumentManager {
     }
 
     /// Get current maximum document size.
+    #[must_use]
     pub fn max_document_size(&self) -> usize {
         *self.max_document_size.read()
     }
@@ -236,7 +240,14 @@ impl DocumentManager {
 
             let mut state = state_ref.lock();
             // Only update if content actually changed
-            if state.content_hash != content_hash {
+            if state.content_hash == content_hash {
+                debug!(
+                    "Document content unchanged for {} (hash: {:#x}), updating access time only",
+                    uri, content_hash
+                );
+                // Update access time even if content hasn't changed
+                state.last_access = std::time::Instant::now();
+            } else {
                 debug!(
                     "Document content changed for {}: {} -> {} bytes, {} lines",
                     uri,
@@ -247,13 +258,6 @@ impl DocumentManager {
                 state.rope = rope;
                 state.content_hash = content_hash;
                 state.dirty = true;
-                state.last_access = std::time::Instant::now();
-            } else {
-                debug!(
-                    "Document content unchanged for {} (hash: {:#x}), updating access time only",
-                    uri, content_hash
-                );
-                // Update access time even if content hasn't changed
                 state.last_access = std::time::Instant::now();
             }
         } else {
@@ -322,6 +326,7 @@ impl DocumentManager {
     ///
     /// - Missing document: Returns None (logged at call site)
     /// - Access tracking: Always updates last access time for LRU
+    #[must_use]
     pub fn get(&self, uri: &Url) -> Option<(String, Arc<AnalyzedDocument>)> {
         self.documents.get(uri).map(|entry| {
             let mut state = entry.lock();
@@ -345,6 +350,7 @@ impl DocumentManager {
     /// # Returns
     ///
     /// Returns `Some(Arc<Mutex<DocumentState>>)` if the document exists, `None` otherwise.
+    #[must_use]
     pub fn get_state(&self, uri: &Url) -> Option<Arc<Mutex<DocumentState>>> {
         self.documents.get(uri).map(|entry| entry.clone())
     }
@@ -354,14 +360,12 @@ impl DocumentManager {
     /// # Returns
     ///
     /// Returns `true` if the document exists and is dirty, `false` otherwise.
+    #[must_use]
     pub fn is_dirty(&self, uri: &Url) -> bool {
-        self.documents
-            .get(uri)
-            .map(|entry| {
-                let state = entry.lock();
-                state.dirty
-            })
-            .unwrap_or(false)
+        self.documents.get(uri).is_some_and(|entry| {
+            let state = entry.lock();
+            state.dirty
+        })
     }
 
     /// Mark a document as clean (analysis is up-to-date).
@@ -389,7 +393,11 @@ impl DocumentManager {
             debug!(
                 "Updating analysis for {}: {} entities, {} errors",
                 uri,
-                analysis.entities.values().map(|m| m.len()).sum::<usize>(),
+                analysis
+                    .entities
+                    .values()
+                    .map(std::collections::HashMap::len)
+                    .sum::<usize>(),
                 analysis.errors.len()
             );
             state.analysis = analysis;
@@ -409,6 +417,7 @@ impl DocumentManager {
     /// # Returns
     ///
     /// Returns `true` if the document was removed, `false` if it didn't exist.
+    #[must_use]
     pub fn remove(&self, uri: &Url) -> bool {
         self.documents.remove(uri).is_some()
     }
@@ -416,6 +425,7 @@ impl DocumentManager {
     /// Get all document URIs currently in the cache.
     ///
     /// This is useful for workspace-wide operations like workspace symbols.
+    #[must_use]
     pub fn all_uris(&self) -> Vec<Url> {
         self.documents
             .iter()
@@ -426,12 +436,12 @@ impl DocumentManager {
     /// Iterate over all documents with a function.
     ///
     /// This provides a safe way to iterate over all documents without
-    /// exposing the internal DashMap structure.
+    /// exposing the internal `DashMap` structure.
     pub fn for_each<F>(&self, mut f: F)
     where
         F: FnMut(&Url, &Arc<Mutex<DocumentState>>),
     {
-        for entry in self.documents.iter() {
+        for entry in &self.documents {
             f(entry.key(), entry.value());
         }
     }
@@ -457,7 +467,7 @@ impl DocumentManager {
         let mut lru_time = std::time::Instant::now();
         let mut lru_size: usize = 0;
 
-        for entry in self.documents.iter() {
+        for entry in &self.documents {
             let state = entry.value().lock();
             if lru_uri.is_none() || state.last_access < lru_time {
                 lru_uri = Some(entry.key().clone());
@@ -482,7 +492,7 @@ impl DocumentManager {
                         .analysis
                         .entities
                         .values()
-                        .map(|m| m.len())
+                        .map(std::collections::HashMap::len)
                         .sum::<usize>(),
                     state.analysis.references.len()
                 );
@@ -609,7 +619,7 @@ mod tests {
 
         // Insert 3 documents
         for i in 0..3 {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
         }
 
@@ -646,7 +656,7 @@ mod tests {
         let manager = DocumentManager::new(10, 1024 * 1024);
 
         for i in 0..5 {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
         }
 
@@ -659,7 +669,7 @@ mod tests {
         let manager = DocumentManager::new(10, 1024 * 1024);
 
         for i in 0..3 {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
         }
 

@@ -26,10 +26,8 @@
 //! - Comparative benchmarks vs quick-xml
 //! - Compression compatibility testing
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hedl_bench::helpers::{compare_sizes, measure_throughput_ns};
 use hedl_bench::{
     count_tokens, generate_blog, generate_orders, generate_products, generate_users, sizes,
     BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -37,13 +35,14 @@ use hedl_bench::{
 use hedl_xml::{from_xml, to_xml, FromXmlConfig, ToXmlConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -64,8 +63,8 @@ fn init_report() {
 fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes
-                .map(|bytes| formats::measure_throughput_ns(bytes as usize, total_ns));
+            let throughput_mbs =
+                throughput_bytes.map(|bytes| measure_throughput_ns(bytes as usize, total_ns));
 
             report.add_perf(PerfResult {
                 name: name.to_string(),
@@ -105,7 +104,7 @@ fn bench_hedl_to_xml_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &doc, |b, doc| {
-            b.iter(|| to_xml(black_box(doc), &ToXmlConfig::default()))
+            b.iter(|| to_xml(black_box(doc), &ToXmlConfig::default()));
         });
 
         // Collect metrics
@@ -114,7 +113,7 @@ fn bench_hedl_to_xml_users(c: &mut Criterion) {
             let _ = to_xml(&doc, &ToXmlConfig::default());
         });
         add_perf(
-            &format!("hedl_to_xml_users_{}", size),
+            &format!("hedl_to_xml_users_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -133,7 +132,7 @@ fn bench_hedl_to_xml_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &doc, |b, doc| {
-            b.iter(|| to_xml(black_box(doc), &ToXmlConfig::default()))
+            b.iter(|| to_xml(black_box(doc), &ToXmlConfig::default()));
         });
 
         // Collect metrics
@@ -142,7 +141,7 @@ fn bench_hedl_to_xml_products(c: &mut Criterion) {
             let _ = to_xml(&doc, &ToXmlConfig::default());
         });
         add_perf(
-            &format!("hedl_to_xml_products_{}", size),
+            &format!("hedl_to_xml_products_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -166,7 +165,7 @@ fn bench_xml_to_hedl_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(xml.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &xml, |b, xml| {
-            b.iter(|| from_xml(black_box(xml), &FromXmlConfig::default()))
+            b.iter(|| from_xml(black_box(xml), &FromXmlConfig::default()));
         });
 
         // Collect metrics
@@ -175,7 +174,7 @@ fn bench_xml_to_hedl_users(c: &mut Criterion) {
             let _ = from_xml(&xml, &FromXmlConfig::default());
         });
         add_perf(
-            &format!("xml_to_hedl_users_{}", size),
+            &format!("xml_to_hedl_users_{size}"),
             iterations,
             total_ns,
             Some(xml.len() as u64),
@@ -195,7 +194,7 @@ fn bench_xml_to_hedl_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(xml.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &xml, |b, xml| {
-            b.iter(|| from_xml(black_box(xml), &FromXmlConfig::default()))
+            b.iter(|| from_xml(black_box(xml), &FromXmlConfig::default()));
         });
 
         // Collect metrics
@@ -204,7 +203,7 @@ fn bench_xml_to_hedl_products(c: &mut Criterion) {
             let _ = from_xml(&xml, &FromXmlConfig::default());
         });
         add_perf(
-            &format!("xml_to_hedl_products_{}", size),
+            &format!("xml_to_hedl_products_{size}"),
             iterations,
             total_ns,
             Some(xml.len() as u64),
@@ -230,7 +229,7 @@ fn bench_roundtrip_xml(c: &mut Criterion) {
             b.iter(|| {
                 let xml = to_xml(doc, &ToXmlConfig::default()).unwrap();
                 let _doc2 = from_xml(&xml, &FromXmlConfig::default()).unwrap();
-            })
+            });
         });
 
         // Collect metrics
@@ -240,7 +239,7 @@ fn bench_roundtrip_xml(c: &mut Criterion) {
             let _doc2 = from_xml(&xml, &FromXmlConfig::default()).unwrap();
         });
         add_perf(
-            &format!("roundtrip_xml_blog_{}", size),
+            &format!("roundtrip_xml_blog_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -262,7 +261,7 @@ fn bench_cross_format_comparison(c: &mut Criterion) {
     let xml = to_xml(&doc, &ToXmlConfig::default()).unwrap();
 
     // Compare sizes
-    let size_comp = formats::compare_sizes(hedl.len(), xml.len());
+    let size_comp = compare_sizes(hedl.len(), xml.len());
     println!("\n=== HEDL vs XML Size Comparison ===");
     println!("HEDL size:  {} bytes", size_comp.hedl_bytes);
     println!("XML size:   {} bytes", size_comp.other_bytes);
@@ -270,11 +269,11 @@ fn bench_cross_format_comparison(c: &mut Criterion) {
     println!("HEDL saves: {:.1}%\n", size_comp.hedl_savings_pct);
 
     group.bench_function("hedl_parse", |b| {
-        b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())))
+        b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())));
     });
 
     group.bench_function("xml_parse_via_hedl", |b| {
-        b.iter(|| from_xml(black_box(&xml), &FromXmlConfig::default()))
+        b.iter(|| from_xml(black_box(&xml), &FromXmlConfig::default()));
     });
 
     group.finish();
@@ -391,7 +390,7 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "HEDL→XML".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: hedl_text.len(),
                 output_bytes: xml_text.len(),
@@ -413,7 +412,7 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "XML→HEDL".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: xml_text.len(),
                 output_bytes: hedl_text.len(),
@@ -445,7 +444,7 @@ fn collect_roundtrip_results() -> Vec<RoundTripResult> {
             let final_hedl = hedl_c14n::canonicalize(&doc2).unwrap_or_default();
 
             results.push(RoundTripResult {
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 original_bytes: original.len(),
                 final_bytes: final_hedl.len(),
                 byte_equal: original == final_hedl,
@@ -757,12 +756,11 @@ fn create_nested_structure_handling_table(
         let xml_to_hedl_us = results
             .iter()
             .find(|r| r.direction == "XML→HEDL" && r.dataset_name == result.dataset_name)
-            .map(|r| {
+            .map_or(0.0, |r| {
                 r.conversion_times_ns.iter().sum::<u64>() as f64
                     / r.conversion_times_ns.len().max(1) as f64
                     / 1000.0
-            })
-            .unwrap_or(0.0);
+            });
 
         table.rows.push(vec![
             TableCell::String(result.dataset_name.clone()),
@@ -1019,7 +1017,7 @@ fn create_conversion_bottleneck_analysis_table(
             let direction = parts.get(1..).map(|s| s.join("-")).unwrap_or_default();
 
             table.rows.push(vec![
-                TableCell::String(dataset_type.to_string()),
+                TableCell::String((*dataset_type).to_string()),
                 TableCell::String(direction),
                 TableCell::Float(avg / 1000.0),
                 TableCell::Float(min / 1000.0),
@@ -1207,7 +1205,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("HEDL is {:.1}x More Compact Than XML ({:.1}% savings)", avg_size_ratio, avg_byte_savings),
+            title: format!("HEDL is {avg_size_ratio:.1}x More Compact Than XML ({avg_byte_savings:.1}% savings)"),
             description: "XML's tag verbosity creates significant overhead. HEDL's column-oriented format eliminates repetitive tag structures.".to_string(),
             data_points: vec![
                 format!("Average XML size: {:.1}x larger than HEDL", avg_size_ratio),
@@ -1234,7 +1232,7 @@ fn generate_insights(
         if avg_token_savings > 30.0 {
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("Superior Token Efficiency: {:.1}% fewer tokens than XML", avg_token_savings),
+                title: format!("Superior Token Efficiency: {avg_token_savings:.1}% fewer tokens than XML"),
                 description: "HEDL requires significantly fewer LLM tokens, reducing API costs for AI applications".to_string(),
                 data_points: vec![
                     format!("Average HEDL tokens: {:.0}", hedl_to_xml.iter().map(|r| r.input_tokens).sum::<usize>() as f64 / hedl_to_xml.len() as f64),
@@ -1303,10 +1301,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!(
-                "XML Tag Repetition Waste: {:.1} tags per record",
-                avg_tags_per_record
-            ),
+            title: format!("XML Tag Repetition Waste: {avg_tags_per_record:.1} tags per record"),
             description:
                 "XML repeats tag names for every record, while HEDL uses column headers once"
                     .to_string(),
@@ -1363,7 +1358,7 @@ fn generate_insights(
 
     report.add_insight(Insight {
         category: "finding".to_string(),
-        title: format!("Round-Trip Byte Equality: {:.0}%", byte_equal_rate),
+        title: format!("Round-Trip Byte Equality: {byte_equal_rate:.0}%"),
         description: "Percentage of datasets that are byte-for-byte identical after HEDL→XML→HEDL"
             .to_string(),
         data_points: vec![
@@ -1401,10 +1396,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!(
-                "Consistent Performance: {:.1}% Coefficient of Variation",
-                cv
-            ),
+            title: format!("Consistent Performance: {cv:.1}% Coefficient of Variation"),
             description: "Conversion times are predictable and stable across runs".to_string(),
             data_points: vec![
                 format!("Average conversion time: {:.1} μs", avg / 1000.0),
@@ -1619,7 +1611,7 @@ fn export_reports() {
 
         let config = ExportConfig::all();
         if let Err(e) = report.save_all("target/xml_report", &config) {
-            eprintln!("Warning: Failed to export reports: {}", e);
+            eprintln!("Warning: Failed to export reports: {e}");
         } else {
             println!(
                 "\nReports exported with {} custom tables and {} insights:",
@@ -1633,6 +1625,129 @@ fn export_reports() {
     }
 }
 
+// ============================================================================
+// Streaming XML Parser Benchmarks
+// ============================================================================
+
+fn bench_streaming_xml_parser(c: &mut Criterion) {
+    use hedl_xml::streaming::{from_xml_stream, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("xml_streaming");
+
+    for &size in &[100, 500, 1000] {
+        // Generate XML content with many elements
+        let hedl = generate_users(size);
+        let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+        let xml = to_xml(&doc, &ToXmlConfig::default()).unwrap();
+        let xml_bytes = xml.len() as u64;
+
+        group.throughput(Throughput::Bytes(xml_bytes));
+        group.bench_with_input(
+            BenchmarkId::new("stream_parser", size),
+            &xml,
+            |b, xml_data| {
+                b.iter(|| {
+                    let cursor = Cursor::new(xml_data.as_bytes());
+                    let config = StreamConfig::default();
+                    let parser = from_xml_stream(cursor, &config).unwrap();
+                    let count: usize = parser.filter_map(Result::ok).count();
+                    black_box(count)
+                });
+            },
+        );
+
+        // Collect metrics
+        let iterations = if size >= 1000 { 20 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let cursor = Cursor::new(xml.as_bytes());
+            let config = StreamConfig::default();
+            let parser = from_xml_stream(cursor, &config).unwrap();
+            let count: usize = parser.filter_map(Result::ok).count();
+            black_box(count);
+        });
+        add_perf(
+            &format!("xml_streaming_parser_{size}"),
+            iterations,
+            total_ns,
+            Some(xml_bytes),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_streaming_vs_tree_xml(c: &mut Criterion) {
+    use hedl_xml::streaming::{from_xml_stream, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("xml_streaming_vs_tree");
+
+    let size = 500;
+    let hedl = generate_users(size);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+    let xml = to_xml(&doc, &ToXmlConfig::default()).unwrap();
+    let xml_bytes = xml.len() as u64;
+
+    group.throughput(Throughput::Bytes(xml_bytes));
+
+    // Streaming parser
+    group.bench_function("streaming", |b| {
+        b.iter(|| {
+            let cursor = Cursor::new(xml.as_bytes());
+            let config = StreamConfig::default();
+            let parser = from_xml_stream(cursor, &config).unwrap();
+            let count: usize = parser.filter_map(Result::ok).count();
+            black_box(count)
+        });
+    });
+
+    // Tree-based parser (from_xml)
+    group.bench_function("tree_based", |b| {
+        b.iter(|| {
+            let doc = from_xml(black_box(&xml), &FromXmlConfig::default()).unwrap();
+            black_box(doc.root.len())
+        });
+    });
+
+    group.finish();
+}
+
+fn bench_streaming_buffer_sizes(c: &mut Criterion) {
+    use hedl_xml::streaming::{from_xml_stream, StreamConfig};
+    use std::io::Cursor;
+
+    let mut group = c.benchmark_group("xml_streaming_buffer_size");
+
+    let hedl = generate_products(500);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+    let xml = to_xml(&doc, &ToXmlConfig::default()).unwrap();
+    let xml_bytes = xml.len() as u64;
+
+    group.throughput(Throughput::Bytes(xml_bytes));
+
+    for buffer_size in [8192, 32768, 65536, 131072] {
+        group.bench_with_input(
+            BenchmarkId::new("buffer", buffer_size),
+            &buffer_size,
+            |b, &buf_size| {
+                b.iter(|| {
+                    let cursor = Cursor::new(xml.as_bytes());
+                    let config = StreamConfig {
+                        buffer_size: buf_size,
+                        ..Default::default()
+                    };
+                    let parser = from_xml_stream(cursor, &config).unwrap();
+                    let count: usize = parser.filter_map(Result::ok).count();
+                    black_box(count)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_hedl_to_xml_users,
@@ -1641,6 +1756,9 @@ criterion_group!(
     bench_xml_to_hedl_products,
     bench_roundtrip_xml,
     bench_cross_format_comparison,
+    bench_streaming_xml_parser,
+    bench_streaming_vs_tree_xml,
+    bench_streaming_buffer_sizes,
     bench_export,
 );
 

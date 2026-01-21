@@ -17,9 +17,15 @@
 
 //! Request-level caching for immutable MCP operations.
 //!
-//! Provides LRU caching for expensive operations like validation, linting,
+//! Provides true LRU caching for expensive operations like validation, linting,
 //! and schema analysis. Caches are keyed by operation + input hash for
 //! deterministic results.
+//!
+//! # True LRU Behavior
+//!
+//! Both `insert()` and `get()` operations update the access timestamp, ensuring
+//! that frequently accessed entries are retained while least-recently-used
+//! entries are evicted when the cache reaches capacity.
 //!
 //! # Performance
 //!
@@ -31,15 +37,13 @@
 
 use dashmap::DashMap;
 use serde_json::Value as JsonValue;
-use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
 
 /// Maximum number of cache entries (configurable).
 const DEFAULT_CACHE_SIZE: usize = 1000;
 
-/// Hash a string using FNV-1a (fast, non-cryptographic hash).
+/// Hash a string using the default hasher (fast, non-cryptographic).
 fn hash_string(s: &str) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     s.hash(&mut hasher);
@@ -62,14 +66,13 @@ impl CacheKey {
     }
 }
 
-/// Cached result with metadata.
+/// Cached result with LRU metadata.
 #[derive(Debug, Clone)]
 struct CacheEntry {
     /// Cached JSON result.
     result: JsonValue,
-    /// Timestamp of cache insertion (for potential future TTL support).
-    #[allow(dead_code)]
-    timestamp: u64,
+    /// Access timestamp for LRU ordering (higher = more recent).
+    access_time: u64,
 }
 
 /// Cache statistics for monitoring.
@@ -89,6 +92,7 @@ pub struct CacheStats {
 
 impl CacheStats {
     /// Calculate cache hit rate (0.0 to 1.0).
+    #[must_use]
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
         if total == 0 {
@@ -99,14 +103,17 @@ impl CacheStats {
     }
 
     /// Calculate cache hit rate as percentage.
+    #[must_use]
     pub fn hit_rate_percent(&self) -> f64 {
         self.hit_rate() * 100.0
     }
 }
 
-/// LRU cache for immutable MCP operations.
+/// True LRU cache for immutable MCP operations.
 ///
-/// Thread-safe cache using DashMap for concurrent access with LRU eviction.
+/// Thread-safe cache using `DashMap` for concurrent access with true LRU eviction.
+/// Both `get()` and `insert()` update the access timestamp, ensuring frequently
+/// accessed entries are retained.
 ///
 /// # Example
 ///
@@ -120,16 +127,14 @@ impl CacheStats {
 /// let result = json!({"valid": true});
 /// cache.insert("validate", "my hedl content", result.clone());
 ///
-/// // Retrieve from cache
+/// // Retrieve from cache (updates LRU position)
 /// if let Some(cached) = cache.get("validate", "my hedl content") {
 ///     assert_eq!(cached, result);
 /// }
 /// ```
 pub struct OperationCache {
-    /// Cache storage (operation+hash -> result).
+    /// Cache storage (operation+hash -> entry with result and access time).
     cache: DashMap<CacheKey, CacheEntry>,
-    /// LRU queue for eviction (stores keys in insertion order).
-    lru_queue: Arc<Mutex<VecDeque<CacheKey>>>,
     /// Maximum number of entries.
     max_size: usize,
     /// Monotonic timestamp counter for LRU ordering.
@@ -147,7 +152,7 @@ impl OperationCache {
     ///
     /// # Arguments
     ///
-    /// * `max_size` - Maximum number of cache entries (default: 1000)
+    /// * `max_size` - Maximum number of cache entries (0 = disabled)
     ///
     /// # Examples
     ///
@@ -156,10 +161,10 @@ impl OperationCache {
     ///
     /// let cache = OperationCache::new(1000);
     /// ```
+    #[must_use]
     pub fn new(max_size: usize) -> Self {
         Self {
-            cache: DashMap::new(),
-            lru_queue: Arc::new(Mutex::new(VecDeque::with_capacity(max_size))),
+            cache: DashMap::with_capacity(max_size),
             max_size,
             timestamp_counter: AtomicU64::new(0),
             hits: AtomicU64::new(0),
@@ -168,7 +173,7 @@ impl OperationCache {
         }
     }
 
-    /// Get a cached result if available.
+    /// Get a cached result if available, updating its LRU position.
     ///
     /// # Arguments
     ///
@@ -191,7 +196,9 @@ impl OperationCache {
     pub fn get(&self, operation: &str, input: &str) -> Option<JsonValue> {
         let key = CacheKey::new(operation, input);
 
-        if let Some(entry) = self.cache.get(&key) {
+        if let Some(mut entry) = self.cache.get_mut(&key) {
+            // Update access time for true LRU behavior
+            entry.access_time = self.timestamp_counter.fetch_add(1, Ordering::Relaxed);
             self.hits.fetch_add(1, Ordering::Relaxed);
             Some(entry.result.clone())
         } else {
@@ -203,6 +210,7 @@ impl OperationCache {
     /// Insert a result into the cache.
     ///
     /// If the cache is full, evicts the least recently used entry.
+    /// If `max_size` is 0, this is a no-op (cache disabled).
     ///
     /// # Arguments
     ///
@@ -220,34 +228,43 @@ impl OperationCache {
     /// cache.insert("validate", "%VERSION 1.0\n---", json!({"valid": true}));
     /// ```
     pub fn insert(&self, operation: &str, input: &str, result: JsonValue) {
+        // Cache disabled when max_size is 0
+        if self.max_size == 0 {
+            return;
+        }
+
         let key = CacheKey::new(operation, input);
-        let timestamp = self.timestamp_counter.fetch_add(1, Ordering::Relaxed);
+        let access_time = self.timestamp_counter.fetch_add(1, Ordering::Relaxed);
 
-        let entry = CacheEntry { result, timestamp };
-
-        // Check if we need to evict
-        if self.cache.len() >= self.max_size {
+        // Evict LRU entry if at capacity (and not updating existing key)
+        if self.cache.len() >= self.max_size && !self.cache.contains_key(&key) {
             self.evict_lru();
         }
 
-        // Insert into cache
-        self.cache.insert(key.clone(), entry);
-
-        // Update LRU queue
-        if let Ok(mut queue) = self.lru_queue.lock() {
-            queue.push_back(key);
-        }
+        let entry = CacheEntry {
+            result,
+            access_time,
+        };
+        self.cache.insert(key, entry);
     }
 
-    /// Evict the least recently used entry.
+    /// Evict the least recently used entry (lowest `access_time`).
     fn evict_lru(&self) {
-        if let Ok(mut queue) = self.lru_queue.lock() {
-            while let Some(key) = queue.pop_front() {
-                // Remove from cache (may have already been removed)
-                if self.cache.remove(&key).is_some() {
-                    self.evictions.fetch_add(1, Ordering::Relaxed);
-                    break;
-                }
+        // Find the entry with the lowest access_time
+        let mut lru_key: Option<CacheKey> = None;
+        let mut lru_time = u64::MAX;
+
+        for entry in &self.cache {
+            if entry.value().access_time < lru_time {
+                lru_time = entry.value().access_time;
+                lru_key = Some(entry.key().clone());
+            }
+        }
+
+        // Remove the LRU entry
+        if let Some(key) = lru_key {
+            if self.cache.remove(&key).is_some() {
+                self.evictions.fetch_add(1, Ordering::Relaxed);
             }
         }
     }
@@ -301,9 +318,6 @@ impl OperationCache {
     /// ```
     pub fn clear(&self) {
         self.cache.clear();
-        if let Ok(mut queue) = self.lru_queue.lock() {
-            queue.clear();
-        }
     }
 
     /// Reset cache statistics (hit/miss/eviction counters).
@@ -377,7 +391,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_lru_eviction() {
+    fn test_cache_true_lru_eviction() {
         let cache = OperationCache::new(3);
 
         // Fill cache to capacity
@@ -388,19 +402,58 @@ mod tests {
         assert_eq!(cache.stats().size, 3);
         assert_eq!(cache.stats().evictions, 0);
 
-        // Insert one more (should evict input1)
+        // Access input1 to make it recently used
+        cache.get("op", "input1");
+
+        // Insert one more (should evict input2, the true LRU)
         cache.insert("op", "input4", json!(4));
 
         assert_eq!(cache.stats().size, 3);
         assert_eq!(cache.stats().evictions, 1);
 
-        // input1 should be evicted (LRU)
+        // input1 should still be present (was accessed recently)
+        assert!(cache.get("op", "input1").is_some());
+
+        // input2 should be evicted (true LRU)
+        assert!(cache.get("op", "input2").is_none());
+
+        // input3 and input4 should still be present
+        assert!(cache.get("op", "input3").is_some());
+        assert!(cache.get("op", "input4").is_some());
+    }
+
+    #[test]
+    fn test_cache_fifo_eviction_without_access() {
+        let cache = OperationCache::new(3);
+
+        // Fill cache to capacity
+        cache.insert("op", "input1", json!(1));
+        cache.insert("op", "input2", json!(2));
+        cache.insert("op", "input3", json!(3));
+
+        // Insert one more without accessing any (should evict input1, oldest)
+        cache.insert("op", "input4", json!(4));
+
+        assert_eq!(cache.stats().evictions, 1);
+
+        // input1 should be evicted (oldest insert, no access)
         assert!(cache.get("op", "input1").is_none());
 
         // Others should still be present
         assert!(cache.get("op", "input2").is_some());
         assert!(cache.get("op", "input3").is_some());
         assert!(cache.get("op", "input4").is_some());
+    }
+
+    #[test]
+    fn test_cache_zero_capacity() {
+        let cache = OperationCache::new(0);
+
+        cache.insert("op", "key", json!("value"));
+
+        // With zero capacity, nothing should be cached
+        assert!(cache.get("op", "key").is_none());
+        assert_eq!(cache.stats().size, 0);
     }
 
     #[test]
@@ -501,5 +554,21 @@ mod tests {
         let stats = cache.stats();
         assert!(stats.size > 0);
         assert!(stats.size <= 100);
+    }
+
+    #[test]
+    fn test_cache_update_existing_key() {
+        let cache = OperationCache::new(3);
+
+        cache.insert("op", "key1", json!(1));
+        cache.insert("op", "key2", json!(2));
+        cache.insert("op", "key3", json!(3));
+
+        // Update existing key (should not trigger eviction)
+        cache.insert("op", "key1", json!(10));
+
+        assert_eq!(cache.stats().size, 3);
+        assert_eq!(cache.stats().evictions, 0);
+        assert_eq!(cache.get("op", "key1").unwrap(), json!(10));
     }
 }

@@ -105,7 +105,14 @@ pub enum Neo4jError {
         max_count: usize,
     },
 
-    /// Serialization error from serde_json.
+    /// Integer overflow during calculation.
+    #[error("Integer overflow: {context}")]
+    IntegerOverflow {
+        /// Context describing where the overflow occurred.
+        context: String,
+    },
+
+    /// Serialization error from `serde_json`.
     #[error("JSON serialization error: {0}")]
     JsonError(#[from] serde_json::Error),
 

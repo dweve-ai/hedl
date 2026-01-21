@@ -39,6 +39,7 @@ pub enum ComplexityLevel {
 
 impl ComplexityLevel {
     /// Returns a human-readable name.
+    #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
             Self::Flat => "Flat",
@@ -50,6 +51,7 @@ impl ComplexityLevel {
     }
 
     /// Returns a short identifier.
+    #[must_use]
     pub fn id(&self) -> &'static str {
         match self {
             Self::Flat => "flat",
@@ -61,6 +63,7 @@ impl ComplexityLevel {
     }
 
     /// Returns all complexity levels.
+    #[must_use]
     pub fn all() -> &'static [ComplexityLevel] {
         &[
             Self::Flat,
@@ -102,6 +105,7 @@ pub struct GeneratorConfig {
 
 impl GeneratorConfig {
     /// Creates a new configuration with default values.
+    #[must_use]
     pub fn new(count: usize) -> Self {
         Self {
             count,
@@ -114,56 +118,66 @@ impl GeneratorConfig {
     }
 
     /// Sets the size distribution.
+    #[must_use]
     pub fn with_size_distribution(mut self, dist: SizeDistribution) -> Self {
         self.size_distribution = dist;
         self
     }
 
     /// Sets the complexity level.
+    #[must_use]
     pub fn with_complexity(mut self, complexity: ComplexityLevel) -> Self {
         self.complexity = complexity;
         self
     }
 
     /// Sets whether to include references.
+    #[must_use]
     pub fn with_references(mut self, include: bool) -> Self {
         self.include_references = include;
         self
     }
 
     /// Sets the depth parameter.
+    #[must_use]
     pub fn with_depth(mut self, depth: usize) -> Self {
         self.depth = depth;
         self
     }
 
     /// Sets the width parameter.
+    #[must_use]
     pub fn with_width(mut self, width: usize) -> Self {
         self.width = width;
         self
     }
 
     /// Creates a small dataset configuration.
+    #[must_use]
     pub fn small() -> Self {
         Self::new(sizes::SMALL)
     }
 
     /// Creates a medium dataset configuration.
+    #[must_use]
     pub fn medium() -> Self {
         Self::new(sizes::MEDIUM)
     }
 
     /// Creates a large dataset configuration.
+    #[must_use]
     pub fn large() -> Self {
         Self::new(sizes::LARGE)
     }
 
     /// Creates a stress test configuration.
+    #[must_use]
     pub fn stress() -> Self {
         Self::new(sizes::STRESS)
     }
 
     /// Creates an extreme test configuration.
+    #[must_use]
     pub fn extreme() -> Self {
         Self::new(sizes::EXTREME)
     }

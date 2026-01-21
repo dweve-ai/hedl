@@ -15,7 +15,19 @@ npm install hedl-wasm
 ### Browser Usage
 
 ```typescript
-import init, { parse, toJson, fromJson, validate } from 'hedl-wasm';
+import init, {
+    parse,
+    toJson, fromJson,
+    toYaml, fromYaml,               // Requires 'yaml' feature
+    toXml, fromXml,                 // Requires 'xml' feature
+    toCsv, fromCsv,                 // Requires 'csv' feature
+    toToon, fromToon,               // Requires 'toon' feature
+    validate, format,
+    getStats,                       // Requires 'statistics' feature
+    compareTokens,                  // Requires 'token-tools' feature
+    setMaxInputSize, getMaxInputSize,
+    version
+} from 'hedl-wasm';
 
 // Initialize the WASM module
 await init();
@@ -119,26 +131,32 @@ try {
 
 Represents a parsed HEDL document.
 
-**Properties**:
+**Properties & Methods**:
 ```typescript
 interface HedlDocument {
-    // Properties
+    // Read-only properties
     readonly version: string;           // e.g., "1.0"
     readonly schemaCount: number;       // Number of STRUCT definitions
     readonly aliasCount: number;        // Number of ALIAS definitions
     readonly nestCount: number;         // Number of NEST definitions
     readonly rootItemCount: number;     // Number of root items
 
-    // Methods
+    // Methods for schema inspection
     getSchemaNames(): string[];
     getSchema(typeName: string): string[] | undefined;
-    getAliases(): JsonObject;
-    getNests(): JsonObject;
-    toJson(): JsonValue;
-    toJsonString(pretty?: boolean): string;
-    toHedl(useDitto?: boolean): string;
-    countEntities(): { [typeName: string]: number };
-    query(typeName?: string, id?: string): EntityResult[];
+    getAliases(): Record<string, string>;      // Returns alias mappings
+    getNests(): Record<string, string[]>;      // Returns nest mappings (parent -> child types)
+
+    // Entity operations
+    countEntities(): { [typeName: string]: number };  // Count entities by type
+
+    // Format conversion methods (standalone functions also available)
+    toHedl(useDitto?: boolean): string;                     // Convert to HEDL string
+    toJson(): JsonValue;                                    // Requires: json feature
+    toJsonString(pretty?: boolean): string;                 // Requires: json feature
+
+    // Entity querying
+    query(typeName?: string, id?: string): EntityResult[];  // Requires: query-api feature
 }
 ```
 
@@ -153,13 +171,26 @@ console.log('Schemas:', schemas);
 const userSchema = doc.getSchema('User');
 console.log('User fields:', userSchema);
 
-// Convert to JSON
+// Convert to JSON (method on document)
 const json = doc.toJson();
 console.log(json);
 
 // Count entities
 const counts = doc.countEntities();
 console.log('Entity counts:', counts);
+
+// Convert document to HEDL
+const hedlStr = doc.toHedl(true);
+
+// Convert document to JSON (method on document OR standalone function)
+const jsonObj = doc.toJson();                    // Returns JsonValue object
+const jsonStr = doc.toJsonString(true);         // Returns JSON string
+
+// Standalone format conversion functions (take HEDL string as input)
+const yaml = toYaml(hedl);     // Requires: yaml feature
+const xml = toXml(hedl);       // Requires: xml feature
+const csv = toCsv(hedl);       // Requires: csv feature
+const toon = toToon(hedl);     // Requires: toon feature
 ```
 
 ---
@@ -167,6 +198,8 @@ console.log('Entity counts:', counts);
 #### `query`
 
 Query entities by type and/or ID.
+
+> **Feature Required**: This method requires the `query-api` build feature. It is not available in default builds.
 
 ```typescript
 query(typeName?: string, id?: string): EntityResult[]
@@ -182,7 +215,7 @@ query(typeName?: string, id?: string): EntityResult[]
 interface EntityResult {
     type: string;
     id: string;
-    fields: JsonObject;
+    fields: Record<string, JsonValue>;
 }
 ```
 
@@ -200,9 +233,82 @@ const all = doc.query();
 
 ---
 
-### Format Conversion
+### Document Instance Methods
 
-#### `toJson`
+The `HedlDocument` class provides these instance methods for converting the parsed document:
+
+#### `HedlDocument.toJson()` (instance method)
+
+Convert the parsed document to a JSON object.
+
+> **Feature Required**: This method requires the `json` build feature.
+
+```typescript
+toJson(): JsonValue
+```
+
+**Returns**: `JsonValue` (can be an object, array, or primitive)
+
+**Example**:
+```typescript
+const doc = parse(hedl);
+const jsonObj = doc.toJson();
+console.log(jsonObj);  // JavaScript object/array/value
+```
+
+---
+
+#### `HedlDocument.toJsonString()` (instance method)
+
+Convert the parsed document to a JSON string.
+
+> **Feature Required**: This method requires the `json` build feature.
+
+```typescript
+toJsonString(pretty?: boolean): string
+```
+
+**Parameters**:
+- `pretty`: Pretty-print output (default: `true`)
+
+**Returns**: JSON string
+
+**Example**:
+```typescript
+const doc = parse(hedl);
+const jsonStr = doc.toJsonString(true);
+console.log(jsonStr);  // String with pretty formatting
+```
+
+---
+
+#### `HedlDocument.toHedl()` (instance method)
+
+Convert the parsed document back to canonical HEDL format.
+
+```typescript
+toHedl(useDitto?: boolean): string
+```
+
+**Parameters**:
+- `useDitto`: Enable ditto optimization (default: `true`)
+
+**Returns**: Canonical HEDL string
+
+**Example**:
+```typescript
+const doc = parse(hedl);
+const canonical = doc.toHedl(true);
+console.log(canonical);  // Reformatted HEDL
+```
+
+---
+
+### Standalone Format Conversion Functions
+
+These functions take a HEDL string as input and return the converted format. Use these instead of instance methods when you haven't parsed the document yet.
+
+#### `toJson(hedl, pretty)` (standalone function)
 
 Convert HEDL string to JSON string.
 
@@ -226,7 +332,7 @@ console.log(json);
 
 ---
 
-#### `fromJson`
+#### `fromJson(json, useDitto)` (standalone function)
 
 Convert JSON string to HEDL string.
 
@@ -249,7 +355,208 @@ console.log(hedl);
 
 ---
 
-#### `format`
+#### `toYaml(hedl)` (standalone function)
+
+Convert HEDL string to YAML string.
+
+> **Feature Required**: This function requires the `yaml` build feature.
+
+```typescript
+function toYaml(hedl: string): string
+```
+
+**Parameters**:
+- `hedl`: HEDL document string
+
+**Returns**: YAML string
+
+**Throws**: Error if parsing or conversion fails
+
+**Example**:
+```typescript
+const yaml = toYaml(hedl);
+console.log(yaml);
+```
+
+---
+
+#### `fromYaml(yaml, useDitto)` (standalone function)
+
+Convert YAML string to HEDL string.
+
+> **Feature Required**: This function requires the `yaml` build feature.
+
+```typescript
+function fromYaml(yaml: string, useDitto?: boolean): string
+```
+
+**Parameters**:
+- `yaml`: YAML string
+- `useDitto`: Enable ditto optimization (default: `true`)
+
+**Returns**: HEDL string
+
+**Example**:
+```typescript
+const yamlData = 'users:\n  - id: alice\n    name: Alice';
+const hedl = fromYaml(yamlData, true);
+console.log(hedl);
+```
+
+---
+
+#### `toXml(hedl)` (standalone function)
+
+Convert HEDL string to XML string.
+
+> **Feature Required**: This function requires the `xml` build feature.
+
+```typescript
+function toXml(hedl: string): string
+```
+
+**Parameters**:
+- `hedl`: HEDL document string
+
+**Returns**: XML string
+
+**Throws**: Error if parsing or conversion fails
+
+**Example**:
+```typescript
+const xml = toXml(hedl);
+console.log(xml);
+```
+
+---
+
+#### `fromXml(xml, useDitto)` (standalone function)
+
+Convert XML string to HEDL string.
+
+> **Feature Required**: This function requires the `xml` build feature.
+
+```typescript
+function fromXml(xml: string, useDitto?: boolean): string
+```
+
+**Parameters**:
+- `xml`: XML string
+- `useDitto`: Enable ditto optimization (default: `true`)
+
+**Returns**: HEDL string
+
+**Example**:
+```typescript
+const xmlData = '<root><user><id>alice</id><name>Alice</name></user></root>';
+const hedl = fromXml(xmlData, true);
+console.log(hedl);
+```
+
+---
+
+#### `toCsv(hedl)` (standalone function)
+
+Convert HEDL string to CSV string.
+
+> **Feature Required**: This function requires the `csv` build feature.
+
+```typescript
+function toCsv(hedl: string): string
+```
+
+**Parameters**:
+- `hedl`: HEDL document string
+
+**Returns**: CSV string
+
+**Throws**: Error if parsing or conversion fails
+
+**Example**:
+```typescript
+const csv = toCsv(hedl);
+console.log(csv);
+```
+
+---
+
+#### `fromCsv(csv, typeName, useDitto)` (standalone function)
+
+Convert CSV string to HEDL string.
+
+> **Feature Required**: This function requires the `csv` build feature.
+
+```typescript
+function fromCsv(csv: string, typeName?: string, useDitto?: boolean): string
+```
+
+**Parameters**:
+- `csv`: CSV string (header row required)
+- `typeName`: Type name for entities (default: `"Row"`)
+- `useDitto`: Enable ditto optimization (default: `true`)
+
+**Returns**: HEDL string
+
+**Example**:
+```typescript
+const csvData = 'id,name,email\nalice,Alice,alice@example.com';
+const hedl = fromCsv(csvData, 'User', true);
+console.log(hedl);
+```
+
+---
+
+#### `toToon(hedl)` (standalone function)
+
+Convert HEDL string to TOON (Typed Object Outline Notation) string.
+
+> **Feature Required**: This function requires the `toon` build feature.
+
+```typescript
+function toToon(hedl: string): string
+```
+
+**Parameters**:
+- `hedl`: HEDL document string
+
+**Returns**: TOON string
+
+**Throws**: Error if parsing or conversion fails
+
+**Example**:
+```typescript
+const toon = toToon(hedl);
+console.log(toon);
+```
+
+---
+
+#### `fromToon(toon, useDitto)` (standalone function)
+
+Convert TOON string to HEDL string.
+
+> **Feature Required**: This function requires the `toon` build feature.
+
+```typescript
+function fromToon(toon: string, useDitto?: boolean): string
+```
+
+**Parameters**:
+- `toon`: TOON string
+- `useDitto`: Enable ditto optimization (default: `true`)
+
+**Returns**: HEDL string
+
+**Example**:
+```typescript
+const toonData = 'users\n\talice\n\t\tname\tAlice';
+const hedl = fromToon(toonData, true);
+console.log(hedl);
+```
+
+---
+
+#### `format(hedl, useDitto)` (standalone function)
 
 Format HEDL to canonical form.
 
@@ -271,9 +578,9 @@ console.log(formatted);
 
 ---
 
-### Validation
+### Validation & Diagnostics
 
-#### `validate`
+#### `validate(hedl, runLint)` (standalone function)
 
 Validate HEDL and return detailed diagnostics.
 
@@ -284,6 +591,8 @@ function validate(hedl: string, runLint?: boolean): ValidationResult
 **Parameters**:
 - `hedl`: HEDL document string
 - `runLint`: Run linting rules (default: `true`)
+
+> **Note**: The `runLint` parameter only enables full linting when the `full-validation` build feature is enabled. Without this feature, only syntax validation is performed regardless of the `runLint` value.
 
 **Returns**: Validation result object
 
@@ -324,27 +633,32 @@ result.warnings.forEach(warn => {
 
 ---
 
-### Statistics
+### Statistics & Token Analysis
 
-#### `getStats`
+#### `getStats(hedl)` (standalone function)
 
-Get token usage statistics.
+Get token usage statistics for HEDL document.
+
+> **Feature Required**: This function requires the `statistics` build feature. It is not available in default builds.
 
 ```typescript
 function getStats(hedl: string): TokenStats
 ```
 
+**Parameters**:
+- `hedl`: HEDL document string
+
 **Returns**: Token statistics
 
 ```typescript
 interface TokenStats {
-    hedlBytes: number;
-    hedlTokens: number;
-    hedlLines: number;
-    jsonBytes: number;
-    jsonTokens: number;
-    savingsPercent: number;
-    tokensSaved: number;
+    hedlBytes: number;      // Bytes in HEDL representation
+    hedlTokens: number;     // Estimated tokens in HEDL
+    hedlLines: number;      // Number of lines in HEDL
+    jsonBytes: number;      // Bytes if converted to JSON
+    jsonTokens: number;     // Estimated tokens in JSON equivalent
+    savingsPercent: number; // Percentage saved vs JSON
+    tokensSaved: number;    // Number of tokens saved
 }
 ```
 
@@ -359,30 +673,36 @@ console.log(`Saved: ${stats.tokensSaved} tokens`);
 
 ---
 
-#### `compareTokens`
+#### `compareTokens(hedl, json)` (standalone function)
 
-Compare HEDL and JSON token counts.
+Compare HEDL and JSON token counts side-by-side.
+
+> **Feature Required**: This function requires the `token-tools` build feature. It is not available in default builds.
 
 ```typescript
 function compareTokens(hedl: string, json: string): ComparisonResult
 ```
+
+**Parameters**:
+- `hedl`: HEDL document string
+- `json`: JSON document string
 
 **Returns**: Comparison result
 
 ```typescript
 interface ComparisonResult {
     hedl: {
-        bytes: number;
-        tokens: number;
-        lines: number;
+        bytes: number;   // Size in bytes
+        tokens: number;  // Estimated tokens
+        lines: number;   // Number of lines
     };
     json: {
-        bytes: number;
-        tokens: number;
+        bytes: number;   // Size in bytes
+        tokens: number;  // Estimated tokens
     };
     savings: {
-        percent: number;
-        tokens: number;
+        percent: number; // Percentage saved
+        tokens: number;  // Tokens saved
     };
 }
 ```
@@ -399,13 +719,15 @@ console.log(`Savings: ${comparison.savings.percent}%`);
 
 ### Utility Functions
 
-#### `version`
+#### `version()` (standalone function)
 
 Get HEDL library version.
 
 ```typescript
 function version(): string
 ```
+
+**Returns**: Version string (e.g., "1.0.0")
 
 **Example**:
 ```typescript

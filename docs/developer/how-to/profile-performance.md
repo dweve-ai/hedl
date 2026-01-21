@@ -19,7 +19,7 @@ Find where your code spends time and optimize hot paths.
 
 ```bash
 # Run existing benchmarks
-cargo bench -p hedl-bench --bench parsing
+cargo bench --bench parsing
 
 # View results
 open target/criterion/report/index.html
@@ -323,7 +323,7 @@ pub fn parse_value(input: &str) -> Result<Value, HedlError> {
     let trimmed = input.trim();  // No allocation
 
     if let Some(unquoted) = trimmed.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
-        Ok(Value::String(unquoted.to_string()))  // Only allocate when needed
+        Ok(Value::String(unquoted.into()))  // Only allocate when needed
     } else if trimmed == "true" {
         Ok(Value::Bool(true))
     } else if trimmed == "false" {

@@ -70,7 +70,7 @@ fn main() {
 
         // Record performance
         report.add_perf(PerfResult {
-            name: format!("parse_{}", name),
+            name: format!("parse_{name}"),
             iterations,
             total_time_ns: total_ns,
             throughput_bytes: Some(hedl.len() as u64 * iterations),
@@ -83,7 +83,7 @@ fn main() {
         // Add format comparison
         let stats = compare_formats(&doc);
         report.add_format(FormatMetrics {
-            name: name.to_string(),
+            name: (*name).to_string(),
             complexity: None,
             hedl_tokens: stats.hedl_tokens,
             json_tokens: stats.json_compact_tokens,

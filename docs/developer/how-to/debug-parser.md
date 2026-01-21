@@ -21,7 +21,7 @@ Successfully diagnose why HEDL text isn't parsing correctly and fix the issue.
 **Solution**: Enable detailed error reporting.
 
 ```rust
-use hedl_core::{parse, parse_with_limits, ParseOptions};
+use hedl_core::{parse, parse_with_limits, ParseOptions, ReferenceMode};
 
 let input = b"problematic: content";
 
@@ -33,8 +33,8 @@ match parse(input) {
 
 // Detailed parse with custom limits
 let options = ParseOptions::builder()
-    .max_indent_depth(100)
-    .strict_refs(true)  // Strict reference validation
+    .max_depth(100)
+    .reference_mode(ReferenceMode::Strict)
     .build();
 
 match parse_with_limits(input, options) {
@@ -52,8 +52,8 @@ match parse_with_limits(input, options) {
 **Problem**: Need to know if error is in tokenization or syntax.
 
 ```bash
-# Test lexer separately
-cargo test -p hedl-core lex::tests -- --nocapture
+# Test lexer and parser separately
+cargo test -p hedl-core --lib -- --nocapture
 
 # Test with minimal input
 cat > test.hedl << 'EOF'
@@ -65,22 +65,20 @@ EOF
 cargo run --bin hedl validate test.hedl --strict
 ```
 
-**Debug lexer**:
+**Debug parsing with custom options**:
 
 ```rust
-use hedl_core::lex::{is_valid_key_token, parse_csv_row};
+use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 
-// Test token validation
-let key = "my-key";
-if !is_valid_key_token(key) {
-    eprintln!("Invalid key: {}", key);
-}
+// Test with lenient mode (allows more variations)
+let input = b"my-key: value";
+let options = ParseOptions::builder()
+    .reference_mode(ReferenceMode::Lenient)
+    .build();
 
-// Test CSV parsing
-let row = "alice, 30, true";
-match parse_csv_row(row) {
-    Ok(fields) => println!("Fields: {:?}", fields),
-    Err(e) => eprintln!("Lexer error: {:?}", e),
+match parse_with_limits(input, options) {
+    Ok(doc) => println!("Parsed successfully: {:?}", doc),
+    Err(e) => eprintln!("Parse error: {:?}", e),
 }
 ```
 

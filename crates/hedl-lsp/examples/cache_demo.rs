@@ -24,7 +24,10 @@
 //! - Memory bounds enforcement
 
 use hedl_lsp::HedlLanguageServer;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, TextDocumentContentChangeEvent,
+    TextDocumentItem, Url, VersionedTextDocumentIdentifier,
+};
 use tower_lsp::{LanguageServer, LspService};
 
 #[tokio::main]
@@ -46,15 +49,14 @@ async fn main() {
     // Open 10 documents (fill cache)
     println!("Opening 10 documents...");
     for i in 0..10 {
-        let uri = Url::parse(&format!("file:///demo{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///demo{i}.hedl")).unwrap();
         let params = DidOpenTextDocumentParams {
             text_document: TextDocumentItem {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
                 text: format!(
-                    "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | user{}, User {}\n",
-                    i, i
+                    "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | user{i}, User {i}\n"
                 ),
             },
         };
@@ -72,13 +74,13 @@ async fn main() {
     // Open 5 more documents (trigger evictions)
     println!("Opening 5 more documents (will trigger evictions)...");
     for i in 10..15 {
-        let uri = Url::parse(&format!("file:///demo{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///demo{i}.hedl")).unwrap();
         let params = DidOpenTextDocumentParams {
             text_document: TextDocumentItem {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: format!("%VERSION: 1.0\n---\nvalue: {}\n", i),
+                text: format!("%VERSION: 1.0\n---\nvalue: {i}\n"),
             },
         };
         server.did_open(params).await;
@@ -115,7 +117,7 @@ async fn main() {
     let hit_rate = stats.hits as f64 / (stats.hits + stats.misses) as f64 * 100.0;
     println!("After change:");
     println!("  Cache hits:   {} (document was in cache)", stats.hits);
-    println!("  Hit rate:     {:.1}%", hit_rate);
+    println!("  Hit rate:     {hit_rate:.1}%");
     println!();
 
     // Increase cache size at runtime
@@ -134,13 +136,13 @@ async fn main() {
     // Open 10 more documents (should fit without eviction)
     println!("Opening 10 more documents (should fit without eviction)...");
     for i in 15..25 {
-        let uri = Url::parse(&format!("file:///demo{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///demo{i}.hedl")).unwrap();
         let params = DidOpenTextDocumentParams {
             text_document: TextDocumentItem {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: format!("%VERSION: 1.0\n---\nvalue: {}\n", i),
+                text: format!("%VERSION: 1.0\n---\nvalue: {i}\n"),
             },
         };
         server.did_open(params).await;
@@ -163,7 +165,7 @@ async fn main() {
         "  Total evictions:        {} (when cache was full at 10)",
         stats.evictions
     );
-    println!("  Hit rate:               {:.1}%", hit_rate);
+    println!("  Hit rate:               {hit_rate:.1}%");
     println!(
         "\nMemory bounded: Cache stays at {} documents max",
         stats.max_size

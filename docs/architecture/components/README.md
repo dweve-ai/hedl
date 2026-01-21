@@ -28,17 +28,23 @@ Each component has one clear purpose:
 
 ### Clear Interfaces
 
-Components communicate via well-defined internal functions and shared data structures:
+Components communicate via well-defined functions and shared data structures:
 
 ```rust
-// Lex utility (from hedl-core::lex)
+// Lex utilities (from hedl-core::lex)
 pub fn parse_csv_row(row: &str) -> Result<Vec<CsvField>, LexError>;
+pub fn parse_tensor(s: &str) -> Result<Tensor, LexError>;
+pub fn calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>, LexError>;
 
 // Main parser (from hedl-core)
 pub fn parse(input: &[u8]) -> Result<Document, HedlError>;
+pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> Result<Document, HedlError>;
 
 // Traversal visitor (from hedl-core::traverse)
 pub trait DocumentVisitor { ... }
+
+// Reference resolution (from hedl-core::reference)
+pub fn resolve_references(doc: &Document, mode: ReferenceMode) -> Result<(), HedlError>;
 ```
 
 ### Minimal Dependencies
@@ -60,13 +66,20 @@ graph LR
 
 ### 1. Initialization
 
-Components are initialized with configuration:
+Configure parsing behavior:
 
 ```rust
+// Create parse options with default or custom settings
 let options = ParseOptions::default();
-let lexer = Lexer::new(&options);
-let parser = Parser::new(&options);
-let validator = Validator::new(&options);
+
+// Or use builder for custom configuration
+let options = ParseOptions::builder()
+    .max_depth(100)
+    .reference_mode(ReferenceMode::Strict)
+    .build();
+
+// Create limits if needed
+let limits = Limits::default();
 ```
 
 ### 2. Execution
@@ -74,14 +87,14 @@ let validator = Validator::new(&options);
 Components execute their primary function:
 
 ```rust
-// Tokenization
-let tokens = lexer.tokenize(input)?;
+// Preprocessing
+let preprocessed = preprocess(input, &limits)?;
 
-// Parsing
-let doc = parser.parse(&tokens)?;
+// Parsing (includes header parsing, body parsing, and validation)
+let doc = parse_with_limits(input, options)?;
 
-// Validation
-let report = validator.validate(&doc)?;
+// Reference resolution (post-parse validation)
+resolve_references(&doc, reference_mode)?;
 ```
 
 ### 3. Cleanup
@@ -97,151 +110,187 @@ drop(doc);  // Frees all AST nodes
 
 ### Pipeline Pattern
 
-Components form a processing pipeline:
+HEDL parsing follows a unified pipeline pattern with integrated validation:
 
 ```rust
-pub struct ProcessingPipeline {
-    lexer: Lexer,
-    parser: Parser,
-    validator: Validator,
-}
+// Parse with default options (includes validation)
+let doc = hedl_core::parse(input)?;
 
-impl ProcessingPipeline {
-    pub fn process(&self, input: &str) -> Result<Document> {
-        let tokens = self.lexer.tokenize(input)?;
-        let doc = self.parser.parse(&tokens)?;
-        self.validator.validate(&doc)?;
-        Ok(doc)
-    }
-}
+// Or with custom options
+let opts = ParseOptions::builder()
+    .max_nodes(100_000)
+    .reference_mode(ReferenceMode::Lenient)
+    .build();
+let doc = hedl_core::parse_with_limits(input, opts)?;
+
+// Reference resolution as optional post-processing
+resolve_references(&doc, ReferenceMode::Strict)?;
 ```
 
 ### Visitor Pattern
 
-Components traverse AST with visitors:
+The traversal system provides visitor implementations for AST traversal and transformation:
 
 ```rust
-pub trait Visitor {
-    fn visit_node(&mut self, node: &Node) -> Result<()>;
-    fn visit_value(&mut self, value: &Value) -> Result<()>;
+use hedl_core::traverse::{DocumentVisitor, VisitorContext};
+
+// Define custom visitor
+pub struct MyVisitor {
+    // state
 }
 
-// Validator implements visitor
-impl Visitor for Validator {
-    fn visit_node(&mut self, node: &Node) -> Result<()> {
-        // Validate node
-        self.check_node(node)?;
+impl DocumentVisitor for MyVisitor {
+    type Error = MyError;
 
-        // Visit children
-        for child in node.children() {
-            self.visit_node(child)?;
+    fn visit_item(&mut self, ctx: &VisitorContext, item: &Item) -> Result<(), Self::Error> {
+        // Process item
+        match item {
+            Item::Scalar(value) => { /* handle scalar */ },
+            Item::Object(map) => { /* handle object */ },
+            Item::List(list) => { /* handle list */ },
         }
-
         Ok(())
     }
 }
+
+// Use visitor
+let mut visitor = MyVisitor::new();
+traverse(&doc, &mut visitor)?;
 ```
 
-### Observer Pattern
+### Visitor Transformation Pattern
 
-Components notify observers of events:
+The visitor system supports transformations across the AST:
 
 ```rust
-pub trait ParserObserver {
-    fn on_node_parsed(&self, node: &Node);
-    fn on_parse_complete(&self, doc: &Document);
+use hedl_core::visitor::{Visitor, transform};
+
+// Define transformation visitor
+pub struct TransformVisitor {
+    // state
 }
 
-pub struct Parser {
-    observers: Vec<Box<dyn ParserObserver>>,
-}
-
-impl Parser {
-    fn notify_node_parsed(&self, node: &Node) {
-        for observer in &self.observers {
-            observer.on_node_parsed(node);
+impl Visitor for TransformVisitor {
+    fn visit_value(&mut self, value: &Value) -> Value {
+        match value {
+            Value::String(s) => Value::String(s.to_uppercase().into()),
+            other => other.clone(),
         }
     }
 }
+
+// Apply transformation
+let mut transformer = TransformVisitor::new();
+let transformed_doc = transform(&doc, &mut transformer)?;
 ```
 
 ## Performance Characteristics
 
-### Lexer Component
+### Preprocessing
 
 - **Time Complexity**: O(n) where n = input length
-- **Space Complexity**: O(t) where t = number of tokens
-- **Optimization**: SIMD byte searching with `memchr`
+- **Space Complexity**: O(1) streaming (lazy iteration)
+- **Optimization**: SIMD byte searching with `memchr` for comment detection
 
-### Parser Component
+### Parsing
 
 - **Time Complexity**: O(n) single-pass parsing
-- **Space Complexity**: O(nodes) arena allocation
-- **Optimization**: Efficient string handling (internal zero-copy, owned AST)
+- **Space Complexity**: O(nodes) for AST allocation
+- **Optimization**: BTreeMap for sorted key iteration, SmallVec for inline field storage
 
-### Validator Component
+### Lexical Validation (On-Demand)
 
-- **Time Complexity**: O(nodes) tree traversal
-- **Space Complexity**: O(depth) recursion stack
-- **Optimization**: Early exit on first error
+- **Time Complexity**: O(m) where m = token/line length
+- **Space Complexity**: O(1) for most validations, O(f) for row parsing (f = field count)
+- **Optimization**: Direct parsing without separate token stream, first-byte dispatch for value inference
 
-### Serializer Component
+### Reference Resolution
+
+- **Time Complexity**: O(n + r) where n = nodes, r = references
+- **Space Complexity**: O(n) for type registry
+- **Optimization**: Inverted index for O(1) unqualified reference lookup
+
+### Format Conversion
 
 - **Time Complexity**: O(nodes) for traversal
-- **Space Complexity**: O(output) for serialized string
-- **Optimization**: String builder with pre-allocation
+- **Space Complexity**: O(output) for serialized data
+- **Optimization**: Pre-allocated buffers, chunked I/O for large outputs
 
 ## Testing Strategy
 
 ### Unit Testing
 
-Test each component independently:
+Test parsing functionality:
 
 ```rust
 #[cfg(test)]
-mod lexer_tests {
-    use super::*;
+mod parse_tests {
+    use hedl_core::{parse, parse_with_limits, ParseOptions};
 
     #[test]
-    fn test_tokenize_simple() {
-        let lexer = Lexer::new(&ParseOptions::default());
-        let tokens = lexer.tokenize("key: value").unwrap();
-        assert_eq!(tokens.len(), 3);
+    fn test_parse_simple() {
+        let input = b"key: value";
+        let doc = parse(input).unwrap();
+
+        assert_eq!(doc.root.len(), 1);
+        assert!(doc.root.contains_key("key"));
+    }
+
+    #[test]
+    fn test_parse_with_options() {
+        let opts = ParseOptions::builder()
+            .max_nodes(100)
+            .build();
+        let input = b"data: value";
+        let doc = parse_with_limits(input, opts).unwrap();
+
+        assert_eq!(doc.root.len(), 1);
     }
 }
 ```
 
 ### Integration Testing
 
-Test component interactions:
+Test parsing with reference resolution and serialization:
 
 ```rust
 #[test]
-fn test_lexer_parser_integration() {
-    let lexer = Lexer::new(&ParseOptions::default());
-    let parser = Parser::new(&ParseOptions::default());
+fn test_parse_with_references() {
+    use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 
-    let tokens = lexer.tokenize("key: value").unwrap();
-    let doc = parser.parse(&tokens).unwrap();
+    let input = b"%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice";
+    let opts = ParseOptions::builder()
+        .reference_mode(ReferenceMode::Strict)
+        .build();
 
-    assert_eq!(doc.nodes().len(), 1);
+    let doc = parse_with_limits(input, opts).unwrap();
+    assert_eq!(doc.version, (1, 0));
+    assert!(doc.root.contains_key("users"));
 }
 ```
 
 ### Property Testing
 
-Verify component invariants:
+Verify parsing invariants:
 
 ```rust
 use proptest::prelude::*;
+use hedl_core::parse;
 
 proptest! {
     #[test]
-    fn test_lexer_parser_roundtrip(input in ".*") {
-        if let Ok(tokens) = Lexer::new(&ParseOptions::default()).tokenize(&input) {
-            if let Ok(doc) = Parser::new(&ParseOptions::default()).parse(&tokens) {
-                // Roundtrip property: parse(tokenize(input)) should succeed
-                assert!(doc.nodes().len() >= 0);
+    fn test_parse_validity(input in ".*") {
+        // Property: parsing should either succeed or fail gracefully
+        match parse(input.as_bytes()) {
+            Ok(doc) => {
+                // If parse succeeds, document should be valid
+                assert!(doc.version >= (0, 0));
+                // Check that root is well-formed
+                let _ = doc.root.len();
+            },
+            Err(_) => {
+                // Errors should be recoverable
+                // (no panics, no stack overflow)
             }
         }
     }

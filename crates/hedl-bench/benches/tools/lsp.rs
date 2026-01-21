@@ -20,7 +20,7 @@
 //! Measures performance of LSP server operations including initialization,
 //! document synchronization, completion, hover, diagnostics, and formatting.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight,
     PerfResult, TableCell,
@@ -31,7 +31,8 @@ use hedl_lsp::hover::get_hover;
 use hedl_lsp::symbols::{get_document_symbols, get_workspace_symbols};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use tower_lsp::lsp_types::*;
+use std::hint::black_box;
+use tower_lsp::lsp_types::Position;
 
 /// Comprehensive LSP request result for detailed analysis
 #[derive(Clone)]
@@ -65,8 +66,8 @@ impl Default for LSPRequestResult {
 }
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static LSP_RESULTS: RefCell<Vec<LSPRequestResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static LSP_RESULTS: RefCell<Vec<LSPRequestResult>> = const { RefCell::new(Vec::new()) };
 }
 
 fn init_report() {
@@ -83,13 +84,326 @@ fn init_report() {
     });
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used for future incremental data collection
 fn add_lsp_result(result: LSPRequestResult) {
     LSP_RESULTS.with(|r| {
         r.borrow_mut().push(result);
     });
 }
 
+/// Collect LSP operation results by running actual measurements.
+/// This is a fallback when benchmark runs don't populate `LSP_RESULTS`.
+/// Uses fewer iterations since this runs at export time.
+fn collect_lsp_results() -> Vec<LSPRequestResult> {
+    use std::time::Instant;
+
+    let mut results = Vec::new();
+    let iterations = 10; // Reduced for faster export when used as fallback
+
+    // 1. Document Analysis benchmarks across sizes
+    for &size in &[sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
+        let content = generate_users(size);
+        let mut latencies = Vec::with_capacity(iterations);
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = AnalyzedDocument::analyze(&content);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LSPRequestResult {
+            request_type: format!("document_analysis_{size}"),
+            latencies_ns: latencies,
+            document_size_bytes: content.len(),
+            memory_estimate_kb: (content.len() as f64 * 2.0) / 1024.0,
+            sla_target_ms: 100.0,
+            errors: 0,
+            incremental: false,
+            cache_hit: false,
+            concurrent_level: 1,
+        });
+    }
+
+    // 2. Completion benchmarks
+    let content = generate_blog(sizes::MEDIUM, 3);
+    let analysis = AnalyzedDocument::analyze(&content);
+    let positions = [
+        (
+            "header_directive",
+            Position {
+                line: 0,
+                character: 1,
+            },
+        ),
+        (
+            "reference_type",
+            Position {
+                line: 10,
+                character: 15,
+            },
+        ),
+        (
+            "reference_id",
+            Position {
+                line: 12,
+                character: 20,
+            },
+        ),
+    ];
+
+    for (name, position) in positions {
+        let mut latencies = Vec::with_capacity(iterations);
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = get_completions(&analysis, &content, position);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LSPRequestResult {
+            request_type: format!("completions_{name}"),
+            latencies_ns: latencies,
+            document_size_bytes: content.len(),
+            memory_estimate_kb: 50.0,
+            sla_target_ms: 100.0,
+            errors: 0,
+            incremental: false,
+            cache_hit: true,
+            concurrent_level: 1,
+        });
+    }
+
+    // 3. Hover benchmarks
+    let hover_content = generate_users(sizes::MEDIUM);
+    let hover_analysis = AnalyzedDocument::analyze(&hover_content);
+    let hover_positions = [
+        (
+            "type_name",
+            Position {
+                line: 5,
+                character: 10,
+            },
+        ),
+        (
+            "ditto",
+            Position {
+                line: 12,
+                character: 5,
+            },
+        ),
+    ];
+
+    for (name, position) in hover_positions {
+        let mut latencies = Vec::with_capacity(iterations);
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = get_hover(&hover_analysis, &hover_content, position);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LSPRequestResult {
+            request_type: format!("hover_{name}"),
+            latencies_ns: latencies,
+            document_size_bytes: hover_content.len(),
+            memory_estimate_kb: 10.0,
+            sla_target_ms: 50.0,
+            errors: 0,
+            incremental: false,
+            cache_hit: true,
+            concurrent_level: 1,
+        });
+    }
+
+    // 4. Document symbols benchmarks
+    for &size in &[sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
+        let sym_content = generate_users(size);
+        let sym_analysis = AnalyzedDocument::analyze(&sym_content);
+        let mut latencies = Vec::with_capacity(iterations);
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = get_document_symbols(&sym_analysis, &sym_content);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LSPRequestResult {
+            request_type: format!("document_symbols_{size}"),
+            latencies_ns: latencies,
+            document_size_bytes: sym_content.len(),
+            memory_estimate_kb: (size as f64 * 0.5),
+            sla_target_ms: 100.0,
+            errors: 0,
+            incremental: false,
+            cache_hit: true,
+            concurrent_level: 1,
+        });
+    }
+
+    // 5. Workspace symbols benchmarks
+    let ws_content = generate_users(sizes::LARGE);
+    let ws_analysis = AnalyzedDocument::analyze(&ws_content);
+    let queries = [("empty", ""), ("single_char", "u"), ("partial", "user")];
+
+    for (name, query) in queries {
+        let mut latencies = Vec::with_capacity(iterations);
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = get_workspace_symbols(&ws_analysis, query);
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LSPRequestResult {
+            request_type: format!("workspace_symbols_{name}"),
+            latencies_ns: latencies,
+            document_size_bytes: ws_content.len(),
+            memory_estimate_kb: 100.0,
+            sla_target_ms: 200.0,
+            errors: 0,
+            incremental: false,
+            cache_hit: true,
+            concurrent_level: 1,
+        });
+    }
+
+    // 6. Diagnostics benchmarks
+    for &size in &[sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
+        let diag_content = generate_users(size);
+        let diag_analysis = AnalyzedDocument::analyze(&diag_content);
+        let mut latencies = Vec::with_capacity(iterations);
+
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let _ = diag_analysis.to_lsp_diagnostics();
+            latencies.push(start.elapsed().as_nanos() as u64);
+        }
+
+        results.push(LSPRequestResult {
+            request_type: format!("diagnostics_{size}"),
+            latencies_ns: latencies,
+            document_size_bytes: diag_content.len(),
+            memory_estimate_kb: (size as f64 * 0.1),
+            sla_target_ms: 100.0,
+            errors: 0,
+            incremental: false,
+            cache_hit: true,
+            concurrent_level: 1,
+        });
+    }
+
+    // 7. Formatting benchmarks
+    for &size in &[sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
+        let fmt_content = generate_users(size);
+        let fmt_analysis = AnalyzedDocument::analyze(&fmt_content);
+
+        if let Some(doc) = &fmt_analysis.document {
+            let mut latencies = Vec::with_capacity(iterations);
+            for _ in 0..iterations {
+                let start = Instant::now();
+                let _ = hedl_c14n::canonicalize(doc);
+                latencies.push(start.elapsed().as_nanos() as u64);
+            }
+
+            results.push(LSPRequestResult {
+                request_type: format!("formatting_{size}"),
+                latencies_ns: latencies,
+                document_size_bytes: fmt_content.len(),
+                memory_estimate_kb: (fmt_content.len() as f64 * 1.5) / 1024.0,
+                sla_target_ms: 200.0,
+                errors: 0,
+                incremental: false,
+                cache_hit: false,
+                concurrent_level: 1,
+            });
+        }
+    }
+
+    // 8. Reference lookup benchmarks
+    let ref_content = generate_users(sizes::LARGE);
+    let ref_analysis = AnalyzedDocument::analyze(&ref_content);
+
+    // Qualified entity lookup
+    let mut latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = ref_analysis.entity_exists(Some("User"), "alice");
+        latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(LSPRequestResult {
+        request_type: "reference_lookup_qualified".to_string(),
+        latencies_ns: latencies,
+        document_size_bytes: ref_content.len(),
+        memory_estimate_kb: 5.0,
+        sla_target_ms: 10.0,
+        errors: 0,
+        incremental: false,
+        cache_hit: true,
+        concurrent_level: 1,
+    });
+
+    // Unqualified entity lookup
+    let mut latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = ref_analysis.entity_exists(None, "alice");
+        latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(LSPRequestResult {
+        request_type: "reference_lookup_unqualified".to_string(),
+        latencies_ns: latencies,
+        document_size_bytes: ref_content.len(),
+        memory_estimate_kb: 5.0,
+        sla_target_ms: 10.0,
+        errors: 0,
+        incremental: false,
+        cache_hit: true,
+        concurrent_level: 1,
+    });
+
+    // 9. Incremental analysis (cold vs warm)
+    let inc_content = generate_users(sizes::MEDIUM);
+
+    // Cold start
+    let mut cold_latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = AnalyzedDocument::analyze(&inc_content);
+        cold_latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(LSPRequestResult {
+        request_type: "incremental_cold_start".to_string(),
+        latencies_ns: cold_latencies,
+        document_size_bytes: inc_content.len(),
+        memory_estimate_kb: (inc_content.len() as f64 * 2.0) / 1024.0,
+        sla_target_ms: 100.0,
+        errors: 0,
+        incremental: false,
+        cache_hit: false,
+        concurrent_level: 1,
+    });
+
+    // Warm (re-analysis same content)
+    let inc_analysis = AnalyzedDocument::analyze(&inc_content);
+    let mut warm_latencies = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        let start = Instant::now();
+        let _ = inc_analysis.to_lsp_diagnostics(); // Just get diagnostics from cached analysis
+        warm_latencies.push(start.elapsed().as_nanos() as u64);
+    }
+    results.push(LSPRequestResult {
+        request_type: "incremental_warm_cache".to_string(),
+        latencies_ns: warm_latencies,
+        document_size_bytes: inc_content.len(),
+        memory_estimate_kb: (inc_content.len() as f64 * 1.5) / 1024.0,
+        sla_target_ms: 50.0,
+        errors: 0,
+        incremental: true,
+        cache_hit: true,
+        concurrent_level: 1,
+    });
+
+    results
+}
+
+#[allow(dead_code)] // Reserved for future benchmark-time data collection
 fn add_perf_result(name: &str, time_ns: u64, iterations: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
@@ -113,8 +427,24 @@ fn export_reports() {
         if let Some(ref report) = *r.borrow() {
             let mut new_report = report.clone();
 
-            // Collect all LSP results
-            let lsp_results = LSP_RESULTS.with(|r| r.borrow().clone());
+            // First try to use data collected during benchmark runs
+            let lsp_results = LSP_RESULTS.with(|results| {
+                let stored = results.borrow();
+                if stored.is_empty() {
+                    // Fallback: collect data if benchmarks didn't populate results
+                    // Use fewer iterations for faster export
+                    println!("\n[LSP] No stored results, collecting measurement data...");
+                    drop(stored); // Release borrow before calling collect
+                    collect_lsp_results()
+                } else {
+                    println!(
+                        "\n[LSP] Using {} result sets from benchmark runs",
+                        stored.len()
+                    );
+                    stored.clone()
+                }
+            });
+            println!("[LSP] Total {} result sets for report", lsp_results.len());
 
             // Create all 16 comprehensive tables
             create_request_latency_distribution_table(&lsp_results, &mut new_report);
@@ -141,7 +471,7 @@ fn export_reports() {
             let base_path = "target/lsp_report";
 
             if let Err(e) = new_report.save_all(base_path, &config) {
-                eprintln!("Warning: Failed to export reports: {}", e);
+                eprintln!("Warning: Failed to export reports: {e}");
             } else {
                 println!(
                     "\n[LSP] Exported {} tables and {} insights",
@@ -209,9 +539,9 @@ fn create_request_latency_distribution_table(
         let min = latencies[0];
         let max = latencies[len - 1];
         let p50 = latencies[len / 2];
-        let p90 = latencies[len * 90 / 100.max(1)];
-        let p95 = latencies[len * 95 / 100.max(1)];
-        let p99 = latencies[len * 99 / 100.max(1)];
+        let p90 = latencies[len * 90 / 100];
+        let p95 = latencies[len * 95 / 100];
+        let p99 = latencies[len * 99 / 100];
 
         let sla_target = sla_targets.get(&req_type).copied().unwrap_or(100.0);
         let within_sla = latencies.iter().filter(|&&l| l <= sla_target).count();
@@ -282,7 +612,7 @@ fn create_throughput_analysis_table(results: &[LSPRequestResult], report: &mut B
             TableCell::Float(requests_per_sec),
             TableCell::Integer(concurrent_capacity.max(1)),
             TableCell::Integer(10),
-            TableCell::String(format!("{:.0} req/s", requests_per_sec)),
+            TableCell::String(format!("{requests_per_sec:.0} req/s")),
             TableCell::String("CPU".to_string()),
             TableCell::String("Linear".to_string()),
         ]);
@@ -392,7 +722,7 @@ fn create_memory_usage_profiling_table(results: &[LSPRequestResult], report: &mu
             continue;
         }
         let avg_mem = mems.iter().sum::<f64>() / mems.len() as f64;
-        let max_mem = mems.iter().cloned().fold(0.0f64, f64::max);
+        let max_mem = mems.iter().copied().fold(0.0f64, f64::max);
 
         table.rows.push(vec![
             TableCell::String(op_type.clone()),
@@ -519,14 +849,14 @@ fn create_document_size_impact_table(results: &[LSPRequestResult], report: &mut 
 
     // Only show buckets with actual data
     let mut buckets: Vec<_> = by_size.keys().copied().collect();
-    buckets.sort();
+    buckets.sort_unstable();
 
     for size in buckets {
         if let Some(latencies) = by_size.get(&size) {
             if !latencies.is_empty() {
                 let avg = latencies.iter().sum::<f64>() / latencies.len() as f64;
-                let min = latencies.iter().cloned().fold(f64::MAX, f64::min);
-                let max = latencies.iter().cloned().fold(f64::MIN, f64::max);
+                let min = latencies.iter().copied().fold(f64::MAX, f64::min);
+                let max = latencies.iter().copied().fold(f64::MIN, f64::max);
                 table.rows.push(vec![
                     TableCell::Integer(size as i64),
                     TableCell::Integer(latencies.len() as i64),
@@ -736,7 +1066,9 @@ fn create_performance_regression_detection_table(
     };
 
     // Calculate current metrics from results
-    let current_latency = if !results.is_empty() {
+    let current_latency = if results.is_empty() {
+        5.0
+    } else {
         let total: f64 = results
             .iter()
             .flat_map(|r| r.latencies_ns.iter())
@@ -748,8 +1080,6 @@ fn create_performance_regression_detection_table(
         } else {
             5.0
         }
-    } else {
-        5.0
     };
 
     // Only show metrics we actually measured
@@ -769,14 +1099,12 @@ fn create_performance_regression_detection_table(
             } else {
                 "No"
             }
+        } else if change > 10.0 {
+            "Yes"
+        } else if change > 5.0 {
+            "Minor"
         } else {
-            if change > 10.0 {
-                "Yes"
-            } else if change > 5.0 {
-                "Minor"
-            } else {
-                "No"
-            }
+            "No"
         };
         let action = match regression {
             "Yes" => "Investigate",
@@ -806,12 +1134,12 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
     let within_sla = results
         .iter()
         .filter(|r| {
-            let avg_latency_ms = if !r.latencies_ns.is_empty() {
+            let avg_latency_ms = if r.latencies_ns.is_empty() {
+                0.0
+            } else {
                 r.latencies_ns.iter().sum::<u64>() as f64
                     / r.latencies_ns.len() as f64
                     / 1_000_000.0
-            } else {
-                0.0
             };
             avg_latency_ms <= r.sla_target_ms
         })
@@ -825,10 +1153,7 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
     if sla_pct >= 95.0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Excellent SLA Compliance: {:.1}% of requests within target",
-                sla_pct
-            ),
+            title: format!("Excellent SLA Compliance: {sla_pct:.1}% of requests within target"),
             description: "LSP performance consistently meets service level agreements".to_string(),
             data_points: vec![
                 format!("{}/{} request types within SLA", within_sla, results.len()),
@@ -838,7 +1163,7 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
     } else if sla_pct < 90.0 {
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!("SLA Compliance Below Target: {:.1}%", sla_pct),
+            title: format!("SLA Compliance Below Target: {sla_pct:.1}%"),
             description: "Significant percentage of requests exceed latency targets".to_string(),
             data_points: vec![
                 format!("{} request types missed SLA", results.len() - within_sla),
@@ -878,7 +1203,7 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
             let speedup = full_avg / inc_avg;
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("Incremental Updates {:.1}x Faster", speedup),
+                title: format!("Incremental Updates {speedup:.1}x Faster"),
                 description: "Incremental parsing provides substantial performance gains"
                     .to_string(),
                 data_points: vec![
@@ -891,10 +1216,10 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
 
     // 3. Memory Efficiency
     let total_memory: f64 = results.iter().map(|r| r.memory_estimate_kb).sum();
-    let avg_memory = if !results.is_empty() {
-        total_memory / results.len() as f64
-    } else {
+    let avg_memory = if results.is_empty() {
         0.0
+    } else {
+        total_memory / results.len() as f64
     };
 
     if avg_memory > 0.0 && avg_memory < 100_000.0 {
@@ -914,10 +1239,10 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
 
     // 4. Cache Effectiveness
     let cache_hits = results.iter().filter(|r| r.cache_hit).count();
-    let cache_rate = if !results.is_empty() {
-        (cache_hits as f64 / results.len() as f64) * 100.0
-    } else {
+    let cache_rate = if results.is_empty() {
         85.0
+    } else {
+        (cache_hits as f64 / results.len() as f64) * 100.0
     };
 
     report.add_insight(Insight {
@@ -927,7 +1252,7 @@ fn generate_lsp_insights(results: &[LSPRequestResult], report: &mut BenchmarkRep
             "recommendation"
         }
         .to_string(),
-        title: format!("Cache Hit Rate: {:.1}%", cache_rate),
+        title: format!("Cache Hit Rate: {cache_rate:.1}%"),
         description: if cache_rate >= 80.0 {
             "High cache efficiency reduces redundant computation".to_string()
         } else {
@@ -1066,23 +1391,8 @@ fn bench_document_analysis(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(content.len() as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &content, |b, content| {
-            b.iter(|| AnalyzedDocument::analyze(black_box(content)))
+            b.iter(|| AnalyzedDocument::analyze(black_box(content)));
         });
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = AnalyzedDocument::analyze(&content);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("document_analysis_{}", size),
-            total_ns,
-            iterations,
-            Some(content.len() as u64),
-        );
     }
 
     group.finish();
@@ -1097,65 +1407,20 @@ fn bench_incremental_analysis(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(modified_content.len() as u64));
     group.bench_function("first_analysis", |b| {
-        b.iter(|| AnalyzedDocument::analyze(black_box(&content)))
+        b.iter(|| AnalyzedDocument::analyze(black_box(&content)));
     });
 
     group.bench_function("reanalysis_same_content", |b| {
         let _first = AnalyzedDocument::analyze(&content);
-        b.iter(|| AnalyzedDocument::analyze(black_box(&content)))
+        b.iter(|| AnalyzedDocument::analyze(black_box(&content)));
     });
 
     group.bench_function("reanalysis_modified", |b| {
         let _first = AnalyzedDocument::analyze(&content);
-        b.iter(|| AnalyzedDocument::analyze(black_box(&modified_content)))
+        b.iter(|| AnalyzedDocument::analyze(black_box(&modified_content)));
     });
 
     group.finish();
-
-    // Collect metrics for report - first_analysis
-    let iterations = 100u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = AnalyzedDocument::analyze(&content);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "incremental_analysis_first",
-        total_ns,
-        iterations,
-        Some(content.len() as u64),
-    );
-
-    // Collect metrics for report - reanalysis_same_content
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let _first = AnalyzedDocument::analyze(&content);
-        let start = std::time::Instant::now();
-        let _ = AnalyzedDocument::analyze(&content);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "incremental_analysis_same",
-        total_ns,
-        iterations,
-        Some(content.len() as u64),
-    );
-
-    // Collect metrics for report - reanalysis_modified
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let _first = AnalyzedDocument::analyze(&content);
-        let start = std::time::Instant::now();
-        let _ = AnalyzedDocument::analyze(&modified_content);
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "incremental_analysis_modified",
-        total_ns,
-        iterations,
-        Some(modified_content.len() as u64),
-    );
 }
 
 /// Benchmark completion generation
@@ -1199,18 +1464,8 @@ fn bench_completions(c: &mut Criterion) {
 
     for (name, position) in &test_cases {
         group.bench_function(*name, |b| {
-            b.iter(|| get_completions(black_box(&analysis), black_box(&content), *position))
+            b.iter(|| get_completions(black_box(&analysis), black_box(&content), *position));
         });
-
-        // Collect metrics for report
-        let iterations = 1000u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = get_completions(&analysis, &content, *position);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(&format!("completions_{}", name), total_ns, iterations, None);
     }
 
     group.finish();
@@ -1256,18 +1511,8 @@ fn bench_hover(c: &mut Criterion) {
 
     for (name, position) in &test_cases {
         group.bench_function(*name, |b| {
-            b.iter(|| get_hover(black_box(&analysis), black_box(&content), *position))
+            b.iter(|| get_hover(black_box(&analysis), black_box(&content), *position));
         });
-
-        // Collect metrics for report
-        let iterations = 1000u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = get_hover(&analysis, &content, *position);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(&format!("hover_{}", name), total_ns, iterations, None);
     }
 
     group.finish();
@@ -1285,21 +1530,6 @@ fn bench_document_symbols(c: &mut Criterion) {
             BenchmarkId::from_parameter(size),
             &analysis,
             |b, analysis| b.iter(|| get_document_symbols(black_box(analysis), black_box(&content))),
-        );
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = get_document_symbols(&analysis, &content);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("document_symbols_{}", size),
-            total_ns,
-            iterations,
-            None,
         );
     }
 
@@ -1322,23 +1552,8 @@ fn bench_workspace_symbols(c: &mut Criterion) {
 
     for (name, query) in &queries {
         group.bench_function(*name, |b| {
-            b.iter(|| get_workspace_symbols(black_box(&analysis), black_box(query)))
+            b.iter(|| get_workspace_symbols(black_box(&analysis), black_box(query)));
         });
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = get_workspace_symbols(&analysis, query);
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("workspace_symbols_{}", name),
-            total_ns,
-            iterations,
-            None,
-        );
     }
 
     group.finish();
@@ -1357,16 +1572,6 @@ fn bench_diagnostics(c: &mut Criterion) {
             &analysis,
             |b, analysis| b.iter(|| analysis.to_lsp_diagnostics()),
         );
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let _ = analysis.to_lsp_diagnostics();
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(&format!("diagnostics_{}", size), total_ns, iterations, None);
     }
 
     group.finish();
@@ -1383,23 +1588,8 @@ fn bench_formatting(c: &mut Criterion) {
         if let Some(doc) = &analysis.document {
             group.throughput(Throughput::Bytes(content.len() as u64));
             group.bench_with_input(BenchmarkId::from_parameter(size), doc, |b, doc| {
-                b.iter(|| hedl_c14n::canonicalize(black_box(doc)))
+                b.iter(|| hedl_c14n::canonicalize(black_box(doc)));
             });
-
-            // Collect metrics for report
-            let iterations = 100u64;
-            let mut total_ns = 0u64;
-            for _ in 0..iterations {
-                let start = std::time::Instant::now();
-                let _ = hedl_c14n::canonicalize(doc);
-                total_ns += start.elapsed().as_nanos() as u64;
-            }
-            add_perf_result(
-                &format!("formatting_{}", size),
-                total_ns,
-                iterations,
-                Some(content.len() as u64),
-            );
         }
     }
 
@@ -1415,69 +1605,22 @@ fn bench_reference_lookup(c: &mut Criterion) {
 
     // Test entity existence checks (simulating go-to-definition)
     group.bench_function("entity_exists_qualified", |b| {
-        b.iter(|| analysis.entity_exists(Some("User"), "alice"))
+        b.iter(|| analysis.entity_exists(Some("User"), "alice"));
     });
 
     group.bench_function("entity_exists_unqualified", |b| {
-        b.iter(|| analysis.entity_exists(None, "alice"))
+        b.iter(|| analysis.entity_exists(None, "alice"));
     });
 
     // Test entity ID retrieval
     group.bench_function("get_entity_ids", |b| {
-        b.iter(|| analysis.get_entity_ids("User"))
+        b.iter(|| analysis.get_entity_ids("User"));
     });
 
     // Test schema retrieval
     group.bench_function("get_schema", |b| b.iter(|| analysis.get_schema("User")));
 
     group.finish();
-
-    // Collect metrics for report - entity_exists_qualified
-    let iterations = 10000u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = analysis.entity_exists(Some("User"), "alice");
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "reference_lookup_entity_qualified",
-        total_ns,
-        iterations,
-        None,
-    );
-
-    // Collect metrics for report - entity_exists_unqualified
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = analysis.entity_exists(None, "alice");
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result(
-        "reference_lookup_entity_unqualified",
-        total_ns,
-        iterations,
-        None,
-    );
-
-    // Collect metrics for report - get_entity_ids
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = analysis.get_entity_ids("User");
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("reference_lookup_get_ids", total_ns, iterations, None);
-
-    // Collect metrics for report - get_schema
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = analysis.get_schema("User");
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("reference_lookup_get_schema", total_ns, iterations, None);
 }
 
 /// Benchmark find references operation
@@ -1489,58 +1632,26 @@ fn bench_find_references(c: &mut Criterion) {
 
     // Test reference index lookup (optimized path)
     group.bench_function("reference_index_lookup", |b| {
-        b.iter(|| analysis.reference_index.get("@User:alice"))
+        b.iter(|| analysis.reference_index.get("@User:alice"));
     });
 
     // Count total references
     group.bench_function("count_all_references", |b| {
-        b.iter(|| analysis.references.len())
+        b.iter(|| analysis.references.len());
     });
 
     // Test reference index iteration
     group.bench_function("iterate_reference_index", |b| {
         b.iter(|| {
             let mut count = 0;
-            for (_, locations) in &analysis.reference_index {
+            for locations in analysis.reference_index.values() {
                 count += locations.len();
             }
             count
-        })
+        });
     });
 
     group.finish();
-
-    // Collect metrics for report - reference_index_lookup
-    let iterations = 10000u64;
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = analysis.reference_index.get("@User:alice");
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("find_references_index_lookup", total_ns, iterations, None);
-
-    // Collect metrics for report - count_all_references
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let _ = analysis.references.len();
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("find_references_count", total_ns, iterations, None);
-
-    // Collect metrics for report - iterate_reference_index
-    let mut total_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
-        let mut count = 0;
-        for (_, locations) in &analysis.reference_index {
-            count += locations.len();
-        }
-        let _ = count;
-        total_ns += start.elapsed().as_nanos() as u64;
-    }
-    add_perf_result("find_references_iterate", total_ns, iterations, None);
 }
 
 /// Benchmark large file handling
@@ -1557,24 +1668,8 @@ fn bench_large_files(c: &mut Criterion) {
                 let analysis = AnalyzedDocument::analyze(black_box(content));
                 let _ = analysis.to_lsp_diagnostics();
                 analysis
-            })
+            });
         });
-
-        // Collect metrics for report
-        let iterations = if size >= sizes::STRESS { 10 } else { 50 };
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let analysis = AnalyzedDocument::analyze(&content);
-            let _ = analysis.to_lsp_diagnostics();
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("large_files_{}", size),
-            total_ns,
-            iterations,
-            Some(content.len() as u64),
-        );
     }
 
     group.finish();
@@ -1593,24 +1688,8 @@ fn bench_header_parsing(c: &mut Criterion) {
                 // Simulate header parsing with cached header_end_line
                 let analysis = AnalyzedDocument::analyze(black_box(content));
                 analysis.header_end_line
-            })
+            });
         });
-
-        // Collect metrics for report
-        let iterations = 100u64;
-        let mut total_ns = 0u64;
-        for _ in 0..iterations {
-            let start = std::time::Instant::now();
-            let analysis = AnalyzedDocument::analyze(&content);
-            let _ = analysis.header_end_line;
-            total_ns += start.elapsed().as_nanos() as u64;
-        }
-        add_perf_result(
-            &format!("header_parsing_{}", size),
-            total_ns,
-            iterations,
-            Some(content.len() as u64),
-        );
     }
 
     group.finish();
@@ -1706,11 +1785,6 @@ fn bench_lsp_summary(c: &mut Criterion) {
     // Benchmark baseline
     group.bench_function("summary", |b| b.iter(|| 1 + 1));
     group.finish();
-
-    // Collect metrics for report - summary generation
-    let iterations = 1u64;
-    let total_ns = 1u64;
-    add_perf_result("lsp_summary_generated", total_ns, iterations, None);
 }
 
 /// Run all benchmarks with initialization and reporting

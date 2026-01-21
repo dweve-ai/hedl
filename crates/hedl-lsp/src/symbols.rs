@@ -33,7 +33,9 @@ use crate::analysis::AnalyzedDocument;
 use crate::constants::{
     HEADER_SELECTION_CHAR, LINE_NUMBER_OFFSET, POSITION_ZERO, SYMBOL_LINE_END_CHAR,
 };
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{
+    DocumentSymbol, Location, Position, Range, SymbolInformation, SymbolKind, Url,
+};
 use tracing::{debug, warn};
 
 /// Get document symbols for outline view.
@@ -90,8 +92,8 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                 alias, value, line
             );
             header_children.push(DocumentSymbol {
-                name: format!("${}", alias),
-                detail: Some(format!("= \"{}\"", value)),
+                name: format!("${alias}"),
+                detail: Some(format!("= \"{value}\"")),
                 kind: SymbolKind::CONSTANT,
                 tags: None,
                 deprecated: None,
@@ -108,7 +110,7 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                 parent, child, line
             );
             header_children.push(DocumentSymbol {
-                name: format!("{} > {}", parent, child),
+                name: format!("{parent} > {child}"),
                 detail: Some("Nesting relationship".to_string()),
                 kind: SymbolKind::INTERFACE,
                 tags: None,
@@ -292,7 +294,7 @@ pub fn get_workspace_symbols(analysis: &AnalyzedDocument, query: &str) -> Vec<Sy
             debug!("Alias '{}' matches query '{}'", alias, query);
             #[allow(deprecated)]
             symbols.push(SymbolInformation {
-                name: format!("${}", alias),
+                name: format!("${alias}"),
                 kind: SymbolKind::CONSTANT,
                 tags: None,
                 deprecated: None,

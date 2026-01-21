@@ -101,14 +101,14 @@ fn test_allocation(_name: &str, count: usize) {
     let (allocated, allocs, deallocs) = get_stats();
 
     println!("  from_json:");
-    println!("    Input size:      {:>10} bytes", json_size);
+    println!("    Input size:      {json_size:>10} bytes");
     println!(
         "    Total allocated: {:>10} bytes ({:.2}x input)",
         allocated,
         allocated as f64 / json_size as f64
     );
-    println!("    Allocations:     {:>10}", allocs);
-    println!("    Deallocations:   {:>10}", deallocs);
+    println!("    Allocations:     {allocs:>10}");
+    println!("    Deallocations:   {deallocs:>10}");
     println!(
         "    Allocs/item:     {:>10.2}",
         allocs as f64 / count as f64
@@ -122,14 +122,14 @@ fn test_allocation(_name: &str, count: usize) {
     let output_size = output.len();
 
     println!("  to_json:");
-    println!("    Output size:     {:>10} bytes", output_size);
+    println!("    Output size:     {output_size:>10} bytes");
     println!(
         "    Total allocated: {:>10} bytes ({:.2}x output)",
         allocated,
         allocated as f64 / output_size as f64
     );
-    println!("    Allocations:     {:>10}", allocs);
-    println!("    Deallocations:   {:>10}", deallocs);
+    println!("    Allocations:     {allocs:>10}");
+    println!("    Deallocations:   {deallocs:>10}");
     println!(
         "    Allocs/item:     {:>10.2}",
         allocs as f64 / count as f64
@@ -145,14 +145,14 @@ fn test_deep_nesting(depth: usize) {
     let _doc = from_json(&json, &config).expect("Failed to parse JSON");
     let (allocated, allocs, _deallocs) = get_stats();
 
-    println!("  Depth {}:", depth);
-    println!("    Input size:      {:>10} bytes", json_size);
+    println!("  Depth {depth}:");
+    println!("    Input size:      {json_size:>10} bytes");
     println!(
         "    Total allocated: {:>10} bytes ({:.2}x input)",
         allocated,
         allocated as f64 / json_size as f64
     );
-    println!("    Allocations:     {:>10}", allocs);
+    println!("    Allocations:     {allocs:>10}");
     println!(
         "    Allocs/level:    {:>10.2}",
         allocs as f64 / depth as f64
@@ -168,14 +168,14 @@ fn test_wide_objects(field_count: usize) {
     let _doc = from_json(&json, &config).expect("Failed to parse JSON");
     let (allocated, allocs, _deallocs) = get_stats();
 
-    println!("  {} fields:", field_count);
-    println!("    Input size:      {:>10} bytes", json_size);
+    println!("  {field_count} fields:");
+    println!("    Input size:      {json_size:>10} bytes");
     println!(
         "    Total allocated: {:>10} bytes ({:.2}x input)",
         allocated,
         allocated as f64 / json_size as f64
     );
-    println!("    Allocations:     {:>10}", allocs);
+    println!("    Allocations:     {allocs:>10}");
     println!(
         "    Allocs/field:    {:>10.2}",
         allocs as f64 / field_count as f64
@@ -213,7 +213,7 @@ fn generate_nested_json(depth: usize) -> String {
 fn generate_wide_object_json(field_count: usize) -> String {
     let mut obj = serde_json::Map::new();
     for i in 0..field_count {
-        obj.insert(format!("field_{}", i), json!(format!("value_{}", i)));
+        obj.insert(format!("field_{i}"), json!(format!("value_{}", i)));
     }
     serde_json::to_string(&json!({
         "data": obj

@@ -4,22 +4,23 @@
 
 Many production systems use C/C++. Legacy code can't be rewritten in Rust overnight. Python, Ruby, Go need access to HEDL without rewriting the parser. Language bridges shouldn't sacrifice performance or correctness. Memory safety bugs in FFI code cause crashes and security vulnerabilities.
 
-`hedl-ffi` provides production-grade C bindings to the complete HEDL implementation. 32 exported C functions covering parsing, validation, format conversion, canonicalization, linting, and statistics. Thread-safe error handling via thread-local storage. Memory safety through poison pointer detection (0xDEADBEEF/0xDEADC0DE) and explicit freeing functions. Zero-copy callback patterns for large outputs. Comprehensive audit logging for production debugging.
+`hedl-ffi` provides production-grade C bindings to the complete HEDL implementation. Thread-safe error handling via thread-local storage. Memory safety through poison pointer detection and explicit freeing functions. Zero-copy callback patterns for large outputs. Comprehensive audit logging for production debugging.
 
 ## What's Implemented
 
 Complete C API with safety and observability:
 
-1. **32 Exported Functions**: Parse, validate, convert, lint, canonicalize, stats, format
-2. **13 Error Codes**: Comprehensive error classification (OK, Parse, Io, Schema, Reference, etc.)
-3. **Thread-Safe Error Handling**: Thread-local storage for error messages
-4. **Memory Safety**: 4 explicit freeing functions (string, document, diagnostics, bytes)
-5. **Poison Pointer Detection**: 0xDEADBEEF (documents), 0xDEADC0DE (diagnostics) for use-after-free prevention
-6. **UTF-8 Validation**: All string I/O checked for valid UTF-8
-7. **Zero-Copy Callbacks**: Streaming output via callback functions (no full buffering)
-8. **Audit Logging**: Performance metrics and operation logging for production debugging
-9. **Format Support**: JSON, YAML, XML, CSV, Parquet, Neo4j, TOON (optional features)
-10. **Auto-Generated Header**: `hedl.h` via cbindgen, maintained in sync with implementation
+1. **Parsing & Validation**: Parse HEDL from strings, validate without parsing
+2. **Format Conversion**: Convert HEDL to/from JSON, YAML, XML, CSV, Parquet, Neo4j Cypher, TOON (optional features)
+3. **Operations**: Canonicalize, lint with diagnostics, gather statistics
+4. **18 Error Codes**: Comprehensive error classification (OK, Parse, UTF-8, Alloc, etc.)
+5. **Thread-Safe Error Handling**: Thread-local storage for error messages
+6. **Memory Safety**: 4 explicit freeing functions (string, document, diagnostics, bytes)
+7. **Poison Pointer Detection**: Use-after-free prevention with poison values
+8. **UTF-8 Validation**: All string I/O checked for valid UTF-8
+9. **Zero-Copy Callbacks**: Streaming output via callback functions (no full buffering)
+10. **Async Operations**: Asynchronous operations with completion callbacks
+11. **Audit Logging**: Operation logging via `tracing` crate for production debugging
 
 ## Installation
 
@@ -46,12 +47,14 @@ cbindgen --config cbindgen.toml --crate hedl-ffi --output hedl.h
 
 ```c
 #include "hedl.h"
+#include <stdio.h>
 
 const char* hedl_str = "%VERSION: 1.0\n---\nname: Test\nvalue: 42\n";
-HedlDocument* doc = hedl_parse(hedl_str, strlen(hedl_str));
+HedlDocument* doc = NULL;
+int result = hedl_parse(hedl_str, -1, 1, &doc);
 
-if (doc == NULL) {
-    const char* error = hedl_last_error();
+if (result != HEDL_OK) {
+    const char* error = hedl_get_last_error();
     fprintf(stderr, "Parse error: %s\n", error);
     return 1;
 }
@@ -64,162 +67,205 @@ hedl_free_document(doc);
 ### Validation
 
 ```c
-HedlValidateOptions opts = {
-    .strict = true,
-    .lint = true,
-    .max_size = 10 * 1024 * 1024  // 10 MB
-};
+const char* hedl_str = "%VERSION: 1.0\n---\nname: Test\nvalue: 42\n";
+int result = hedl_validate(hedl_str, -1, 1);
 
-HedlValidationResult* result = hedl_validate(hedl_str, strlen(hedl_str), &opts);
-
-if (result->error_count > 0) {
-    for (size_t i = 0; i < result->error_count; i++) {
-        printf("Error at line %zu: %s\n",
-            result->errors[i].line,
-            result->errors[i].message);
-    }
+if (result != HEDL_OK) {
+    const char* error = hedl_get_last_error();
+    fprintf(stderr, "Validation error: %s\n", error);
+    return 1;
 }
 
-hedl_free_validation_result(result);
+printf("Document is valid\n");
 ```
 
 ### Format Conversion
 
 ```c
+#include <string.h>
+
+HedlDocument* doc = NULL;
+hedl_parse(hedl_str, -1, 1, &doc);
+
 // HEDL → JSON
-char* json = hedl_to_json(doc, true, false);  // pretty, preserve_types
-printf("%s\n", json);
-hedl_free_string(json);
+char* json = NULL;
+if (hedl_to_json(doc, 0, &json) == HEDL_OK) {
+    printf("%s\n", json);
+    hedl_free_string(json);
+}
 
 // JSON → HEDL
-HedlDocument* doc2 = hedl_from_json(json_str, strlen(json_str));
-hedl_free_document(doc2);
+const char* json_input = "{\"name\": \"Test\"}";
+HedlDocument* doc2 = NULL;
+if (hedl_from_json(json_input, -1, &doc2) == HEDL_OK) {
+    hedl_free_document(doc2);
+}
 
 // Other conversions
-char* yaml = hedl_to_yaml(doc);
-char* xml = hedl_to_xml(doc, true);  // pretty
-char* csv = hedl_to_csv(doc, ",");   // delimiter
+char* yaml = NULL;
+if (hedl_to_yaml(doc, 0, &yaml) == HEDL_OK) {
+    printf("%s\n", yaml);
+    hedl_free_string(yaml);
+}
 
-hedl_free_string(yaml);
-hedl_free_string(xml);
-hedl_free_string(csv);
+char* xml = NULL;
+if (hedl_to_xml(doc, &xml) == HEDL_OK) {
+    printf("%s\n", xml);
+    hedl_free_string(xml);
+}
+
+char* csv = NULL;
+if (hedl_to_csv(doc, &csv) == HEDL_OK) {
+    printf("%s\n", csv);
+    hedl_free_string(csv);
+}
+
+hedl_free_document(doc);
 ```
 
 ### Canonicalization
 
 ```c
-HedlCanonicalizeOptions opts = {
-    .use_ditto = true,
-    .sort_keys = false,
-    .inline_schemas = false,
-    .indent_size = 2
-};
+HedlDocument* doc = NULL;
+hedl_parse(hedl_str, -1, 1, &doc);
 
-char* canonical = hedl_canonicalize(doc, &opts);
-printf("%s\n", canonical);
-hedl_free_string(canonical);
+char* canonical = NULL;
+if (hedl_canonicalize(doc, &canonical) == HEDL_OK) {
+    printf("%s\n", canonical);
+    hedl_free_string(canonical);
+}
+
+hedl_free_document(doc);
 ```
 
 ### Linting
 
 ```c
-HedlLintOptions opts = {
-    .escalate_hints_to_warnings = false,
-    .escalate_warnings_to_errors = false
-};
+HedlDocument* doc = NULL;
+hedl_parse(hedl_str, -1, 1, &doc);
 
-HedlDiagnostics* diags = hedl_lint(doc, &opts);
+HedlDiagnostics* diags = NULL;
+if (hedl_lint(doc, &diags) == HEDL_OK) {
+    int count = hedl_diagnostics_count(diags);
+    for (int i = 0; i < count; i++) {
+        char* msg = NULL;
+        hedl_diagnostics_get(diags, i, &msg);
+        int severity = hedl_diagnostics_severity(diags, i);
 
-for (size_t i = 0; i < diags->count; i++) {
-    printf("[%s] Line %zu: %s\n",
-        severity_to_string(diags->items[i].severity),
-        diags->items[i].line,
-        diags->items[i].message);
+        const char* sev_str = (severity == 0) ? "Hint" :
+                              (severity == 1) ? "Warning" : "Error";
+        printf("[%s] %s\n", sev_str, msg);
+        hedl_free_string(msg);
+    }
+    hedl_free_diagnostics(diags);
 }
 
-hedl_free_diagnostics(diags);
+hedl_free_document(doc);
 ```
 
-### Statistics
+### Document Information
 
 ```c
-HedlStats* stats = hedl_stats(doc);
+HedlDocument* doc = NULL;
+hedl_parse(hedl_str, -1, 1, &doc);
 
-printf("Entities: %zu\n", stats->entity_count);
-printf("Fields: %zu\n", stats->field_count);
-printf("Max depth: %zu\n", stats->max_depth);
-printf("References: %zu\n", stats->reference_count);
-printf("Lines: %zu\n", stats->line_count);
-printf("Bytes: %zu\n", stats->byte_size);
-
-// Entity types
-for (size_t i = 0; i < stats->entity_type_count; i++) {
-    printf("  Type: %s\n", stats->entity_types[i]);
+// Get version
+int major = 0, minor = 0;
+if (hedl_get_version(doc, &major, &minor) == HEDL_OK) {
+    printf("Version: %d.%d\n", major, minor);
 }
 
-hedl_free_stats(stats);
+// Get schema/alias/root counts
+int schema_count = hedl_schema_count(doc);
+int alias_count = hedl_alias_count(doc);
+int root_count = hedl_root_item_count(doc);
+
+printf("Schemas: %d\n", schema_count);
+printf("Aliases: %d\n", alias_count);
+printf("Root items: %d\n", root_count);
+
+hedl_free_document(doc);
 ```
 
 ### Zero-Copy Output Callback
 
-For large outputs, avoid full buffering:
+For large outputs, use callback pattern to avoid full buffering:
 
 ```c
-typedef void (*HedlOutputCallback)(const char* data, size_t len, void* user_data);
+// HedlOutputCallback signature:
+// typedef void (*HedlOutputCallback)(const char *data, uintptr_t len, void *user_data);
 
-void my_callback(const char* data, size_t len, void* user_data) {
+void write_callback(const char* data, uintptr_t len, void* user_data) {
     FILE* fp = (FILE*)user_data;
     fwrite(data, 1, len, fp);
 }
 
+HedlDocument* doc = NULL;
+hedl_parse(hedl_str, -1, 1, &doc);
+
 FILE* fp = fopen("output.json", "w");
-hedl_to_json_stream(doc, my_callback, fp);
+hedl_to_json_callback(doc, 0, write_callback, fp);
 fclose(fp);
+
+hedl_free_document(doc);
 ```
+
+Available callback functions:
+- `hedl_to_json_callback()` - JSON output via callback
+- `hedl_to_yaml_callback()` - YAML output via callback
+- `hedl_to_xml_callback()` - XML output via callback
+- `hedl_to_csv_callback()` - CSV output via callback
+- `hedl_to_neo4j_cypher_callback()` - Neo4j Cypher output via callback
+- `hedl_canonicalize_callback()` - Canonical output via callback
 
 ## Error Handling
 
 ### Error Codes
 
+All functions return an integer error code:
+
 ```c
-typedef enum {
-    HEDL_OK = 0,              // Success
-    HEDL_ERR_PARSE = 1,       // Parse syntax error
-    HEDL_ERR_IO = 2,          // I/O failure
-    HEDL_ERR_UTF8 = 3,        // Invalid UTF-8
-    HEDL_ERR_SCHEMA = 4,      // Schema mismatch
-    HEDL_ERR_REFERENCE = 5,   // Unresolved reference
-    HEDL_ERR_NULL_PTR = 6,    // NULL pointer argument
-    HEDL_ERR_JSON = 7,        // JSON conversion error
-    HEDL_ERR_YAML = 8,        // YAML conversion error
-    HEDL_ERR_XML = 9,         // XML conversion error
-    HEDL_ERR_CSV = 10,        // CSV conversion error
-    HEDL_ERR_PARQUET = 11,    // Parquet conversion error
-    HEDL_ERR_NEO4J = 12,      // Neo4j conversion error
-} HedlErrorCode;
+#define HEDL_OK                  0    // Success
+#define HEDL_ERR_NULL_PTR       -1    // NULL pointer argument
+#define HEDL_ERR_INVALID_UTF8   -2    // Invalid UTF-8
+#define HEDL_ERR_PARSE          -3    // Parse syntax error
+#define HEDL_ERR_CANONICALIZE   -4    // Canonicalization error
+#define HEDL_ERR_JSON           -5    // JSON conversion error
+#define HEDL_ERR_ALLOC          -6    // Memory allocation failure
+#define HEDL_ERR_YAML           -7    // YAML conversion error
+#define HEDL_ERR_XML            -8    // XML conversion error
+#define HEDL_ERR_CSV            -9    // CSV conversion error
+#define HEDL_ERR_PARQUET       -10    // Parquet conversion error
+#define HEDL_ERR_LINT          -11    // Linting error
+#define HEDL_ERR_NEO4J         -12    // Neo4j conversion error
+#define HEDL_ERR_TOON          -13    // TOON conversion error
+#define HEDL_ERR_REENTRANT_CALL -14   // Reentrant call detected
+#define HEDL_ERR_CANCELLED     -15    // Async operation cancelled
+#define HEDL_ERR_QUEUE_FULL    -16    // Async queue full
+#define HEDL_ERR_INVALID_HANDLE -17   // Invalid handle
 ```
 
 ### Thread-Local Error Messages
 
 ```c
 // Get last error message (thread-local)
-const char* error = hedl_last_error();
+const char* error = hedl_get_last_error();
 
-// Get last error code (thread-local)
-HedlErrorCode code = hedl_last_error_code();
+// Thread-safe alias (same as hedl_get_last_error)
+const char* error = hedl_get_last_error_threadsafe();
 
 // Clear error state
-hedl_clear_error();
+hedl_clear_error_threadsafe();
 ```
 
-**Thread Safety**: Error messages stored in thread-local storage. Safe to call from multiple threads.
+**Thread Safety**: Error messages stored in thread-local storage. Each thread maintains independent error state. Safe to call from multiple threads without synchronization.
 
 ## Memory Management
 
 ### Freeing Functions
 
 ```c
-// Free string returned by hedl_to_* functions
+// Free string returned by hedl_to_* and hedl_canonicalize
 void hedl_free_string(char* s);
 
 // Free document returned by hedl_parse or hedl_from_*
@@ -228,42 +274,44 @@ void hedl_free_document(HedlDocument* doc);
 // Free diagnostics returned by hedl_lint
 void hedl_free_diagnostics(HedlDiagnostics* diags);
 
-// Free bytes returned by hedl_to_parquet or similar
-void hedl_free_bytes(uint8_t* bytes);
+// Free byte array returned by hedl_to_parquet
+void hedl_free_bytes(uint8_t* data, uintptr_t len);
 ```
 
-**CRITICAL**: Always call appropriate freeing function for each allocated object. Memory leaks occur if not freed.
+**CRITICAL**: Always call appropriate freeing function for each allocated object. Memory leaks occur if not freed. Only pass pointers that were allocated by HEDL functions.
 
-### Poison Pointer Detection
+### Ownership and Lifetime
 
-Automatic detection of use-after-free:
+- Strings returned by `hedl_to_*` functions are allocated by HEDL and must be freed with `hedl_free_string()`
+- Documents returned by `hedl_parse()` and `hedl_from_*()` are allocated by HEDL and must be freed with `hedl_free_document()`
+- Diagnostics returned by `hedl_lint()` are allocated by HEDL and must be freed with `hedl_free_diagnostics()`
+- Byte arrays returned by `hedl_to_parquet()` are allocated by HEDL and must be freed with `hedl_free_bytes(data, len)`
+- Input parameters (HEDL/JSON/YAML strings) are NOT owned by the library; caller must manage their lifetime
+
+### Use-After-Free Protection
+
+Poison pointer detection prevents most use-after-free bugs:
 
 ```c
-HedlDocument* doc = hedl_parse(input, len);
+HedlDocument* doc = NULL;
+hedl_parse(input, -1, 0, &doc);
 hedl_free_document(doc);
 
-// Using doc after free triggers poison pointer detection
-char* json = hedl_to_json(doc, true, false);  // Error: HEDL_ERR_NULL_PTR
+// Using doc after free returns error code instead of crashing
+char* json = NULL;
+int result = hedl_to_json(doc, 0, &json);  // Returns HEDL_ERR_NULL_PTR
 ```
-
-**Markers**:
-- Documents: `0xDEADBEEF`
-- Diagnostics: `0xDEADC0DE`
-
-**Prevents**:
-- Double-free bugs
-- Use-after-free vulnerabilities
-- Memory corruption
 
 ## UTF-8 Validation
 
-All string inputs and outputs validated:
+All string inputs and outputs are validated:
 
 ```c
 // Input validation
 const char* invalid_utf8 = "\xFF\xFE invalid";
-HedlDocument* doc = hedl_parse(invalid_utf8, strlen(invalid_utf8));
-// Returns NULL, hedl_last_error_code() == HEDL_ERR_UTF8
+HedlDocument* doc = NULL;
+int result = hedl_parse(invalid_utf8, -1, 0, &doc);
+// Returns HEDL_ERR_INVALID_UTF8
 
 // Output validation
 // All hedl_to_* functions guarantee valid UTF-8 output
@@ -271,39 +319,58 @@ HedlDocument* doc = hedl_parse(invalid_utf8, strlen(invalid_utf8));
 
 **Guarantees**:
 - No invalid UTF-8 propagated through API
-- Error on malformed input
+- Error code returned on malformed input
 - Safe for UTF-8 expecting consumers
 
 ## Audit Logging
 
-Performance metrics and operation logging:
+The FFI library integrates with the `tracing` crate for comprehensive operation logging. Logging captures:
 
-```c
-// Enable audit logging
-hedl_enable_audit_log("hedl_audit.log");
+- Function entry/exit with timing
+- Sanitized parameters (pointer addresses masked)
+- Success/failure outcomes with error details
+- Performance metrics (call duration)
+- Thread context
 
-// Operations logged with:
-// - Operation name (e.g., "parse", "validate")
-// - Duration (microseconds)
-// - Input size (bytes)
-// - Result (success/failure)
+**Configuring Logging**:
 
-// Disable audit logging
-hedl_disable_audit_log();
+Set the `RUST_LOG` environment variable:
+
+```bash
+# Log all INFO and above
+export RUST_LOG=info
+
+# Log only FFI audit events at DEBUG level
+export RUST_LOG=hedl_ffi::audit=debug
+
+# Log everything at DEBUG level
+export RUST_LOG=debug
 ```
 
-**Log Format**:
-```
-[2026-01-12 10:30:45.123] parse: 1523µs, 4096 bytes, success
-[2026-01-12 10:30:45.126] to_json: 234µs, 4096 bytes, success
-[2026-01-12 10:30:45.130] validate: 456µs, 4096 bytes, failure
+**In Application Code** (Rust):
+
+```rust
+use tracing_subscriber::EnvFilter;
+
+tracing_subscriber::fmt()
+    .with_env_filter(
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("info"))
+    )
+    .with_target(true)
+    .with_thread_ids(true)
+    .with_line_number(true)
+    .init();
+
+// Now FFI calls are logged
 ```
 
-**Use Cases**:
-- Performance debugging
-- Production monitoring
-- Anomaly detection
-- Capacity planning
+**Log Output Example**:
+```
+2025-01-05T10:30:45.123Z INFO hedl_ffi::audit: FFI call started function="hedl_parse" thread_id=ThreadId(1) depth=0
+2025-01-05T10:30:45.125Z DEBUG hedl_ffi::audit: FFI call parameters function="hedl_parse" params=[("input_len", "1024")]
+2025-01-05T10:30:45.130Z INFO hedl_ffi::audit: FFI call completed function="hedl_parse" duration_ms=7.2 status="success"
+```
 
 ## Language Bindings
 
@@ -311,10 +378,22 @@ hedl_disable_audit_log();
 
 ```c
 #include "hedl.h"
+#include <stdio.h>
 
-HedlDocument* doc = hedl_parse(input, len);
-char* json = hedl_to_json(doc, true, false);
-hedl_free_string(json);
+const char* input = "%VERSION: 1.0\n---\nname: Test\n";
+HedlDocument* doc = NULL;
+
+if (hedl_parse(input, -1, 1, &doc) != HEDL_OK) {
+    fprintf(stderr, "Parse error: %s\n", hedl_get_last_error());
+    return 1;
+}
+
+char* json = NULL;
+if (hedl_to_json(doc, 0, &json) == HEDL_OK) {
+    printf("%s\n", json);
+    hedl_free_string(json);
+}
+
 hedl_free_document(doc);
 ```
 
@@ -322,20 +401,32 @@ hedl_free_document(doc);
 
 ```cpp
 #include "hedl.h"
+#include <stdexcept>
+#include <string>
 
 class HedlDoc {
     HedlDocument* doc_;
 public:
-    HedlDoc(const char* input, size_t len) : doc_(hedl_parse(input, len)) {
-        if (!doc_) throw std::runtime_error(hedl_last_error());
+    HedlDoc(const char* input, int len = -1) : doc_(nullptr) {
+        int result = hedl_parse(input, len, 1, &doc_);
+        if (result != HEDL_OK) {
+            throw std::runtime_error(hedl_get_last_error());
+        }
     }
-    ~HedlDoc() { hedl_free_document(doc_); }
 
-    std::string to_json(bool pretty = true) {
-        char* json = hedl_to_json(doc_, pretty, false);
-        std::string result(json);
+    ~HedlDoc() {
+        if (doc_) hedl_free_document(doc_);
+    }
+
+    std::string to_json(int include_metadata = 0) {
+        char* json = nullptr;
+        int result = hedl_to_json(doc_, include_metadata, &json);
+        if (result != HEDL_OK) {
+            throw std::runtime_error(hedl_get_last_error());
+        }
+        std::string result_str(json);
         hedl_free_string(json);
-        return result;
+        return result_str;
     }
 };
 ```
@@ -348,21 +439,33 @@ import ctypes
 libhedl = ctypes.CDLL("libhedl.so")
 
 # Define function signatures
-libhedl.hedl_parse.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
-libhedl.hedl_parse.restype = ctypes.c_void_p
-libhedl.hedl_to_json.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_bool]
-libhedl.hedl_to_json.restype = ctypes.c_char_p
+libhedl.hedl_parse.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)]
+libhedl.hedl_parse.restype = ctypes.c_int
+
+libhedl.hedl_to_json.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_char_p)]
+libhedl.hedl_to_json.restype = ctypes.c_int
+
+libhedl.hedl_get_last_error.argtypes = []
+libhedl.hedl_get_last_error.restype = ctypes.c_char_p
+
 libhedl.hedl_free_document.argtypes = [ctypes.c_void_p]
 libhedl.hedl_free_string.argtypes = [ctypes.c_char_p]
 
 # Use
 hedl_str = b"%VERSION: 1.0\n---\nname: Test"
-doc = libhedl.hedl_parse(hedl_str, len(hedl_str))
-json_ptr = libhedl.hedl_to_json(doc, True, False)
-json_str = ctypes.string_at(json_ptr).decode('utf-8')
-libhedl.hedl_free_string(json_ptr)
-libhedl.hedl_free_document(doc)
-print(json_str)
+doc = ctypes.c_void_p()
+result = libhedl.hedl_parse(hedl_str, -1, 1, ctypes.byref(doc))
+
+if result != 0:  # HEDL_OK
+    error = libhedl.hedl_get_last_error()
+    print(f"Parse error: {error.decode('utf-8')}")
+else:
+    json_ptr = ctypes.c_char_p()
+    if libhedl.hedl_to_json(doc, 0, ctypes.byref(json_ptr)) == 0:
+        json_str = json_ptr.value.decode('utf-8')
+        print(json_str)
+        libhedl.hedl_free_string(json_ptr)
+    libhedl.hedl_free_document(doc)
 ```
 
 ### Go (cgo)
@@ -376,22 +479,30 @@ package main
 #include <stdlib.h>
 */
 import "C"
-import "unsafe"
+import (
+    "fmt"
+    "unsafe"
+)
 
 func Parse(input string) (string, error) {
     cinput := C.CString(input)
     defer C.free(unsafe.Pointer(cinput))
 
-    doc := C.hedl_parse(cinput, C.size_t(len(input)))
-    if doc == nil {
-        return "", fmt.Errorf("%s", C.GoString(C.hedl_last_error()))
+    var doc *C.struct_HedlDocument
+    result := C.hedl_parse(cinput, -1, 1, &doc)
+    if result != C.HEDL_OK {
+        return "", fmt.Errorf("parse error: %s", C.GoString(C.hedl_get_last_error()))
     }
     defer C.hedl_free_document(doc)
 
-    cjson := C.hedl_to_json(doc, C.bool(true), C.bool(false))
-    defer C.hedl_free_string(cjson)
+    var json *C.char
+    result = C.hedl_to_json(doc, 0, &json)
+    if result != C.HEDL_OK {
+        return "", fmt.Errorf("to_json error: %s", C.GoString(C.hedl_get_last_error()))
+    }
+    defer C.hedl_free_string(json)
 
-    return C.GoString(cjson), nil
+    return C.GoString(json), nil
 }
 ```
 
@@ -404,20 +515,40 @@ module Hedl
   extend FFI::Library
   ffi_lib 'hedl'
 
-  attach_function :hedl_parse, [:string, :size_t], :pointer
-  attach_function :hedl_to_json, [:pointer, :bool, :bool], :string
+  # Error codes
+  HEDL_OK = 0
+
+  attach_function :hedl_parse, [:string, :int, :int, :pointer], :int
+  attach_function :hedl_to_json, [:pointer, :int, :pointer], :int
+  attach_function :hedl_get_last_error, [], :string
   attach_function :hedl_free_document, [:pointer], :void
-  attach_function :hedl_free_string, [:string], :void
+  attach_function :hedl_free_string, [:pointer], :void
 
   def self.parse(input)
-    doc = hedl_parse(input, input.bytesize)
-    return nil if doc.null?
+    doc = FFI::MemoryPointer.new(:pointer)
+    result = hedl_parse(input, -1, 1, doc)
 
-    json = hedl_to_json(doc, true, false)
-    hedl_free_document(doc)
-    json
-  ensure
-    hedl_free_string(json) if json
+    unless result == HEDL_OK
+      raise "Parse error: #{hedl_get_last_error()}"
+    end
+
+    doc_ptr = doc.read_pointer
+    return nil if doc_ptr.null?
+
+    json_ptr = FFI::MemoryPointer.new(:pointer)
+    result = hedl_to_json(doc_ptr, 0, json_ptr)
+
+    begin
+      if result == HEDL_OK
+        json_str = json_ptr.read_pointer.read_string
+        return json_str
+      else
+        raise "to_json error: #{hedl_get_last_error()}"
+      end
+    ensure
+      hedl_free_string(json_ptr.read_pointer)
+      hedl_free_document(doc_ptr)
+    end
   end
 end
 ```
@@ -426,69 +557,131 @@ end
 
 ### Parsing & Validation
 
-- `HedlDocument* hedl_parse(const char*, size_t)`
-- `HedlValidationResult* hedl_validate(const char*, size_t, HedlValidateOptions*)`
-- `bool hedl_is_valid(const char*, size_t)`
+- `int hedl_parse(const char *input, int input_len, int strict, HedlDocument **out_doc)`
+- `int hedl_validate(const char *input, int input_len, int strict)`
 
 ### Format Conversion (HEDL → Other)
 
-- `char* hedl_to_json(HedlDocument*, bool pretty, bool preserve_types)`
-- `char* hedl_to_yaml(HedlDocument*)`
-- `char* hedl_to_xml(HedlDocument*, bool pretty)`
-- `char* hedl_to_csv(HedlDocument*, const char* delimiter)`
-- `uint8_t* hedl_to_parquet(HedlDocument*, size_t* out_len)`
-- `char* hedl_to_cypher(HedlDocument*)`
-- `char* hedl_to_toon(HedlDocument*)`
+- `int hedl_to_json(const HedlDocument *doc, int include_metadata, char **out_str)`
+- `int hedl_to_yaml(const HedlDocument *doc, int include_metadata, char **out_str)`
+- `int hedl_to_xml(const HedlDocument *doc, char **out_str)`
+- `int hedl_to_csv(const HedlDocument *doc, char **out_str)`
+- `int hedl_to_parquet(const HedlDocument *doc, uint8_t **out_data, uintptr_t *out_len)`
+- `int hedl_to_neo4j_cypher(const HedlDocument *doc, int use_merge, char **out_str)`
+- `int hedl_to_toon(const HedlDocument *doc, char **out_str)`
 
 ### Format Conversion (Other → HEDL)
 
-- `HedlDocument* hedl_from_json(const char*, size_t)`
-- `HedlDocument* hedl_from_yaml(const char*, size_t)`
-- `HedlDocument* hedl_from_xml(const char*, size_t)`
-- `HedlDocument* hedl_from_csv(const char*, size_t, const char* type_name)`
-- `HedlDocument* hedl_from_parquet(const uint8_t*, size_t)`
-- `HedlDocument* hedl_from_toon(const char*, size_t)`
+- `int hedl_from_json(const char *json, int json_len, HedlDocument **out_doc)`
+- `int hedl_from_yaml(const char *yaml, int yaml_len, HedlDocument **out_doc)`
+- `int hedl_from_xml(const char *xml, int xml_len, HedlDocument **out_doc)`
+- `int hedl_from_parquet(const uint8_t *data, uintptr_t len, HedlDocument **out_doc)`
+- `int hedl_from_toon(const char *toon, int toon_len, HedlDocument **out_doc)`
 
 ### Operations
 
-- `char* hedl_canonicalize(HedlDocument*, HedlCanonicalizeOptions*)`
-- `char* hedl_format(HedlDocument*)`
-- `HedlDiagnostics* hedl_lint(HedlDocument*, HedlLintOptions*)`
-- `HedlStats* hedl_stats(HedlDocument*)`
+- `int hedl_canonicalize(const HedlDocument *doc, char **out_str)`
+- `int hedl_lint(const HedlDocument *doc, HedlDiagnostics **out_diag)`
+- `int hedl_get_version(const HedlDocument *doc, int *major, int *minor)`
+- `int hedl_schema_count(const HedlDocument *doc)`
+- `int hedl_alias_count(const HedlDocument *doc)`
+- `int hedl_root_item_count(const HedlDocument *doc)`
+
+### Diagnostics
+
+- `int hedl_diagnostics_count(const HedlDiagnostics *diag)`
+- `int hedl_diagnostics_get(const HedlDiagnostics *diag, int index, char **out_str)`
+- `int hedl_diagnostics_severity(const HedlDiagnostics *diag, int index)`
 
 ### Memory Management
 
-- `void hedl_free_string(char*)`
-- `void hedl_free_document(HedlDocument*)`
-- `void hedl_free_diagnostics(HedlDiagnostics*)`
-- `void hedl_free_bytes(uint8_t*)`
+- `void hedl_free_string(char *s)`
+- `void hedl_free_document(HedlDocument *doc)`
+- `void hedl_free_diagnostics(HedlDiagnostics *diag)`
+- `void hedl_free_bytes(uint8_t *data, uintptr_t len)`
 
 ### Error Handling
 
-- `const char* hedl_last_error(void)`
-- `HedlErrorCode hedl_last_error_code(void)`
-- `void hedl_clear_error(void)`
+- `const char *hedl_get_last_error(void)`
+- `const char *hedl_get_last_error_threadsafe(void)`
+- `void hedl_clear_error_threadsafe(void)`
 
-### Audit Logging
+### Zero-Copy Callbacks
 
-- `void hedl_enable_audit_log(const char* path)`
-- `void hedl_disable_audit_log(void)`
+- `int hedl_to_json_callback(const HedlDocument *doc, int include_metadata, HedlOutputCallback callback, void *user_data)`
+- `int hedl_to_yaml_callback(const HedlDocument *doc, int include_metadata, HedlOutputCallback callback, void *user_data)`
+- `int hedl_to_xml_callback(const HedlDocument *doc, HedlOutputCallback callback, void *user_data)`
+- `int hedl_to_csv_callback(const HedlDocument *doc, HedlOutputCallback callback, void *user_data)`
+- `int hedl_to_neo4j_cypher_callback(const HedlDocument *doc, int use_merge, HedlOutputCallback callback, void *user_data)`
+- `int hedl_canonicalize_callback(const HedlDocument *doc, HedlOutputCallback callback, void *user_data)`
+
+### Async Operations
+
+- `HedlAsyncOp *hedl_parse_async(const char *input, int input_len, int strict, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_lint_async(const HedlDocument *doc, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_canonicalize_async(const HedlDocument *doc, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_to_json_async(const HedlDocument *doc, int include_metadata, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_to_yaml_async(const HedlDocument *doc, int include_metadata, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_to_xml_async(const HedlDocument *doc, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_to_csv_async(const HedlDocument *doc, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_to_neo4j_cypher_async(const HedlDocument *doc, int use_merge, HedlCompletionCallback callback, void *user_data)`
+- `HedlAsyncOp *hedl_to_toon_async(const HedlDocument *doc, HedlCompletionCallback callback, void *user_data)`
+- `void hedl_async_cancel(HedlAsyncOp *op)`
+- `void hedl_async_free(HedlAsyncOp *op)`
 
 ## Performance Characteristics
 
-**Overhead**: C FFI adds <1% overhead vs native Rust. Essentially zero-cost abstraction.
+**Overhead**: C FFI adds minimal overhead vs native Rust. Essentially zero-cost abstraction for parsing and conversion.
 
 **Memory**: Same as Rust implementation. No additional allocations beyond necessary conversions.
 
-**Thread Safety**: All functions thread-safe. Documents can be shared across threads with synchronization.
+**Thread Safety**: Functions are thread-safe. Error messages use thread-local storage. Documents are NOT thread-safe by design and should not be shared across threads without external synchronization.
 
-**Callback Performance**: Zero-copy streaming avoids large allocations. Suitable for multi-GB outputs.
+**Callback Performance**: Zero-copy streaming via callbacks avoids full buffering. Suitable for large outputs (>1MB).
+
+**Async Performance**: Non-blocking async operations suitable for I/O-bound tasks. Work-stealing thread pool for efficient parallelism.
+
+## Building and Testing
+
+### Building the FFI Library
+
+```bash
+# Build with all format support
+cargo build --release -p hedl-ffi
+
+# Build with specific formats
+cargo build --release -p hedl-ffi --features json,yaml
+
+# Build C header
+cbindgen --config crates/hedl-ffi/cbindgen.toml --crate hedl-ffi --output crates/hedl-ffi/hedl.h
+```
+
+### Testing
+
+```bash
+# Run all FFI tests
+cargo test -p hedl-ffi
+
+# Run with logging
+RUST_LOG=hedl_ffi::audit=debug cargo test -p hedl-ffi -- --nocapture
+```
 
 ## Dependencies
 
-- `hedl` 1.0 - Main facade crate (all formats)
+- `hedl-core` - Core parser implementation
+- `hedl-lint` - Linting engine
 - `libc` 0.2 - C standard library bindings
+- `tracing` 0.1 - Structured logging
+- Various format libraries (json-ld, serde_yaml, etc.) behind feature gates
 
 ## License
 
 Apache-2.0
+
+## Contributing
+
+Contributions welcome! Please ensure:
+1. All example code compiles and runs
+2. Tests pass with logging enabled
+3. Function signatures match hedl.h
+4. Memory management is correct (no leaks in examples)

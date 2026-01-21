@@ -43,7 +43,7 @@ fn create_test_document() -> Document {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("test".to_string())),
+        Item::Scalar(Value::String("test".to_string().into())),
     );
     doc.root
         .insert("value".to_string(), Item::Scalar(Value::Int(42)));
@@ -78,7 +78,7 @@ async fn test_async_file_round_trip() {
     // Verify
     assert_eq!(
         doc2.root.get("name").and_then(|i| i.as_scalar()),
-        Some(&Value::String("test".to_string()))
+        Some(&Value::String("test".to_string().into()))
     );
     assert_eq!(
         doc2.root.get("value").and_then(|i| i.as_scalar()),
@@ -109,7 +109,7 @@ async fn test_async_reader_writer() {
     // Verify
     assert_eq!(
         doc2.root.get("name").and_then(|i| i.as_scalar()),
-        Some(&Value::String("test".to_string()))
+        Some(&Value::String("test".to_string().into()))
     );
 }
 
@@ -126,7 +126,7 @@ async fn test_async_string_parsing() {
     );
     assert_eq!(
         doc.root.get("name").and_then(|i| i.as_scalar()),
-        Some(&Value::String("Alice".to_string()))
+        Some(&Value::String("Alice".to_string().into()))
     );
 }
 
@@ -170,34 +170,24 @@ async fn test_concurrent_file_reads() {
         assert!(result.is_ok());
     }
 
-    // Verify IDs
-    assert_eq!(
-        results[0]
-            .as_ref()
-            .unwrap()
-            .root
-            .get("id")
-            .and_then(|i| i.as_scalar()),
-        Some(&Value::Int(1))
-    );
-    assert_eq!(
-        results[1]
-            .as_ref()
-            .unwrap()
-            .root
-            .get("id")
-            .and_then(|i| i.as_scalar()),
-        Some(&Value::Int(2))
-    );
-    assert_eq!(
-        results[2]
-            .as_ref()
-            .unwrap()
-            .root
-            .get("id")
-            .and_then(|i| i.as_scalar()),
-        Some(&Value::Int(3))
-    );
+    // Verify IDs (order may vary due to concurrent execution)
+    let mut ids: Vec<i64> = results
+        .iter()
+        .map(|r| {
+            r.as_ref()
+                .unwrap()
+                .root
+                .get("id")
+                .and_then(|i| i.as_scalar())
+                .and_then(|v| match v {
+                    Value::Int(n) => Some(*n),
+                    _ => None,
+                })
+                .unwrap()
+        })
+        .collect();
+    ids.sort();
+    assert_eq!(ids, vec![1, 2, 3], "All IDs should be present");
 }
 
 #[tokio::test]
@@ -258,15 +248,15 @@ async fn test_concurrent_parsing() {
     // Verify values
     assert_eq!(
         r1.unwrap().root.get("val").and_then(|i| i.as_scalar()),
-        Some(&Value::String("a".to_string()))
+        Some(&Value::String("a".to_string().into()))
     );
     assert_eq!(
         r2.unwrap().root.get("val").and_then(|i| i.as_scalar()),
-        Some(&Value::String("b".to_string()))
+        Some(&Value::String("b".to_string().into()))
     );
     assert_eq!(
         r3.unwrap().root.get("val").and_then(|i| i.as_scalar()),
-        Some(&Value::String("c".to_string()))
+        Some(&Value::String("c".to_string().into()))
     );
 }
 
@@ -318,7 +308,7 @@ async fn test_async_large_string() {
 
     assert_eq!(
         doc.root.get("data").and_then(|i| i.as_scalar()),
-        Some(&Value::String(large_content))
+        Some(&Value::String(large_content.into()))
     );
 }
 
@@ -332,7 +322,7 @@ async fn test_async_unicode() {
 
     assert_eq!(
         doc.root.get("text").and_then(|i| i.as_scalar()),
-        Some(&Value::String("Hello 世界 🌍 héllo".to_string()))
+        Some(&Value::String("Hello 世界 🌍 héllo".to_string().into()))
     );
 }
 

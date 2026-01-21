@@ -91,11 +91,11 @@ pub trait ToFormat {
 ///
 /// let local = parse_reference("@user123").unwrap();
 /// assert_eq!(local.type_name, None);
-/// assert_eq!(local.id, "user123");
+/// assert_eq!(&*local.id, "user123");
 ///
 /// let qualified = parse_reference("@User:123").unwrap();
-/// assert_eq!(qualified.type_name, Some("User".to_string()));
-/// assert_eq!(qualified.id, "123");
+/// assert_eq!(qualified.type_name.as_deref(), Some("User"));
+/// assert_eq!(&*qualified.id, "123");
 /// ```
 pub fn parse_reference(s: &str) -> Result<Reference, String> {
     if let Some(stripped) = s.strip_prefix('@') {
@@ -187,28 +187,28 @@ mod tests {
     fn test_parse_reference_local() {
         let r = parse_reference("@user123").unwrap();
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "user123");
+        assert_eq!(r.id.as_ref(), "user123");
     }
 
     #[test]
     fn test_parse_reference_qualified() {
         let r = parse_reference("@User:123").unwrap();
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "123");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(r.id.as_ref(), "123");
     }
 
     #[test]
     fn test_parse_reference_with_dashes() {
         let r = parse_reference("@my-item_123").unwrap();
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "my-item_123");
+        assert_eq!(r.id.as_ref(), "my-item_123");
     }
 
     #[test]
     fn test_parse_reference_qualified_with_dashes() {
         let r = parse_reference("@My-Type:item-123").unwrap();
-        assert_eq!(r.type_name, Some("My-Type".to_string()));
-        assert_eq!(r.id, "item-123");
+        assert_eq!(r.type_name.as_deref(), Some("My-Type"));
+        assert_eq!(r.id.as_ref(), "item-123");
     }
 
     #[test]
@@ -222,14 +222,14 @@ mod tests {
     fn test_parse_reference_empty_after_at() {
         let r = parse_reference("@").unwrap();
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "");
+        assert_eq!(r.id.as_ref(), "");
     }
 
     #[test]
     fn test_parse_reference_empty_type_and_id() {
         let r = parse_reference("@:").unwrap();
-        assert_eq!(r.type_name, Some("".to_string()));
-        assert_eq!(r.id, "");
+        assert_eq!(r.type_name.as_deref(), Some(""));
+        assert_eq!(r.id.as_ref(), "");
     }
 
     // ==================== BaseImportConfig tests ====================

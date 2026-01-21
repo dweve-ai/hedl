@@ -60,7 +60,7 @@
 //! ```
 
 use libfuzzer_sys::fuzz_target;
-use hedl_core::{parse_with_limits, ParseOptions, Limits};
+use hedl_core::{parse_with_limits, ParseOptions, Limits}, ReferenceMode;
 
 fuzz_target!(|data: &[u8]| {
     // Only test valid UTF-8 since we're focused on limit enforcement
@@ -81,7 +81,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options = ParseOptions {
             limits: tight_limits,
-            strict_refs: false, // Focus on limit enforcement, not reference validation
+            reference_mode: ReferenceMode::Lenient, // Focus on limit enforcement, not reference validation
         };
 
         let result = parse_with_limits(text.as_bytes(), options);
@@ -112,7 +112,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options2 = ParseOptions {
             limits: moderate_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options2);
@@ -134,7 +134,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options3 = ParseOptions {
             limits: zero_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options3);
@@ -155,7 +155,7 @@ fuzz_target!(|data: &[u8]| {
 
         let options4 = ParseOptions {
             limits: min_limits,
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), options4);

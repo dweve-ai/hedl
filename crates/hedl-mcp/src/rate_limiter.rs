@@ -17,13 +17,21 @@
 
 //! Rate limiting implementation using token bucket algorithm.
 //!
-//! Protects the MCP server from DoS attacks via request flooding by limiting
+//! Protects the MCP server from `DoS` attacks via request flooding by limiting
 //! the rate at which requests can be processed.
+//!
+//! # Thread Safety
+//!
+//! The rate limiter uses interior mutability via `Mutex` to enable thread-safe
+//! concurrent access. This allows multiple threads to check rate limits without
+//! requiring mutable references, making it safe to use in multi-threaded
+//! server environments.
 
+use std::sync::Mutex;
 use std::time::Instant;
 use tracing::warn;
 
-/// Token bucket rate limiter.
+/// Token bucket rate limiter with thread-safe interior mutability.
 ///
 /// Implements the token bucket algorithm for rate limiting:
 /// - Tokens are refilled at a constant rate
@@ -45,12 +53,20 @@ use tracing::warn;
 /// - **Smooth Rate Limiting**: Tokens refill continuously, not in discrete windows
 /// - **Constant Memory**: O(1) space complexity regardless of request volume
 /// - **Low Overhead**: Simple arithmetic operations per request
+/// - **Thread Safety**: Lock-based interior mutability for concurrent access
 ///
 /// # Security
 ///
 /// This rate limiter protects against:
-/// - **DoS via Request Flooding**: Limits request rate to prevent resource exhaustion
+/// - **`DoS` via Request Flooding**: Limits request rate to prevent resource exhaustion
 /// - **Resource Starvation**: Ensures fair access across time windows
+/// - **Race Conditions**: Mutex-protected state prevents concurrent modification bugs
+///
+/// # Thread Safety
+///
+/// All methods take `&self` instead of `&mut self`, using interior mutability
+/// via `Mutex<RateLimiterInner>`. Configuration fields (`max_tokens`, `refill_rate`)
+/// are stored outside the mutex for lock-free reads.
 ///
 /// # Examples
 ///
@@ -58,34 +74,46 @@ use tracing::warn;
 /// use hedl_mcp::RateLimiter;
 ///
 /// // Allow 100 requests/second with burst of 200
-/// let mut limiter = RateLimiter::new(200, 100);
+/// let limiter = RateLimiter::new(200, 100);
 ///
-/// // Check if request is allowed
+/// // Check if request is allowed (thread-safe)
 /// if limiter.check_limit() {
 ///     // Process request
 /// } else {
 ///     // Reject with 429 Too Many Requests
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RateLimiter {
+    /// Mutable state protected by mutex for thread safety.
+    inner: Mutex<RateLimiterInner>,
+
     /// Maximum number of tokens in the bucket (burst capacity).
     ///
     /// This allows short bursts of requests up to this limit even if the
-    /// sustained rate exceeds the refill rate.
+    /// sustained rate exceeds the refill rate. Stored outside mutex for
+    /// lock-free reads.
     max_tokens: usize,
-
-    /// Current number of available tokens.
-    ///
-    /// Decremented on each request, refilled over time at `refill_rate`.
-    /// Invariant: `0 <= tokens <= max_tokens`
-    tokens: usize,
 
     /// Token refill rate (tokens per second).
     ///
     /// Determines the sustained request rate the limiter allows.
     /// For example, 100 tokens/sec allows 100 requests/sec sustained.
+    /// Stored outside mutex for lock-free reads.
     refill_rate: usize,
+}
+
+/// Mutable state for the rate limiter.
+///
+/// Protected by `Mutex` in the outer `RateLimiter` struct to enable
+/// thread-safe interior mutability.
+#[derive(Debug)]
+struct RateLimiterInner {
+    /// Current number of available tokens.
+    ///
+    /// Decremented on each request, refilled over time at `refill_rate`.
+    /// Invariant: `0 <= tokens <= max_tokens`
+    tokens: usize,
 
     /// Timestamp of last token refill.
     ///
@@ -113,15 +141,18 @@ impl RateLimiter {
     /// # Panics
     ///
     /// Panics if `max_tokens` or `refill_rate` is zero.
+    #[must_use]
     pub fn new(max_tokens: usize, refill_rate: usize) -> Self {
         assert!(max_tokens > 0, "max_tokens must be positive");
         assert!(refill_rate > 0, "refill_rate must be positive");
 
         Self {
+            inner: Mutex::new(RateLimiterInner {
+                tokens: max_tokens, // Start with full bucket
+                last_refill: Instant::now(),
+            }),
             max_tokens,
-            tokens: max_tokens, // Start with full bucket
             refill_rate,
-            last_refill: Instant::now(),
         }
     }
 
@@ -132,17 +163,23 @@ impl RateLimiter {
     ///
     /// # Algorithm
     ///
-    /// 1. Refill tokens based on elapsed time
-    /// 2. Check if tokens are available
-    /// 3. Consume one token if available
-    /// 4. Return success/failure
+    /// 1. Acquire mutex lock
+    /// 2. Refill tokens based on elapsed time
+    /// 3. Check if tokens are available
+    /// 4. Consume one token if available
+    /// 5. Release lock and return success/failure
+    ///
+    /// # Thread Safety
+    ///
+    /// This method is thread-safe. Multiple concurrent calls will serialize
+    /// on the mutex, ensuring atomicity of the check-and-decrement operation.
     ///
     /// # Examples
     ///
     /// ```
     /// use hedl_mcp::RateLimiter;
     ///
-    /// let mut limiter = RateLimiter::new(100, 50);
+    /// let limiter = RateLimiter::new(100, 50);
     ///
     /// if limiter.check_limit() {
     ///     println!("Request allowed");
@@ -150,11 +187,23 @@ impl RateLimiter {
     ///     println!("Rate limit exceeded");
     /// }
     /// ```
-    pub fn check_limit(&mut self) -> bool {
-        self.refill();
+    pub fn check_limit(&self) -> bool {
+        let mut inner = self.inner.lock().expect("RateLimiter mutex poisoned");
 
-        if self.tokens > 0 {
-            self.tokens -= 1;
+        // Refill tokens based on elapsed time
+        let now = Instant::now();
+        let elapsed = now.duration_since(inner.last_refill);
+        let new_tokens = (elapsed.as_secs_f64() * self.refill_rate as f64) as usize;
+
+        if new_tokens > 0 {
+            // Add tokens, capped at max_tokens
+            inner.tokens = (inner.tokens + new_tokens).min(self.max_tokens);
+            inner.last_refill = now;
+        }
+
+        // Check and consume token
+        if inner.tokens > 0 {
+            inner.tokens -= 1;
             true
         } else {
             warn!(
@@ -165,50 +214,36 @@ impl RateLimiter {
         }
     }
 
-    /// Refill tokens based on elapsed time.
-    ///
-    /// Calculates how many tokens to add based on:
-    /// - Time elapsed since last refill
-    /// - Refill rate (tokens per second)
-    ///
-    /// Tokens are capped at `max_tokens` to maintain burst limit.
-    ///
-    /// # Algorithm
-    ///
-    /// ```text
-    /// elapsed_secs = (now - last_refill).as_secs_f64()
-    /// new_tokens = floor(elapsed_secs * refill_rate)
-    /// tokens = min(tokens + new_tokens, max_tokens)
-    /// ```
-    fn refill(&mut self) {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_refill);
-
-        // Calculate new tokens to add
-        let new_tokens = (elapsed.as_secs_f64() * self.refill_rate as f64) as usize;
-
-        if new_tokens > 0 {
-            // Add tokens, capped at max_tokens
-            self.tokens = (self.tokens + new_tokens).min(self.max_tokens);
-            self.last_refill = now;
-        }
-    }
-
     /// Get current token count.
     ///
     /// Useful for monitoring and debugging. Triggers refill before returning.
+    ///
+    /// # Thread Safety
+    ///
+    /// This method is thread-safe and takes `&self` instead of `&mut self`.
     ///
     /// # Examples
     ///
     /// ```
     /// use hedl_mcp::RateLimiter;
     ///
-    /// let mut limiter = RateLimiter::new(100, 50);
+    /// let limiter = RateLimiter::new(100, 50);
     /// assert_eq!(limiter.tokens(), 100); // Starts full
     /// ```
-    pub fn tokens(&mut self) -> usize {
-        self.refill();
-        self.tokens
+    pub fn tokens(&self) -> usize {
+        let mut inner = self.inner.lock().expect("RateLimiter mutex poisoned");
+
+        // Refill tokens based on elapsed time
+        let now = Instant::now();
+        let elapsed = now.duration_since(inner.last_refill);
+        let new_tokens = (elapsed.as_secs_f64() * self.refill_rate as f64) as usize;
+
+        if new_tokens > 0 {
+            inner.tokens = (inner.tokens + new_tokens).min(self.max_tokens);
+            inner.last_refill = now;
+        }
+
+        inner.tokens
     }
 
     /// Get maximum token capacity.
@@ -243,19 +278,32 @@ impl RateLimiter {
     ///
     /// Useful for testing or when reconfiguring the server.
     ///
+    /// # Thread Safety
+    ///
+    /// This method is thread-safe and takes `&self` instead of `&mut self`.
+    ///
     /// # Examples
     ///
     /// ```
     /// use hedl_mcp::RateLimiter;
     ///
-    /// let mut limiter = RateLimiter::new(100, 50);
+    /// let limiter = RateLimiter::new(100, 50);
     /// limiter.check_limit(); // Consumes one token
     /// limiter.reset();
     /// assert_eq!(limiter.tokens(), 100);
     /// ```
-    pub fn reset(&mut self) {
-        self.tokens = self.max_tokens;
-        self.last_refill = Instant::now();
+    pub fn reset(&self) {
+        let mut inner = self.inner.lock().expect("RateLimiter mutex poisoned");
+        inner.tokens = self.max_tokens;
+        inner.last_refill = Instant::now();
+    }
+}
+
+impl Clone for RateLimiter {
+    fn clone(&self) -> Self {
+        // Clone by creating a new instance with the same configuration
+        // The token state is NOT cloned - each clone gets a fresh bucket
+        Self::new(self.max_tokens, self.refill_rate)
     }
 }
 
@@ -267,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_new_limiter_starts_full() {
-        let mut limiter = RateLimiter::new(100, 50);
+        let limiter = RateLimiter::new(100, 50);
         assert_eq!(limiter.tokens(), 100);
         assert_eq!(limiter.max_tokens(), 100);
         assert_eq!(limiter.refill_rate(), 50);
@@ -287,7 +335,7 @@ mod tests {
 
     #[test]
     fn test_check_limit_allows_requests_when_tokens_available() {
-        let mut limiter = RateLimiter::new(10, 5);
+        let limiter = RateLimiter::new(10, 5);
 
         for i in 0..10 {
             assert!(limiter.check_limit(), "Request {} should be allowed", i + 1);
@@ -298,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_check_limit_rejects_when_no_tokens() {
-        let mut limiter = RateLimiter::new(2, 1);
+        let limiter = RateLimiter::new(2, 1);
 
         assert!(limiter.check_limit()); // 1 token left
         assert!(limiter.check_limit()); // 0 tokens left
@@ -308,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_refill_adds_tokens_over_time() {
-        let mut limiter = RateLimiter::new(100, 50); // 50 tokens/sec
+        let limiter = RateLimiter::new(100, 50); // 50 tokens/sec
 
         // Consume all tokens
         for _ in 0..100 {
@@ -323,14 +371,13 @@ mod tests {
         let tokens = limiter.tokens();
         assert!(
             (4..=6).contains(&tokens),
-            "Expected ~5 tokens, got {}",
-            tokens
+            "Expected ~5 tokens, got {tokens}"
         );
     }
 
     #[test]
     fn test_refill_caps_at_max_tokens() {
-        let mut limiter = RateLimiter::new(10, 100); // 100 tokens/sec, max 10
+        let limiter = RateLimiter::new(10, 100); // 100 tokens/sec, max 10
 
         // Wait long enough to exceed max
         thread::sleep(Duration::from_millis(200)); // Would refill 20, but capped at 10
@@ -340,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_reset_restores_full_capacity() {
-        let mut limiter = RateLimiter::new(50, 25);
+        let limiter = RateLimiter::new(50, 25);
 
         // Consume some tokens
         for _ in 0..30 {
@@ -355,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_burst_capacity() {
-        let mut limiter = RateLimiter::new(200, 100); // 100/sec sustained, 200 burst
+        let limiter = RateLimiter::new(200, 100); // 100/sec sustained, 200 burst
 
         // Should allow burst of 200 requests
         for i in 0..200 {
@@ -372,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_sustained_rate() {
-        let mut limiter = RateLimiter::new(10, 100); // 100/sec sustained, 10 burst
+        let limiter = RateLimiter::new(10, 100); // 100/sec sustained, 10 burst
 
         // Consume initial burst
         for _ in 0..10 {
@@ -392,8 +439,7 @@ mod tests {
 
         assert!(
             (8..=12).contains(&allowed),
-            "Expected ~10 requests allowed, got {}",
-            allowed
+            "Expected ~10 requests allowed, got {allowed}"
         );
     }
 }

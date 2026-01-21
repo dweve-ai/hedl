@@ -30,8 +30,7 @@ proptest! {
         value in -1000_i64..1000
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, {}\n  | id2, ^\n",
-            type_name, type_name, value
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -53,8 +52,7 @@ proptest! {
         value in "[a-zA-Z0-9]{1,50}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, {}\n  | id2, ^\n",
-            type_name, type_name, value
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -76,8 +74,7 @@ proptest! {
         value in proptest::bool::ANY
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, {}\n  | id2, ^\n",
-            type_name, type_name, value
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -96,8 +93,7 @@ proptest! {
     #[test]
     fn prop_ditto_copies_null(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, ~\n  | id2, ^\n",
-            type_name, type_name
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, ~\n  | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -119,9 +115,11 @@ proptest! {
         type_name in "[A-Z][a-zA-Z0-9]{0,15}",
         ref_id in "[a-z][a-z0-9_-]{0,20}"
     ) {
+        // Generate a second row ID that's guaranteed to be different from ref_id
+        let second_id = format!("row2_{ref_id}");
+
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, ref]\n---\nitems: @{}\n  | {}, @{}\n  | id2, ^\n",
-            type_name, type_name, ref_id, ref_id
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {ref_id}, @{ref_id}\n  | {second_id}, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -140,8 +138,7 @@ proptest! {
     #[test]
     fn prop_ditto_first_row_error(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, ^\n",
-            type_name, type_name
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -155,8 +152,7 @@ proptest! {
         value in -100_i64..100
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, {}\n  | id2, ^\n  | id3, ^\n",
-            type_name, type_name, value
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n  | id3, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -181,8 +177,7 @@ proptest! {
         val2 in -100_i64..100
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, col1, col2]\n---\nitems: @{}\n  | id1, {}, {}\n  | id2, ^, 999\n",
-            type_name, type_name, val1, val2
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, col1, col2]\n---\nitems: @{type_name}\n  | id1, {val1}, {val2}\n  | id2, ^, 999\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -205,8 +200,7 @@ proptest! {
         val2 in -100_i64..100
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, col1, col2]\n---\nitems: @{}\n  | id1, {}, {}\n  | id2, ^, ^\n",
-            type_name, type_name, val1, val2
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, col1, col2]\n---\nitems: @{type_name}\n  | id1, {val1}, {val2}\n  | id2, ^, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -234,8 +228,7 @@ proptest! {
         prop_assume!(val1 != val2);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, {}\n  | id2, {}\n  | id3, ^\n",
-            type_name, type_name, val1, val2
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {val1}\n  | id2, {val2}\n  | id3, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -266,8 +259,7 @@ mod edge_cases {
             value in -1000.0_f64..1000.0
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id1, {}\n  | id2, ^\n",
-                type_name, type_name, value
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -290,12 +282,11 @@ mod edge_cases {
             count in 2_usize..20
         ) {
             let mut doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id, value]\n---\nitems: @{}\n  | id0, {}\n",
-                type_name, type_name, value
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id0, {value}\n"
             );
 
             for i in 1..=count {
-                doc.push_str(&format!("  | id{}, ^\n", i));
+                doc.push_str(&format!("  | id{i}, ^\n"));
             }
 
             let result = parse(doc.as_bytes());
@@ -320,8 +311,7 @@ mod edge_cases {
             bool_val in proptest::bool::ANY
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {}: [id, int_col, bool_col, null_col]\n---\nitems: @{}\n  | id1, {}, {}, ~\n  | id2, ^, ^, ^\n",
-                type_name, type_name, int_val, bool_val
+                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, int_col, bool_col, null_col]\n---\nitems: @{type_name}\n  | id1, {int_val}, {bool_val}, ~\n  | id2, ^, ^, ^\n"
             );
 
             let result = parse(doc.as_bytes());

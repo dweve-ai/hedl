@@ -17,7 +17,7 @@
 
 //! Demonstration of cache speedup for MCP operations.
 //!
-//! Run with: cargo run --example cache_speedup_demo --release
+//! Run with: cargo run --example `cache_speedup_demo` --release
 
 use hedl_mcp::cache::OperationCache;
 use hedl_mcp::tools::{execute_hedl_query, execute_hedl_stats, execute_hedl_validate};
@@ -25,7 +25,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Instant;
 
-const HEDL_SAMPLE: &str = r#"%VERSION: 1.0
+const HEDL_SAMPLE: &str = r"%VERSION: 1.0
 %STRUCT: User: [id, name, email, age, city]
 %STRUCT: Product: [id, title, price, category, stock]
 %STRUCT: Order: [id, user_id, product_id, quantity, total]
@@ -65,7 +65,7 @@ orders: @Order
   | order8, henry, sensor, 5, 199.95
   | order9, iris, controller, 1, 129.99
   | order10, jack, adapter, 20, 399.80
-"#;
+";
 
 fn main() {
     println!("=== MCP Operation Cache Speedup Demonstration ===\n");
@@ -100,10 +100,7 @@ fn benchmark_validate() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Uncached: {} ops in {:?} ({} µs/op)",
-        iterations, uncached_duration, uncached_per_op
-    );
+    println!("  Uncached: {iterations} ops in {uncached_duration:?} ({uncached_per_op} µs/op)");
 
     // Cached performance
     let cache = Arc::new(OperationCache::new(1000));
@@ -121,13 +118,10 @@ fn benchmark_validate() {
     let cached_duration = start.elapsed();
     let cached_per_op = cached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Cached:   {} ops in {:?} ({} µs/op)",
-        iterations, cached_duration, cached_per_op
-    );
+    println!("  Cached:   {iterations} ops in {cached_duration:?} ({cached_per_op} µs/op)");
 
     let speedup = uncached_per_op as f64 / cached_per_op.max(1) as f64;
-    println!("  Speedup:  {:.1}x faster", speedup);
+    println!("  Speedup:  {speedup:.1}x faster");
 
     let stats = cache.stats();
     println!("  Hit rate: {:.1}%", stats.hit_rate_percent());
@@ -147,14 +141,11 @@ fn benchmark_query() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Uncached: {} ops in {:?} ({} µs/op)",
-        iterations, uncached_duration, uncached_per_op
-    );
+    println!("  Uncached: {iterations} ops in {uncached_duration:?} ({uncached_per_op} µs/op)");
 
     // Cached performance
     let cache = Arc::new(OperationCache::new(1000));
-    let cache_key = format!("{}:User::true", HEDL_SAMPLE);
+    let cache_key = format!("{HEDL_SAMPLE}:User::true");
 
     // Warm up cache
     let result = execute_hedl_query(Some(args.clone())).unwrap();
@@ -168,13 +159,10 @@ fn benchmark_query() {
     let cached_duration = start.elapsed();
     let cached_per_op = cached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Cached:   {} ops in {:?} ({} µs/op)",
-        iterations, cached_duration, cached_per_op
-    );
+    println!("  Cached:   {iterations} ops in {cached_duration:?} ({cached_per_op} µs/op)");
 
     let speedup = uncached_per_op as f64 / cached_per_op.max(1) as f64;
-    println!("  Speedup:  {:.1}x faster", speedup);
+    println!("  Speedup:  {speedup:.1}x faster");
 
     let stats = cache.stats();
     println!("  Hit rate: {:.1}%", stats.hit_rate_percent());
@@ -194,14 +182,11 @@ fn benchmark_stats() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Uncached: {} ops in {:?} ({} µs/op)",
-        iterations, uncached_duration, uncached_per_op
-    );
+    println!("  Uncached: {iterations} ops in {uncached_duration:?} ({uncached_per_op} µs/op)");
 
     // Cached performance
     let cache = Arc::new(OperationCache::new(1000));
-    let cache_key = format!("{}:simple", HEDL_SAMPLE);
+    let cache_key = format!("{HEDL_SAMPLE}:simple");
 
     // Warm up cache
     let result = execute_hedl_stats(Some(args.clone())).unwrap();
@@ -215,13 +200,10 @@ fn benchmark_stats() {
     let cached_duration = start.elapsed();
     let cached_per_op = cached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Cached:   {} ops in {:?} ({} µs/op)",
-        iterations, cached_duration, cached_per_op
-    );
+    println!("  Cached:   {iterations} ops in {cached_duration:?} ({cached_per_op} µs/op)");
 
     let speedup = uncached_per_op as f64 / cached_per_op.max(1) as f64;
-    println!("  Speedup:  {:.1}x faster", speedup);
+    println!("  Speedup:  {speedup:.1}x faster");
 
     let stats = cache.stats();
     println!("  Hit rate: {:.1}%", stats.hit_rate_percent());
@@ -273,10 +255,7 @@ fn benchmark_mixed_workload() {
     let mixed_duration = start.elapsed();
     let mixed_per_op = mixed_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Mixed:    {} ops in {:?} ({} µs/op)",
-        iterations, mixed_duration, mixed_per_op
-    );
+    println!("  Mixed:    {iterations} ops in {mixed_duration:?} ({mixed_per_op} µs/op)");
 
     // Compare to uncached baseline
     let start = Instant::now();
@@ -289,13 +268,10 @@ fn benchmark_mixed_workload() {
     let uncached_duration = start.elapsed();
     let uncached_per_op = uncached_duration.as_micros() / iterations as u128;
 
-    println!(
-        "  Uncached: {} ops in {:?} ({} µs/op)",
-        iterations, uncached_duration, uncached_per_op
-    );
+    println!("  Uncached: {iterations} ops in {uncached_duration:?} ({uncached_per_op} µs/op)");
 
     let speedup = uncached_per_op as f64 / mixed_per_op as f64;
-    println!("  Speedup:  {:.1}x faster", speedup);
+    println!("  Speedup:  {speedup:.1}x faster");
 
     let stats = cache.stats();
     println!("  Cache stats:");

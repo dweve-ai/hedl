@@ -37,6 +37,7 @@ pub struct Measurement {
 
 impl Measurement {
     /// Creates a new measurement with just duration.
+    #[must_use]
     pub fn new(duration: Duration) -> Self {
         Self {
             duration,
@@ -46,6 +47,7 @@ impl Measurement {
     }
 
     /// Creates a measurement with duration and throughput.
+    #[must_use]
     pub fn with_throughput(duration: Duration, bytes_per_sec: u64) -> Self {
         Self {
             duration,
@@ -55,6 +57,7 @@ impl Measurement {
     }
 
     /// Creates a measurement with all metrics.
+    #[must_use]
     pub fn with_all(duration: Duration, throughput: Option<u64>, memory: Option<usize>) -> Self {
         Self {
             duration,
@@ -64,17 +67,20 @@ impl Measurement {
     }
 
     /// Returns the duration in nanoseconds.
+    #[must_use]
     pub fn as_nanos(&self) -> u64 {
         self.duration.as_nanos() as u64
     }
 
     /// Returns throughput in MB/s if available.
+    #[must_use]
     pub fn throughput_mbs(&self) -> Option<f64> {
         self.throughput
             .map(|bytes_per_sec| bytes_per_sec as f64 / 1_000_000.0)
     }
 
     /// Returns memory usage in MB if available.
+    #[must_use]
     pub fn memory_mb(&self) -> Option<f64> {
         self.memory.map(|bytes| bytes as f64 / 1_000_000.0)
     }
@@ -259,7 +265,8 @@ pub struct Statistics {
 ///
 /// # Returns
 ///
-/// `Statistics` containing mean, std_dev, min, max, and median.
+/// `Statistics` containing mean, `std_dev`, min, max, and median.
+#[must_use]
 pub fn compute_statistics(measurements: &[Measurement]) -> Statistics {
     if measurements.is_empty() {
         return Statistics {

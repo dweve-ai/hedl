@@ -185,9 +185,9 @@ pub struct Document {
 pub struct Node {
     pub type_name: String,
     pub id: String,
-    pub fields: Vec<Value>,
-    pub children: BTreeMap<String, Vec<Node>>,
-    pub child_count: Option<usize>,
+    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,  // Lazy Box allocation
+    pub child_count: u16,  // Compact representation
 }
 
 pub enum Value {
@@ -195,10 +195,10 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),           // Box<str> reduces enum size vs String
+    Tensor(Box<Tensor>),        // Boxed to reduce enum size
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>), // Boxed to reduce enum size
 }
 ```
 
@@ -215,9 +215,9 @@ pub struct Document<'a> {
 pub struct Node<'a> {
     pub type_name: Cow<'a, str>,
     pub id: Cow<'a, str>,
-    pub fields: Vec<Value<'a>>,
-    pub children: BTreeMap<Cow<'a, str>, Vec<Node<'a>>>,
-    pub child_count: Option<usize>,
+    pub fields: SmallVec<[Value<'a>; 4]>,
+    pub children: Option<Box<BTreeMap<Cow<'a, str>, Vec<Node<'a>>>>>,
+    pub child_count: u16,
 }
 
 pub enum Value<'a> {

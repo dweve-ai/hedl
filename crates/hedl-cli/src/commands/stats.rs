@@ -32,6 +32,7 @@
 //! All format conversions are independent and thread-safe. No shared mutable state.
 
 use super::read_file;
+use crate::error::CliError;
 use hedl_core::{parse, Document};
 use hedl_json::{to_json_value, ToJsonConfig};
 use hedl_xml::{to_xml as hedl_to_xml, ToXmlConfig};
@@ -96,21 +97,23 @@ impl FormatStats {
     ///
     /// Achieves 3-5x speedup on multi-core systems by running conversions
     /// in parallel threads.
-    fn compute_parallel(doc: &Document) -> Result<Self, String> {
+    fn compute_parallel(doc: &Document) -> Result<Self, CliError> {
         // Use Arc to share the document across threads safely
         let doc = Arc::new(doc.clone());
 
         // Define conversion tasks as closures
-        let tasks: Vec<Box<dyn Fn() -> Result<String, String> + Send + Sync>> = vec![
+        let tasks: Vec<Box<dyn Fn() -> Result<String, CliError> + Send + Sync>> = vec![
             // JSON compact
             Box::new({
                 let doc = Arc::clone(&doc);
                 move || {
                     let config = ToJsonConfig::default();
-                    let value = to_json_value(&doc, &config)
-                        .map_err(|e| format!("JSON conversion error: {}", e))?;
-                    serde_json::to_string(&value)
-                        .map_err(|e| format!("JSON serialization error: {}", e))
+                    let value = to_json_value(&doc, &config).map_err(|e| {
+                        CliError::json_conversion(format!("JSON conversion error: {e}"))
+                    })?;
+                    serde_json::to_string(&value).map_err(|e| {
+                        CliError::json_conversion(format!("JSON serialization error: {e}"))
+                    })
                 }
             }),
             // JSON pretty
@@ -118,10 +121,12 @@ impl FormatStats {
                 let doc = Arc::clone(&doc);
                 move || {
                     let config = ToJsonConfig::default();
-                    let value = to_json_value(&doc, &config)
-                        .map_err(|e| format!("JSON conversion error: {}", e))?;
-                    serde_json::to_string_pretty(&value)
-                        .map_err(|e| format!("JSON pretty serialization error: {}", e))
+                    let value = to_json_value(&doc, &config).map_err(|e| {
+                        CliError::json_conversion(format!("JSON conversion error: {e}"))
+                    })?;
+                    serde_json::to_string_pretty(&value).map_err(|e| {
+                        CliError::json_conversion(format!("JSON pretty serialization error: {e}"))
+                    })
                 }
             }),
             // YAML
@@ -129,7 +134,9 @@ impl FormatStats {
                 let doc = Arc::clone(&doc);
                 move || {
                     let config = ToYamlConfig::default();
-                    hedl_to_yaml(&doc, &config).map_err(|e| format!("YAML conversion error: {}", e))
+                    hedl_to_yaml(&doc, &config).map_err(|e| {
+                        CliError::yaml_conversion(format!("YAML conversion error: {e}"))
+                    })
                 }
             }),
             // XML compact
@@ -140,7 +147,8 @@ impl FormatStats {
                         pretty: false,
                         ..Default::default()
                     };
-                    hedl_to_xml(&doc, &config).map_err(|e| format!("XML conversion error: {}", e))
+                    hedl_to_xml(&doc, &config)
+                        .map_err(|e| CliError::xml_conversion(format!("XML conversion error: {e}")))
                 }
             }),
             // XML pretty
@@ -151,25 +159,36 @@ impl FormatStats {
                         pretty: true,
                         ..Default::default()
                     };
-                    hedl_to_xml(&doc, &config)
-                        .map_err(|e| format!("XML pretty conversion error: {}", e))
+                    hedl_to_xml(&doc, &config).map_err(|e| {
+                        CliError::xml_conversion(format!("XML pretty conversion error: {e}"))
+                    })
                 }
             }),
         ];
 
         // Execute all conversions in parallel
-        let results: Result<Vec<String>, String> = tasks.par_iter().map(|task| task()).collect();
+        let results: Result<Vec<String>, CliError> = tasks.par_iter().map(|task| task()).collect();
 
-        let mut outputs = results?;
+        let outputs = results?;
 
-        // Extract results in order (reverse pop for efficiency)
-        outputs.reverse();
+        // Extract results in order (using indices for safety)
+        // We expect exactly 5 outputs from our 5 format conversion tasks
+        if outputs.len() != 5 {
+            return Err(CliError::parse(format!(
+                "Internal error: expected 5 format conversions, got {}",
+                outputs.len()
+            )));
+        }
+
+        // Use into_iter to consume the vector and extract in order
+        let mut iter = outputs.into_iter();
         Ok(FormatStats {
-            json_compact: outputs.pop().unwrap(),
-            json_pretty: outputs.pop().unwrap(),
-            yaml: outputs.pop().unwrap(),
-            xml_compact: outputs.pop().unwrap(),
-            xml_pretty: outputs.pop().unwrap(),
+            // These unwraps are safe because we verified length == 5 above
+            json_compact: iter.next().unwrap(),
+            json_pretty: iter.next().unwrap(),
+            yaml: iter.next().unwrap(),
+            xml_compact: iter.next().unwrap(),
+            xml_pretty: iter.next().unwrap(),
         })
     }
 }
@@ -201,7 +220,7 @@ impl FormatStats {
 /// ```no_run
 /// use hedl_cli::commands::stats;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Show byte size comparison
 /// stats("data.hedl", false)?;
 ///
@@ -230,12 +249,13 @@ impl FormatStats {
 /// - ~4 characters per content token
 /// - ~3 whitespace characters per token
 /// - Based on empirical averages for structured data formats
-pub fn stats(file: &str, show_tokens: bool) -> Result<(), String> {
+pub fn stats(file: &str, show_tokens: bool) -> Result<(), CliError> {
     let content = read_file(file)?;
     let hedl_bytes = content.len();
 
     // Parse HEDL
-    let doc = parse(content.as_bytes()).map_err(|e| format!("Parse error: {}", e))?;
+    let doc =
+        parse(content.as_bytes()).map_err(|e| CliError::parse(format!("Parse error: {e}")))?;
 
     // Compute all format conversions in parallel
     let formats = FormatStats::compute_parallel(&doc)?;
@@ -261,7 +281,7 @@ pub fn stats(file: &str, show_tokens: bool) -> Result<(), String> {
     println!("HEDL Size Comparison");
     println!("====================");
     println!();
-    println!("Input: {}", file);
+    println!("Input: {file}");
     println!();
 
     // Byte comparison table
@@ -419,7 +439,7 @@ fn format_bytes(bytes: usize) -> String {
     } else if bytes >= 1_000 {
         format!("{:.1} KB", bytes as f64 / 1_000.0)
     } else {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     }
 }
 
@@ -429,7 +449,7 @@ fn format_number(n: usize) -> String {
     } else if n >= 1_000 {
         format!("{:.1}K", n as f64 / 1_000.0)
     } else {
-        format!("{}", n)
+        format!("{n}")
     }
 }
 

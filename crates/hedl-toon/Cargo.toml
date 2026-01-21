@@ -1,17 +1,62 @@
+# =============================================================================
+# HEDL TOON - crates/hedl-toon/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-toon"
-version = "1.1.0"
+version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
 homepage.workspace = true
-description = "HEDL to TOON (Token-Oriented Object Notation) conversion"
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL to/from TOON (Token-Oriented Object Notation) conversion"
+documentation = "https://docs.rs/hedl-toon"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
-hedl-core.workspace = true
-thiserror.workspace = true
+hedl-core = { workspace = true }
+thiserror = { workspace = true }
+itoa = "1.0"
+ryu = "1.0"
 
 [dev-dependencies]
 hedl-test = { workspace = true }
-hedl-json.workspace = true
-proptest = "1.5"
+hedl-json = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = []

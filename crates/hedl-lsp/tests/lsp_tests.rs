@@ -243,8 +243,7 @@ fn test_unicode_in_content() {
 fn test_very_long_lines() {
     let long_value = "x".repeat(10000);
     let content = format!(
-        "%VERSION: 1.0\n%STRUCT: Item: [id, data]\n---\nitems: @Item\n  | test, {}\n",
-        long_value
+        "%VERSION: 1.0\n%STRUCT: Item: [id, data]\n---\nitems: @Item\n  | test, {long_value}\n"
     );
 
     // Should handle very long lines
@@ -257,7 +256,7 @@ fn test_many_entities() {
 
     // Add 1000 entities
     for i in 0..1000 {
-        content.push_str(&format!("  | item{}, value{}\n", i, i));
+        content.push_str(&format!("  | item{i}, value{i}\n"));
     }
 
     // Should handle large numbers of entities
@@ -518,7 +517,7 @@ fn test_many_schemas_performance() {
 
     // Add 100 schemas
     for i in 0..100 {
-        content.push_str(&format!("%STRUCT: Type{}: [id, field{}]\n", i, i));
+        content.push_str(&format!("%STRUCT: Type{i}: [id, field{i}]\n"));
     }
 
     content.push_str("---\n");
@@ -534,7 +533,7 @@ fn test_many_references_performance() {
     // Create node with many references
     content.push_str("  | n0, value\n");
     for i in 1..1000 {
-        content.push_str(&format!("  | n{}, @Node:n0\n", i));
+        content.push_str(&format!("  | n{i}, @Node:n0\n"));
     }
 
     // Should handle many references
@@ -681,7 +680,7 @@ fn test_variant_null_representations() {
     let content = "%VERSION: 1.0\n%STRUCT: Item: [id, opt]\n---\nitems: @Item\n  | x, ~\n  | y, null\n  | z, \n";
 
     // Different null representations
-    assert!(content.contains("~"));
+    assert!(content.contains('~'));
     assert!(content.contains("null"));
 }
 

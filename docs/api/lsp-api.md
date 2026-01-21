@@ -245,9 +245,11 @@ Search symbols across all open documents.
 
 ### 8. Semantic Highlighting
 
-Type-aware syntax highlighting.
+Type-aware syntax highlighting token types advertised by the server.
 
-**Token Types**:
+> **Note**: The LSP server advertises semantic token capabilities, but the `textDocument/semanticTokens/full` handler is not yet implemented. Editors will use syntax-based highlighting until this is complete.
+
+**Advertised Token Types**:
 - Keyword: `%VERSION`, `%STRUCT`
 - Type: `User`, `Post`
 - Variable: Entity IDs
@@ -286,21 +288,19 @@ z: 3
 
 ### Default Configuration
 
-```json
-{
-    "maxDocuments": 1000,
-    "maxDocumentSize": 524288000,  // 500 MB
-    "debounceMs": 200,
-    "enableDiagnostics": true,
-    "enableCompletion": true,
-    "enableHover": true,
-    "enableFormatting": true
-}
-```
+The server starts with these default values:
+
+| Setting | Default Value | Description |
+|---------|---------------|-------------|
+| Max Documents | 1000 | Maximum documents cached |
+| Max Document Size | 500 MB | Maximum size per document |
+| Debounce | 200ms | Delay before reprocessing |
+
+> **Note**: Runtime JSON configuration is not supported. Use the programmatic API below to customize settings.
 
 ### Custom Configuration
 
-Override defaults programmatically:
+Override defaults when embedding the server programmatically:
 
 ```rust
 use hedl_lsp::HedlLanguageServer;
@@ -342,13 +342,13 @@ let server = HedlLanguageServer::with_config(
 
 ### Memory Management
 
-**Document Size Limit**: 500 MB per document (configurable)
+**Document Size Limit**: 500 MB per document
 - Prevents memory exhaustion
-- Configurable via `--max-document-size`
+- Configurable via `with_config()` when embedding the server programmatically
 
-**Open Document Limit**: 1000 documents (configurable)
+**Open Document Limit**: 1000 documents
 - LRU eviction when limit reached
-- Configurable via `--max-documents`
+- Configurable via `with_config()` when embedding the server programmatically
 
 **UTF-8 Safety**:
 - All string slicing is UTF-8 boundary aware
@@ -552,7 +552,7 @@ async fn main() {
 
 **Document Synchronization**:
 - `textDocument/didOpen`
-- `textDocument/didChange` (incremental)
+- `textDocument/didChange` (full document sync)
 - `textDocument/didClose`
 - `textDocument/didSave`
 
@@ -563,7 +563,8 @@ async fn main() {
 - `textDocument/references`
 - `textDocument/documentSymbol`
 - `textDocument/formatting`
-- `textDocument/semanticTokens/full`
+- `textDocument/prepareRename`
+- `textDocument/rename`
 - `workspace/symbol`
 
 **Diagnostics**:
@@ -577,11 +578,11 @@ async fn main() {
 {
     "textDocumentSync": {
         "openClose": true,
-        "change": 2,  // Incremental
+        "change": 1,  // Full document sync
         "save": true
     },
     "completionProvider": {
-        "triggerCharacters": ["@", ":", "%", "|"]
+        "triggerCharacters": ["@", ":", "%", "$", "|"]
     },
     "hoverProvider": true,
     "definitionProvider": true,
@@ -589,12 +590,8 @@ async fn main() {
     "documentSymbolProvider": true,
     "workspaceSymbolProvider": true,
     "documentFormattingProvider": true,
-    "semanticTokensProvider": {
-        "legend": {
-            "tokenTypes": ["keyword", "type", "variable", "string", "number", "operator", "comment"],
-            "tokenModifiers": []
-        },
-        "full": true
+    "renameProvider": {
+        "prepareProvider": true
     }
 }
 ```
@@ -610,19 +607,26 @@ Parse errors use the `HedlErrorKind` variant names as strings:
 | Code | Message | Severity |
 |------|---------|----------|
 | `Syntax` | Syntax error in HEDL document | Error |
-| `Reference` | Unresolved or invalid reference | Error |
+| `Version` | Unsupported HEDL version | Error |
 | `Schema` | Struct definition or usage error | Error |
+| `Alias` | Duplicate or invalid alias | Error |
+| `Shape` | Wrong number of cells in row | Error |
+| `Semantic` | Logical error (ditto in ID, etc.) | Error |
+| `OrphanRow` | Child row without NEST rule | Error |
+| `Collision` | Duplicate ID within type | Error |
+| `Reference` | Unresolved or invalid reference | Error |
 | `Security` | Document exceeds resource limits | Error |
+| `Conversion` | Format conversion error | Error |
+| `IO` | I/O error | Error |
 
 Lint diagnostics use rule IDs:
 
 | Code | Message | Severity |
 |------|---------|----------|
-| `unused-alias` | Alias defined but never used | Warning |
+| `id-naming` | Short or numeric-only IDs | Hint |
 | `unused-schema` | Schema defined but never used | Warning |
-| `duplicate-id` | Duplicate ID within same type | Warning |
-| `missing-type` | Entity missing type annotation | Hint |
-| `deeply-nested` | Nesting depth exceeds threshold | Hint |
+| `empty-list` | Matrix list is empty | Hint |
+| `unqualified-kv-ref` | Unqualified reference in Key-Value context | Warning |
 
 ---
 

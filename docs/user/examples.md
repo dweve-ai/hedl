@@ -170,7 +170,7 @@ id,name,email,age,active,balance
 **Commands:**
 ```bash
 # Import with auto-schema inference
-hedl from-csv customers.csv --type-name Customer -o customers.hedl
+hedl from-csv customers.csv -t Customer -o customers.hedl
 
 # Validate the result
 hedl validate customers.hedl

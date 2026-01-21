@@ -248,7 +248,7 @@ posts: @Post
 ```json
 {
   "posts": [
-    {"id": "p1", "author": {"@ref": "User:u1"}, "title": "Title"}
+    {"id": "p1", "author": {"@ref": "@User:u1"}, "title": "Title"}
   ]
 }
 ```

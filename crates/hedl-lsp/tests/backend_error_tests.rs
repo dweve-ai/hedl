@@ -676,14 +676,14 @@ async fn test_workspace_symbol_with_documents() {
 
     // Open multiple documents
     for i in 0..3 {
-        let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
         server
             .did_open(DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri: uri.clone(),
                     language_id: "hedl".to_string(),
                     version: 1,
-                    text: format!("%VERSION: 1.0\n---\nEntity{}: e{}: \"test\"", i, i),
+                    text: format!("%VERSION: 1.0\n---\nEntity{i}: e{i}: \"test\""),
                 },
             })
             .await;

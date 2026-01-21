@@ -33,23 +33,22 @@
 //! - Developer productivity metrics
 //! - Ecosystem integration
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hedl_bench::helpers::measure_throughput_ns;
 use hedl_bench::{
     count_tokens, generate_blog, generate_deep_hierarchy, generate_orders, generate_products,
     generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult,
     TableCell,
 };
-use hedl_toon::{to_toon, ToToonConfig};
+use hedl_toon::{from_toon, to_toon, ToToonConfig};
 use std::cell::RefCell;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
 static INIT: Once = Once::new();
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -79,7 +78,7 @@ fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option
                 throughput_bytes,
                 avg_time_ns: Some(total_ns / iterations),
                 throughput_mbs: throughput_bytes
-                    .map(|b| formats::measure_throughput_ns(b as usize, total_ns)),
+                    .map(|b| measure_throughput_ns(b as usize, total_ns)),
             });
         }
     });
@@ -180,7 +179,7 @@ fn bench_hedl_to_toon_flat(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &doc, |b, doc| {
-            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()))
+            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -188,7 +187,7 @@ fn bench_hedl_to_toon_flat(c: &mut Criterion) {
             let _ = to_toon(&doc, &ToToonConfig::default());
         });
         add_perf(
-            &format!("hedl_to_toon_products_{}", size),
+            &format!("hedl_to_toon_products_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -207,7 +206,7 @@ fn bench_hedl_to_toon_nested(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("blog", posts), &doc, |b, doc| {
-            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()))
+            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()));
         });
 
         let iterations = 100;
@@ -215,7 +214,7 @@ fn bench_hedl_to_toon_nested(c: &mut Criterion) {
             let _ = to_toon(&doc, &ToToonConfig::default());
         });
         add_perf(
-            &format!("hedl_to_toon_blog_{}_posts", posts),
+            &format!("hedl_to_toon_blog_{posts}_posts"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -234,7 +233,7 @@ fn bench_hedl_to_toon_deep(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("deep", depth), &doc, |b, doc| {
-            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()))
+            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()));
         });
 
         let iterations = 50;
@@ -242,10 +241,468 @@ fn bench_hedl_to_toon_deep(c: &mut Criterion) {
             let _ = to_toon(&doc, &ToToonConfig::default());
         });
         add_perf(
-            &format!("hedl_to_toon_deep_{}", depth),
+            &format!("hedl_to_toon_deep_{depth}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+// ============================================================================
+// TOON Parser Benchmarks (TOON → HEDL)
+// ============================================================================
+
+/// Generate TOON document with flat key-value pairs
+fn generate_toon_flat(count: usize) -> String {
+    let mut s = String::with_capacity(count * 30);
+    for i in 0..count {
+        s.push_str(&format!("field_{i}: value_{i}\n"));
+    }
+    s
+}
+
+/// Generate TOON document with nested objects
+fn generate_toon_nested(depth: usize, width: usize) -> String {
+    let mut s = String::new();
+    fn build_nested(s: &mut String, depth: usize, width: usize, current: usize, indent: usize) {
+        let prefix = "  ".repeat(indent);
+        if current == depth {
+            for i in 0..width {
+                s.push_str(&format!("{prefix}leaf_{i}: value_{i}\n"));
+            }
+        } else {
+            for i in 0..width {
+                s.push_str(&format!("{prefix}obj_{i}:\n"));
+                build_nested(s, depth, width, current + 1, indent + 1);
+            }
+        }
+    }
+    build_nested(&mut s, depth, width, 0, 0);
+    s
+}
+
+/// Generate TOON document with tabular array
+fn generate_toon_tabular(rows: usize, cols: usize) -> String {
+    let mut s = String::new();
+    // Schema
+    let schema: Vec<String> = (0..cols).map(|i| format!("col_{i}")).collect();
+    s.push_str(&format!("data[{}]{{{}}}:\n", rows, schema.join(",")));
+    // Rows
+    for row in 0..rows {
+        let values: Vec<String> = (0..cols).map(|col| format!("r{row}_c{col}")).collect();
+        s.push_str(&format!("  {}\n", values.join(",")));
+    }
+    s
+}
+
+/// Generate TOON with quoted strings containing escapes
+fn generate_toon_escaped(count: usize) -> String {
+    let mut s = String::new();
+    for i in 0..count {
+        // Alternate between simple and escaped strings
+        if i % 2 == 0 {
+            s.push_str(&format!("field_{i}: \"simple string {i}\"\n"));
+        } else {
+            s.push_str(&format!(
+                "field_{i}: \"escaped\\nwith\\ttabs\\\"and\\\\slashes\"\n"
+            ));
+        }
+    }
+    s
+}
+
+fn bench_toon_parser_flat(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("toon_parser");
+
+    for &size in &[100, 500, 1000, 5000] {
+        let toon = generate_toon_flat(size);
+        group.throughput(Throughput::Bytes(toon.len() as u64));
+        group.bench_with_input(BenchmarkId::new("flat", size), &toon, |b, toon| {
+            b.iter(|| from_toon(black_box(toon)));
+        });
+
+        let iterations = if size >= 5000 { 50 } else { 100 };
+        let total_ns = measure(iterations, || {
+            let _ = from_toon(&toon);
+        });
+        add_perf(
+            &format!("toon_parser_flat_{size}"),
+            iterations,
+            total_ns,
+            Some(toon.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_parser_nested(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_parser");
+
+    for depth in [2, 3, 4, 5] {
+        let toon = generate_toon_nested(depth, 3);
+        group.throughput(Throughput::Bytes(toon.len() as u64));
+        group.bench_with_input(BenchmarkId::new("nested_depth", depth), &toon, |b, toon| {
+            b.iter(|| from_toon(black_box(toon)));
+        });
+
+        let iterations = 100;
+        let total_ns = measure(iterations, || {
+            let _ = from_toon(&toon);
+        });
+        add_perf(
+            &format!("toon_parser_nested_depth_{depth}"),
+            iterations,
+            total_ns,
+            Some(toon.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_parser_tabular(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_parser");
+
+    for &(rows, cols) in &[(100, 5), (500, 10), (1000, 5), (2000, 3)] {
+        let toon = generate_toon_tabular(rows, cols);
+        group.throughput(Throughput::Bytes(toon.len() as u64));
+        group.bench_with_input(
+            BenchmarkId::new("tabular", format!("{rows}x{cols}")),
+            &toon,
+            |b, toon| b.iter(|| from_toon(black_box(toon))),
+        );
+
+        let iterations = 50;
+        let total_ns = measure(iterations, || {
+            let _ = from_toon(&toon);
+        });
+        add_perf(
+            &format!("toon_parser_tabular_{rows}x{cols}"),
+            iterations,
+            total_ns,
+            Some(toon.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_parser_escaped(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_parser");
+
+    for &size in &[100, 500, 1000] {
+        let toon = generate_toon_escaped(size);
+        group.throughput(Throughput::Bytes(toon.len() as u64));
+        group.bench_with_input(
+            BenchmarkId::new("escaped_strings", size),
+            &toon,
+            |b, toon| b.iter(|| from_toon(black_box(toon))),
+        );
+
+        let iterations = 100;
+        let total_ns = measure(iterations, || {
+            let _ = from_toon(&toon);
+        });
+        add_perf(
+            &format!("toon_parser_escaped_{size}"),
+            iterations,
+            total_ns,
+            Some(toon.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_roundtrip(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_roundtrip");
+
+    // Test HEDL -> TOON -> HEDL roundtrip
+    for &size in &[sizes::SMALL, sizes::MEDIUM] {
+        let hedl = generate_products(size);
+        let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+        let toon = to_toon(&doc, &ToToonConfig::default()).unwrap();
+
+        group.throughput(Throughput::Bytes(toon.len() as u64));
+        group.bench_with_input(
+            BenchmarkId::new("hedl_toon_hedl", size),
+            &(hedl.clone(), toon.clone()),
+            |b, (hedl, _toon)| {
+                b.iter(|| {
+                    let doc1 = hedl_core::parse(hedl.as_bytes()).unwrap();
+                    let toon_out = to_toon(&doc1, &ToToonConfig::default()).unwrap();
+                    from_toon(black_box(&toon_out))
+                });
+            },
+        );
+
+        // Just TOON parse
+        group.bench_with_input(
+            BenchmarkId::new("toon_parse_only", size),
+            &toon,
+            |b, toon| b.iter(|| from_toon(black_box(toon))),
+        );
+    }
+
+    group.finish();
+}
+
+// ============================================================================
+// TOON Serialization Performance Benchmarks (Task 85)
+// ============================================================================
+
+/// Generate HEDL document with large tabular data for serialization stress test
+fn generate_large_tabular_doc(rows: usize, cols: usize) -> hedl_core::Document {
+    use hedl_core::{Document, Item, MatrixList, Node, Value};
+    let mut doc = Document::new((1, 0));
+
+    // Create schema
+    let schema: Vec<String> = (0..cols).map(|i| format!("col_{i}")).collect();
+    let mut list = MatrixList::new("Data", schema.clone());
+
+    // Add rows
+    for row in 0..rows {
+        let fields: Vec<Value> = (0..cols)
+            .map(|col| {
+                if col == 0 {
+                    Value::String(format!("r{row}").into())
+                } else if col % 3 == 0 {
+                    Value::Int((row * cols + col) as i64)
+                } else if col % 3 == 1 {
+                    Value::Float((row as f64 * 0.5) + (col as f64 * 0.1))
+                } else {
+                    Value::String(format!("val_{row}_{col}").into())
+                }
+            })
+            .collect();
+        list.add_row(Node::new("Data", format!("r{row}"), fields));
+    }
+    doc.root.insert("data".to_string(), Item::List(list));
+
+    doc
+}
+
+/// Generate HEDL document with many primitive values
+fn generate_mixed_primitives_doc(count: usize) -> hedl_core::Document {
+    use hedl_core::{Document, Item, Value};
+    let mut doc = Document::new((1, 0));
+
+    for i in 0..count {
+        let value = match i % 6 {
+            0 => Value::Null,
+            1 => Value::Bool(i % 2 == 0),
+            2 => Value::Int(i as i64 * 100),
+            3 => Value::Float((i as f64).sqrt()),
+            4 => Value::String(format!("string_value_{i}").into()),
+            _ => Value::String(format!("longer_string_value_with_more_content_{i}").into()),
+        };
+        doc.root.insert(format!("field_{i}"), Item::Scalar(value));
+    }
+
+    doc
+}
+
+/// Generate HEDL document with strings requiring escaping
+fn generate_escaped_strings_doc(count: usize) -> hedl_core::Document {
+    use hedl_core::{Document, Item, Value};
+    let mut doc = Document::new((1, 0));
+
+    for i in 0..count {
+        let value = match i % 4 {
+            0 => Value::String(format!("simple_{i}").into()),
+            1 => Value::String(format!("with:colon:{i}").into()),
+            2 => Value::String(format!("with\"quote\"and\\backslash{i}").into()),
+            _ => Value::String(format!("newline\nand\ttab{i}").into()),
+        };
+        doc.root.insert(format!("escaped_{i}"), Item::Scalar(value));
+    }
+
+    doc
+}
+
+fn bench_toon_serialization_tabular(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("toon_serialization");
+
+    // Test large tabular data serialization
+    for &(rows, cols) in &[(100, 10), (500, 5), (1000, 3), (2000, 5)] {
+        let doc = generate_large_tabular_doc(rows, cols);
+        let toon_output = to_toon(&doc, &ToToonConfig::default()).unwrap();
+
+        group.throughput(Throughput::Bytes(toon_output.len() as u64));
+        group.bench_with_input(
+            BenchmarkId::new("tabular", format!("{rows}x{cols}")),
+            &doc,
+            |b, doc| b.iter(|| to_toon(black_box(doc), &ToToonConfig::default())),
+        );
+
+        let iterations = if rows >= 1000 { 25 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let _ = to_toon(&doc, &ToToonConfig::default());
+        });
+        add_perf(
+            &format!("toon_serialize_tabular_{rows}x{cols}"),
+            iterations,
+            total_ns,
+            Some(toon_output.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_serialization_primitives(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_serialization");
+
+    // Test mixed primitive value encoding (tests Cow optimization)
+    for &count in &[100, 500, 1000, 5000] {
+        let doc = generate_mixed_primitives_doc(count);
+        let toon_output = to_toon(&doc, &ToToonConfig::default()).unwrap();
+
+        group.throughput(Throughput::Bytes(toon_output.len() as u64));
+        group.bench_with_input(BenchmarkId::new("primitives", count), &doc, |b, doc| {
+            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()));
+        });
+
+        let iterations = if count >= 5000 { 25 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let _ = to_toon(&doc, &ToToonConfig::default());
+        });
+        add_perf(
+            &format!("toon_serialize_primitives_{count}"),
+            iterations,
+            total_ns,
+            Some(toon_output.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_serialization_escaped(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_serialization");
+
+    // Test string escaping performance
+    for &count in &[100, 500, 1000] {
+        let doc = generate_escaped_strings_doc(count);
+        let toon_output = to_toon(&doc, &ToToonConfig::default()).unwrap();
+
+        group.throughput(Throughput::Bytes(toon_output.len() as u64));
+        group.bench_with_input(
+            BenchmarkId::new("escaped_strings", count),
+            &doc,
+            |b, doc| b.iter(|| to_toon(black_box(doc), &ToToonConfig::default())),
+        );
+
+        let iterations = 50;
+        let total_ns = measure(iterations, || {
+            let _ = to_toon(&doc, &ToToonConfig::default());
+        });
+        add_perf(
+            &format!("toon_serialize_escaped_{count}"),
+            iterations,
+            total_ns,
+            Some(toon_output.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_serialization_floats(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_serialization");
+
+    // Test float serialization (uses ryu optimization)
+    for &count in &[100, 500, 1000, 5000] {
+        use hedl_core::{Document, Item, MatrixList, Node, Value};
+
+        let mut doc = Document::new((1, 0));
+        let mut list = MatrixList::new("Floats", vec!["id".to_string(), "value".to_string()]);
+
+        for i in 0..count {
+            let value = match i % 5 {
+                0 => f64::from(i).sqrt(),
+                1 => std::f64::consts::PI * f64::from(i),
+                2 => f64::from(i) / 7.0,
+                3 => f64::from(i), // Integer-like float
+                _ => -0.0,         // Negative zero
+            };
+            list.add_row(Node::new(
+                "Floats",
+                format!("f{i}"),
+                vec![Value::String(format!("f{i}").into()), Value::Float(value)],
+            ));
+        }
+        doc.root.insert("floats".to_string(), Item::List(list));
+
+        let toon_output = to_toon(&doc, &ToToonConfig::default()).unwrap();
+
+        group.throughput(Throughput::Elements(count as u64));
+        group.bench_with_input(BenchmarkId::new("floats", count), &doc, |b, doc| {
+            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()));
+        });
+
+        let iterations = if count >= 5000 { 25 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let _ = to_toon(&doc, &ToToonConfig::default());
+        });
+        add_perf(
+            &format!("toon_serialize_floats_{count}"),
+            iterations,
+            total_ns,
+            Some(toon_output.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_toon_serialization_integers(c: &mut Criterion) {
+    let mut group = c.benchmark_group("toon_serialization");
+
+    // Test integer serialization (uses itoa optimization)
+    for &count in &[100, 500, 1000, 5000] {
+        use hedl_core::{Document, Item, MatrixList, Node, Value};
+
+        let mut doc = Document::new((1, 0));
+        let mut list = MatrixList::new("Ints", vec!["id".to_string(), "value".to_string()]);
+
+        for i in 0..count {
+            let value = match i % 4 {
+                0 => i64::from(i),
+                1 => -i64::from(i),
+                2 => i64::MAX - i64::from(i),
+                _ => i64::MIN + i64::from(i),
+            };
+            list.add_row(Node::new(
+                "Ints",
+                format!("i{i}"),
+                vec![Value::String(format!("i{i}").into()), Value::Int(value)],
+            ));
+        }
+        doc.root.insert("ints".to_string(), Item::List(list));
+
+        let toon_output = to_toon(&doc, &ToToonConfig::default()).unwrap();
+
+        group.throughput(Throughput::Elements(count as u64));
+        group.bench_with_input(BenchmarkId::new("integers", count), &doc, |b, doc| {
+            b.iter(|| to_toon(black_box(doc), &ToToonConfig::default()));
+        });
+
+        let iterations = if count >= 5000 { 25 } else { 50 };
+        let total_ns = measure(iterations, || {
+            let _ = to_toon(&doc, &ToToonConfig::default());
+        });
+        add_perf(
+            &format!("toon_serialize_integers_{count}"),
+            iterations,
+            total_ns,
+            Some(toon_output.len() as u64),
         );
     }
 
@@ -299,7 +756,7 @@ fn bench_export(c: &mut Criterion) {
                     TableCell::String(format!("{:.2}", m.hedl_parse_ns as f64 / 1000.0)),
                     TableCell::String(format!("{:.2}", m.toon_conversion_ns as f64 / 1000.0)),
                     TableCell::String(format!("{:.2}", total_time_us as f64)),
-                    TableCell::String(format!("{:.2}", throughput)),
+                    TableCell::String(format!("{throughput:.2}")),
                 ]);
             }
             report.add_custom_table(conv_perf_table);
@@ -336,8 +793,8 @@ fn bench_export(c: &mut Criterion) {
                     TableCell::String(m.dataset_name.clone()),
                     TableCell::String(format!("{}", m.hedl_bytes)),
                     TableCell::String(format!("{}", m.toon_bytes)),
-                    TableCell::String(format!("{:.2}x", ratio)),
-                    TableCell::String(format!("{:+}", diff)),
+                    TableCell::String(format!("{ratio:.2}x")),
+                    TableCell::String(format!("{diff:+}")),
                     TableCell::String(winner),
                     TableCell::String(format!("{:.1}%", savings.abs())),
                 ]);
@@ -374,8 +831,8 @@ fn bench_export(c: &mut Criterion) {
                     TableCell::String(m.dataset_name.clone()),
                     TableCell::String(format!("{}", m.hedl_tokens)),
                     TableCell::String(format!("{}", m.toon_tokens)),
-                    TableCell::String(format!("{:.3}x", token_ratio)),
-                    TableCell::String(format!("{:+}", token_diff)),
+                    TableCell::String(format!("{token_ratio:.3}x")),
+                    TableCell::String(format!("{token_diff:+}")),
                     TableCell::String(cost_impact),
                 ]);
             }
@@ -577,7 +1034,7 @@ fn bench_export(c: &mut Criterion) {
             // Size comparison insight (measured)
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!("Size Comparison: {:.2}x ratio", avg_size_ratio),
+                title: format!("Size Comparison: {avg_size_ratio:.2}x ratio"),
                 description: "Measured byte size comparison between HEDL and TOON representations".to_string(),
                 data_points: vec![
                     format!("Average TOON/HEDL size ratio: {:.2}x", avg_size_ratio),
@@ -589,7 +1046,7 @@ fn bench_export(c: &mut Criterion) {
             // Conversion performance insight (measured)
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!("Conversion Performance: {:.2}μs avg", avg_conversion_time_us),
+                title: format!("Conversion Performance: {avg_conversion_time_us:.2}μs avg"),
                 description: "Measured HEDL to TOON conversion times".to_string(),
                 data_points: vec![
                     format!("Average conversion time: {:.2}μs", avg_conversion_time_us),
@@ -698,8 +1155,7 @@ fn bench_export(c: &mut Criterion) {
                 category: "finding".to_string(),
                 title: "Parse vs Conversion Time Ratio".to_string(),
                 description: format!(
-                    "HEDL parsing takes {:.2}x the time of TOON conversion on average - parsing is the bottleneck, not conversion",
-                    parse_to_conv_ratio
+                    "HEDL parsing takes {parse_to_conv_ratio:.2}x the time of TOON conversion on average - parsing is the bottleneck, not conversion"
                 ),
                 data_points: vec![
                     format!("Total HEDL parse time: {:.2}ms", total_hedl_time as f64 / 1_000_000.0),
@@ -776,7 +1232,7 @@ fn bench_export(c: &mut Criterion) {
 
             let config = ExportConfig::all();
             if let Err(e) = report.save_all("target/toon_comparison_report", &config) {
-                eprintln!("Warning: Failed to export: {}", e);
+                eprintln!("Warning: Failed to export: {e}");
             } else {
                 println!("\nExported to target/toon_comparison_report.*");
             }
@@ -790,6 +1246,17 @@ criterion_group!(
     bench_hedl_to_toon_flat,
     bench_hedl_to_toon_nested,
     bench_hedl_to_toon_deep,
+    bench_toon_parser_flat,
+    bench_toon_parser_nested,
+    bench_toon_parser_tabular,
+    bench_toon_parser_escaped,
+    bench_toon_roundtrip,
+    // Task 85 serialization benchmarks
+    bench_toon_serialization_tabular,
+    bench_toon_serialization_primitives,
+    bench_toon_serialization_escaped,
+    bench_toon_serialization_floats,
+    bench_toon_serialization_integers,
     bench_export
 );
 criterion_main!(benches);

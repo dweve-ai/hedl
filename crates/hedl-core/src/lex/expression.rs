@@ -30,19 +30,35 @@ use super::span::{SourcePos, Span};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// A literal value: number, string, or boolean.
-    Literal { value: ExprLiteral, span: Span },
+    Literal {
+        /// The literal value.
+        value: ExprLiteral,
+        /// Source span of the literal.
+        span: Span,
+    },
     /// An identifier: `foo`, `bar_baz`.
-    Identifier { name: String, span: Span },
+    Identifier {
+        /// The identifier name.
+        name: String,
+        /// Source span of the identifier.
+        span: Span,
+    },
     /// A function call: `func(arg1, arg2)`.
     Call {
+        /// Function name.
         name: String,
+        /// Function arguments.
         args: Vec<Expression>,
+        /// Source span of the call.
         span: Span,
     },
     /// Field access: `target.field`.
     Access {
+        /// Target expression.
         target: Box<Expression>,
+        /// Field name being accessed.
         field: String,
+        /// Source span of the access.
         span: Span,
     },
 }
@@ -201,8 +217,14 @@ fn extract_expression_content(s: &str) -> Result<String, LexError> {
 }
 
 struct ExprParser {
+    /// Characters for easy parsing.
     chars: Vec<char>,
+    /// Current character position.
     pos: usize,
+    /// Current column (1-indexed).
+    column: usize,
+    /// Starting line number (for embedded expressions).
+    line: usize,
 }
 
 impl ExprParser {
@@ -210,12 +232,23 @@ impl ExprParser {
         Self {
             chars: s.chars().collect(),
             pos: 0,
+            column: 1,
+            line: 1,
         }
+    }
+
+    /// Create a span from start column to current column.
+    fn make_span(&self, start_col: usize) -> Span {
+        Span::new(
+            SourcePos::new(self.line, start_col),
+            SourcePos::new(self.line, self.column),
+        )
     }
 
     fn skip_whitespace(&mut self) {
         while self.pos < self.chars.len() && self.chars[self.pos].is_whitespace() {
             self.pos += 1;
+            self.column += 1;
         }
     }
 
@@ -231,6 +264,7 @@ impl ExprParser {
         if self.pos < self.chars.len() {
             let ch = self.chars[self.pos];
             self.pos += 1;
+            self.column += 1;
             Some(ch)
         } else {
             None
@@ -239,6 +273,7 @@ impl ExprParser {
 
     fn parse_expr(&mut self) -> Result<Expression, LexError> {
         self.skip_whitespace();
+        let expr_start = self.column;
 
         let mut expr = self.parse_atom()?;
 
@@ -262,7 +297,7 @@ impl ExprParser {
                     expr = Expression::Call {
                         name,
                         args,
-                        span: Span::default(), // TODO: Track actual span
+                        span: self.make_span(expr_start),
                     };
                 }
                 Some('.') => {
@@ -273,7 +308,7 @@ impl ExprParser {
                     expr = Expression::Access {
                         target: Box::new(expr),
                         field,
-                        span: Span::default(), // TODO: Track actual span
+                        span: self.make_span(expr_start),
                     };
                 }
                 _ => break,
@@ -285,6 +320,7 @@ impl ExprParser {
 
     fn parse_atom(&mut self) -> Result<Expression, LexError> {
         self.skip_whitespace();
+        let start = self.column;
 
         match self.peek() {
             Some('"') => {
@@ -292,29 +328,27 @@ impl ExprParser {
                 let s = self.parse_string()?;
                 Ok(Expression::Literal {
                     value: ExprLiteral::String(s),
-                    span: Span::default(), // TODO: Track actual span
+                    span: self.make_span(start),
                 })
             }
             Some(ch) if ch.is_ascii_digit() || ch == '-' => {
                 // Number literal (or negative)
-                self.parse_number()
+                self.parse_number_with_start(start)
             }
             Some(ch) if ch.is_ascii_alphabetic() || ch == '_' => {
                 // Identifier or boolean
                 let ident = self.parse_identifier()?;
+                let span = self.make_span(start);
                 match ident.as_str() {
                     "true" => Ok(Expression::Literal {
                         value: ExprLiteral::Bool(true),
-                        span: Span::default(), // TODO: Track actual span
+                        span,
                     }),
                     "false" => Ok(Expression::Literal {
                         value: ExprLiteral::Bool(false),
-                        span: Span::default(), // TODO: Track actual span
+                        span,
                     }),
-                    _ => Ok(Expression::Identifier {
-                        name: ident,
-                        span: Span::default(), // TODO: Track actual span
-                    }),
+                    _ => Ok(Expression::Identifier { name: ident, span }),
                 }
             }
             Some('(') => {
@@ -411,7 +445,7 @@ impl ExprParser {
         }
     }
 
-    fn parse_number(&mut self) -> Result<Expression, LexError> {
+    fn parse_number_with_start(&mut self, start_col: usize) -> Result<Expression, LexError> {
         let mut num_str = String::new();
         let mut has_dot = false;
 
@@ -455,6 +489,8 @@ impl ExprParser {
             }
         }
 
+        let span = self.make_span(start_col);
+
         if has_dot {
             let f: f64 = num_str.parse().map_err(|_| LexError::InvalidToken {
                 message: format!("invalid float: {}", num_str),
@@ -462,7 +498,7 @@ impl ExprParser {
             })?;
             Ok(Expression::Literal {
                 value: ExprLiteral::Float(f),
-                span: Span::default(), // TODO: Track actual span
+                span,
             })
         } else {
             let i: i64 = num_str.parse().map_err(|_| LexError::InvalidToken {
@@ -471,7 +507,7 @@ impl ExprParser {
             })?;
             Ok(Expression::Literal {
                 value: ExprLiteral::Int(i),
-                span: Span::default(), // TODO: Track actual span
+                span,
             })
         }
     }
@@ -740,7 +776,7 @@ mod tests {
     fn test_display_identifier() {
         let expr = Expression::Identifier {
             name: "foo".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(format!("{}", expr), "foo");
     }
@@ -752,14 +788,14 @@ mod tests {
             args: vec![
                 Expression::Identifier {
                     name: "x".to_string(),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 },
                 Expression::Literal {
                     value: ExprLiteral::Int(42),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 },
             ],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(format!("{}", expr), "func(x, 42)");
     }
@@ -769,10 +805,10 @@ mod tests {
         let expr = Expression::Access {
             target: Box::new(Expression::Identifier {
                 name: "user".to_string(),
-                span: Span::default(),
+                span: Span::synthetic(),
             }),
             field: "name".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(format!("{}", expr), "user.name");
     }
@@ -781,7 +817,7 @@ mod tests {
     fn test_display_string_with_quotes() {
         let expr = Expression::Literal {
             value: ExprLiteral::String("say \"hi\"".to_string()),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(format!("{}", expr), "\"say \"\"hi\"\"\"");
     }
@@ -1160,11 +1196,11 @@ mod tests {
                 name: "inner".to_string(),
                 args: vec![Expression::Literal {
                     value: ExprLiteral::Int(42),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 }],
-                span: Span::default(),
+                span: Span::synthetic(),
             }],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(format!("{}", expr), "outer(inner(42))");
     }
@@ -1175,13 +1211,13 @@ mod tests {
             target: Box::new(Expression::Access {
                 target: Box::new(Expression::Identifier {
                     name: "a".to_string(),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 }),
                 field: "b".to_string(),
-                span: Span::default(),
+                span: Span::synthetic(),
             }),
             field: "c".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(format!("{}", expr), "a.b.c");
     }
@@ -1244,11 +1280,11 @@ mod tests {
     fn test_expression_equality() {
         let a = Expression::Identifier {
             name: "foo".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let b = Expression::Identifier {
             name: "foo".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(a, b);
     }
@@ -1259,9 +1295,9 @@ mod tests {
             name: "func".to_string(),
             args: vec![Expression::Literal {
                 value: ExprLiteral::Int(42),
-                span: Span::default(),
+                span: Span::synthetic(),
             }],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let cloned = original.clone();
         assert_eq!(original, cloned);
@@ -1290,7 +1326,7 @@ mod tests {
         let expr = Expression::Call {
             name: "func".to_string(),
             args: vec![],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let debug = format!("{:?}", expr);
         assert!(debug.contains("func"));
@@ -1320,5 +1356,104 @@ mod tests {
     fn test_unclosed_inner_paren() {
         let result = parse_expression("((foo)");
         assert!(result.is_err());
+    }
+
+    // ==================== Span tracking tests ====================
+
+    #[test]
+    fn test_identifier_span() {
+        let expr = parse_expression("foo").unwrap();
+        if let Expression::Identifier { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().line(), 1);
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 4); // "foo" is 3 chars, end is exclusive
+        } else {
+            panic!("expected identifier");
+        }
+    }
+
+    #[test]
+    fn test_identifier_with_leading_whitespace_span() {
+        let expr = parse_expression("  bar").unwrap();
+        if let Expression::Identifier { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 3); // After 2 spaces
+            assert_eq!(span.end().column(), 6);
+        } else {
+            panic!("expected identifier");
+        }
+    }
+
+    #[test]
+    fn test_integer_span() {
+        let expr = parse_expression("12345").unwrap();
+        if let Expression::Literal { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 6);
+        } else {
+            panic!("expected literal");
+        }
+    }
+
+    #[test]
+    fn test_string_span() {
+        let expr = parse_expression("\"hello\"").unwrap();
+        if let Expression::Literal { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 8); // Including quotes
+        } else {
+            panic!("expected literal");
+        }
+    }
+
+    #[test]
+    fn test_call_span() {
+        let expr = parse_expression("func(x, y)").unwrap();
+        if let Expression::Call { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 11);
+        } else {
+            panic!("expected call");
+        }
+    }
+
+    #[test]
+    fn test_access_span() {
+        let expr = parse_expression("a.b").unwrap();
+        if let Expression::Access { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 4);
+        } else {
+            panic!("expected access");
+        }
+    }
+
+    #[test]
+    fn test_boolean_span() {
+        let expr = parse_expression("true").unwrap();
+        if let Expression::Literal { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 5);
+        } else {
+            panic!("expected literal");
+        }
+    }
+
+    #[test]
+    fn test_negative_number_span() {
+        let expr = parse_expression("-42").unwrap();
+        if let Expression::Literal { span, .. } = expr {
+            assert!(!span.is_synthetic());
+            assert_eq!(span.start().column(), 1);
+            assert_eq!(span.end().column(), 4);
+        } else {
+            panic!("expected literal");
+        }
     }
 }

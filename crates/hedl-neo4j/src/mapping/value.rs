@@ -22,13 +22,13 @@ use hedl_core::Value;
 use std::collections::BTreeMap;
 
 use crate::config::ToCypherConfig;
-use crate::cypher::{validate_string_length, CypherValue};
+use crate::cypher::{sanitize_string_value, validate_string_length, CypherValue};
 use crate::error::{Neo4jError, Result};
 
 #[allow(unused_imports)]
 use serde_json;
 
-/// Convert a HEDL Value to a CypherValue.
+/// Convert a HEDL Value to a `CypherValue`.
 ///
 /// # Arguments
 ///
@@ -50,25 +50,30 @@ pub fn value_to_cypher(
         Value::Int(i) => Ok(CypherValue::Int(*i)),
         Value::Float(f) => Ok(CypherValue::Float(*f)),
         Value::String(s) => {
+            // Security: Sanitize string value (normalize Unicode, filter dangerous chars)
+            let sanitized = sanitize_string_value(s);
             // Validate string length before conversion
-            validate_string_length(s, property_name, config)?;
-            Ok(CypherValue::String(s.clone()))
+            validate_string_length(&sanitized, property_name, config)?;
+            Ok(CypherValue::String(sanitized))
         }
         Value::Tensor(t) => tensor_to_cypher(t, property_name, config),
         Value::Reference(r) => {
             // References are handled separately in relationship generation
             // Here we just store the reference as a string for property storage
+            // Security: Sanitize reference ID and type name
+            let sanitized_id = sanitize_string_value(&r.id);
             let ref_string = if let Some(type_name) = &r.type_name {
-                format!("@{}:{}", type_name, r.id)
+                let sanitized_type = sanitize_string_value(type_name);
+                format!("@{sanitized_type}:{sanitized_id}")
             } else {
-                format!("@{}", r.id)
+                format!("@{sanitized_id}")
             };
             validate_string_length(&ref_string, property_name, config)?;
             Ok(CypherValue::String(ref_string))
         }
         Value::Expression(e) => {
             // Expressions are stored as strings with $() preserved
-            let expr_string = format!("$({})", e);
+            let expr_string = format!("$({e})");
             validate_string_length(&expr_string, property_name, config)?;
             Ok(CypherValue::String(expr_string))
         }
@@ -104,9 +109,9 @@ fn tensor_to_json(tensor: &Tensor) -> Result<String> {
     serde_json::to_string(&json_value).map_err(Neo4jError::JsonError)
 }
 
-/// Convert a CypherValue back to a HEDL Value.
+/// Convert a `CypherValue` back to a HEDL Value.
 ///
-/// Note: CypherValue::List and CypherValue::Map are converted to strings
+/// Note: `CypherValue::List` and `CypherValue::Map` are converted to strings
 /// since HEDL Value does not have List/Object variants.
 pub fn cypher_to_value(value: &CypherValue) -> Result<Value> {
     Ok(match value {
@@ -123,18 +128,18 @@ pub fn cypher_to_value(value: &CypherValue) -> Result<Value> {
                 // This might be a tensor
                 parse_tensor_string(s)?
             } else {
-                Value::String(s.clone())
+                Value::String(s.clone().into())
             }
         }
         CypherValue::List(items) => {
             // Convert list to JSON string since Value doesn't have List variant
             let json = serde_json::to_string(items).map_err(Neo4jError::JsonError)?;
-            Value::String(json)
+            Value::String(json.into())
         }
         CypherValue::Map(map) => {
             // Convert map to JSON string since Value doesn't have Object variant
             let json = serde_json::to_string(map).map_err(Neo4jError::JsonError)?;
-            Value::String(json)
+            Value::String(json.into())
         }
     })
 }
@@ -144,13 +149,13 @@ fn parse_reference_string(s: &str) -> Value {
     let s = s.trim_start_matches('@');
     if let Some((type_name, id)) = s.split_once(':') {
         Value::Reference(hedl_core::Reference {
-            type_name: Some(type_name.to_string()),
-            id: id.to_string(),
+            type_name: Some(type_name.to_string().into()),
+            id: id.to_string().into(),
         })
     } else {
         Value::Reference(hedl_core::Reference {
             type_name: None,
-            id: s.to_string(),
+            id: s.to_string().into(),
         })
     }
 }
@@ -158,8 +163,8 @@ fn parse_reference_string(s: &str) -> Value {
 /// Parse a tensor string like "[1, 2, 3]".
 fn parse_tensor_string(s: &str) -> Result<Value> {
     match hedl_core::lex::parse_tensor(s) {
-        Ok(tensor) => Ok(Value::Tensor(tensor)),
-        Err(_) => Ok(Value::String(s.to_string())),
+        Ok(tensor) => Ok(Value::Tensor(Box::new(tensor))),
+        Err(_) => Ok(Value::String(s.to_string().into())),
     }
 }
 
@@ -204,7 +209,7 @@ mod tests {
             CypherValue::Float(3.25)
         );
         assert_eq!(
-            value_to_cypher(&Value::String("hello".to_string()), "field", &config).unwrap(),
+            value_to_cypher(&Value::String("hello".to_string().into()), "field", &config).unwrap(),
             CypherValue::String("hello".to_string())
         );
     }
@@ -213,8 +218,8 @@ mod tests {
     fn test_value_to_cypher_reference() {
         let config = ToCypherConfig::default();
         let ref_with_type = Value::Reference(Reference {
-            type_name: Some("User".to_string()),
-            id: "alice".to_string(),
+            type_name: Some("User".to_string().into()),
+            id: "alice".to_string().into(),
         });
         assert_eq!(
             value_to_cypher(&ref_with_type, "author", &config).unwrap(),
@@ -223,7 +228,7 @@ mod tests {
 
         let ref_without_type = Value::Reference(Reference {
             type_name: None,
-            id: "bob".to_string(),
+            id: "bob".to_string().into(),
         });
         assert_eq!(
             value_to_cypher(&ref_without_type, "ref", &config).unwrap(),
@@ -255,7 +260,7 @@ mod tests {
     #[test]
     fn test_value_to_cypher_tensor() {
         let config = ToCypherConfig::default();
-        let tensor = Value::Tensor(hedl_core::lex::parse_tensor("[1, 2, 3]").unwrap());
+        let tensor = Value::Tensor(Box::new(hedl_core::lex::parse_tensor("[1, 2, 3]").unwrap()));
         let result = value_to_cypher(&tensor, "data", &config).unwrap();
         if let CypherValue::String(s) = result {
             assert!(s.contains('1'));
@@ -283,7 +288,7 @@ mod tests {
         );
         assert_eq!(
             cypher_to_value(&CypherValue::String("hello".to_string())).unwrap(),
-            Value::String("hello".to_string())
+            Value::String("hello".to_string().into())
         );
     }
 
@@ -291,8 +296,8 @@ mod tests {
     fn test_cypher_to_value_reference_string() {
         let result = cypher_to_value(&CypherValue::String("@User:alice".to_string())).unwrap();
         if let Value::Reference(r) = result {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "alice");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
+            assert_eq!(r.id.as_ref(), "alice");
         } else {
             panic!("Expected reference value");
         }
@@ -315,17 +320,17 @@ mod tests {
 
         assert_eq!(
             result.get("name"),
-            Some(&Value::String("Alice".to_string()))
+            Some(&Value::String("Alice".to_string().into()))
         );
 
         // Dot-notation properties are kept as-is
         assert_eq!(
             result.get("address.city"),
-            Some(&Value::String("NYC".to_string()))
+            Some(&Value::String("NYC".to_string().into()))
         );
         assert_eq!(
             result.get("address.zip"),
-            Some(&Value::String("10001".to_string()))
+            Some(&Value::String("10001".to_string().into()))
         );
     }
 
@@ -333,8 +338,8 @@ mod tests {
     fn test_parse_reference_string() {
         let result = parse_reference_string("@User:alice");
         if let Value::Reference(r) = result {
-            assert_eq!(r.type_name, Some("User".to_string()));
-            assert_eq!(r.id, "alice");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
+            assert_eq!(r.id.as_ref(), "alice");
         } else {
             panic!("Expected reference");
         }
@@ -342,7 +347,7 @@ mod tests {
         let result2 = parse_reference_string("@bob");
         if let Value::Reference(r) = result2 {
             assert_eq!(r.type_name, None);
-            assert_eq!(r.id, "bob");
+            assert_eq!(r.id.as_ref(), "bob");
         } else {
             panic!("Expected reference");
         }
@@ -353,11 +358,11 @@ mod tests {
         let config = ToCypherConfig::default().with_max_string_length(100);
 
         // String within limit
-        let short_string = Value::String("short".to_string());
+        let short_string = Value::String("short".to_string().into());
         assert!(value_to_cypher(&short_string, "name", &config).is_ok());
 
         // String exceeding limit
-        let long_string = Value::String("x".repeat(101));
+        let long_string = Value::String("x".repeat(101).into());
         let result = value_to_cypher(&long_string, "description", &config);
         assert!(result.is_err());
         if let Err(Neo4jError::StringLengthExceeded {
@@ -380,16 +385,16 @@ mod tests {
 
         // Short reference
         let short_ref = Value::Reference(Reference {
-            type_name: Some("User".to_string()),
-            id: "alice".to_string(),
+            type_name: Some("User".to_string().into()),
+            id: "alice".to_string().into(),
         });
         assert!(value_to_cypher(&short_ref, "author", &config).is_ok());
 
         // Long reference that exceeds limit
         let long_id = "x".repeat(100);
         let long_ref = Value::Reference(Reference {
-            type_name: Some("User".to_string()),
-            id: long_id,
+            type_name: Some("User".to_string().into()),
+            id: long_id.into(),
         });
         let result = value_to_cypher(&long_ref, "author", &config);
         assert!(result.is_err());
@@ -400,13 +405,14 @@ mod tests {
         let config = ToCypherConfig::default().with_max_string_length(50);
 
         // Small tensor
-        let small_tensor = Value::Tensor(hedl_core::lex::parse_tensor("[1, 2, 3]").unwrap());
+        let small_tensor =
+            Value::Tensor(Box::new(hedl_core::lex::parse_tensor("[1, 2, 3]").unwrap()));
         assert!(value_to_cypher(&small_tensor, "data", &config).is_ok());
 
         // Large tensor that exceeds limit when serialized
-        let large_values: Vec<f64> = (0..1000).map(|i| i as f64).collect();
+        let large_values: Vec<f64> = (0..1000).map(f64::from).collect();
         let large_tensor = Tensor::Array(large_values.iter().map(|&v| Tensor::Scalar(v)).collect());
-        let large_value = Value::Tensor(large_tensor);
+        let large_value = Value::Tensor(Box::new(large_tensor));
         let result = value_to_cypher(&large_value, "bigdata", &config);
         assert!(result.is_err());
     }
@@ -416,7 +422,7 @@ mod tests {
         let config = ToCypherConfig::default().without_string_length_limit();
 
         // Very long string should be OK
-        let huge_string = Value::String("x".repeat(1_000_000));
+        let huge_string = Value::String("x".repeat(1_000_000).into());
         assert!(value_to_cypher(&huge_string, "huge", &config).is_ok());
     }
 }

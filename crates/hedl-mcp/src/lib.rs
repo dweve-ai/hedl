@@ -26,17 +26,31 @@
 //! - **Optimize JSON to HEDL** for token-efficient context injection
 //! - **Get token statistics** comparing HEDL vs JSON representations
 
+#![cfg_attr(not(test), warn(missing_docs))]
+pub mod auth;
+pub mod batch;
+mod batch_executor;
 pub mod cache;
+mod config;
 mod error;
 mod protocol;
 mod rate_limiter;
+mod resource_limits;
 mod server;
 pub mod tools;
 
+pub use auth::*;
+pub use batch::{
+    BatchError, BatchMode, BatchOperation, BatchOperationResult, BatchRequest, BatchResponse,
+    BatchSummary,
+};
+pub use batch_executor::BatchExecutor;
 pub use cache::{CacheStats, OperationCache};
-pub use error::{McpError, McpResult};
+pub use config::{ConfigError, ResourceLimitConfig};
+pub use error::{ErrorCategory, ErrorSeverity, McpError, McpResult};
 pub use protocol::*;
 pub use rate_limiter::RateLimiter;
+pub use resource_limits::*;
 pub use server::{McpServer, McpServerConfig};
 pub use tools::{execute_tool, get_tools};
 

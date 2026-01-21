@@ -36,40 +36,50 @@ const MAX_FFI_INPUT_LEN: usize = 1024 * 1024 * 1024;
 ///
 /// # Arguments
 /// * `input` - Pointer to input string
-/// * `input_len` - Length in bytes, or -1 for null-terminated
+/// * `input_len` - Length in bytes, or exactly -1 for null-terminated
 ///
 /// # Safety
 /// The caller MUST ensure `input_len` matches the actual buffer size.
 /// Passing an incorrect length causes undefined behavior.
+///
+/// # Note
+/// Only -1 is accepted for null-terminated strings. Other negative values
+/// are rejected to prevent potential buffer over-reads.
 pub(crate) unsafe fn get_input_string(
     input: *const c_char,
     input_len: c_int,
 ) -> Result<String, c_int> {
-    if input_len < 0 {
+    if input_len == -1 {
+        // Null-terminated string - use CStr
         match CStr::from_ptr(input).to_str() {
             Ok(s) => Ok(s.to_string()),
             Err(e) => {
-                set_error(&format!("Invalid UTF-8: {}", e));
+                set_error(&format!("Invalid UTF-8: {e}"));
                 Err(HEDL_ERR_INVALID_UTF8)
             }
         }
+    } else if input_len < 0 {
+        // Reject any negative length other than -1
+        set_error(&format!(
+            "Invalid input length: {input_len}. Use -1 for null-terminated strings, or a non-negative byte count"
+        ));
+        Err(HEDL_ERR_INVALID_UTF8)
     } else {
         let len = input_len as usize;
 
         // Sanity check: reject extremely large inputs
         if len > MAX_FFI_INPUT_LEN {
             set_error(&format!(
-                "Input length {} exceeds maximum allowed {}",
-                len, MAX_FFI_INPUT_LEN
+                "Input length {len} exceeds maximum allowed {MAX_FFI_INPUT_LEN}"
             ));
             return Err(HEDL_ERR_INVALID_UTF8);
         }
 
-        let bytes = slice::from_raw_parts(input as *const u8, len);
+        let bytes = slice::from_raw_parts(input.cast::<u8>(), len);
         match std::str::from_utf8(bytes) {
             Ok(s) => Ok(s.to_string()),
             Err(e) => {
-                set_error(&format!("Invalid UTF-8: {}", e));
+                set_error(&format!("Invalid UTF-8: {e}"));
                 Err(HEDL_ERR_INVALID_UTF8)
             }
         }
@@ -88,7 +98,7 @@ pub(crate) unsafe fn allocate_output_string(
             HEDL_OK
         }
         Err(e) => {
-            set_error(&format!("String allocation failed: {}", e));
+            set_error(&format!("String allocation failed: {e}"));
             *out_str = ptr::null_mut();
             err_code
         }

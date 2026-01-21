@@ -23,6 +23,7 @@ use std::collections::BTreeMap;
 /// Document with all scalar value types.
 ///
 /// Tests: null, bool, int, float, string values.
+#[must_use]
 pub fn scalars() -> Document {
     let mut root = BTreeMap::new();
 
@@ -43,15 +44,16 @@ pub fn scalars() -> Document {
     root.insert("float_zero".to_string(), Item::Scalar(Value::Float(0.0)));
     root.insert(
         "string_simple".to_string(),
-        Item::Scalar(Value::String("hello world".to_string())),
+        Item::Scalar(Value::String("hello world".to_string().into())),
     );
     root.insert(
         "string_empty".to_string(),
-        Item::Scalar(Value::String(String::new())),
+        Item::Scalar(Value::String(String::new().into())),
     );
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -62,38 +64,46 @@ pub fn scalars() -> Document {
 /// Document with special string values.
 ///
 /// Tests: quotes, backslashes, newlines, tabs, unicode.
+#[must_use]
 pub fn special_strings() -> Document {
     let mut root = BTreeMap::new();
 
     root.insert(
         "with_quotes".to_string(),
-        Item::Scalar(Value::String("He said \"hello\" and 'goodbye'".to_string())),
+        Item::Scalar(Value::String(
+            "He said \"hello\" and 'goodbye'".to_string().into(),
+        )),
     );
     root.insert(
         "with_backslash".to_string(),
-        Item::Scalar(Value::String("path\\to\\file".to_string())),
+        Item::Scalar(Value::String("path\\to\\file".to_string().into())),
     );
     root.insert(
         "with_newline".to_string(),
-        Item::Scalar(Value::String("line1\nline2\nline3".to_string())),
+        Item::Scalar(Value::String("line1\nline2\nline3".to_string().into())),
     );
     root.insert(
         "with_tab".to_string(),
-        Item::Scalar(Value::String("col1\tcol2\tcol3".to_string())),
+        Item::Scalar(Value::String("col1\tcol2\tcol3".to_string().into())),
     );
     root.insert(
         "with_unicode".to_string(),
-        Item::Scalar(Value::String("日本語 中文 한국어 emoji: 🎉".to_string())),
+        Item::Scalar(Value::String(
+            "日本語 中文 한국어 emoji: 🎉".to_string().into(),
+        )),
     );
     root.insert(
         "with_mixed".to_string(),
         Item::Scalar(Value::String(
-            "It's a \"test\" with\ttabs and\nnewlines".to_string(),
+            "It's a \"test\" with\ttabs and\nnewlines"
+                .to_string()
+                .into(),
         )),
     );
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -104,6 +114,7 @@ pub fn special_strings() -> Document {
 /// Document with reference values.
 ///
 /// Tests: local references, typed references.
+#[must_use]
 pub fn references() -> Document {
     let mut root = BTreeMap::new();
 
@@ -112,7 +123,7 @@ pub fn references() -> Document {
         "local_ref".to_string(),
         Item::Scalar(Value::Reference(Reference {
             type_name: None,
-            id: "some_id".to_string(),
+            id: "some_id".to_string().into(),
         })),
     );
 
@@ -120,13 +131,14 @@ pub fn references() -> Document {
     root.insert(
         "typed_ref".to_string(),
         Item::Scalar(Value::Reference(Reference {
-            type_name: Some("User".to_string()),
-            id: "alice".to_string(),
+            type_name: Some("User".to_string().into()),
+            id: "alice".to_string().into(),
         })),
     );
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -137,32 +149,33 @@ pub fn references() -> Document {
 /// Document with tensor values.
 ///
 /// Tests: 1D tensors, 2D tensors, nested tensors.
+#[must_use]
 pub fn tensors() -> Document {
     let mut root = BTreeMap::new();
 
     // 1D tensor [1.0, 2.0, 3.0]
     root.insert(
         "tensor_1d".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
             Tensor::Scalar(3.0),
-        ]))),
+        ])))),
     );
 
     // 2D tensor (matrix) [[1.0, 2.0], [3.0, 4.0]]
     root.insert(
         "tensor_2d".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
             Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
-        ]))),
+        ])))),
     );
 
     // 3D tensor
     root.insert(
         "tensor_3d".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Array(vec![
                 Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
                 Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
@@ -171,17 +184,18 @@ pub fn tensors() -> Document {
                 Tensor::Array(vec![Tensor::Scalar(5.0), Tensor::Scalar(6.0)]),
                 Tensor::Array(vec![Tensor::Scalar(7.0), Tensor::Scalar(8.0)]),
             ]),
-        ]))),
+        ])))),
     );
 
     // Empty tensor
     root.insert(
         "tensor_empty".to_string(),
-        Item::Scalar(Value::Tensor(Tensor::Array(vec![]))),
+        Item::Scalar(Value::Tensor(Box::new(Tensor::Array(vec![])))),
     );
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -192,17 +206,18 @@ pub fn tensors() -> Document {
 /// Document with multiple scalar types as named values.
 ///
 /// Tests: Various scalar types organized by name.
+#[must_use]
 pub fn named_values() -> Document {
     let mut root = BTreeMap::new();
 
     // Config-style named values
     root.insert(
         "app_name".to_string(),
-        Item::Scalar(Value::String("MyApp".to_string())),
+        Item::Scalar(Value::String("MyApp".to_string().into())),
     );
     root.insert(
         "version".to_string(),
-        Item::Scalar(Value::String("1.0.0".to_string())),
+        Item::Scalar(Value::String("1.0.0".to_string().into())),
     );
     root.insert("debug_mode".to_string(), Item::Scalar(Value::Bool(true)));
     root.insert("max_connections".to_string(), Item::Scalar(Value::Int(100)));
@@ -214,6 +229,7 @@ pub fn named_values() -> Document {
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -224,6 +240,7 @@ pub fn named_values() -> Document {
 /// Document with edge case values.
 ///
 /// Tests: Large numbers, very long strings, extreme floats.
+#[must_use]
 pub fn edge_cases() -> Document {
     let mut root = BTreeMap::new();
 
@@ -244,17 +261,18 @@ pub fn edge_cases() -> Document {
     // Long string
     root.insert(
         "long_string".to_string(),
-        Item::Scalar(Value::String("x".repeat(10000))),
+        Item::Scalar(Value::String("x".repeat(10000).into())),
     );
 
     // String with only special chars
     root.insert(
         "special_only".to_string(),
-        Item::Scalar(Value::String("\n\t\r\\\"'".to_string())),
+        Item::Scalar(Value::String("\n\t\r\\\"'".to_string().into())),
     );
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -265,9 +283,11 @@ pub fn edge_cases() -> Document {
 /// Empty document.
 ///
 /// Tests: Minimal valid document.
+#[must_use]
 pub fn empty() -> Document {
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),

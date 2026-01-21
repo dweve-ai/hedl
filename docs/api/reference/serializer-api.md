@@ -59,6 +59,24 @@ let config = CanonicalConfig::new()
 let canonical = canonicalize_with_config(&doc, &config)?;
 ```
 
+### Count Hints
+
+Count hints are automatically managed during canonicalization for matrix lists. If you need to work with count hints directly, use the `hedl-c14n` crate:
+
+```rust
+use hedl_c14n::add_count_hints;
+
+let mut doc = hedl::parse("%VERSION: 1.0\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob")?;
+
+// Add count hints to all matrix lists
+add_count_hints(&mut doc);
+
+let canonical = hedl::canonicalize(&doc)?;
+// Output includes count: users: @User[2]
+```
+
+For most use cases, count hints are handled automatically during serialization. The `add_count_hints()` function is available directly from `hedl-c14n` crate if needed.
+
 ## JSON Conversion
 
 ### to_json
@@ -192,15 +210,15 @@ Convert document to YAML.
 
 ```rust
 #[cfg(feature = "yaml")]
-pub fn to_yaml(doc: &Document, config: &ToYamlConfig) -> Result<String, YamlError>
+pub fn to_yaml(doc: &Document, config: &ToYamlConfig) -> Result<String, String>
 ```
 
 **Example:**
 ```rust
 #[cfg(feature = "yaml")]
 {
-    use hedl::yaml::{to_yaml, YamlError};
-    let config = hedl::yaml::ToYamlConfig::default();
+    use hedl::yaml::{to_yaml, ToYamlConfig};
+    let config = ToYamlConfig::default();
     let yaml = to_yaml(&doc, &config)?;
 }
 ```
@@ -211,7 +229,7 @@ Convert YAML to HEDL document.
 
 ```rust
 #[cfg(feature = "yaml")]
-pub fn from_yaml(yaml: &str, config: &FromYamlConfig) -> Result<Document, YamlError>
+pub fn from_yaml(yaml: &str, config: &FromYamlConfig) -> Result<Document, String>
 ```
 
 ## XML Conversion (Feature-Gated)
@@ -309,7 +327,10 @@ Export to Parquet binary format.
 
 ```rust
 #[cfg(feature = "parquet")]
-pub fn to_parquet_bytes(doc: &Document, config: &ToParquetConfig) -> Result<Vec<u8>, ParquetError>
+pub fn to_parquet_bytes(doc: &Document) -> Result<Vec<u8>, HedlError>
+
+#[cfg(feature = "parquet")]
+pub fn to_parquet_bytes_with_config(doc: &Document, config: &ToParquetConfig) -> Result<Vec<u8>, HedlError>
 ```
 
 ### from_parquet_bytes
@@ -318,7 +339,7 @@ Import from Parquet binary.
 
 ```rust
 #[cfg(feature = "parquet")]
-pub fn from_parquet_bytes(bytes: &[u8]) -> Result<Document, ParquetError>
+pub fn from_parquet_bytes(bytes: &[u8]) -> Result<Document, HedlError>
 ```
 
 **Parameters:**
@@ -326,19 +347,22 @@ pub fn from_parquet_bytes(bytes: &[u8]) -> Result<Document, ParquetError>
 
 **Returns:**
 - `Ok(Document)`: Converted HEDL document
-- `Err(ParquetError)`: Conversion error
+- `Err(HedlError)`: Conversion error
 
 **Example:**
 ```rust
 #[cfg(feature = "parquet")]
 {
-    use hedl::parquet::{to_parquet_bytes, from_parquet_bytes, ToParquetConfig};
+    use hedl::parquet::{to_parquet_bytes, to_parquet_bytes_with_config, from_parquet_bytes, ToParquetConfig};
     use std::fs;
 
-    // Export
-    let config = ToParquetConfig::default();
-    let bytes = to_parquet_bytes(&doc, &config)?;
+    // Export with default config
+    let bytes = to_parquet_bytes(&doc)?;
     fs::write("data.parquet", bytes)?;
+
+    // Export with custom config
+    let config = ToParquetConfig::default();
+    let bytes = to_parquet_bytes_with_config(&doc, &config)?;
 
     // Import
     let bytes = fs::read("data.parquet")?;
@@ -434,9 +458,10 @@ pub fn to_toon(
 
 ```rust
 pub struct ToJsonConfig {
-    pub include_metadata: bool,    // Include HEDL metadata in output
+    pub include_metadata: bool,    // Include HEDL metadata (__type__, __schema__)
     pub flatten_lists: bool,       // Flatten matrix lists to arrays
     pub include_children: bool,    // Include nested children
+    pub ascii_safe: bool,          // Escape all non-ASCII as \uXXXX
 }
 ```
 
@@ -450,6 +475,13 @@ pub struct FromJsonConfig {
     pub max_array_size: Option<usize>,   // Maximum array size
     pub max_string_length: Option<usize>, // Maximum string length
     pub max_object_size: Option<usize>,  // Maximum object size
+    pub surrogate_policy: SurrogatePolicy, // Policy for unpaired UTF-16 surrogates
+}
+
+pub enum SurrogatePolicy {
+    Reject,          // Reject unpaired surrogates with error (default)
+    ReplaceWithFFFD, // Replace with U+FFFD
+    Skip,            // Skip/remove silently
 }
 ```
 

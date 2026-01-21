@@ -17,7 +17,7 @@
 
 //! Token counting utilities for comparing HEDL efficiency vs other formats.
 //!
-//! Uses tiktoken-rs for accurate GPT-4 (cl100k_base) tokenization.
+//! Uses tiktoken-rs for accurate GPT-4 (`cl100k_base`) tokenization.
 
 use hedl_core::Document;
 use hedl_json::{to_json, ToJsonConfig};
@@ -80,9 +80,10 @@ pub struct TokenStats {
 
 impl TokenStats {
     /// Create a summary report as a formatted string showing ALL formats.
+    #[must_use]
     pub fn report(&self) -> String {
         format!(
-            r#"Token Efficiency Report - ALL FORMATS
+            r"Token Efficiency Report - ALL FORMATS
 =======================================
 
 Format          | Bytes    | Tokens   | Bytes/Token | Savings
@@ -102,7 +103,7 @@ HEDL Token Savings Summary:
   vs XML:            {:.1}%
   vs TOON:           {:.1}%
   vs CSV:            {:.1}%
-"#,
+",
             self.hedl_bytes,
             self.hedl_tokens,
             self.hedl_bytes_per_token,
@@ -140,7 +141,7 @@ HEDL Token Savings Summary:
     }
 }
 
-/// Count tokens in a text string using GPT-4's cl100k_base tokenizer.
+/// Count tokens in a text string using GPT-4's `cl100k_base` tokenizer.
 ///
 /// # Example
 ///
@@ -177,6 +178,7 @@ pub fn count_tokens(text: &str) -> usize {
 ///
 /// println!("{}", stats.report());
 /// ```
+#[must_use]
 pub fn compare_formats(doc: &Document) -> TokenStats {
     // Reconstruct HEDL from document
     let hedl = hedl_c14n::canonicalize(doc).unwrap_or_default();
@@ -186,6 +188,7 @@ pub fn compare_formats(doc: &Document) -> TokenStats {
         include_metadata: false,
         flatten_lists: true,
         include_children: true,
+        ascii_safe: false,
     };
     let json_compact = to_json(doc, &json_compact_config).unwrap_or_default();
 
@@ -283,17 +286,18 @@ pub fn compare_formats(doc: &Document) -> TokenStats {
 ///
 /// Convenience function that parses the HEDL first.
 pub fn compare_formats_str(hedl: &str) -> Result<TokenStats, String> {
-    let doc = hedl_core::parse(hedl.as_bytes()).map_err(|e| format!("Parse error: {}", e))?;
+    let doc = hedl_core::parse(hedl.as_bytes()).map_err(|e| format!("Parse error: {e}"))?;
     Ok(compare_formats(&doc))
 }
 
 /// Batch comparison across multiple datasets.
 ///
 /// Returns a summary of token efficiency across all provided documents.
+#[must_use]
 pub fn compare_batch(documents: &[(&str, &Document)]) -> Vec<(String, TokenStats)> {
     documents
         .iter()
-        .map(|(name, doc)| (name.to_string(), compare_formats(doc)))
+        .map(|(name, doc)| ((*name).to_string(), compare_formats(doc)))
         .collect()
 }
 

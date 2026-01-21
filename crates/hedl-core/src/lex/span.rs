@@ -192,6 +192,38 @@ impl Span {
         Self::point(SourcePos::start())
     }
 
+    /// Creates a synthetic span for nodes without source location.
+    ///
+    /// Use this for AST nodes created programmatically or converted from
+    /// other formats (JSON, YAML, etc.) where no source position exists.
+    /// This is semantically equivalent to `Span::default()` but makes
+    /// the intent explicit.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hedl_core::lex::Span;
+    ///
+    /// let span = Span::synthetic();
+    /// assert!(span.is_synthetic());
+    /// ```
+    #[inline]
+    pub const fn synthetic() -> Self {
+        Self {
+            start: SourcePos { line: 0, column: 0 },
+            end: SourcePos { line: 0, column: 0 },
+        }
+    }
+
+    /// Checks if this span is synthetic (has no source location).
+    ///
+    /// Returns true if the span was created with `Span::synthetic()` or
+    /// `Span::default()`, indicating the node has no source position.
+    #[inline]
+    pub const fn is_synthetic(&self) -> bool {
+        self.start.line == 0 && self.start.column == 0 && self.end.line == 0 && self.end.column == 0
+    }
+
     /// Gets the start position (inclusive).
     #[inline]
     pub const fn start(&self) -> SourcePos {
@@ -237,7 +269,10 @@ impl Span {
 
 impl fmt::Display for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_single_line() {
+        // Don't display confusing "0:0-0" for synthetic spans
+        if self.is_synthetic() {
+            write!(f, "<synthetic>")
+        } else if self.is_single_line() {
             write!(
                 f,
                 "{}:{}-{}",
@@ -353,6 +388,36 @@ mod tests {
         let span = Span::default();
         assert_eq!(span.start().line(), 0);
         assert_eq!(span.start().column(), 0);
+        // Default span is synthetic
+        assert!(span.is_synthetic());
+    }
+
+    #[test]
+    fn test_span_synthetic() {
+        let span = Span::synthetic();
+        assert_eq!(span.start().line(), 0);
+        assert_eq!(span.start().column(), 0);
+        assert_eq!(span.end().line(), 0);
+        assert_eq!(span.end().column(), 0);
+        assert!(span.is_synthetic());
+    }
+
+    #[test]
+    fn test_span_is_synthetic_false_for_real_span() {
+        let span = Span::new(SourcePos::new(1, 1), SourcePos::new(1, 5));
+        assert!(!span.is_synthetic());
+    }
+
+    #[test]
+    fn test_span_display_synthetic() {
+        let span = Span::synthetic();
+        assert_eq!(format!("{}", span), "<synthetic>");
+    }
+
+    #[test]
+    fn test_span_default_display_synthetic() {
+        let span = Span::default();
+        assert_eq!(format!("{}", span), "<synthetic>");
     }
 
     #[test]

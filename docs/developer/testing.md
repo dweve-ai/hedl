@@ -62,26 +62,26 @@ HEDL follows comprehensive testing practices:
 hedl/
 ├── crates/
 │   ├── hedl-core/
-│   │   ├── src/
-│   │   │   ├── lib.rs
-│   │   │   └── parser.rs
+│   │   ├── src/                # Unit tests via #[cfg(test)]
 │   │   └── tests/
-│   │       ├── unit/           # Unit tests
-│   │       ├── integration/    # Integration tests
-│   │       └── property/       # Property-based tests
+│   │       ├── conformance/    # Spec compliance tests
+│   │       ├── fuzz/           # Fuzz test targets
+│   │       ├── property/       # Property-based test regressions
+│   │       ├── conformance_tests.rs
+│   │       ├── property_tests.rs
+│   │       ├── stress_tests.rs
+│   │       ├── simd_tests.rs
+│   │       └── validation_rules_tests.rs
 │   ├── hedl-json/
 │   │   └── tests/
-│   │       ├── conversion_tests.rs
-│   │       └── property_tests.rs
+│   │       ├── comprehensive_tests.rs
+│   │       ├── conversion_roundtrip_tests.rs
+│   │       └── ...
+│   ├── hedl-test/              # Shared test fixtures
+│   │   └── src/fixtures/       # Pre-built test documents
 │   └── ...
 ├── tests/
-│   ├── conformance/            # Spec compliance tests
-│   ├── integration/            # Cross-crate integration
-│   └── regression/             # Regression tests
-└── fixtures/
-    ├── examples/               # Example files
-    ├── conformance/            # Spec test cases
-    └── fuzz/                   # Fuzz test corpus
+│   └── conformance/            # Workspace-level conformance tests
 ```
 
 ### Test File Naming
@@ -245,7 +245,7 @@ fn test_value_inference() {
         ("3.14", Value::Float(3.14)),
         ("true", Value::Bool(true)),
         ("null", Value::Null),
-        ("hello", Value::String("hello".to_string())),
+        ("hello", Value::String("hello".into())),
     ];
 
     for (input, expected) in test_cases {
@@ -271,11 +271,12 @@ fn test_infer_value(#[case] input: &str, #[case] expected: Value) {
 // Create test fixture
 fn sample_document() -> Document {
     let mut root = BTreeMap::new();
-    root.insert("name".to_string(), Item::Scalar(Value::String("Alice".to_string())));
+    root.insert("name".to_string(), Item::Scalar(Value::String("Alice".into())));
     root.insert("age".to_string(), Item::Scalar(Value::Int(30)));
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -411,13 +412,14 @@ proptest! {
 use hedl_core::parse;
 use hedl_c14n::canonicalize;
 use hedl_json::{hedl_to_json, json_to_hedl};
+use proptest::prelude::*;
 
 proptest! {
     #[test]
     fn test_canonicalize_roundtrip(doc in arb_document()) {
-        let hedl = canonicalize(&doc)?;
-        let parsed = parse(hedl.as_bytes())?;
-        let hedl2 = canonicalize(&parsed)?;
+        let hedl = canonicalize(&doc).expect("Failed to canonicalize");
+        let parsed = parse(hedl.as_bytes()).expect("Failed to parse");
+        let hedl2 = canonicalize(&parsed).expect("Failed to canonicalize again");
 
         // Canonical form is stable
         prop_assert_eq!(hedl, hedl2);
@@ -425,13 +427,15 @@ proptest! {
 
     #[test]
     fn test_json_roundtrip(doc in arb_document()) {
-        let json = hedl_to_json(&doc)?;
-        let parsed = json_to_hedl(&json)?;
-        let json2 = hedl_to_json(&parsed)?;
+        let json = hedl_to_json(&doc).expect("Failed to convert to JSON");
+        let parsed = json_to_hedl(&json).expect("Failed to convert from JSON");
+        let json2 = hedl_to_json(&parsed).expect("Failed to convert to JSON again");
 
         // JSON roundtrip preserves structure
-        let v1: serde_json::Value = serde_json::from_str(&json)?;
-        let v2: serde_json::Value = serde_json::from_str(&json2)?;
+        let v1: serde_json::Value = serde_json::from_str(&json)
+            .expect("Failed to parse JSON");
+        let v2: serde_json::Value = serde_json::from_str(&json2)
+            .expect("Failed to parse JSON again");
         prop_assert_eq!(v1, v2);
     }
 }
@@ -439,16 +443,19 @@ proptest! {
 
 ### Custom Generators
 
+These are example generator implementations you can use in your tests (not library functions):
+
 ```rust
 use proptest::prelude::*;
 use hedl_core::{Document, Value, Item};
 use std::collections::BTreeMap;
 
-// Generate valid HEDL documents
+// Example: Generate valid HEDL documents
 fn arb_document() -> impl Strategy<Value = Document> {
     prop::collection::btree_map("[a-zA-Z_][a-zA-Z0-9_]*", arb_item(), 0..10)
         .prop_map(|root| Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -464,7 +471,7 @@ fn arb_item() -> impl Strategy<Value = Item> {
 
 fn arb_value() -> impl Strategy<Value = Value> {
     prop_oneof![
-        "[a-zA-Z]+".prop_map(Value::String),
+        "[a-zA-Z]+".prop_map(|s: String| Value::String(s.into())),  // String -> Box<str>
         any::<i64>().prop_map(Value::Int),
         any::<bool>().prop_map(Value::Bool),
         Just(Value::Null),
@@ -527,9 +534,8 @@ use libfuzzer_sys::fuzz_target;
 use hedl_core::parse;
 
 fuzz_target!(|data: &[u8]| {
-    if let Ok(s) = std::str::from_utf8(data) {
-        let _ = parse(s); // Should not panic
-    }
+    // parse() accepts &[u8] directly
+    let _ = parse(data); // Should not panic
 });
 ```
 
@@ -550,7 +556,7 @@ struct HedlInput {
 
 fuzz_target!(|input: HedlInput| {
     let hedl = generate_hedl(&input);
-    let _ = parse(&hedl);
+    let _ = parse(hedl.as_bytes());
 });
 ```
 
@@ -565,10 +571,8 @@ fn test_fuzz_corpus() {
         let path = entry.unwrap().path();
         let data = std::fs::read(&path).unwrap();
 
-        if let Ok(s) = std::str::from_utf8(&data) {
-            // Should not panic
-            let _ = parse(s);
-        }
+        // parse() accepts &[u8] directly
+        let _ = parse(&data);
     }
 }
 ```
@@ -577,57 +581,52 @@ fn test_fuzz_corpus() {
 
 ## Conformance Testing
 
-Verify specification compliance.
+Verify HEDL specification compliance. Tests are in `crates/hedl-core/tests/conformance_tests.rs` and based on Appendix B of the HEDL 1.0 specification.
 
-### Conformance Test Suite
+### Conformance Test Structure
 
 ```rust
-// tests/conformance/mod.rs
-use serde::Deserialize;
+// crates/hedl-core/tests/conformance_tests.rs
+use hedl_core::{parse, HedlErrorKind, Value};
 
-#[derive(Deserialize)]
-struct ConformanceTest {
-    name: String,
-    input: String,
-    expected: ExpectedResult,
+/// B.1.1: Odd indentation -> Syntax Error
+#[test]
+fn test_odd_indentation_error() {
+    let doc = "%VERSION: 1.0\n---\na:\n   b: 1\n"; // 3 spaces
+    let result = parse(doc.as_bytes());
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err.kind, HedlErrorKind::Syntax));
 }
 
-#[derive(Deserialize)]
-enum ExpectedResult {
-    Success { output: serde_json::Value },
-    Error { error_type: String },
+/// B.1.2: Tab character for indentation -> Syntax Error
+#[test]
+fn test_tab_indentation_error() {
+    let doc = "%VERSION: 1.0\n---\na:\n\tb: 1\n"; // tab
+    let result = parse(doc.as_bytes());
+    assert!(result.is_err());
 }
+
+/// B.2.1: Valid matrix list parsing
+#[test]
+fn test_matrix_list_parsing() {
+    let doc = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+    let result = parse(doc.as_bytes());
+    assert!(result.is_ok());
+}
+```
+
+### Unicode Conformance
+
+Unicode-specific tests are in `crates/hedl-core/tests/conformance/unicode.rs`:
+
+```rust
+// Tests for Unicode normalization, emoji handling, RTL text, etc.
+#[test]
+fn test_unicode_normalization() { ... }
 
 #[test]
-fn test_conformance_suite() {
-    let tests: Vec<ConformanceTest> =
-        serde_json::from_str(include_str!("conformance.json")).unwrap();
-
-    for test in tests {
-        verify_conformance(&test);
-    }
-}
-
-fn verify_conformance(test: &ConformanceTest) {
-    let result = parse(&test.input);
-
-    match &test.expected {
-        ExpectedResult::Success { output } => {
-            let doc = result.expect(&format!("Test '{}' should succeed", test.name));
-            let json = to_json(&doc).unwrap();
-            let actual: serde_json::Value = serde_json::from_str(&json).unwrap();
-            assert_eq!(&actual, output, "Test '{}' output mismatch", test.name);
-        }
-        ExpectedResult::Error { error_type } => {
-            assert!(
-                result.is_err(),
-                "Test '{}' should fail with {}",
-                test.name,
-                error_type
-            );
-        }
-    }
-}
+fn test_emoji_in_strings() { ... }
 ```
 
 ---
@@ -680,7 +679,7 @@ fn test_parse_errors() {
 ### Limit Validation
 
 ```rust
-use hedl::{parse_with_limits, ParseOptions, Limits};
+use hedl_core::{parse_with_limits, ParseOptionsBuilder};
 
 #[test]
 fn test_max_depth_limit() {
@@ -689,14 +688,9 @@ fn test_max_depth_limit() {
         input.push_str(&format!("{}level{}: value\n", "  ".repeat(i), i));
     }
 
-    let limits = Limits {
-        max_indent_depth: 100,
-        ..Default::default()
-    };
-    let options = ParseOptions {
-        limits,
-        ..Default::default()
-    };
+    let options = ParseOptionsBuilder::default()
+        .max_depth(100)
+        .build();
 
     let result = parse_with_limits(input.as_bytes(), options);
     assert!(result.is_err());
@@ -709,14 +703,9 @@ fn test_max_total_keys_limit() {
         input.push_str(&format!("key{}: value\n", i));
     }
 
-    let limits = Limits {
-        max_total_keys: 10_000,
-        ..Default::default()
-    };
-    let options = ParseOptions {
-        limits,
-        ..Default::default()
-    };
+    let options = ParseOptionsBuilder::default()
+        .max_total_keys(10_000)
+        .build();
 
     let result = parse_with_limits(input.as_bytes(), options);
     assert!(result.is_err());
@@ -731,9 +720,10 @@ Utilities for writing better tests.
 
 ### Test Utilities
 
+The `hedl-test` crate provides pre-built fixtures and utilities:
+
 ```rust
-// hedl-test provides pre-built fixtures and counting utilities
-use hedl_test::{fixtures, count_nodes, count_references};
+use hedl_test::fixtures;
 
 // Use pre-built fixtures for testing
 let doc = fixtures::scalars();           // All scalar types
@@ -741,7 +731,9 @@ let doc = fixtures::user_list();         // MatrixList with users
 let doc = fixtures::with_references();   // Cross-references
 let doc = fixtures::comprehensive();     // Everything together
 
-// Count utilities for assertions
+// Count utilities (from counts module)
+use hedl_test::{count_nodes, count_references};
+
 let node_count = count_nodes(&doc);
 let ref_count = count_references(&doc);
 ```
@@ -759,9 +751,10 @@ let v = expr_value("count + 1");     // Create Value::Expression
 
 ### Available Fixtures
 
+All fixtures return `Document` instances:
+
 ```rust
-// hedl-test provides pre-built fixtures
-use hedl_test::{fixtures, fixtures_as_hedl};
+use hedl_test::fixtures;
 
 // Access all fixtures
 for (name, fixture_fn) in fixtures::all() {
@@ -769,14 +762,16 @@ for (name, fixture_fn) in fixtures::all() {
     // Test with the fixture document
 }
 
-// Specific fixtures
+// Specific fixtures (all from fixtures module)
 let doc = fixtures::scalars();           // All scalar value types
 let doc = fixtures::user_list();         // MatrixList with 3 users
 let doc = fixtures::with_nest();         // Nested relationships
 let doc = fixtures::with_references();   // Cross-entity references
 let doc = fixtures::comprehensive();     // Full feature coverage
 
-// Get fixtures as HEDL text
+// Get fixtures as HEDL text (requires hedl-c14n)
+use hedl_test::fixtures_as_hedl;
+
 for (name, hedl_text) in fixtures_as_hedl() {
     // Test with HEDL text representation
 }

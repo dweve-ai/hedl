@@ -46,10 +46,11 @@
 //!
 //! - **Stack Overflow Protection**: Depth limit prevents malicious deeply-nested documents
 //! - **Injection Prevention**: Comprehensive string escaping and quoting
-//! - **Resource Limits**: Bounded recursion prevents DoS attacks
+//! - **Resource Limits**: Bounded recursion prevents `DoS` attacks
 
 use crate::error::{Result, ToonError, MAX_NESTING_DEPTH};
 use hedl_core::{Document, Item, MatrixList, Node, Value};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -74,7 +75,7 @@ use std::sync::OnceLock;
 /// # Performance
 ///
 /// - Lazy initialization with `OnceLock` ensures one-time setup cost
-/// - HashMap provides O(1) average lookup time
+/// - `HashMap` provides O(1) average lookup time
 /// - Case-insensitive matching for robustness
 ///
 /// # Examples
@@ -189,7 +190,7 @@ fn irregular_plurals() -> &'static HashMap<&'static str, &'static str> {
 ///
 /// # Performance
 ///
-/// - O(1) for irregular forms (HashMap lookup)
+/// - O(1) for irregular forms (`HashMap` lookup)
 /// - O(n) for regular forms (string allocation, where n = word length)
 /// - Case checking adds negligible overhead
 fn pluralize(singular: &str) -> String {
@@ -201,7 +202,7 @@ fn pluralize(singular: &str) -> String {
     let is_all_upper = singular
         .chars()
         .all(|c| !c.is_alphabetic() || c.is_uppercase());
-    let is_capitalized = singular.chars().next().is_some_and(|c| c.is_uppercase());
+    let is_capitalized = singular.chars().next().is_some_and(char::is_uppercase);
 
     // Check irregular plurals (case-insensitive)
     let lowercase = singular.to_lowercase();
@@ -221,9 +222,9 @@ fn pluralize(singular: &str) -> String {
 
     // Regular plural: just add 's' (preserve case)
     if is_all_upper {
-        format!("{}S", singular)
+        format!("{singular}S")
     } else {
-        format!("{}s", singular)
+        format!("{singular}s")
     }
 }
 
@@ -290,6 +291,7 @@ impl ToToonConfig {
     /// assert_eq!(config.delimiter, Delimiter::Tab);
     /// ```
     #[inline]
+    #[must_use]
     pub fn builder() -> ToToonConfigBuilder {
         ToToonConfigBuilder::new()
     }
@@ -309,7 +311,7 @@ impl ToToonConfig {
     }
 }
 
-/// Builder for creating ToToonConfig with a fluent API.
+/// Builder for creating `ToToonConfig` with a fluent API.
 ///
 /// # Examples
 ///
@@ -344,6 +346,7 @@ impl ToToonConfigBuilder {
     /// - `indent`: 2
     /// - `delimiter`: Comma
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             indent: 2,
@@ -369,6 +372,7 @@ impl ToToonConfigBuilder {
     /// assert_eq!(config.indent, 4);
     /// ```
     #[inline]
+    #[must_use]
     pub fn indent(mut self, indent: usize) -> Self {
         self.indent = indent;
         self
@@ -392,6 +396,7 @@ impl ToToonConfigBuilder {
     /// assert_eq!(config.delimiter, Delimiter::Tab);
     /// ```
     #[inline]
+    #[must_use]
     pub fn delimiter(mut self, delimiter: Delimiter) -> Self {
         self.delimiter = delimiter;
         self
@@ -411,6 +416,7 @@ impl ToToonConfigBuilder {
     /// assert_eq!(config.indent, 2);
     /// ```
     #[inline]
+    #[must_use]
     pub fn build(self) -> ToToonConfig {
         ToToonConfig {
             indent: self.indent,
@@ -530,7 +536,7 @@ impl Delimiter {
 /// # Performance
 ///
 /// - Time Complexity: O(n) where n is total nodes in document
-/// - Space Complexity: O(n) for output lines vector
+/// - Space Complexity: O(n) for output buffer
 ///
 /// # Security
 ///
@@ -540,16 +546,321 @@ pub fn to_toon(doc: &Document, config: &ToToonConfig) -> Result<String> {
     // Validate configuration
     config.validate()?;
 
-    // Pre-allocate lines vector with estimated capacity
-    let estimated_capacity = doc.root.len() * 5; // Estimate ~5 lines per root item
-    let mut lines = Vec::with_capacity(estimated_capacity);
+    // Use ToonWriter for efficient output generation
+    let mut writer = ToonWriter::new(config);
 
     // Encode all root items
     for (key, item) in &doc.root {
-        encode_item(key, item, doc, &mut lines, 0, config)?;
+        encode_item_writer(key, item, doc, &mut writer, 0, config)?;
     }
 
-    Ok(lines.join("\n"))
+    Ok(writer.finish())
+}
+
+/// Efficient TOON output writer that minimizes allocations
+struct ToonWriter {
+    output: String,
+    indent_cache: Vec<String>,
+    indent_size: usize,
+    first_line: bool,
+}
+
+impl ToonWriter {
+    fn new(config: &ToToonConfig) -> Self {
+        // Pre-compute indent strings for common depths (0-10)
+        let mut indent_cache = Vec::with_capacity(11);
+        for i in 0..11 {
+            indent_cache.push(" ".repeat(i * config.indent));
+        }
+        Self {
+            output: String::with_capacity(4096), // Initial capacity
+            indent_cache,
+            indent_size: config.indent,
+            first_line: true,
+        }
+    }
+
+    /// Write an indented line to output
+    #[inline]
+    fn write_line(&mut self, depth: usize, content: &str) {
+        if !self.first_line {
+            self.output.push('\n');
+        }
+        self.first_line = false;
+
+        // Use cached indent if available, otherwise compute
+        if depth < self.indent_cache.len() {
+            self.output.push_str(&self.indent_cache[depth]);
+        } else {
+            let indent = " ".repeat(depth * self.indent_size);
+            self.output.push_str(&indent);
+        }
+        self.output.push_str(content);
+    }
+
+    /// Get the final output string
+    fn finish(self) -> String {
+        self.output
+    }
+}
+
+/// Encode an Item using `ToonWriter` (optimized version)
+fn encode_item_writer(
+    key: &str,
+    item: &Item,
+    doc: &Document,
+    writer: &mut ToonWriter,
+    depth: usize,
+    config: &ToToonConfig,
+) -> Result<()> {
+    // Check depth limit to prevent stack overflow
+    if depth > MAX_NESTING_DEPTH {
+        return Err(ToonError::MaxDepthExceeded {
+            depth,
+            max: MAX_NESTING_DEPTH,
+        });
+    }
+
+    match item {
+        Item::Scalar(value) => {
+            let encoded = encode_value(value, config.delimiter);
+            let mut line = String::with_capacity(key.len() + encoded.len() + 4);
+            let encoded_key = encode_key(key);
+            line.push_str(&encoded_key);
+            line.push_str(": ");
+            line.push_str(&encoded);
+            writer.write_line(depth, &line);
+            Ok(())
+        }
+        Item::Object(map) => {
+            let mut header = encode_key(key);
+            header.push(':');
+            writer.write_line(depth, &header);
+            for (k, v) in map {
+                encode_item_writer(k, v, doc, writer, depth + 1, config)?;
+            }
+            Ok(())
+        }
+        Item::List(matrix_list) => {
+            encode_matrix_list_writer(key, matrix_list, doc, writer, depth, config)
+        }
+    }
+}
+
+/// Encode a `MatrixList` as TOON format using `ToonWriter` (optimized version)
+fn encode_matrix_list_writer(
+    key: &str,
+    list: &MatrixList,
+    doc: &Document,
+    writer: &mut ToonWriter,
+    depth: usize,
+    config: &ToToonConfig,
+) -> Result<()> {
+    // Determine count to use: prefer count_hint if present, otherwise use actual rows length
+    let count = list.count_hint.unwrap_or(list.rows.len());
+
+    if list.rows.is_empty() {
+        // Empty list - simple header without field names
+        let header = format!(
+            "{}[0{}]:",
+            encode_key(key),
+            config.delimiter.bracket_suffix()
+        );
+        writer.write_line(depth, &header);
+        return Ok(());
+    }
+
+    // Check if all values in all rows are primitives AND no children (can use tabular format)
+    let all_primitive = list.rows.iter().all(|node| {
+        node.fields.iter().all(is_primitive_value)
+            && node
+                .children()
+                .map_or(true, std::collections::BTreeMap::is_empty)
+    });
+
+    if all_primitive {
+        // Pure tabular format - build header efficiently
+        let delim_str = config.delimiter.str();
+        let mut header = encode_key(key);
+        header.push('[');
+        header.push_str(&count.to_string());
+        header.push_str(config.delimiter.bracket_suffix());
+        header.push_str("]{");
+
+        // Join field names
+        for (i, field) in list.schema.iter().enumerate() {
+            if i > 0 {
+                header.push_str(delim_str);
+            }
+            header.push_str(&encode_key(field));
+        }
+        header.push_str("}:");
+        writer.write_line(depth, &header);
+
+        // Write data rows efficiently
+        let mut row_buf = String::with_capacity(128);
+        for node in &list.rows {
+            row_buf.clear();
+            for (i, v) in node.fields.iter().enumerate() {
+                if i > 0 {
+                    row_buf.push_str(delim_str);
+                }
+                row_buf.push_str(&encode_value(v, config.delimiter));
+            }
+            writer.write_line(depth + 1, &row_buf);
+        }
+        Ok(())
+    } else {
+        // Expanded format - items have children or complex values
+        let header = format!(
+            "{}[{}{}]:",
+            encode_key(key),
+            count,
+            config.delimiter.bracket_suffix()
+        );
+        writer.write_line(depth, &header);
+
+        for node in &list.rows {
+            encode_node_expanded_writer(&list.schema, node, doc, writer, depth + 1, config)?;
+        }
+        Ok(())
+    }
+}
+
+/// Encode a single Node in expanded format using `ToonWriter`
+fn encode_node_expanded_writer(
+    schema: &[String],
+    node: &Node,
+    doc: &Document,
+    writer: &mut ToonWriter,
+    depth: usize,
+    config: &ToToonConfig,
+) -> Result<()> {
+    // Output fields as key-value pairs
+    // First field gets "- " prefix (list item marker)
+    for (i, (field_name, value)) in schema.iter().zip(node.fields.iter()).enumerate() {
+        let encoded_value = encode_value(value, config.delimiter);
+        if i == 0 {
+            // First field with list item prefix
+            let line = format!("- {}: {}", encode_key(field_name), encoded_value);
+            writer.write_line(depth, &line);
+        } else {
+            // Subsequent fields without prefix
+            let line = format!("{}: {}", encode_key(field_name), encoded_value);
+            writer.write_line(depth + 1, &line);
+        }
+    }
+
+    // Output children as named array fields
+    if let Some(children_map) = node.children() {
+        for (child_type, children) in children_map {
+            // Use pluralized lowercase as field name
+            let field_name = pluralize(&child_type.to_lowercase());
+            encode_child_nodes_writer(
+                &field_name,
+                child_type,
+                children,
+                doc,
+                writer,
+                depth + 1,
+                config,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Encode child nodes as a named field using `ToonWriter`
+fn encode_child_nodes_writer(
+    field_name: &str,
+    type_name: &str,
+    nodes: &[Node],
+    doc: &Document,
+    writer: &mut ToonWriter,
+    depth: usize,
+    config: &ToToonConfig,
+) -> Result<()> {
+    if nodes.is_empty() {
+        let header = format!(
+            "{}[0{}]:",
+            encode_key(field_name),
+            config.delimiter.bracket_suffix()
+        );
+        writer.write_line(depth, &header);
+        return Ok(());
+    }
+
+    // Get schema from document for this type
+    let schema = doc.get_schema(type_name);
+    let schema_vec: Vec<String> = if let Some(s) = schema {
+        s.clone()
+    } else if let Some(first) = nodes.first() {
+        if let Some(s) = doc.get_schema(&first.type_name) {
+            s.clone()
+        } else {
+            (0..first.fields.len())
+                .map(|i| format!("field_{i}"))
+                .collect()
+        }
+    } else {
+        vec![]
+    };
+
+    // Check if all children are primitive (can use tabular)
+    let all_primitive = nodes.iter().all(|n| {
+        n.fields.iter().all(is_primitive_value)
+            && n.children()
+                .map_or(true, std::collections::BTreeMap::is_empty)
+    });
+
+    let count = nodes.len();
+
+    if all_primitive && !schema_vec.is_empty() {
+        // Tabular format for children
+        let delim_str = config.delimiter.str();
+        let mut header = encode_key(field_name);
+        header.push('[');
+        header.push_str(&count.to_string());
+        header.push_str(config.delimiter.bracket_suffix());
+        header.push_str("]{");
+
+        for (i, field) in schema_vec.iter().enumerate() {
+            if i > 0 {
+                header.push_str(delim_str);
+            }
+            header.push_str(&encode_key(field));
+        }
+        header.push_str("}:");
+        writer.write_line(depth, &header);
+
+        let mut row_buf = String::with_capacity(128);
+        for node in nodes {
+            row_buf.clear();
+            for (i, v) in node.fields.iter().enumerate() {
+                if i > 0 {
+                    row_buf.push_str(delim_str);
+                }
+                row_buf.push_str(&encode_value(v, config.delimiter));
+            }
+            writer.write_line(depth + 1, &row_buf);
+        }
+        Ok(())
+    } else {
+        // Non-tabular format - use expanded list item format
+        let header = format!(
+            "{}[{}{}]:",
+            encode_key(field_name),
+            count,
+            config.delimiter.bracket_suffix()
+        );
+        writer.write_line(depth, &header);
+
+        for node in nodes {
+            encode_node_expanded_writer(&schema_vec, node, doc, writer, depth + 1, config)?;
+        }
+        Ok(())
+    }
 }
 
 /// Encode an Item (Scalar, Object, or List)
@@ -574,6 +885,8 @@ pub fn to_toon(doc: &Document, config: &ToToonConfig) -> Result<String> {
 ///
 /// This function enforces depth limits on every recursive call to prevent
 /// stack overflow from malicious deeply-nested documents.
+// Reserved for extended item encoding functionality
+#[allow(dead_code)]
 fn encode_item(
     key: &str,
     item: &Item,
@@ -611,7 +924,7 @@ fn encode_item(
     }
 }
 
-/// Encode a MatrixList as TOON format
+/// Encode a `MatrixList` as TOON format
 ///
 /// This function implements intelligent format selection:
 /// - **Tabular format** when all values are primitives and no children exist
@@ -637,6 +950,8 @@ fn encode_item(
 ///
 /// Returns [`ToonError::MaxDepthExceeded`] if depth exceeds [`MAX_NESTING_DEPTH`]
 /// when encoding nested structures.
+// Reserved for alternative matrix list encoding
+#[allow(dead_code)]
 fn encode_matrix_list(
     key: &str,
     list: &MatrixList,
@@ -661,10 +976,12 @@ fn encode_matrix_list(
 
     // Check if all values in all rows are primitives AND no children (can use tabular format)
     // Per TOON spec: tabular requires "All values are primitives (no nested arrays/objects)"
-    let all_primitive = list
-        .rows
-        .iter()
-        .all(|node| node.fields.iter().all(is_primitive_value) && node.children.is_empty());
+    let all_primitive = list.rows.iter().all(|node| {
+        node.fields.iter().all(is_primitive_value)
+            && node
+                .children()
+                .map_or(true, std::collections::BTreeMap::is_empty)
+    });
 
     if all_primitive {
         // Pure tabular format - all values are primitives with no children
@@ -679,16 +996,17 @@ fn encode_matrix_list(
         lines.push(indented(depth, &header, config));
 
         for node in &list.rows {
-            let values: Vec<String> = node
+            let values: Vec<Cow<'_, str>> = node
                 .fields
                 .iter()
                 .map(|v| encode_value(v, config.delimiter))
                 .collect();
-            lines.push(indented(
-                depth + 1,
-                &values.join(config.delimiter.str()),
-                config,
-            ));
+            let joined: String = values
+                .iter()
+                .map(std::convert::AsRef::as_ref)
+                .collect::<Vec<_>>()
+                .join(config.delimiter.str());
+            lines.push(indented(depth + 1, &joined, config));
         }
         Ok(())
     } else {
@@ -734,6 +1052,8 @@ fn encode_matrix_list(
 ///
 /// Returns [`ToonError::MaxDepthExceeded`] if depth exceeds [`MAX_NESTING_DEPTH`]
 /// when encoding nested children.
+// Reserved for alternative expanded node encoding
+#[allow(dead_code)]
 fn encode_node_expanded(
     schema: &[String],
     node: &Node,
@@ -764,18 +1084,20 @@ fn encode_node_expanded(
     }
 
     // Output children as named array fields
-    for (child_type, children) in &node.children {
-        // Use pluralized lowercase as field name (e.g., "Child" -> "children", "Person" -> "people")
-        let field_name = pluralize(&child_type.to_lowercase());
-        encode_child_nodes_as_field(
-            &field_name,
-            child_type,
-            children,
-            doc,
-            lines,
-            depth + 1,
-            config,
-        )?;
+    if let Some(children_map) = node.children() {
+        for (child_type, children) in children_map {
+            // Use pluralized lowercase as field name (e.g., "Child" -> "children", "Person" -> "people")
+            let field_name = pluralize(&child_type.to_lowercase());
+            encode_child_nodes_as_field(
+                &field_name,
+                child_type,
+                children,
+                doc,
+                lines,
+                depth + 1,
+                config,
+            )?;
+        }
     }
 
     Ok(())
@@ -798,12 +1120,14 @@ fn encode_node_expanded(
 ///
 /// # Notes
 ///
-/// Child nodes don't have count_hint metadata - we use actual length.
+/// Child nodes don't have `count_hint` metadata - we use actual length.
 ///
 /// # Errors
 ///
 /// Returns [`ToonError::MaxDepthExceeded`] if depth exceeds [`MAX_NESTING_DEPTH`]
 /// when encoding nested children.
+// Reserved for alternative child node encoding
+#[allow(dead_code)]
 fn encode_child_nodes_as_field(
     field_name: &str,
     type_name: &str,
@@ -826,13 +1150,13 @@ fn encode_child_nodes_as_field(
     // Get schema from document for this type
     let schema = doc.get_schema(type_name);
     let schema_vec: Vec<String> = if let Some(s) = schema {
-        s.to_vec()
+        s.clone()
     } else if let Some(first) = nodes.first() {
         if let Some(s) = doc.get_schema(&first.type_name) {
-            s.to_vec()
+            s.clone()
         } else {
             (0..first.fields.len())
-                .map(|i| format!("field_{}", i))
+                .map(|i| format!("field_{i}"))
                 .collect()
         }
     } else {
@@ -841,9 +1165,11 @@ fn encode_child_nodes_as_field(
     let field_names: Vec<String> = schema_vec.iter().map(|f| encode_key(f)).collect();
 
     // Check if all children are primitive (can use tabular)
-    let all_primitive = nodes
-        .iter()
-        .all(|n| n.fields.iter().all(is_primitive_value) && n.children.is_empty());
+    let all_primitive = nodes.iter().all(|n| {
+        n.fields.iter().all(is_primitive_value)
+            && n.children()
+                .map_or(true, std::collections::BTreeMap::is_empty)
+    });
 
     // For child nodes, always use actual length (no count_hint available in Vec<Node>)
     let count = nodes.len();
@@ -860,16 +1186,17 @@ fn encode_child_nodes_as_field(
         lines.push(indented(depth, &header, config));
 
         for node in nodes {
-            let values: Vec<String> = node
+            let values: Vec<Cow<'_, str>> = node
                 .fields
                 .iter()
                 .map(|v| encode_value(v, config.delimiter))
                 .collect();
-            lines.push(indented(
-                depth + 1,
-                &values.join(config.delimiter.str()),
-                config,
-            ));
+            let joined: String = values
+                .iter()
+                .map(std::convert::AsRef::as_ref)
+                .collect::<Vec<_>>()
+                .join(config.delimiter.str());
+            lines.push(indented(depth + 1, &joined, config));
         }
         Ok(())
     } else {
@@ -926,7 +1253,7 @@ fn is_primitive_value(value: &Value) -> bool {
     )
 }
 
-/// Encode a HEDL Value to TOON string
+/// Encode a HEDL Value to TOON string (optimized with Cow for zero-allocation fast paths)
 ///
 /// Converts a single HEDL value to its TOON string representation,
 /// applying all necessary normalization rules from the TOON v3.0 spec.
@@ -968,53 +1295,89 @@ fn is_primitive_value(value: &Value) -> bool {
 ///
 /// # Performance
 ///
-/// - O(1) for primitives (null, bool, int, simple floats)
+/// - O(1) for primitives (null, bool, int, simple floats) with zero allocation for literals
 /// - O(n) for strings (where n is string length)
 /// - O(n) for tensors (where n is element count)
-fn encode_value(value: &Value, delimiter: Delimiter) -> String {
+#[inline]
+fn encode_value(value: &Value, delimiter: Delimiter) -> Cow<'static, str> {
     match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => if *b { "true" } else { "false" }.to_string(),
-        Value::Int(i) => i.to_string(),
-        Value::Float(f) => {
-            if f.is_nan() || f.is_infinite() {
-                // Per TOON v3.0 spec: "Non-finite values (NaN, ±Infinity) normalize to null"
-                "null".to_string()
-            } else if *f == 0.0 && f.is_sign_negative() {
-                // Per spec: "-0 becomes 0"
-                "0".to_string()
-            } else {
-                // Per spec: "no exponent notation, no trailing fractional zeros"
-                // "If the fractional part is zero after normalization, emit as an integer"
-                let rounded = f.round();
-                if (*f - rounded).abs() < f64::EPSILON {
-                    // It's effectively an integer
-                    format!("{}", rounded as i64)
-                } else {
-                    // Has fractional part - format without exponent notation
-                    let s = format!("{:.15}", f);
-                    // Trim trailing zeros after decimal point
-                    let s = s.trim_end_matches('0');
-                    let s = s.trim_end_matches('.');
-                    s.to_string()
-                }
-            }
-        }
-        Value::String(s) => encode_string(s, delimiter),
+        Value::Null => Cow::Borrowed("null"),
+        Value::Bool(true) => Cow::Borrowed("true"),
+        Value::Bool(false) => Cow::Borrowed("false"),
+        Value::Int(i) => Cow::Owned(itoa::Buffer::new().format(*i).to_string()),
+        Value::Float(f) => encode_float(*f),
+        Value::String(s) => encode_string_cow(s, delimiter),
         Value::Reference(r) => {
             // References are primitives in TOON - encode as @Type:id string
             let ref_str = r.to_ref_string();
-            encode_string(&ref_str, delimiter)
+            encode_string_cow(&ref_str, delimiter)
         }
         Value::Tensor(t) => {
             // Tensors become inline arrays - flatten to get all values
-            let values: Vec<String> = t.flatten().iter().map(|v| format!("{}", v)).collect();
-            format!("[{}] {}", values.len(), values.join(delimiter.str()))
+            let flattened = t.flatten();
+            let mut buf = String::with_capacity(flattened.len() * 8 + 10);
+            buf.push('[');
+            buf.push_str(itoa::Buffer::new().format(flattened.len()));
+            buf.push_str("] ");
+            let delim_str = delimiter.str();
+            for (i, v) in flattened.iter().enumerate() {
+                if i > 0 {
+                    buf.push_str(delim_str);
+                }
+                buf.push_str(ryu::Buffer::new().format(*v));
+            }
+            Cow::Owned(buf)
         }
         Value::Expression(e) => {
             // Expressions use their Display implementation, wrapped in $()
-            encode_string(&format!("$({})", e), delimiter)
+            encode_string_cow(&format!("$({e})"), delimiter)
         }
+    }
+}
+
+/// Encode a float with TOON v3.0 normalization (optimized)
+#[inline]
+fn encode_float(f: f64) -> Cow<'static, str> {
+    if f.is_nan() || f.is_infinite() {
+        // Per TOON v3.0 spec: "Non-finite values (NaN, ±Infinity) normalize to null"
+        return Cow::Borrowed("null");
+    }
+    if f == 0.0 && f.is_sign_negative() {
+        // Per spec: "-0 becomes 0"
+        return Cow::Borrowed("0");
+    }
+    // Fast path: check if it's a small integer
+    if f.fract() == 0.0 && f >= i64::MIN as f64 && f <= i64::MAX as f64 {
+        return Cow::Owned(itoa::Buffer::new().format(f as i64).to_string());
+    }
+    // Use ryu for fast float formatting then trim trailing zeros
+    let s = ryu::Buffer::new().format(f).to_string();
+    // Handle scientific notation from ryu
+    if s.contains('e') || s.contains('E') {
+        // Fall back to standard formatting without exponent
+        let s = format!("{f:.15}");
+        let s = s.trim_end_matches('0');
+        let s = s.trim_end_matches('.');
+        return Cow::Owned(s.to_string());
+    }
+    // Trim trailing zeros
+    let s = s.trim_end_matches('0');
+    let s = s.trim_end_matches('.');
+    Cow::Owned(s.to_string())
+}
+
+/// Encode a string with Cow optimization - returns borrowed for simple cases
+#[inline]
+fn encode_string_cow(s: &str, delimiter: Delimiter) -> Cow<'static, str> {
+    if needs_quoting(s, delimiter) {
+        let escaped = escape_string(s);
+        let mut result = String::with_capacity(escaped.len() + 2);
+        result.push('"');
+        result.push_str(&escaped);
+        result.push('"');
+        Cow::Owned(result)
+    } else {
+        Cow::Owned(s.to_string())
     }
 }
 
@@ -1042,8 +1405,10 @@ fn encode_value(value: &Value, delimiter: Delimiter) -> String {
 ///
 /// # Performance
 ///
-/// - O(n) for needs_quoting check
-/// - O(n) for escape_string if quoting needed
+/// - O(n) for `needs_quoting` check
+/// - O(n) for `escape_string` if quoting needed
+// Reserved for owned string encoding (see encode_string_cow for zero-copy version)
+#[allow(dead_code)]
 fn encode_string(s: &str, delimiter: Delimiter) -> String {
     if needs_quoting(s, delimiter) {
         format!("\"{}\"", escape_string(s))
@@ -1202,7 +1567,7 @@ fn needs_quoting(s: &str, delimiter: Delimiter) -> bool {
 /// O(n) where n is the string length.
 ///
 /// Note: This function is kept for potential future use and testing.
-/// The inline numeric check in needs_quoting() is optimized for performance.
+/// The inline numeric check in `needs_quoting()` is optimized for performance.
 #[allow(dead_code)]
 fn is_numeric_like(s: &str) -> bool {
     if s.is_empty() {
@@ -1210,7 +1575,7 @@ fn is_numeric_like(s: &str) -> bool {
     }
 
     let bytes = s.as_bytes();
-    let start = if bytes[0] == b'-' { 1 } else { 0 };
+    let start = usize::from(bytes[0] == b'-');
 
     if start >= bytes.len() {
         return false;
@@ -1373,9 +1738,11 @@ fn is_valid_unquoted_key(key: &str) -> bool {
 ///
 /// - O(depth * indent) for space string allocation
 /// - O(n) where n is content length for concatenation
+// Reserved for alternative indentation helper (see LineWriter for streaming version)
+#[allow(dead_code)]
 fn indented(depth: usize, content: &str, config: &ToToonConfig) -> String {
     let indent = " ".repeat(config.indent * depth);
-    format!("{}{}", indent, content)
+    format!("{indent}{content}")
 }
 
 #[cfg(test)]
@@ -1399,7 +1766,7 @@ mod tests {
         assert_eq!(encode_value(&Value::Int(-123), config.delimiter), "-123");
         assert_eq!(encode_value(&Value::Float(3.15), config.delimiter), "3.15");
         assert_eq!(
-            encode_value(&Value::String("hello".to_string()), config.delimiter),
+            encode_value(&Value::String("hello".to_string().into()), config.delimiter),
             "hello"
         );
     }
@@ -1458,31 +1825,34 @@ mod tests {
 
         // Simple string - no quoting
         assert_eq!(
-            encode_value(&Value::String("hello".to_string()), config.delimiter),
+            encode_value(&Value::String("hello".to_string().into()), config.delimiter),
             "hello"
         );
 
         // Empty string - needs quoting
         assert_eq!(
-            encode_value(&Value::String("".to_string()), config.delimiter),
+            encode_value(&Value::String(String::new().into()), config.delimiter),
             "\"\""
         );
 
         // String with colon - needs quoting
         assert_eq!(
-            encode_value(&Value::String("foo:bar".to_string()), config.delimiter),
+            encode_value(
+                &Value::String("foo:bar".to_string().into()),
+                config.delimiter
+            ),
             "\"foo:bar\""
         );
 
         // Boolean-like string - needs quoting
         assert_eq!(
-            encode_value(&Value::String("true".to_string()), config.delimiter),
+            encode_value(&Value::String("true".to_string().into()), config.delimiter),
             "\"true\""
         );
 
         // Numeric-like string - needs quoting
         assert_eq!(
-            encode_value(&Value::String("123".to_string()), config.delimiter),
+            encode_value(&Value::String("123".to_string().into()), config.delimiter),
             "\"123\""
         );
     }
@@ -1492,7 +1862,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "name".to_string(),
-            Item::Scalar(Value::String("test".to_string())),
+            Item::Scalar(Value::String("test".to_string().into())),
         );
         doc.root
             .insert("count".to_string(), Item::Scalar(Value::Int(42)));
@@ -1520,8 +1890,8 @@ mod tests {
             "User",
             "u1",
             vec![
-                Value::String("u1".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("u1".to_string().into()),
+                Value::String("Alice".to_string().into()),
                 Value::Int(30),
             ],
         ));
@@ -1529,8 +1899,8 @@ mod tests {
             "User",
             "u2",
             vec![
-                Value::String("u2".to_string()),
-                Value::String("Bob".to_string()),
+                Value::String("u2".to_string().into()),
+                Value::String("Bob".to_string().into()),
                 Value::Int(25),
             ],
         ));
@@ -1562,16 +1932,16 @@ mod tests {
             "Team",
             "t1",
             vec![
-                Value::String("t1".to_string()),
-                Value::String("Alpha".to_string()),
+                Value::String("t1".to_string().into()),
+                Value::String("Alpha".to_string().into()),
             ],
         ));
         list.add_row(Node::new(
             "Team",
             "t2",
             vec![
-                Value::String("t2".to_string()),
-                Value::String("Beta".to_string()),
+                Value::String("t2".to_string().into()),
+                Value::String("Beta".to_string().into()),
             ],
         ));
 
@@ -1602,7 +1972,7 @@ mod tests {
             "Order",
             "o1",
             vec![
-                Value::String("o1".to_string()),
+                Value::String("o1".to_string().into()),
                 Value::Reference(Reference::qualified("User", "u1")),
                 Value::Float(99.99),
             ],
@@ -1642,14 +2012,15 @@ mod tests {
         assert!(is_primitive_value(&Value::Bool(true)));
         assert!(is_primitive_value(&Value::Int(42)));
         assert!(is_primitive_value(&Value::Float(3.15)));
-        assert!(is_primitive_value(&Value::String("test".to_string())));
+        assert!(is_primitive_value(&Value::String(
+            "test".to_string().into()
+        )));
         assert!(is_primitive_value(&Value::Reference(Reference::local("x"))));
 
         // Tensors are NOT primitives
-        assert!(!is_primitive_value(&Value::Tensor(Tensor::Array(vec![
-            Tensor::Scalar(1.0),
-            Tensor::Scalar(2.0)
-        ]))));
+        assert!(!is_primitive_value(&Value::Tensor(Box::new(
+            Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)])
+        ))));
     }
 
     #[test]
@@ -1669,7 +2040,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "message".to_string(),
-            Item::Scalar(Value::String("Hello\nWorld".to_string())),
+            Item::Scalar(Value::String("Hello\nWorld".to_string().into())),
         );
 
         let config = default_config();
@@ -1701,7 +2072,7 @@ mod tests {
         // Nest 101 levels deep (exceeds MAX_NESTING_DEPTH of 100)
         for i in (0..101).rev() {
             let mut parent = BTreeMap::new();
-            parent.insert(format!("level{}", i), Item::Object(current));
+            parent.insert(format!("level{i}"), Item::Object(current));
             current = parent;
         }
 
@@ -1984,32 +2355,33 @@ mod tests {
             "Parent",
             "p1",
             vec![
-                Value::String("p1".to_string()),
-                Value::String("John".to_string()),
+                Value::String("p1".to_string().into()),
+                Value::String("John".to_string().into()),
             ],
         );
 
         // Add children to parent
-        parent_node.children.insert(
-            "Child".to_string(),
-            vec![
-                Node::new(
-                    "Child",
-                    "c1",
-                    vec![
-                        Value::String("c1".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                ),
-                Node::new(
-                    "Child",
-                    "c2",
-                    vec![
-                        Value::String("c2".to_string()),
-                        Value::String("Bob".to_string()),
-                    ],
-                ),
-            ],
+        parent_node.add_child(
+            "Child",
+            Node::new(
+                "Child",
+                "c1",
+                vec![
+                    Value::String("c1".to_string().into()),
+                    Value::String("Alice".to_string().into()),
+                ],
+            ),
+        );
+        parent_node.add_child(
+            "Child",
+            Node::new(
+                "Child",
+                "c2",
+                vec![
+                    Value::String("c2".to_string().into()),
+                    Value::String("Bob".to_string().into()),
+                ],
+            ),
         );
 
         parent_list.add_row(parent_node);
@@ -2037,32 +2409,33 @@ mod tests {
             "Team",
             "t1",
             vec![
-                Value::String("t1".to_string()),
-                Value::String("Alpha Team".to_string()),
+                Value::String("t1".to_string().into()),
+                Value::String("Alpha Team".to_string().into()),
             ],
         );
 
         // Add people to team
-        team_node.children.insert(
-            "Person".to_string(),
-            vec![
-                Node::new(
-                    "Person",
-                    "p1",
-                    vec![
-                        Value::String("p1".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                ),
-                Node::new(
-                    "Person",
-                    "p2",
-                    vec![
-                        Value::String("p2".to_string()),
-                        Value::String("Bob".to_string()),
-                    ],
-                ),
-            ],
+        team_node.add_child(
+            "Person",
+            Node::new(
+                "Person",
+                "p1",
+                vec![
+                    Value::String("p1".to_string().into()),
+                    Value::String("Alice".to_string().into()),
+                ],
+            ),
+        );
+        team_node.add_child(
+            "Person",
+            Node::new(
+                "Person",
+                "p2",
+                vec![
+                    Value::String("p2".to_string().into()),
+                    Value::String("Bob".to_string().into()),
+                ],
+            ),
         );
 
         team_list.add_row(team_node);
@@ -2123,8 +2496,7 @@ mod tests {
             assert_eq!(
                 pluralize(singular),
                 expected_plural,
-                "Failed to pluralize '{}' correctly",
-                singular
+                "Failed to pluralize '{singular}' correctly"
             );
         }
     }

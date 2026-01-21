@@ -1,32 +1,70 @@
+# =============================================================================
+# HEDL XML - crates/hedl-xml/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-xml"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
-description = "XML conversion for HEDL documents"
+
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL to/from XML conversion"
+documentation = "https://docs.rs/hedl-xml"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
 hedl-core = { workspace = true }
 quick-xml = { workspace = true }
 thiserror = { workspace = true }
-string_cache = "0.8"
-smallvec = "1.13"
-roxmltree = "0.20"
+smallvec = { workspace = true }
+string_cache = "0.9"
+roxmltree = "0.21"
 parking_lot = "0.12"
 
-# Optional async support
-tokio = { version = "1.43", features = ["fs", "io-util"], optional = true }
+tokio = { version = "1.43", features = ["fs", "io-util", "rt"], optional = true }
 
 [dev-dependencies]
 hedl-core = { workspace = true }
 hedl-test = { workspace = true }
-proptest = "1.5"
+proptest = { workspace = true }
 tokio = { version = "1.43", features = ["full", "test-util"] }
 tempfile = "3.14"
 
 [features]
 default = []
 async = ["tokio"]
-

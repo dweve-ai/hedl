@@ -17,7 +17,7 @@
 
 //! Test that generates all fixture files.
 //!
-//! Run with: cargo test -p hedl-test --test generate_fixtures -- --ignored
+//! Run with: cargo test -p hedl-test --test `generate_fixtures` -- --ignored
 
 use hedl_test::fixtures_as_hedl;
 use std::fs;
@@ -30,7 +30,7 @@ fn generate_hedl_fixture_files() {
     fs::create_dir_all(&fixtures_dir).expect("Failed to create fixtures directory");
 
     for (name, hedl_text) in fixtures_as_hedl() {
-        let path = fixtures_dir.join(format!("{}.hedl", name));
+        let path = fixtures_dir.join(format!("{name}.hedl"));
         fs::write(&path, &hedl_text)
             .unwrap_or_else(|_| panic!("Failed to write {}", path.display()));
         println!("Generated: {}", path.display());
@@ -43,9 +43,7 @@ fn verify_fixtures_serialize() {
     for (name, hedl_text) in fixtures_as_hedl() {
         assert!(
             !hedl_text.starts_with("# Error"),
-            "Fixture '{}' failed to serialize: {}",
-            name,
-            hedl_text
+            "Fixture '{name}' failed to serialize: {hedl_text}"
         );
     }
 }

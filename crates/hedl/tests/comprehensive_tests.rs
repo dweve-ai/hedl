@@ -41,6 +41,7 @@ use hedl::{
     HedlError,
     ParseOptions,
     Reference,
+    ReferenceMode,
     Tensor,
     Value,
     // Constants
@@ -85,34 +86,34 @@ fn test_parse_with_key_value() {
 
 #[test]
 fn test_parse_multiple_items() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 name: Alice
 age: 30
 active: true
-"#;
+";
     let doc = parse(input).unwrap();
     assert_eq!(doc.root.len(), 3);
 }
 
 #[test]
 fn test_parse_nested_node() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 user:
   name: Alice
   age: 30
-"#;
+";
     let doc = parse(input).unwrap();
     assert_eq!(doc.root.len(), 1);
 }
 
 #[test]
 fn test_parse_struct_definition() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: User: [id,name,email]
 ---
-"#;
+";
     let doc = parse(input).unwrap();
     assert!(doc.structs.contains_key("User"));
     let user_struct = &doc.structs["User"];
@@ -132,27 +133,27 @@ circle_const: %rate
 
 #[test]
 fn test_parse_matrix_list() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Point: [id,x,y]
 ---
 points: @Point
   | p1, 1, 2
   | p2, 3, 4
   | p3, 5, 6
-"#;
+";
     let doc = parse(input).unwrap();
     assert!(doc.structs.contains_key("Point"));
 }
 
 #[test]
 fn test_parse_reference() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: User: [id,name]
 ---
 users: @User
   | alice, Alice
 friend: @alice
-"#;
+";
     let doc = parse(input).unwrap();
     // Reference should be resolved in strict mode
     assert_eq!(doc.root.len(), 2);
@@ -160,35 +161,35 @@ friend: @alice
 
 #[test]
 fn test_parse_tensor() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 vector: [1, 2, 3]
 matrix: [[1, 2], [3, 4]]
-"#;
+";
     let doc = parse(input).unwrap();
     assert_eq!(doc.root.len(), 2);
 }
 
 #[test]
 fn test_parse_expression() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 formula: $(multiply(add(a, b), c))
-"#;
+";
     let doc = parse(input).unwrap();
     assert_eq!(doc.root.len(), 1);
 }
 
 #[test]
 fn test_parse_ditto_operator() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Product: [id,category,name,price]
 ---
 products: @Product
   | p1, electronics, Phone, 999
   | p2, ^, Laptop, 1499
   | p3, ^, Tablet, 599
-"#;
+";
     let doc = parse(input).unwrap();
     assert!(doc.structs.contains_key("Product"));
 }
@@ -224,10 +225,10 @@ fn test_parse_lenient_minimal() {
 #[test]
 fn test_parse_lenient_unresolved_reference() {
     // In lenient mode, unresolved references become null
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 ref: @nonexistent
-"#;
+";
     let result = parse_lenient(input);
     // Should succeed in lenient mode
     assert!(result.is_ok());
@@ -235,10 +236,10 @@ ref: @nonexistent
 
 #[test]
 fn test_parse_lenient_vs_strict() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 ref: @nonexistent
-"#;
+";
     // Strict mode should fail
     let strict_result = parse(input);
     assert!(strict_result.is_err());
@@ -299,12 +300,12 @@ fn test_canonicalize_deterministic() {
 
 #[test]
 fn test_canonicalize_nested() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 outer:
   z: 3
   a: 1
-"#;
+";
     let doc = parse(input).unwrap();
     let canonical = canonicalize(&doc).unwrap();
     // Nested keys should also be sorted
@@ -348,12 +349,12 @@ fn test_to_json_null() {
 
 #[test]
 fn test_to_json_nested() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 user:
   name: Alice
   age: 30
-"#;
+";
     let doc = parse(input).unwrap();
     let json = to_json(&doc).unwrap();
     assert!(json.contains("\"user\""));
@@ -363,14 +364,14 @@ user:
 
 #[test]
 fn test_to_json_array() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Item: [value]
 ---
 items: @Item
   | one
   | two
   | three
-"#;
+";
     let doc = parse(input).unwrap();
     let json = to_json(&doc).unwrap();
     assert!(json.contains("\"items\""));
@@ -489,7 +490,7 @@ fn test_lint_diagnostic_display() {
     let diagnostics = lint(&doc);
     for d in diagnostics {
         // Verify Display is implemented
-        let _s = format!("{}", d);
+        let _s = format!("{d}");
     }
 }
 
@@ -756,7 +757,7 @@ fn test_value_enum() {
     let _bool = Value::Bool(true);
     let _int = Value::Int(42);
     let _float = Value::Float(3.25);
-    let _str = Value::String("test".to_string());
+    let _str = Value::String("test".to_string().into());
 }
 
 #[test]
@@ -771,26 +772,26 @@ fn test_tensor_type_direct() {
 #[test]
 fn test_reference_type() {
     let r = Reference {
-        type_name: Some("User".to_string()),
-        id: "alice".to_string(),
+        type_name: Some("User".to_string().into()),
+        id: "alice".to_string().into(),
     };
     assert_eq!(r.type_name.as_deref(), Some("User"));
-    assert_eq!(r.id, "alice");
+    assert_eq!(r.id.as_ref(), "alice");
 }
 
 #[test]
 fn test_hedl_error_type() {
     let err = HedlError::syntax("test error".to_string(), 1);
-    let _msg = format!("{}", err);
+    let _msg = format!("{err}");
 }
 
 #[test]
 fn test_parse_options_type() {
     let options = ParseOptions {
-        strict_refs: true,
+        reference_mode: ReferenceMode::Strict,
         ..Default::default()
     };
-    assert!(options.strict_refs);
+    assert_eq!(options.reference_mode, ReferenceMode::Strict);
 }
 
 // =============================================================================
@@ -976,7 +977,7 @@ metadata:
     // Lint
     let diagnostics = lint(&doc);
     for d in &diagnostics {
-        let _msg = format!("{}", d);
+        let _msg = format!("{d}");
     }
 
     // Validate
@@ -1010,14 +1011,14 @@ nested:
 
 #[test]
 fn test_deeply_nested_structure() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 level1:
   level2:
     level3:
       level4:
         value: deep
-"#;
+";
 
     let doc = parse(input).unwrap();
     let json = to_json(&doc).unwrap();
@@ -1029,7 +1030,7 @@ level1:
 
 #[test]
 fn test_multiple_matrix_lists() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Point2D: [id,x,y]
 %STRUCT: Point3D: [id,x,y,z]
 ---
@@ -1040,7 +1041,7 @@ points2d: @Point2D
 points3d: @Point3D
   | q1, 1, 2, 3
   | q2, 4, 5, 6
-"#;
+";
 
     let doc = parse(input).unwrap();
     assert!(doc.structs.contains_key("Point2D"));
@@ -1060,7 +1061,7 @@ fn test_error_messages() {
     let err = parse("invalid document");
     assert!(err.is_err());
     let error = err.unwrap_err();
-    let msg = format!("{}", error);
+    let msg = format!("{error}");
     assert!(!msg.is_empty());
 }
 
@@ -1128,11 +1129,11 @@ fn test_whitespace_handling() {
 
 #[test]
 fn test_comments() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 # This is a comment
 ---
 key: value # inline comment
-"#;
+";
     let doc = parse(input).unwrap();
     assert_eq!(doc.root.len(), 1);
 }

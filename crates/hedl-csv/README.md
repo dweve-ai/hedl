@@ -27,7 +27,7 @@ Bidirectional conversion with comprehensive configuration:
 
 ```toml
 [dependencies]
-hedl-csv = "1.0"
+hedl-csv = "1.2"
 ```
 
 ## Bidirectional Conversion
@@ -37,7 +37,7 @@ hedl-csv = "1.0"
 Convert CSV files into HEDL's typed matrix list structures:
 
 ```rust
-use hedl_csv::{from_csv, FromCsvConfig};
+use hedl_csv::from_csv;
 
 // Parse CSV with automatic type inference
 let csv = r#"id,name,age,active
@@ -46,7 +46,8 @@ bob,Bob Jones,25,false
 carol,Carol White,35,true"#;
 
 // Default configuration (comma delimiter, headers, trimming)
-let doc = from_csv(csv, "User", &["id", "name", "age", "active"])?;
+// Note: schema parameter excludes the 'id' column
+let doc = from_csv(csv, "User", &["name", "age", "active"])?;
 
 // Resulting HEDL structure:
 // users: @User[id, name, age, active]
@@ -64,17 +65,23 @@ Fine-tune parsing with `FromCsvConfig`:
 ```rust
 use hedl_csv::{from_csv_with_config, FromCsvConfig};
 
+let tsv_data = "id\tname\tage\n1\tAlice\t30\n2\tBob\t25";
+
 let config = FromCsvConfig {
     delimiter: b'\t',          // Tab-separated values
-    has_headers: false,        // No header row
+    has_headers: true,         // First row contains headers
     trim: true,                // Trim whitespace
     max_rows: 100_000,         // Security limit (100K rows)
     infer_schema: true,        // Column-level type inference
     sample_rows: 50,           // Sample 50 rows for schema
     list_key: Some("people".to_string()), // Custom key (irregular plural)
+    max_columns: 10_000,       // Maximum columns (default)
+    max_cell_size: 1_048_576,  // Maximum cell size (1MB, default)
+    max_total_size: 104_857_600, // Maximum total size (100MB, default)
+    max_header_size: 1_048_576,  // Maximum header size (1MB, default)
 };
 
-let doc = from_csv_with_config(tsv_data, "Person", &schema, config)?;
+let doc = from_csv_with_config(tsv_data, "Person", &["name", "age"], config)?;
 // List key is "people" instead of default "persons"
 ```
 
@@ -83,22 +90,26 @@ let doc = from_csv_with_config(tsv_data, "Person", &schema, config)?;
 Support for irregular plurals and custom naming conventions:
 
 ```rust
+use hedl_csv::{from_csv, from_csv_with_config, FromCsvConfig};
+
+let csv = "id,name,age\n1,Alice,30\n2,Bob,25";
+
 // Default pluralization: adds 's' to lowercased type name
-let doc = from_csv(csv, "User", schema)?;  // List key: "users"
+let doc = from_csv(csv, "User", &["name", "age"])?;  // List key: "users"
 
 // Custom key for irregular plurals
 let config = FromCsvConfig {
     list_key: Some("people".to_string()),
     ..Default::default()
 };
-let doc = from_csv_with_config(csv, "Person", schema, config)?;  // List key: "people"
+let doc = from_csv_with_config(csv, "Person", &["name", "age"], config)?;  // List key: "people"
 
 // Other irregular plurals
 let config = FromCsvConfig { list_key: Some("children".to_string()), ..Default::default() };
-let doc = from_csv_with_config(csv, "Child", schema, config)?;
+let doc = from_csv_with_config(csv, "Child", &["name", "age"], config)?;
 
 let config = FromCsvConfig { list_key: Some("mice".to_string()), ..Default::default() };
-let doc = from_csv_with_config(csv, "Mouse", schema, config)?;
+let doc = from_csv_with_config(csv, "Mouse", &["name", "age"], config)?;
 ```
 
 ### Streaming Large CSV Files
@@ -118,7 +129,7 @@ let config = FromCsvConfig {
 };
 
 // Streams row-by-row without loading entire file into memory
-let doc = from_csv_reader_with_config(file, "Transaction", &schema, config)?;
+let doc = from_csv_reader_with_config(file, "Transaction", &["amount", "date", "status"], config)?;
 ```
 
 **Memory Usage**: O(1) per row. A 10 GB CSV uses the same memory as a 10 MB CSV—only the current row and output buffer are in memory.
@@ -158,6 +169,14 @@ p3,Doohickey,9.99,200
 use hedl_csv::{to_csv_with_config, ToCsvConfig};
 use csv::QuoteStyle;
 
+let doc = hedl_core::parse(br#"
+%STRUCT: Product: [id, name, price, stock]
+---
+products: @Product
+  | p1, Widget, 19.99, 100
+  | p2, Gadget, 29.99, 50
+"#)?;
+
 let config = ToCsvConfig {
     delimiter: b';',                  // Semicolon delimiter
     include_headers: false,            // No header row
@@ -172,6 +191,8 @@ let csv = to_csv_with_config(&doc, config)?;
 Export only specific matrix lists from multi-list documents:
 
 ```rust
+use hedl_csv::to_csv_list;
+
 let doc = hedl_core::parse(br#"
 users: @User[id, name]
   | alice, Alice
@@ -265,13 +286,15 @@ For automatic column-level type detection:
 ```rust
 use hedl_csv::{from_csv_with_config, FromCsvConfig};
 
+let csv = "id,count,score,active\n1,42,95.5,true\n2,87,88.3,false";
+
 let config = FromCsvConfig {
     infer_schema: true,   // Enable schema inference
     sample_rows: 100,     // Sample first 100 rows
     ..Default::default()
 };
 
-let doc = from_csv_with_config(csv, "Record", &[], config)?;
+let doc = from_csv_with_config(csv, "Record", &["count", "score", "active"], config)?;
 ```
 
 **How it works**:
@@ -291,8 +314,10 @@ let doc = from_csv_with_config(csv, "Record", &[], config)?;
 ```rust
 use hedl_csv::{from_csv, FromCsvConfig};
 
+let csv = "id,value\n1,42\n2,87";
+
 // Default configuration has 1M row limit
-let doc = from_csv(csv, "Record", schema)?;
+let doc = from_csv(csv, "Record", &["value"])?;
 
 // Parsing stops with SecurityLimit error if exceeded:
 // Error: SecurityLimit { limit: 1000000, actual: 1000001 }
@@ -332,9 +357,11 @@ let config = FromCsvConfig {
 Comprehensive error types with context:
 
 ```rust
-use hedl_csv::CsvError;
+use hedl_csv::{from_csv, CsvError};
 
-match from_csv(csv, "User", schema) {
+let csv = "id,name,age\n1,Alice,30";
+
+match from_csv(csv, "User", &["name", "age"]) {
     Ok(doc) => { /* process document */ }
     Err(CsvError::ParseError { line, message }) => {
         eprintln!("CSV parse error at line {}: {}", line, message);
@@ -363,9 +390,13 @@ match from_csv(csv, "User", schema) {
 Add context to errors for better debugging:
 
 ```rust
-let doc = from_csv(csv, "User", schema)
-    .map_err(|e| e.with_context("importing user data"))?;
-// Error: "importing user data: CSV parse error at line 5: unexpected end of record"
+use hedl_csv::from_csv;
+
+let csv = "id,name,age\n1,Alice,30";
+
+let doc = from_csv(csv, "User", &["name", "age"])
+    .map_err(|e| format!("Error importing user data: {}", e))?;
+// Error: "Error importing user data: ..."
 ```
 
 ## Configuration Reference
@@ -376,13 +407,17 @@ let doc = from_csv(csv, "User", schema)
 use hedl_csv::FromCsvConfig;
 
 let config = FromCsvConfig {
-    delimiter: b',',         // Field delimiter (default: comma)
-    has_headers: true,       // First row contains column names (default: true)
-    trim: true,              // Trim whitespace from fields (default: true)
-    max_rows: 1_000_000,     // Maximum rows to process (default: 1M)
-    infer_schema: false,     // Infer column types from samples (default: false)
-    sample_rows: 100,        // Rows to sample for schema inference (default: 100)
-    list_key: None,          // Custom list key (default: type_name.to_lowercase() + "s")
+    delimiter: b',',             // Field delimiter (default: comma)
+    has_headers: true,           // First row contains column names (default: true)
+    trim: true,                  // Trim whitespace from fields (default: true)
+    max_rows: 1_000_000,         // Maximum rows to process (default: 1M)
+    infer_schema: false,         // Infer column types from samples (default: false)
+    sample_rows: 100,            // Rows to sample for schema inference (default: 100)
+    list_key: None,              // Custom list key (default: type_name.to_lowercase() + "s")
+    max_columns: 10_000,         // Maximum columns allowed (default: 10K)
+    max_cell_size: 1_048_576,    // Maximum cell size in bytes (default: 1MB)
+    max_total_size: 104_857_600, // Maximum total size in bytes (default: 100MB)
+    max_header_size: 1_048_576,  // Maximum header size in bytes (default: 1MB)
 };
 ```
 
@@ -391,6 +426,24 @@ let config = FromCsvConfig {
 - `b'\t'` - Tab (TSV)
 - `b';'` - Semicolon (European CSV)
 - `b'|'` - Pipe (database exports)
+
+**Security Limits** (prevent DoS attacks):
+- `max_rows` - Prevents unbounded memory allocation from huge datasets
+- `max_columns` - Prevents column bomb attacks (default: 10K columns)
+- `max_cell_size` - Prevents cell bomb attacks with gigantic fields (default: 1MB per cell)
+- `max_total_size` - Prevents decompression bomb attacks (default: 100MB total)
+- `max_header_size` - Prevents header bomb with enormous column names (default: 1MB header)
+
+**Convenience Methods**:
+```rust
+use hedl_csv::FromCsvConfig;
+
+// For trusted internal data (no limits)
+let config = FromCsvConfig::unlimited();
+
+// For untrusted user input (stricter limits)
+let config = FromCsvConfig::strict();
+```
 
 ### ToCsvConfig
 
@@ -449,7 +502,7 @@ Detailed performance benchmarks are available in the HEDL repository benchmark s
 
 ## Dependencies
 
-- `hedl-core` 1.0 - HEDL parsing and data model
+- `hedl-core` 1.2 - HEDL parsing and data model
 - `csv` 1.3 - High-performance CSV parsing and writing
 - `thiserror` 1.0 - Error type definitions
 

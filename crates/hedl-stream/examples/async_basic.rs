@@ -19,7 +19,7 @@
 //!
 //! Demonstrates async I/O with tokio for processing HEDL documents.
 //!
-//! Run with: cargo run --example async_basic --features async
+//! Run with: cargo run --example `async_basic` --features async
 
 #[cfg(feature = "async")]
 use hedl_stream::{AsyncStreamingParser, NodeEvent};
@@ -29,7 +29,7 @@ use std::io::Cursor;
 #[cfg(feature = "async")]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let input = r#"
+    let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email, active]
 %STRUCT: Order: [id, amount, status]
@@ -42,7 +42,7 @@ users: @User
   | bob, Bob Jones, bob@example.com, true
     | order3, 75.00, delivered
   | carol, Carol White, carol@example.com, false
-"#;
+";
 
     println!("=== Async Streaming HEDL Parser Example ===\n");
 
@@ -63,7 +63,7 @@ users: @User
     while let Some(event) = parser.next_event().await? {
         match event {
             NodeEvent::ListStart { key, type_name, .. } => {
-                println!("📋 List '{}' of type {} started", key, type_name);
+                println!("📋 List '{key}' of type {type_name} started");
             }
             NodeEvent::Node(node) => {
                 if node.type_name == "User" {
@@ -92,15 +92,15 @@ users: @User
             NodeEvent::ListEnd {
                 type_name, count, ..
             } => {
-                println!("✓ List of {} ended ({} items)\n", type_name, count);
+                println!("✓ List of {type_name} ended ({count} items)\n");
             }
             _ => {}
         }
     }
 
     println!("\n=== Summary ===");
-    println!("Total users: {}", user_count);
-    println!("Total orders: {}", order_count);
+    println!("Total users: {user_count}");
+    println!("Total orders: {order_count}");
 
     Ok(())
 }

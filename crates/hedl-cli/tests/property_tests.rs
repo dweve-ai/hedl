@@ -28,6 +28,7 @@ use assert_cmd::Command;
 use hedl_cli::commands::{format, from_json, read_file, to_json, validate};
 use hedl_core::parse;
 use proptest::prelude::*;
+use serial_test::serial;
 use std::fs;
 use tempfile::NamedTempFile;
 
@@ -45,7 +46,7 @@ fn create_temp_file(content: &str, suffix: &str) -> NamedTempFile {
 
 /// Create a HEDL command builder
 fn hedl_cmd() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    Command::new(assert_cmd::cargo::cargo_bin!("hedl"))
 }
 
 // ===== Property-Based Test Generators =====
@@ -59,14 +60,14 @@ fn identifier() -> impl Strategy<Value = String> {
         .prop_filter("Exclude double underscore prefix", |s| !s.starts_with("__"))
 }
 
-/// Generate valid HEDL type names (PascalCase identifiers)
+/// Generate valid HEDL type names (`PascalCase` identifiers)
 fn type_name() -> impl Strategy<Value = String> {
     prop::string::string_regex("[A-Z][a-zA-Z0-9]{0,19}").expect("Failed to create type name regex")
 }
 
 /// Generate valid HEDL string values (escaped quotes and backslashes)
 fn hedl_string() -> impl Strategy<Value = String> {
-    prop::string::string_regex(r#"[a-zA-Z0-9 .,!?()-]{0,100}"#)
+    prop::string::string_regex(r"[a-zA-Z0-9 .,!?()-]{0,100}")
         .expect("Failed to create string regex")
 }
 
@@ -102,7 +103,7 @@ fn multi_field_document() -> impl Strategy<Value = String> {
             let mut unique_key = key.clone();
             let mut counter = 1;
             while !used_keys.insert(unique_key.clone()) {
-                unique_key = format!("{}_{}", key, counter);
+                unique_key = format!("{key}_{counter}");
                 counter += 1;
             }
             doc.push_str(&format!(
@@ -124,10 +125,10 @@ fn integer_document() -> impl Strategy<Value = String> {
             let mut unique_key = key.clone();
             let mut counter = 1;
             while !used_keys.insert(unique_key.clone()) {
-                unique_key = format!("{}_{}", key, counter);
+                unique_key = format!("{key}_{counter}");
                 counter += 1;
             }
-            doc.push_str(&format!("{}: {}\n", unique_key, value));
+            doc.push_str(&format!("{unique_key}: {value}\n"));
         }
         doc
     })
@@ -142,10 +143,10 @@ fn boolean_document() -> impl Strategy<Value = String> {
             let mut unique_key = key.clone();
             let mut counter = 1;
             while !used_keys.insert(unique_key.clone()) {
-                unique_key = format!("{}_{}", key, counter);
+                unique_key = format!("{key}_{counter}");
                 counter += 1;
             }
-            doc.push_str(&format!("{}: {}\n", unique_key, value));
+            doc.push_str(&format!("{unique_key}: {value}\n"));
         }
         doc
     })
@@ -159,17 +160,14 @@ fn matrix_list_document() -> impl Strategy<Value = String> {
         prop::collection::vec((identifier(), hedl_string()), 1..5),
     )
         .prop_map(|(type_name, list_name, rows)| {
-            let mut doc = format!(
-                "%VERSION: 1.0\n---\n{}: @{}[id, name]\n",
-                list_name, type_name
-            );
+            let mut doc = format!("%VERSION: 1.0\n---\n{list_name}: @{type_name}[id, name]\n");
             let mut used_ids = std::collections::HashSet::new();
-            for (id, name) in rows.iter() {
+            for (id, name) in &rows {
                 // Ensure unique row IDs
                 let mut unique_id = id.clone();
                 let mut counter = 1;
                 while !used_ids.insert(unique_id.clone()) {
-                    unique_id = format!("{}_{}", id, counter);
+                    unique_id = format!("{id}_{counter}");
                     counter += 1;
                 }
                 // Quote the name value to handle commas and special characters properly
@@ -192,10 +190,10 @@ fn null_document() -> impl Strategy<Value = String> {
             let mut unique_key = key.clone();
             let mut counter = 1;
             while !used_keys.insert(unique_key.clone()) {
-                unique_key = format!("{}_{}", key, counter);
+                unique_key = format!("{key}_{counter}");
                 counter += 1;
             }
-            doc.push_str(&format!("{}: ~\n", unique_key));
+            doc.push_str(&format!("{unique_key}: ~\n"));
         }
         doc
     })
@@ -217,7 +215,7 @@ fn mixed_document() -> impl Strategy<Value = String> {
                 let mut unique_key = key.clone();
                 let mut counter = 1;
                 while !used_keys.insert(unique_key.clone()) {
-                    unique_key = format!("{}_{}", key, counter);
+                    unique_key = format!("{key}_{counter}");
                     counter += 1;
                 }
                 unique_keys.push(unique_key);
@@ -251,6 +249,7 @@ proptest! {
 
     /// Property: Formatting is idempotent - format(format(x)) == format(x)
     #[test]
+    #[serial]
     fn prop_format_idempotent(doc in simple_hedl_document()) {
         let file1 = create_temp_file(&doc, ".hedl");
         let _file2 = create_temp_file(&doc, ".hedl");
@@ -287,6 +286,7 @@ proptest! {
 
     /// Property: All valid documents can be formatted without errors
     #[test]
+    #[serial]
     fn prop_format_accepts_valid_docs(doc in multi_field_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
@@ -304,6 +304,7 @@ proptest! {
 
     /// Property: Formatted output can be parsed successfully
     #[test]
+    #[serial]
     fn prop_formatted_output_is_parseable(doc in integer_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
@@ -324,6 +325,7 @@ proptest! {
 
     /// Property: Format with ditto flag preserves data
     #[test]
+    #[serial]
     fn prop_format_ditto_preserves_data(doc in boolean_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let out_ditto = create_temp_file("", ".hedl");
@@ -360,6 +362,7 @@ proptest! {
 
     /// Property: Format with counts adds count hints to all lists
     #[test]
+    #[serial]
     fn prop_format_with_counts_adds_hints(doc in matrix_list_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
@@ -377,7 +380,7 @@ proptest! {
         // Count hints should be present in the formatted output
         // Format is: type_name(N): @Type[...]
         prop_assert!(
-            formatted_content.contains("(") && formatted_content.contains("):"),
+            formatted_content.contains('(') && formatted_content.contains("):"),
             "Formatted output missing count hints"
         );
     }
@@ -390,6 +393,7 @@ proptest! {
 
     /// Property: All parseable documents pass validation
     #[test]
+    #[serial]
     fn prop_validate_accepts_parseable(doc in simple_hedl_document()) {
         let file = create_temp_file(&doc, ".hedl");
 
@@ -400,6 +404,7 @@ proptest! {
 
     /// Property: Formatted documents always pass validation
     #[test]
+    #[serial]
     fn prop_formatted_docs_validate(doc in multi_field_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
@@ -419,6 +424,7 @@ proptest! {
 
     /// Property: Validation is consistent across multiple calls
     #[test]
+    #[serial]
     fn prop_validation_is_consistent(doc in integer_document()) {
         let file = create_temp_file(&doc, ".hedl");
 
@@ -440,6 +446,7 @@ proptest! {
 
     /// Property: HEDL -> JSON -> HEDL round-trip preserves data
     #[test]
+    #[serial]
     fn prop_json_roundtrip_preserves_data(doc in simple_hedl_document()) {
         let hedl_file = create_temp_file(&doc, ".hedl");
         let json_file = create_temp_file("", ".json");
@@ -478,6 +485,7 @@ proptest! {
 
     /// Property: JSON conversion produces valid JSON
     #[test]
+    #[serial]
     fn prop_json_conversion_produces_valid_json(doc in multi_field_document()) {
         let hedl_file = create_temp_file(&doc, ".hedl");
         let json_file = create_temp_file("", ".json");
@@ -497,6 +505,7 @@ proptest! {
 
     /// Property: Pretty and compact JSON conversions preserve same data
     #[test]
+    #[serial]
     fn prop_json_pretty_vs_compact(doc in integer_document()) {
         let hedl_file = create_temp_file(&doc, ".hedl");
         let json_pretty = create_temp_file("", ".json");
@@ -541,9 +550,10 @@ proptest! {
 
     /// Property: Invalid syntax produces descriptive errors
     #[test]
+    #[serial]
     fn prop_invalid_syntax_gives_error(key in identifier()) {
         // Create intentionally invalid HEDL (missing space after colon)
-        let invalid_doc = format!("%VERSION: 1.0\n---\n{}:invalid", key);
+        let invalid_doc = format!("%VERSION: 1.0\n---\n{key}:invalid");
         let file = create_temp_file(&invalid_doc, ".hedl");
 
         let result = validate(file.path().to_str().unwrap(), false);
@@ -553,6 +563,7 @@ proptest! {
 
     /// Property: Missing version header produces error
     #[test]
+    #[serial]
     fn prop_missing_version_gives_error(doc in simple_hedl_document()) {
         // Remove version header
         let no_version = doc.replace("%VERSION: 1.0\n", "");
@@ -566,44 +577,67 @@ proptest! {
 
 // ===== Property Tests: File Size Limits =====
 
+/// RAII guard for environment variable cleanup
+/// Ensures env var is always restored/removed even on panic
+struct EnvVarGuard {
+    name: &'static str,
+    original_value: Option<String>,
+}
+
+impl EnvVarGuard {
+    fn new(name: &'static str, value: &str) -> Self {
+        let original_value = std::env::var(name).ok();
+        std::env::set_var(name, value);
+        Self {
+            name,
+            original_value,
+        }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.original_value {
+            Some(val) => std::env::set_var(self.name, val),
+            None => std::env::remove_var(self.name),
+        }
+    }
+}
+
 #[test]
+#[serial]
 fn test_file_size_limit_respected() {
     // Create a document that's just under 1 KB
     let small_doc = format!("%VERSION: 1.0\n---\n{}\n", "a: 1\n".repeat(50));
     let file = create_temp_file(&small_doc, ".hedl");
 
-    // Set very small file size limit (1 KB)
-    std::env::set_var("HEDL_MAX_FILE_SIZE", "1024");
+    // Set very small file size limit (1 KB) - guard ensures cleanup on drop
+    let _guard = EnvVarGuard::new("HEDL_MAX_FILE_SIZE", "1024");
 
     let result = read_file(file.path().to_str().unwrap());
 
     // Should succeed since file is under limit
     assert!(result.is_ok(), "Small file should be readable");
-
-    // Clean up
-    std::env::remove_var("HEDL_MAX_FILE_SIZE");
 }
 
 #[test]
+#[serial]
 fn test_oversized_file_rejected() {
     // Create a document larger than our test limit
     let large_doc = format!("%VERSION: 1.0\n---\n{}\n", "a: 1\n".repeat(1000));
     let file = create_temp_file(&large_doc, ".hedl");
 
-    // Set very small file size limit (100 bytes)
-    std::env::set_var("HEDL_MAX_FILE_SIZE", "100");
+    // Set very small file size limit (100 bytes) - guard ensures cleanup on drop
+    let _guard = EnvVarGuard::new("HEDL_MAX_FILE_SIZE", "100");
 
     let result = read_file(file.path().to_str().unwrap());
 
     // Should fail since file exceeds limit
     assert!(result.is_err(), "Oversized file should be rejected");
     assert!(
-        result.unwrap_err().contains("too large"),
+        result.unwrap_err().to_string().contains("too large"),
         "Error message should mention file size"
     );
-
-    // Clean up
-    std::env::remove_var("HEDL_MAX_FILE_SIZE");
 }
 
 // ===== Property Tests: Special Cases =====
@@ -613,7 +647,9 @@ proptest! {
 
     /// Property: Empty documents (just header) are valid
     #[test]
+    #[serial]
     fn prop_empty_document_is_valid(_seed in any::<u64>()) {
+        // Default file size limit (1GB) is adequate for test documents
         let doc = "%VERSION: 1.0\n---\n";
         let file = create_temp_file(doc, ".hedl");
 
@@ -624,7 +660,9 @@ proptest! {
 
     /// Property: Documents with only null values are valid
     #[test]
+    #[serial]
     fn prop_null_only_document_is_valid(doc in null_document()) {
+        // Default file size limit (1GB) is adequate for test documents
         let file = create_temp_file(&doc, ".hedl");
 
         let result = validate(file.path().to_str().unwrap(), false);
@@ -634,7 +672,9 @@ proptest! {
 
     /// Property: Mixed-type documents are valid
     #[test]
+    #[serial]
     fn prop_mixed_type_document_is_valid(doc in mixed_document()) {
+        // Default file size limit (1GB) is adequate for test documents
         let file = create_temp_file(&doc, ".hedl");
 
         let result = validate(file.path().to_str().unwrap(), false);
@@ -646,10 +686,11 @@ proptest! {
 // ===== Property Tests: Batch Operations =====
 
 #[test]
+#[serial]
 fn test_format_preserves_data_for_all_types() {
     use hedl_cli::commands::format;
 
-    let test_docs = vec![
+    let test_docs = [
         // String document
         "%VERSION: 1.0\n---\nname: \"test\"\n",
         // Integer document
@@ -659,7 +700,7 @@ fn test_format_preserves_data_for_all_types() {
         // Null document
         "%VERSION: 1.0\n---\nvalue: ~\n",
         // Float document
-        "%VERSION: 1.0\n---\npi: 3.14159\n",
+        "%VERSION: 1.0\n---\nvalue: 2.5\n",
     ];
 
     for (i, doc) in test_docs.iter().enumerate() {
@@ -701,6 +742,7 @@ proptest! {
 
     /// Property: CLI format command produces same results as library function
     #[test]
+    #[serial]
     fn prop_cli_format_matches_library(doc in simple_hedl_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let cli_output = create_temp_file("", ".hedl");
@@ -733,6 +775,7 @@ proptest! {
 
     /// Property: CLI validate command agrees with library validation
     #[test]
+    #[serial]
     fn prop_cli_validate_matches_library(doc in multi_field_document()) {
         let file = create_temp_file(&doc, ".hedl");
 
@@ -761,9 +804,9 @@ proptest! {
 
     /// Invariant: parse(canonicalize(parse(x))) == parse(x) for all valid x
     #[test]
+    #[serial]
     fn invariant_parse_canonicalize_parse(doc in simple_hedl_document()) {
-        std::env::set_var("HEDL_MAX_FILE_SIZE", "10000");
-
+        // Default file size limit (1GB) is adequate for test documents
         let file = create_temp_file(&doc, ".hedl");
         let formatted = create_temp_file("", ".hedl");
 
@@ -789,9 +832,9 @@ proptest! {
 
     /// Invariant: Formatting preserves document version
     #[test]
+    #[serial]
     fn invariant_format_preserves_version(doc in simple_hedl_document()) {
-        std::env::set_var("HEDL_MAX_FILE_SIZE", "10000");
-
+        // Default file size limit (1GB) is adequate for test documents
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
 
@@ -817,6 +860,7 @@ proptest! {
 
     /// Invariant: Number of root items is preserved by formatting
     #[test]
+    #[serial]
     fn invariant_format_preserves_item_count(doc in multi_field_document()) {
         let file = create_temp_file(&doc, ".hedl");
         let output = create_temp_file("", ".hedl");
@@ -851,10 +895,12 @@ proptest! {
 
     /// Property: Format performance scales reasonably with document size
     #[test]
+    #[serial]
     fn prop_format_performance_scales(field_count in 1usize..100) {
+        // Default file size limit (1GB) is adequate for test documents
         let mut doc = String::from("%VERSION: 1.0\n---\n");
         for i in 0..field_count {
-            doc.push_str(&format!("field{}: {}\n", i, i));
+            doc.push_str(&format!("field{i}: {i}\n"));
         }
 
         let file = create_temp_file(&doc, ".hedl");

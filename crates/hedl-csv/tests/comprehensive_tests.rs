@@ -21,7 +21,7 @@
 //! - All scalar types (null, bool, int, float, string)
 //! - References (local and qualified)
 //! - Expressions
-//! - Config options (delimiter, headers, trim, quote_style)
+//! - Config options (delimiter, headers, trim, `quote_style`)
 //! - Error handling
 //! - Edge cases and Unicode support
 
@@ -42,7 +42,7 @@ fn test_null_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Null],
+        vec![Value::String("1".to_string().into()), Value::Null],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -57,7 +57,7 @@ fn test_bool_true_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Bool(true)],
+        vec![Value::String("1".to_string().into()), Value::Bool(true)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -72,7 +72,7 @@ fn test_bool_false_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Bool(false)],
+        vec![Value::String("1".to_string().into()), Value::Bool(false)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -87,7 +87,7 @@ fn test_int_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Int(42)],
+        vec![Value::String("1".to_string().into()), Value::Int(42)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -102,7 +102,7 @@ fn test_negative_int_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Int(-123)],
+        vec![Value::String("1".to_string().into()), Value::Int(-123)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -117,7 +117,7 @@ fn test_float_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Float(1.23456)],
+        vec![Value::String("1".to_string().into()), Value::Float(1.23456)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -132,7 +132,7 @@ fn test_negative_float_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Float(-2.5)],
+        vec![Value::String("1".to_string().into()), Value::Float(-2.5)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -148,8 +148,8 @@ fn test_string_to_csv() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("hello world".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String("hello world".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -166,8 +166,8 @@ fn test_empty_string_to_csv() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String(String::new().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -189,7 +189,7 @@ fn test_local_reference_to_csv() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Reference(Reference::local("target")),
         ],
     ));
@@ -207,7 +207,7 @@ fn test_qualified_reference_to_csv() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Reference(Reference::qualified("User", "alice")),
         ],
     ));
@@ -228,7 +228,10 @@ fn test_expression_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), expr_value("add(x, y)")],
+        vec![
+            Value::String("1".to_string().into()),
+            expr_value("add(x, y)"),
+        ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -244,7 +247,7 @@ fn test_complex_expression_to_csv() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             expr_value("divide(multiply(add(a, b), subtract(c, d)), e)"),
         ],
     ));
@@ -270,7 +273,10 @@ fn test_1d_tensor_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Tensor(tensor)],
+        vec![
+            Value::String("1".to_string().into()),
+            Value::Tensor(Box::new(tensor)),
+        ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -290,7 +296,10 @@ fn test_2d_tensor_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Tensor(tensor)],
+        vec![
+            Value::String("1".to_string().into()),
+            Value::Tensor(Box::new(tensor)),
+        ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -310,7 +319,10 @@ fn test_tensor_with_floats_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Tensor(tensor)],
+        vec![
+            Value::String("1".to_string().into()),
+            Value::Tensor(Box::new(tensor)),
+        ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -331,8 +343,8 @@ fn test_tensor_round_trip_1d() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::Tensor(tensor.clone()),
+            Value::String("1".to_string().into()),
+            Value::Tensor(Box::new(tensor.clone())),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -361,8 +373,8 @@ fn test_tensor_round_trip_2d() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::Tensor(tensor.clone()),
+            Value::String("1".to_string().into()),
+            Value::Tensor(Box::new(tensor.clone())),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -420,7 +432,10 @@ fn test_nan_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Float(f64::NAN)],
+        vec![
+            Value::String("1".to_string().into()),
+            Value::Float(f64::NAN),
+        ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -435,7 +450,10 @@ fn test_infinity_to_csv() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Float(f64::INFINITY)],
+        vec![
+            Value::String("1".to_string().into()),
+            Value::Float(f64::INFINITY),
+        ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -451,7 +469,7 @@ fn test_neg_infinity_to_csv() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Float(f64::NEG_INFINITY),
         ],
     ));
@@ -534,7 +552,10 @@ fn test_csv_string_inference() {
     let doc = from_csv(csv_data, "Item", &["value"]).unwrap();
     let list = doc.get("items").unwrap().as_list().unwrap();
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
-    assert_eq!(list.rows[0].fields[1], Value::String("hello".to_string()));
+    assert_eq!(
+        list.rows[0].fields[1],
+        Value::String("hello".to_string().into())
+    );
 }
 
 #[test]
@@ -580,7 +601,7 @@ fn test_csv_local_reference_inference() {
 
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
     if let Value::Reference(r) = &list.rows[0].fields[1] {
-        assert_eq!(r.id, "target");
+        assert_eq!(&*r.id, "target");
         assert_eq!(r.type_name, None);
     } else {
         panic!("Expected reference");
@@ -595,8 +616,8 @@ fn test_csv_qualified_reference_inference() {
 
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
     if let Value::Reference(r) = &list.rows[0].fields[1] {
-        assert_eq!(r.id, "alice");
-        assert_eq!(r.type_name, Some("User".to_string()));
+        assert_eq!(&*r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
     } else {
         panic!("Expected reference");
     }
@@ -640,9 +661,9 @@ fn test_semicolon_delimiter() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("x".to_string()),
-            Value::String("y".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String("x".to_string().into()),
+            Value::String("y".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -662,7 +683,10 @@ fn test_semicolon_delimiter() {
     let doc2 = from_csv_with_config(&csv, "Item", &["a", "b"], config).unwrap();
     let list2 = doc2.get("items").unwrap().as_list().unwrap();
     assert_eq!(list2.rows[0].fields[0], Value::Int(1)); // ID field
-    assert_eq!(list2.rows[0].fields[1], Value::String("x".to_string()));
+    assert_eq!(
+        list2.rows[0].fields[1],
+        Value::String("x".to_string().into())
+    );
 }
 
 #[test]
@@ -676,9 +700,9 @@ fn test_pipe_delimiter() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("x".to_string()),
-            Value::String("y".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String("x".to_string().into()),
+            Value::String("y".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -697,7 +721,10 @@ fn test_pipe_delimiter() {
     let doc2 = from_csv_with_config(&csv, "Item", &["a", "b"], config).unwrap();
     let list2 = doc2.get("items").unwrap().as_list().unwrap();
     assert_eq!(list2.rows[0].fields[0], Value::Int(1)); // ID field
-    assert_eq!(list2.rows[0].fields[1], Value::String("x".to_string()));
+    assert_eq!(
+        list2.rows[0].fields[1],
+        Value::String("x".to_string().into())
+    );
 }
 
 // =============================================================================
@@ -711,7 +738,7 @@ fn test_no_headers_output() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Int(42)],
+        vec![Value::String("1".to_string().into()), Value::Int(42)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -736,7 +763,10 @@ fn test_no_headers_input() {
     assert_eq!(list.rows.len(), 2);
     assert_eq!(list.rows[0].id, "1");
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
-    assert_eq!(list.rows[0].fields[1], Value::String("hello".to_string()));
+    assert_eq!(
+        list.rows[0].fields[1],
+        Value::String("hello".to_string().into())
+    );
 }
 
 // =============================================================================
@@ -753,7 +783,10 @@ fn test_trim_whitespace() {
     let doc = from_csv_with_config(csv_data, "Item", &["value"], config).unwrap();
     let list = doc.get("items").unwrap().as_list().unwrap();
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
-    assert_eq!(list.rows[0].fields[1], Value::String("spaced".to_string()));
+    assert_eq!(
+        list.rows[0].fields[1],
+        Value::String("spaced".to_string().into())
+    );
 }
 
 #[test]
@@ -768,7 +801,7 @@ fn test_no_trim_whitespace() {
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("  spaced  ".to_string())
+        Value::String("  spaced  ".to_string().into())
     );
 }
 
@@ -794,12 +827,12 @@ fn test_round_trip_all_scalar_types() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Null,
             Value::Bool(true),
             Value::Int(42),
             Value::Float(3.25),
-            Value::String("hello".to_string()),
+            Value::String("hello".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -818,7 +851,10 @@ fn test_round_trip_all_scalar_types() {
     assert_eq!(list2.rows[0].fields[2], Value::Bool(true));
     assert_eq!(list2.rows[0].fields[3], Value::Int(42));
     assert_eq!(list2.rows[0].fields[4], Value::Float(3.25));
-    assert_eq!(list2.rows[0].fields[5], Value::String("hello".to_string()));
+    assert_eq!(
+        list2.rows[0].fields[5],
+        Value::String("hello".to_string().into())
+    );
 }
 
 #[test]
@@ -836,7 +872,7 @@ fn test_round_trip_references() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Reference(Reference::local("target")),
             Value::Reference(Reference::qualified("User", "alice")),
         ],
@@ -850,15 +886,15 @@ fn test_round_trip_references() {
 
     assert_eq!(list2.rows[0].fields[0], Value::Int(1)); // ID field (parsed as int by CSV)
     if let Value::Reference(r) = &list2.rows[0].fields[1] {
-        assert_eq!(r.id, "target");
+        assert_eq!(&*r.id, "target");
         assert_eq!(r.type_name, None);
     } else {
         panic!("Expected local reference");
     }
 
     if let Value::Reference(r) = &list2.rows[0].fields[2] {
-        assert_eq!(r.id, "alice");
-        assert_eq!(r.type_name, Some("User".to_string()));
+        assert_eq!(&*r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
     } else {
         panic!("Expected qualified reference");
     }
@@ -872,7 +908,7 @@ fn test_round_trip_expression() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             expr_value("add(multiply(a, b), c)"),
         ],
     ));
@@ -903,7 +939,7 @@ fn test_round_trip_special_floats() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Float(f64::INFINITY),
             Value::Float(f64::NEG_INFINITY),
         ],
@@ -930,8 +966,8 @@ fn test_round_trip_multiple_rows() {
         "Person",
         "p1",
         vec![
-            Value::String("p1".to_string()),
-            Value::String("Alice".to_string()),
+            Value::String("p1".to_string().into()),
+            Value::String("Alice".to_string().into()),
             Value::Int(30),
         ],
     ));
@@ -939,8 +975,8 @@ fn test_round_trip_multiple_rows() {
         "Person",
         "p2",
         vec![
-            Value::String("p2".to_string()),
-            Value::String("Bob".to_string()),
+            Value::String("p2".to_string().into()),
+            Value::String("Bob".to_string().into()),
             Value::Int(25),
         ],
     ));
@@ -948,8 +984,8 @@ fn test_round_trip_multiple_rows() {
         "Person",
         "p3",
         vec![
-            Value::String("p3".to_string()),
-            Value::String("Charlie".to_string()),
+            Value::String("p3".to_string().into()),
+            Value::String("Charlie".to_string().into()),
             Value::Int(35),
         ],
     ));
@@ -1009,8 +1045,8 @@ fn test_string_with_comma() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("hello, world".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String("hello, world".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1025,7 +1061,7 @@ fn test_string_with_comma() {
     );
     assert_eq!(
         list2.rows[0].fields[1],
-        Value::String("hello, world".to_string())
+        Value::String("hello, world".to_string().into())
     );
 }
 
@@ -1042,7 +1078,7 @@ fn test_string_with_quotes() {
     );
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("She said \"Hello\"".to_string())
+        Value::String("She said \"Hello\"".to_string().into())
     );
 }
 
@@ -1057,7 +1093,7 @@ fn test_string_with_newline() {
     );
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("line1\nline2".to_string())
+        Value::String("line1\nline2".to_string().into())
     );
 }
 
@@ -1072,7 +1108,7 @@ fn test_unicode_characters() {
     );
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("Hello 世界 🌍".to_string())
+        Value::String("Hello 世界 🌍".to_string().into())
     );
 }
 
@@ -1081,7 +1117,7 @@ fn test_many_columns() {
     let mut doc = Document::new((1, 0));
     // Create schema with id + 20 columns for SPEC compliance
     let mut schema: Vec<String> = vec!["id".to_string()];
-    schema.extend((0..20).map(|i| format!("col{}", i)));
+    schema.extend((0..20).map(|i| format!("col{i}")));
     let mut list = MatrixList::new("Item", schema.clone());
 
     // Create values: id=1, col0=0, col1=1, ..., col19=19
@@ -1092,8 +1128,11 @@ fn test_many_columns() {
 
     let csv = to_csv(&doc).unwrap();
     // from_csv adds id, so we pass only col0-col19
-    let schema_refs: Vec<String> = (0..20).map(|i| format!("col{}", i)).collect();
-    let schema_refs_str: Vec<&str> = schema_refs.iter().map(|s| s.as_str()).collect();
+    let schema_refs: Vec<String> = (0..20).map(|i| format!("col{i}")).collect();
+    let schema_refs_str: Vec<&str> = schema_refs
+        .iter()
+        .map(std::string::String::as_str)
+        .collect();
     let doc2 = from_csv(&csv, "Item", &schema_refs_str).unwrap();
 
     let list2 = doc2.get("items").unwrap().as_list().unwrap();
@@ -1111,8 +1150,8 @@ fn test_many_rows() {
     for i in 0..100 {
         list.add_row(Node::new(
             "Item",
-            format!("id_{}", i),
-            vec![Value::String(format!("id_{}", i)), Value::Int(i)],
+            format!("id_{i}"),
+            vec![Value::String(format!("id_{i}").into()), Value::Int(i)],
         ));
     }
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1134,8 +1173,8 @@ fn test_numeric_string_preserved() {
         "Item",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("12345".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String("12345".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1199,7 +1238,7 @@ fn test_to_csv_writer() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Int(42)],
+        vec![Value::String("1".to_string().into()), Value::Int(42)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -1218,7 +1257,7 @@ fn test_to_csv_writer_with_config() {
     list.add_row(Node::new(
         "Item",
         "1",
-        vec![Value::String("1".to_string()), Value::Int(42)],
+        vec![Value::String("1".to_string().into()), Value::Int(42)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -1298,11 +1337,11 @@ fn test_type_name_preserved() {
 // Shared Fixture Tests - Testing CSV with hedl-test fixtures
 // =============================================================================
 
-/// Test user_list fixture roundtrip through CSV.
+/// Test `user_list` fixture roundtrip through CSV.
 ///
-/// The user_list fixture contains a MatrixList with User nodes.
+/// The `user_list` fixture contains a `MatrixList` with User nodes.
 /// CSV should preserve all fields: id, name, email.
-/// Note: The user_list fixture schema is [id, name, email], but CSV export
+/// Note: The `user_list` fixture schema is [id, name, email], but CSV export
 /// automatically includes id, so we only need to specify the remaining fields.
 #[test]
 fn test_user_list_csv_roundtrip() {
@@ -1331,35 +1370,44 @@ fn test_user_list_csv_roundtrip() {
     // Verify first user - fields are [id, name, email] (SPEC-compliant)
     let alice = &list.rows[0];
     assert_eq!(alice.id, "alice");
-    assert_eq!(alice.fields[0], Value::String("alice".to_string())); // id field
-    assert_eq!(alice.fields[1], Value::String("Alice Smith".to_string())); // name field
+    assert_eq!(alice.fields[0], Value::String("alice".to_string().into())); // id field
+    assert_eq!(
+        alice.fields[1],
+        Value::String("Alice Smith".to_string().into())
+    ); // name field
     assert_eq!(
         alice.fields[2],
-        Value::String("alice@example.com".to_string())
+        Value::String("alice@example.com".to_string().into())
     ); // email field
 
     // Verify second user
     let bob = &list.rows[1];
     assert_eq!(bob.id, "bob");
-    assert_eq!(bob.fields[0], Value::String("bob".to_string()));
-    assert_eq!(bob.fields[1], Value::String("Bob Jones".to_string()));
-    assert_eq!(bob.fields[2], Value::String("bob@example.com".to_string()));
+    assert_eq!(bob.fields[0], Value::String("bob".to_string().into()));
+    assert_eq!(bob.fields[1], Value::String("Bob Jones".to_string().into()));
+    assert_eq!(
+        bob.fields[2],
+        Value::String("bob@example.com".to_string().into())
+    );
 
     // Verify third user
     let charlie = &list.rows[2];
     assert_eq!(charlie.id, "charlie");
-    assert_eq!(charlie.fields[0], Value::String("charlie".to_string()));
+    assert_eq!(
+        charlie.fields[0],
+        Value::String("charlie".to_string().into())
+    );
     assert_eq!(
         charlie.fields[1],
-        Value::String("Charlie Brown".to_string())
+        Value::String("Charlie Brown".to_string().into())
     );
     assert_eq!(
         charlie.fields[2],
-        Value::String("charlie@example.com".to_string())
+        Value::String("charlie@example.com".to_string().into())
     );
 }
 
-/// Test mixed_type_list fixture roundtrip through CSV.
+/// Test `mixed_type_list` fixture roundtrip through CSV.
 ///
 /// This fixture contains various value types: string, int, float, bool, null.
 /// CSV should handle type inference correctly on import.
@@ -1393,25 +1441,28 @@ fn test_mixed_types_csv_roundtrip() {
     // Verify first item - fields are [id, name, count, price, active, notes] (SPEC-compliant)
     let item1 = &list.rows[0];
     assert_eq!(item1.id, "item1");
-    assert_eq!(item1.fields[0], Value::String("item1".to_string())); // id
-    assert_eq!(item1.fields[1], Value::String("Widget".to_string())); // name
+    assert_eq!(item1.fields[0], Value::String("item1".to_string().into())); // id
+    assert_eq!(item1.fields[1], Value::String("Widget".to_string().into())); // name
     assert_eq!(item1.fields[2], Value::Int(100)); // count
     assert_eq!(item1.fields[3], Value::Float(9.99)); // price
     assert_eq!(item1.fields[4], Value::Bool(true)); // active
-    assert_eq!(item1.fields[5], Value::String("Best seller".to_string())); // notes
+    assert_eq!(
+        item1.fields[5],
+        Value::String("Best seller".to_string().into())
+    ); // notes
 
     // Verify second item - including null value
     let item2 = &list.rows[1];
     assert_eq!(item2.id, "item2");
-    assert_eq!(item2.fields[0], Value::String("item2".to_string()));
-    assert_eq!(item2.fields[1], Value::String("Gadget".to_string()));
+    assert_eq!(item2.fields[0], Value::String("item2".to_string().into()));
+    assert_eq!(item2.fields[1], Value::String("Gadget".to_string().into()));
     assert_eq!(item2.fields[2], Value::Int(50));
     assert_eq!(item2.fields[3], Value::Float(19.99));
     assert_eq!(item2.fields[4], Value::Bool(false));
     assert_eq!(item2.fields[5], Value::Null);
 }
 
-/// Test with_references fixture CSV handling.
+/// Test `with_references` fixture CSV handling.
 ///
 /// This fixture contains references between User and Post lists.
 /// CSV should serialize references as @User:id syntax and parse them back correctly.
@@ -1451,13 +1502,16 @@ fn test_references_csv_roundtrip() {
     // Verify first post with reference - fields are [id, title, author] (SPEC-compliant)
     let post1 = &list.rows[0];
     assert_eq!(post1.id, "post1");
-    assert_eq!(post1.fields[0], Value::String("post1".to_string())); // id
-    assert_eq!(post1.fields[1], Value::String("Hello World".to_string())); // title
+    assert_eq!(post1.fields[0], Value::String("post1".to_string().into())); // id
+    assert_eq!(
+        post1.fields[1],
+        Value::String("Hello World".to_string().into())
+    ); // title
 
     if let Value::Reference(ref r) = post1.fields[2] {
         // author
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(&*r.id, "alice");
     } else {
         panic!("Expected reference for author field");
     }
@@ -1465,12 +1519,15 @@ fn test_references_csv_roundtrip() {
     // Verify second post with different author
     let post2 = &list.rows[1];
     assert_eq!(post2.id, "post2");
-    assert_eq!(post2.fields[0], Value::String("post2".to_string()));
-    assert_eq!(post2.fields[1], Value::String("Rust is great".to_string()));
+    assert_eq!(post2.fields[0], Value::String("post2".to_string().into()));
+    assert_eq!(
+        post2.fields[1],
+        Value::String("Rust is great".to_string().into())
+    );
 
     if let Value::Reference(ref r) = post2.fields[2] {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "bob");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(&*r.id, "bob");
     } else {
         panic!("Expected reference for author field");
     }
@@ -1478,11 +1535,11 @@ fn test_references_csv_roundtrip() {
     // Verify third post
     let post3 = &list.rows[2];
     assert_eq!(post3.id, "post3");
-    assert_eq!(post3.fields[0], Value::String("post3".to_string()));
+    assert_eq!(post3.fields[0], Value::String("post3".to_string().into()));
 
     if let Value::Reference(ref r) = post3.fields[2] {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(&*r.id, "alice");
     } else {
         panic!("Expected reference for author field");
     }
@@ -1569,24 +1626,24 @@ fn test_comprehensive_comments_csv() {
     // Verify comment with multiple references - fields are [id, text, author, post] (SPEC-compliant)
     let comment = &list.rows[0];
     assert_eq!(comment.id, "c1");
-    assert_eq!(comment.fields[0], Value::String("c1".to_string())); // id
+    assert_eq!(comment.fields[0], Value::String("c1".to_string().into())); // id
     assert_eq!(
         comment.fields[1],
-        Value::String("Great article!".to_string())
+        Value::String("Great article!".to_string().into())
     ); // text
 
     // Verify author reference (3rd field)
     if let Value::Reference(ref r) = comment.fields[2] {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "bob");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(&*r.id, "bob");
     } else {
         panic!("Expected reference for author field");
     }
 
     // Verify post reference (4th field)
     if let Value::Reference(ref r) = comment.fields[3] {
-        assert_eq!(r.type_name, Some("Post".to_string()));
-        assert_eq!(r.id, "p1");
+        assert_eq!(r.type_name.as_deref(), Some("Post"));
+        assert_eq!(&*r.id, "p1");
     } else {
         panic!("Expected reference for post field");
     }
@@ -1630,15 +1687,21 @@ fn test_comprehensive_tags_csv() {
     // Verify tags - fields are [id, name, color] (SPEC-compliant)
     let rust_tag = &list.rows[0];
     assert_eq!(rust_tag.id, "rust");
-    assert_eq!(rust_tag.fields[0], Value::String("rust".to_string())); // id
-    assert_eq!(rust_tag.fields[1], Value::String("Rust".to_string())); // name
-    assert_eq!(rust_tag.fields[2], Value::String("#FF4500".to_string())); // color
+    assert_eq!(rust_tag.fields[0], Value::String("rust".to_string().into())); // id
+    assert_eq!(rust_tag.fields[1], Value::String("Rust".to_string().into())); // name
+    assert_eq!(
+        rust_tag.fields[2],
+        Value::String("#FF4500".to_string().into())
+    ); // color
 
     let hedl_tag = &list.rows[1];
     assert_eq!(hedl_tag.id, "hedl");
-    assert_eq!(hedl_tag.fields[0], Value::String("hedl".to_string()));
-    assert_eq!(hedl_tag.fields[1], Value::String("HEDL".to_string()));
-    assert_eq!(hedl_tag.fields[2], Value::String("#00BFFF".to_string()));
+    assert_eq!(hedl_tag.fields[0], Value::String("hedl".to_string().into()));
+    assert_eq!(hedl_tag.fields[1], Value::String("HEDL".to_string().into()));
+    assert_eq!(
+        hedl_tag.fields[2],
+        Value::String("#00BFFF".to_string().into())
+    );
 }
 
 /// Test that CSV properly handles edge cases from fixtures.
@@ -1664,7 +1727,7 @@ fn test_edge_cases_large_numbers() {
                 "EdgeCase",
                 "1",
                 vec![
-                    Value::String("1".to_string()),
+                    Value::String("1".to_string().into()),
                     Value::Int(*large),
                     Value::Int(*small),
                 ],
@@ -1709,7 +1772,7 @@ fn test_special_strings_csv() {
             "SpecialString",
             "quotes",
             vec![
-                Value::String("quotes".to_string()),
+                Value::String("quotes".to_string().into()),
                 Value::String(s.clone()),
             ],
         ));
@@ -1720,7 +1783,7 @@ fn test_special_strings_csv() {
             "SpecialString",
             "newline",
             vec![
-                Value::String("newline".to_string()),
+                Value::String("newline".to_string().into()),
                 Value::String(s.clone()),
             ],
         ));
@@ -1731,7 +1794,7 @@ fn test_special_strings_csv() {
             "SpecialString",
             "unicode",
             vec![
-                Value::String("unicode".to_string()),
+                Value::String("unicode".to_string().into()),
                 Value::String(s.clone()),
             ],
         ));

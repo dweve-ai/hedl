@@ -30,16 +30,21 @@
 pub mod baselines;
 pub mod config;
 pub mod measurement;
+pub mod name_validation;
 pub mod registry;
 
 // Re-export commonly used types
 pub use baselines::{
     check_regression, load_baseline, save_baseline, update_current_baseline, Baseline,
-    BenchmarkBaseline, Percentiles, RegressionStatus,
+    BaselineError, BenchmarkBaseline, Percentiles, RegressionStatus,
 };
 pub use config::{BenchConfig, ExportFormat, LARGE_SIZES, STANDARD_SIZES};
 pub use measurement::{
     compute_statistics, measure, measure_memory, measure_with_throughput, Measurement, Statistics,
+};
+pub use name_validation::{
+    validate_benchmark_name, validate_version_string, NameValidationError, ValidationResult,
+    MAX_NAME_LENGTH, MIN_NAME_LENGTH,
 };
 pub use registry::{
     discover_benchmarks, filter_by_category, filter_by_tag, register_benchmark, BenchmarkInfo,

@@ -30,10 +30,11 @@
 
 use crate::constants::{DIAGNOSTIC_LINE_END_CHAR, LINE_NUMBER_OFFSET, POSITION_ZERO};
 use crate::reference_index::{RefLocation, ReferenceIndex};
+use hedl_core::lex::parse_csv_row;
 use hedl_core::{parse, Document, HedlError, Item, Node, Value};
 use hedl_lint::{lint, Diagnostic, Severity};
 use std::collections::HashMap;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{DiagnosticSeverity, NumberOrString, Position, Range};
 use tracing::{debug, warn};
 
 /// Analyzed document with parsed content and diagnostics.
@@ -45,15 +46,15 @@ use tracing::{debug, warn};
 ///
 /// - **document**: The parsed AST (if parsing succeeded)
 /// - **errors**: Any parse errors encountered
-/// - **lint_diagnostics**: Warnings and suggestions from the linter
+/// - **`lint_diagnostics`**: Warnings and suggestions from the linter
 /// - **entities**: Index of all entity definitions (type → id → line number)
 /// - **schemas**: Schema definitions (type → (columns, line number))
 /// - **aliases**: Alias definitions (name → (value, line number))
 /// - **references**: All reference usages for find-references
-/// - **reference_index_v2**: Enhanced O(1) reference index with precise location tracking
-/// - **reference_index**: Legacy line-based index (deprecated, kept for compatibility)
+/// - **`reference_index_v2`**: Enhanced O(1) reference index with precise location tracking
+/// - **`reference_index`**: Legacy line-based index (deprecated, kept for compatibility)
 /// - **nests**: Nesting relationships (parent → (child, line number))
-/// - **header_end_line**: Cached line number where header ends (--- delimiter)
+/// - **`header_end_line`**: Cached line number where header ends (--- delimiter)
 ///
 /// # Performance
 ///
@@ -86,8 +87,8 @@ pub struct AnalyzedDocument {
     /// Enhanced reference index with precise location tracking.
     /// Provides O(1) lookups for both definitions and references with character-level precision.
     pub reference_index_v2: ReferenceIndex,
-    /// Legacy fast lookup index for references: reference_string -> vec of line_numbers.
-    /// Deprecated: Use reference_index_v2 for new code.
+    /// Legacy fast lookup index for references: `reference_string` -> vec of `line_numbers`.
+    /// Deprecated: Use `reference_index_v2` for new code.
     /// This eliminates O(n) linear search bottleneck for find-references operations.
     pub reference_index: HashMap<String, Vec<usize>>,
     /// Nest relationships: parent -> (child, line number).
@@ -167,7 +168,11 @@ impl AnalyzedDocument {
                 debug!(
                     "Entity extraction complete: {} types, {} total entities, {} references",
                     result.entities.len(),
-                    result.entities.values().map(|m| m.len()).sum::<usize>(),
+                    result
+                        .entities
+                        .values()
+                        .map(std::collections::HashMap::len)
+                        .sum::<usize>(),
                     result.references.len()
                 );
 
@@ -188,7 +193,11 @@ impl AnalyzedDocument {
             result.schemas.len(),
             result.aliases.len(),
             result.nests.len(),
-            result.entities.values().map(|m| m.len()).sum::<usize>(),
+            result
+                .entities
+                .values()
+                .map(std::collections::HashMap::len)
+                .sum::<usize>(),
             result.references.len()
         );
 
@@ -308,17 +317,19 @@ impl AnalyzedDocument {
                     for value in &node.fields {
                         if let Value::Reference(r) = value {
                             self.references.push((
-                                r.type_name.clone(),
-                                r.id.clone(),
+                                r.type_name.as_ref().map(std::string::ToString::to_string),
+                                r.id.to_string(),
                                 line_estimate + i,
                             ));
                         }
                     }
 
                     // Recurse into children
-                    for children in node.children.values() {
-                        for child in children {
-                            self.extract_from_node(child, line_estimate + i);
+                    if let Some(children_map) = node.children() {
+                        for children in children_map.values() {
+                            for child in children {
+                                self.extract_from_node(child, line_estimate + i);
+                            }
                         }
                     }
                 }
@@ -330,8 +341,11 @@ impl AnalyzedDocument {
             }
             Item::Scalar(v) => {
                 if let Value::Reference(r) = v {
-                    self.references
-                        .push((r.type_name.clone(), r.id.clone(), line_estimate));
+                    self.references.push((
+                        r.type_name.as_ref().map(std::string::ToString::to_string),
+                        r.id.to_string(),
+                        line_estimate,
+                    ));
                 }
             }
         }
@@ -345,14 +359,19 @@ impl AnalyzedDocument {
 
         for value in &node.fields {
             if let Value::Reference(r) = value {
-                self.references
-                    .push((r.type_name.clone(), r.id.clone(), line));
+                self.references.push((
+                    r.type_name.as_ref().map(std::string::ToString::to_string),
+                    r.id.to_string(),
+                    line,
+                ));
             }
         }
 
-        for children in node.children.values() {
-            for child in children {
-                self.extract_from_node(child, line);
+        if let Some(children_map) = node.children() {
+            for children in children_map.values() {
+                for child in children {
+                    self.extract_from_node(child, line);
+                }
             }
         }
     }
@@ -361,7 +380,7 @@ impl AnalyzedDocument {
     ///
     /// # Performance Optimization
     ///
-    /// This method creates a HashMap index of all references for O(1) lookup
+    /// This method creates a `HashMap` index of all references for O(1) lookup
     /// during find-references operations, eliminating the O(n) linear search
     /// bottleneck.
     ///
@@ -371,15 +390,15 @@ impl AnalyzedDocument {
         for (type_name, id, line) in &self.references {
             // Index both qualified (@Type:id) and unqualified (@id) forms
             let ref_str = match type_name {
-                Some(t) => format!("@{}:{}", t, id),
-                None => format!("@{}", id),
+                Some(t) => format!("@{t}:{id}"),
+                None => format!("@{id}"),
             };
 
             self.reference_index.entry(ref_str).or_default().push(*line);
 
             // Also index by just the ID for flexible lookup
             self.reference_index
-                .entry(format!("@{}", id))
+                .entry(format!("@{id}"))
                 .or_default()
                 .push(*line);
         }
@@ -398,6 +417,8 @@ impl AnalyzedDocument {
     /// Uses a single-pass scan through the document content to find all '@' tokens
     /// and extract their precise locations. This is more accurate than relying on
     /// estimated line numbers from the parser.
+    ///
+    /// Skips @ characters inside quoted strings and comments to avoid false positives.
     fn build_reference_index_v2(&mut self, content: &str) {
         // First, index all entity definitions with precise positions
         // Note: We scan the entire document since line numbers from the parser are estimates
@@ -410,27 +431,58 @@ impl AnalyzedDocument {
                     // Look for the ID at the start of a matrix row (after |)
                     if let Some(pipe_pos) = line_content.find('|') {
                         let after_pipe = &line_content[pipe_pos + 1..];
-                        let trimmed = after_pipe.trim_start();
-                        // Check if this line starts with the ID we're looking for
-                        if trimmed.starts_with(id.as_str()) {
-                            // Verify it's actually the ID (followed by comma or whitespace)
-                            let after_id = &trimmed[id.len()..];
-                            if after_id.starts_with(',')
-                                || after_id.starts_with(char::is_whitespace)
-                                || after_id.is_empty()
-                            {
-                                let start_char =
-                                    (pipe_pos + 1 + (after_pipe.len() - trimmed.len())) as u32;
-                                let end_char = start_char + id.len() as u32;
 
-                                let location =
-                                    RefLocation::new(line_num as u32, start_char, end_char);
-                                self.reference_index_v2.add_definition(
-                                    type_name.clone(),
-                                    id.clone(),
-                                    location,
-                                );
-                                break; // Found the definition, move to next entity
+                        // Parse row prefix to handle |[N] or |N patterns
+                        let csv_content = if after_pipe.trim_start().starts_with('[') {
+                            // |[N] pattern - skip the bracket notation
+                            if let Some(bracket_end) = after_pipe.find(']') {
+                                &after_pipe[bracket_end + 1..]
+                            } else {
+                                after_pipe
+                            }
+                        } else if after_pipe
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_ascii_digit())
+                        {
+                            // |N pattern - skip the number
+                            let num_end =
+                                after_pipe.chars().take_while(char::is_ascii_digit).count();
+                            &after_pipe[num_end..]
+                        } else {
+                            after_pipe
+                        };
+
+                        // Parse the CSV row to get the first field (ID), handling quotes correctly
+                        if let Ok(fields) = parse_csv_row(csv_content.trim()) {
+                            if let Some(first_field) = fields.first() {
+                                if first_field.value == *id {
+                                    // Calculate the actual position of the ID in the line
+                                    // We need to find where the first field starts after the pipe and prefix
+                                    let prefix_len = after_pipe.len() - csv_content.len();
+                                    let trimmed_csv = csv_content.trim_start();
+                                    let leading_whitespace = csv_content.len() - trimmed_csv.len();
+
+                                    // If quoted, skip the opening quote
+                                    let id_offset = usize::from(first_field.is_quoted);
+
+                                    let start_char = (pipe_pos
+                                        + 1
+                                        + prefix_len
+                                        + leading_whitespace
+                                        + id_offset)
+                                        as u32;
+                                    let end_char = start_char + id.len() as u32;
+
+                                    let location =
+                                        RefLocation::new(line_num as u32, start_char, end_char);
+                                    self.reference_index_v2.add_definition(
+                                        type_name.clone(),
+                                        id.clone(),
+                                        location,
+                                    );
+                                    break; // Found the definition, move to next entity
+                                }
                             }
                         }
                     }
@@ -439,23 +491,82 @@ impl AnalyzedDocument {
         }
 
         // Now scan for all reference usages (@Type:id or @id)
+        // Skip @ inside quoted strings and comments to avoid false positives
         for (line_num, line) in content.lines().enumerate() {
             let mut char_pos = 0;
             let mut chars = line.chars().peekable();
+            let mut in_quoted_string = false;
+
+            // Check if line contains a comment and get comment start position
+            let comment_start = if let Some(_pos) = line.find('#') {
+                // Make sure # is not inside a quoted string
+                let mut temp_pos = 0;
+                let mut temp_in_quotes = false;
+                let mut actual_comment_pos = None;
+                for ch in line.chars() {
+                    if ch == '"' {
+                        temp_in_quotes = !temp_in_quotes;
+                    } else if ch == '#' && !temp_in_quotes {
+                        actual_comment_pos = Some(temp_pos);
+                        break;
+                    }
+                    temp_pos += ch.len_utf8();
+                }
+                actual_comment_pos
+            } else {
+                None
+            };
 
             while let Some(ch) = chars.next() {
-                if ch == '@' {
+                // Skip if we're in a comment region
+                if let Some(comment_pos) = comment_start {
+                    if char_pos >= comment_pos {
+                        break;
+                    }
+                }
+
+                // Track quoted string state
+                if ch == '"' {
+                    in_quoted_string = !in_quoted_string;
+                    char_pos += ch.len_utf8();
+                    continue;
+                }
+
+                // Only process @ if we're not inside a quoted string
+                if ch == '@' && !in_quoted_string {
                     let start_char = char_pos as u32;
                     let mut ref_str = String::from("@");
                     let mut end_char = start_char + 1;
 
-                    // Read the reference (alphanumeric, underscore, colon)
+                    // Read the reference (alphanumeric, underscore, colon, hyphen, or quoted string)
+                    // Handle two patterns:
+                    // 1. @Type:id or @id (unquoted)
+                    // 2. @Type:"id" or @"id" (quoted)
+                    let mut reading_quoted_id = false;
+
                     while let Some(&next_ch) = chars.peek() {
-                        if next_ch.is_alphanumeric()
+                        if next_ch == '"' && !reading_quoted_id {
+                            // Start of quoted ID
+                            reading_quoted_id = true;
+                            // Don't include the quote in ref_str
+                            chars.next();
+                            end_char += next_ch.len_utf8() as u32;
+                        } else if next_ch == '"' && reading_quoted_id {
+                            // End of quoted ID
+                            chars.next();
+                            end_char += next_ch.len_utf8() as u32;
+                            break;
+                        } else if reading_quoted_id {
+                            // Inside quoted ID - accept any character except closing quote
+                            ref_str.push(next_ch);
+                            chars.next();
+                            end_char += next_ch.len_utf8() as u32;
+                        } else if next_ch.is_alphanumeric()
                             || next_ch == '_'
                             || next_ch == ':'
                             || next_ch == '-'
                         {
+                            // Unquoted reference characters
                             ref_str.push(next_ch);
                             chars.next();
                             end_char += next_ch.len_utf8() as u32;
@@ -469,7 +580,7 @@ impl AnalyzedDocument {
                         let ref_content = &ref_str[1..]; // Remove '@'
 
                         if let Some(colon_pos) = ref_content.find(':') {
-                            // Qualified reference: @Type:id
+                            // Qualified reference: @Type:id or @Type:"id"
                             let type_name = ref_content[..colon_pos].to_string();
                             let id = ref_content[colon_pos + 1..].to_string();
 
@@ -477,7 +588,7 @@ impl AnalyzedDocument {
                             self.reference_index_v2
                                 .add_reference(Some(type_name), id, location);
                         } else {
-                            // Unqualified reference: @id
+                            // Unqualified reference: @id or @"id"
                             let id = ref_content.to_string();
                             let location = RefLocation::new(line_num as u32, start_char, end_char);
                             self.reference_index_v2.add_reference(None, id, location);
@@ -491,6 +602,7 @@ impl AnalyzedDocument {
     }
 
     /// Convert to LSP diagnostics.
+    #[must_use]
     pub fn to_lsp_diagnostics(&self) -> Vec<tower_lsp::lsp_types::Diagnostic> {
         let mut result = Vec::new();
 
@@ -547,6 +659,7 @@ impl AnalyzedDocument {
     }
 
     /// Get all entity IDs for a type.
+    #[must_use]
     pub fn get_entity_ids(&self, type_name: &str) -> Vec<String> {
         self.entities
             .get(type_name)
@@ -555,16 +668,19 @@ impl AnalyzedDocument {
     }
 
     /// Get all type names.
+    #[must_use]
     pub fn get_type_names(&self) -> Vec<String> {
         self.schemas.keys().cloned().collect()
     }
 
     /// Get schema for a type.
+    #[must_use]
     pub fn get_schema(&self, type_name: &str) -> Option<&Vec<String>> {
         self.schemas.get(type_name).map(|(cols, _)| cols)
     }
 
     /// Check if an entity exists.
+    #[must_use]
     pub fn entity_exists(&self, type_name: Option<&str>, id: &str) -> bool {
         match type_name {
             Some(t) => self.entities.get(t).is_some_and(|m| m.contains_key(id)),

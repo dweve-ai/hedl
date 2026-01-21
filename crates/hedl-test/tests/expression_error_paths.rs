@@ -18,7 +18,7 @@
 //! Comprehensive error path testing for expression parser failures.
 //!
 //! This test suite validates that the expression parser correctly handles all error conditions
-//! and returns appropriate LexError variants for invalid input.
+//! and returns appropriate `LexError` variants for invalid input.
 
 use hedl_core::lex::{parse_expression, LexError};
 
@@ -31,10 +31,7 @@ fn test_empty_expression() {
     if let Err(LexError::InvalidToken { .. }) = result {
         // Expected - empty input is invalid
     } else {
-        panic!(
-            "Expected InvalidToken for empty expression, got: {:?}",
-            result
-        );
+        panic!("Expected InvalidToken for empty expression, got: {result:?}");
     }
 }
 
@@ -49,11 +46,7 @@ fn test_invalid_characters() {
     let invalid_inputs = vec!["!!!", "###", "$$$", "%%%", "&&&", "***"];
     for input in invalid_inputs {
         let result = parse_expression(input);
-        assert!(
-            result.is_err(),
-            "Expected error for invalid input: {}",
-            input
-        );
+        assert!(result.is_err(), "Expected error for invalid input: {input}");
     }
 }
 
@@ -66,7 +59,7 @@ fn test_unclosed_string() {
     if let Err(LexError::UnclosedQuote { .. }) = result {
         // Expected
     } else {
-        panic!("Expected UnclosedQuote error, got: {:?}", result);
+        panic!("Expected UnclosedQuote error, got: {result:?}");
     }
 }
 
@@ -77,7 +70,7 @@ fn test_unclosed_string_with_content() {
     if let Err(LexError::UnclosedQuote { .. }) = result {
         // Expected
     } else {
-        panic!("Expected UnclosedQuote error, got: {:?}", result);
+        panic!("Expected UnclosedQuote error, got: {result:?}");
     }
 }
 
@@ -95,10 +88,10 @@ fn test_unclosed_parenthesis() {
     assert!(result.is_err());
     // Either UnclosedExpression or InvalidToken is acceptable for unclosed paren
     match result {
-        Err(LexError::UnclosedExpression { .. }) | Err(LexError::InvalidToken { .. }) => {
+        Err(LexError::UnclosedExpression { .. } | LexError::InvalidToken { .. }) => {
             // Expected - parser detected the unclosed parenthesis
         }
-        other => panic!("Expected error for unclosed parenthesis, got: {:?}", other),
+        other => panic!("Expected error for unclosed parenthesis, got: {other:?}"),
     }
 }
 
@@ -220,13 +213,9 @@ fn test_invalid_operator_modulo() {
 fn test_invalid_operator_bitwise() {
     let operators = vec!["&", "|", "^", "<<", ">>"];
     for op in operators {
-        let expr = format!("1 {} 2", op);
+        let expr = format!("1 {op} 2");
         let result = parse_expression(&expr);
-        assert!(
-            result.is_err(),
-            "Expected error for invalid operator: {}",
-            op
-        );
+        assert!(result.is_err(), "Expected error for invalid operator: {op}");
     }
 }
 
@@ -267,7 +256,7 @@ fn test_identifier_with_special_chars() {
     let invalid = vec!["id@", "id#", "id$", "id%"];
     for id in invalid {
         let result = parse_expression(id);
-        assert!(result.is_err(), "Expected error for identifier: {}", id);
+        assert!(result.is_err(), "Expected error for identifier: {id}");
     }
 }
 
@@ -394,7 +383,7 @@ fn test_multiple_errors_first_reported() {
 
 #[test]
 fn test_common_typo_missing_quote() {
-    let result = parse_expression(r#"hello"#);
+    let result = parse_expression(r"hello");
     // Should succeed as identifier, not an error
     assert!(result.is_ok());
 }
@@ -419,7 +408,7 @@ fn test_sql_like_syntax() {
 fn test_deeply_nested_valid_parens() {
     let mut expr = String::from("x");
     for _ in 0..100 {
-        expr = format!("f({})", expr);
+        expr = format!("f({expr})");
     }
     let result = parse_expression(&expr);
     // Should either succeed or hit recursion limit

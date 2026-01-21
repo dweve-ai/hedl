@@ -59,10 +59,12 @@ The `lex` module is organized into submodules:
 ```rust
 use hedl_core::lex::{is_valid_key_token, is_valid_type_name, is_valid_id_token};
 
-// Validate key tokens (alphanumeric, hyphens, underscores)
-assert!(is_valid_key_token("user-name"));
+// Validate key tokens (lowercase snake_case: [a-z_][a-z0-9_]*)
+assert!(is_valid_key_token("user_name"));
 assert!(is_valid_key_token("user_123"));
-assert!(!is_valid_key_token("123-invalid")); // Cannot start with digit
+assert!(is_valid_key_token("_private"));
+assert!(!is_valid_key_token("user-name"));  // No hyphens allowed
+assert!(!is_valid_key_token("123_invalid")); // Cannot start with digit
 
 // Validate type names (PascalCase)
 assert!(is_valid_type_name("User"));
@@ -89,14 +91,14 @@ pub enum Value {
     Int(i64),
     /// Floating-point value
     Float(f64),
-    /// String value
-    String(String),
-    /// Tensor (multi-dimensional array)
-    Tensor(Tensor),
+    /// String value (boxed to reduce enum size)
+    String(Box<str>),
+    /// Tensor (multi-dimensional array, boxed)
+    Tensor(Box<Tensor>),
     /// Reference to another node
     Reference(Reference),
     /// Parsed expression from $(...)
-    Expression(Expression),
+    Expression(Box<Expression>),
 }
 ```
 
@@ -188,9 +190,9 @@ HEDL doesn't use a separate tokenization phase. Instead, the parser directly con
 String values are stored directly without unnecessary copying:
 
 ```rust
-// Values own their strings
+// Values use boxed strings
 pub enum Value {
-    String(String),  // Owned string, allocated once
+    String(Box<str>),  // Boxed str reduces enum size
     // ...
 }
 ```

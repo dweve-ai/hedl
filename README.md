@@ -37,10 +37,10 @@ HEDL combines CSV-style tabular efficiency with hierarchical structure, schema v
 
 ```toml
 [dependencies]
-hedl = "1.0.0"
+hedl = "1.2.0"
 
 # Or with all format converters
-hedl = { version = "1.0.0", features = ["all-formats"] }
+hedl = { version = "1.2.0", features = ["all-formats"] }
 ```
 
 **Use**: Four core operations get you 90% of the way:
@@ -210,12 +210,34 @@ Your Python service needs to parse HEDL. Your C++ backend needs to export HEDL. 
 
 ```c
 #include "hedl.h"
+#include <stdio.h>
 
-HedlDocument* doc = hedl_parse(hedl_text, text_len);
-char* json = hedl_to_json(doc);
-// Process JSON in your existing C/C++/Python code
-hedl_free_string(json);
-hedl_free_document(doc);
+int main() {
+    const char* hedl_text = "%VERSION: 1.0\n---\nkey: value\n";
+    HedlDocument* doc = NULL;
+    char* json = NULL;
+
+    // Parse HEDL (returns error code)
+    if (hedl_parse(hedl_text, -1, 1, &doc) != HEDL_OK) {
+        fprintf(stderr, "Parse error: %s\n", hedl_get_last_error());
+        return 1;
+    }
+
+    // Convert to JSON
+    if (hedl_to_json(doc, 0, &json) != HEDL_OK) {
+        fprintf(stderr, "Conversion error: %s\n", hedl_get_last_error());
+        hedl_free_document(doc);
+        return 1;
+    }
+
+    // Process JSON in your existing C/C++/Python code
+    printf("%s\n", json);
+
+    // Clean up memory
+    hedl_free_string(json);
+    hedl_free_document(doc);
+    return 0;
+}
 ```
 
 No memory leaks. Thread-safe. Production-tested.
@@ -283,7 +305,7 @@ Performance isn't just about raw speed—it's about scalability, predictability,
 
 | Target Format | Throughput | Latency |
 |---------------|------------|---------|
-| JSON | 1,549 MB/s | 292 µs |
+| JSON | 1,549 MB/s | 291.73 µs |
 | YAML | 246 MB/s | 1,834 µs |
 | XML | 2,964 MB/s | 153 µs |
 | CSV | Fast | Low overhead |

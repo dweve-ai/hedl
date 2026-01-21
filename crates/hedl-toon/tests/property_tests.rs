@@ -87,7 +87,7 @@ fn whitespace_wrapped_string() -> impl Strategy<Value = String> {
         "[a-zA-Z0-9]{1,20}",
         whitespace_string(),
     )
-        .prop_map(|(before, middle, after)| format!("{}{}{}", before, middle, after))
+        .prop_map(|(before, middle, after)| format!("{before}{middle}{after}"))
 }
 
 /// Generate strings that look like TOON literals
@@ -96,8 +96,8 @@ fn toon_literal_like() -> impl Strategy<Value = String> {
         Just("true".to_string()),
         Just("false".to_string()),
         Just("null".to_string()),
-        "[-+]?[0-9]+".prop_map(|s| s.to_string()),
-        "[-+]?[0-9]+\\.[0-9]+".prop_map(|s| s.to_string()),
+        "[-+]?[0-9]+".prop_map(|s| s.clone()),
+        "[-+]?[0-9]+\\.[0-9]+".prop_map(|s| s.clone()),
     ]
 }
 
@@ -173,7 +173,7 @@ proptest! {
 
         // For simple alphanumeric Unicode (no special escaping needed), should appear verbatim
         if filtered.chars().all(|c| c.is_alphanumeric() || c == ' ') {
-            let quoted = format!("\"{}\"", filtered);
+            let quoted = format!("\"{filtered}\"");
             // Either appears directly or quoted
             prop_assert!(toon.contains(&filtered) || toon.contains(&quoted));
         }
@@ -201,7 +201,7 @@ proptest! {
 
         // Verify that the escape sequence \\n appears if input had newlines
         if s.contains('\n') {
-            prop_assert!(toon.contains("\\n") || toon.contains("\""));
+            prop_assert!(toon.contains("\\n") || toon.contains('"'));
         }
     }
 
@@ -241,7 +241,7 @@ proptest! {
 
         // Boolean and null literals must be quoted
         if matches!(s.as_str(), "true" | "false" | "null") {
-            let quoted = format!("\"{}\"", s);
+            let quoted = format!("\"{s}\"");
             prop_assert!(toon.contains(&quoted));
         }
 
@@ -319,7 +319,7 @@ proptest! {
         Just('{'),
         Just('}'),
     ]) {
-        let s = format!("test{}value", c);
+        let s = format!("test{c}value");
         let doc = create_doc_with_string(&s);
         let toon = hedl_to_toon(&doc)?;
         prop_assert!(toon.contains('"'));
@@ -331,7 +331,7 @@ proptest! {
         c in prop_oneof![Just('-'), Just('@')],
         rest in "[a-z]{1,10}"
     ) {
-        let s = format!("{}{}", c, rest);
+        let s = format!("{c}{rest}");
         let doc = create_doc_with_string(&s);
         let toon = hedl_to_toon(&doc)?;
         prop_assert!(toon.contains('"'));
@@ -369,7 +369,7 @@ proptest! {
         if let Ok(toon) = result {
             // Should be quoted if non-empty
             if !s.is_empty() {
-                prop_assert!(toon.contains('"') || s.chars().all(|c| c.is_alphanumeric()));
+                prop_assert!(toon.contains('"') || s.chars().all(char::is_alphanumeric));
             }
         }
     }
@@ -386,7 +386,7 @@ proptest! {
 
         // The string value should appear somewhere in the output
         // (either quoted or unquoted depending on content)
-        let quoted = format!("\"{}\"", s);
+        let quoted = format!("\"{s}\"");
         prop_assert!(toon.contains(&s) || toon.contains(&quoted));
     }
 
@@ -457,8 +457,8 @@ proptest! {
     #[test]
     fn prop_escaping_consistent(s in "[a-zA-Z0-9:, ]{1,20}") {
         let mut doc = Document::new((1, 0));
-        doc.root.insert("field1".to_string(), Item::Scalar(Value::String(s.clone())));
-        doc.root.insert("field2".to_string(), Item::Scalar(Value::String(s.clone())));
+        doc.root.insert("field1".to_string(), Item::Scalar(Value::String(s.clone().into())));
+        doc.root.insert("field2".to_string(), Item::Scalar(Value::String(s.clone().into())));
 
         let toon = hedl_to_toon(&doc)?;
 
@@ -529,8 +529,8 @@ proptest! {
         doc.structs.insert("Item".to_string(), vec!["value".to_string()]);
 
         let mut list = MatrixList::new("Item", vec!["value".to_string()]);
-        list.add_row(Node::new("Item", "i1", vec![Value::String(s1.clone())]));
-        list.add_row(Node::new("Item", "i2", vec![Value::String(s2.clone())]));
+        list.add_row(Node::new("Item", "i1", vec![Value::String(s1.clone().into())]));
+        list.add_row(Node::new("Item", "i2", vec![Value::String(s2.clone().into())]));
 
         doc.root.insert("items".to_string(), Item::List(list));
 
@@ -548,7 +548,7 @@ proptest! {
         doc.structs.insert("Item".to_string(), vec!["value".to_string()]);
 
         let mut list = MatrixList::new("Item", vec!["value".to_string()]);
-        list.add_row(Node::new("Item", "i1", vec![Value::String("".to_string())]));
+        list.add_row(Node::new("Item", "i1", vec![Value::String(String::new().into())]));
 
         doc.root.insert("items".to_string(), Item::List(list));
 
@@ -568,7 +568,7 @@ fn create_doc_with_string(s: &str) -> Document {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "test_field".to_string(),
-        Item::Scalar(Value::String(s.to_string())),
+        Item::Scalar(Value::String(s.to_string().into())),
     );
     doc
 }

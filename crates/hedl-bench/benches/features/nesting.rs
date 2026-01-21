@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Deep nesting benchmarks.
 //!
 //! Measures HEDL deep nesting performance for hierarchical data structures.
@@ -33,7 +35,7 @@
 //! - Stack safety analysis
 //! - Depth vs width tradeoffs
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::measure_with_throughput;
 use hedl_bench::datasets::{generate_blog, generate_deep_hierarchy};
 use hedl_bench::generators::hierarchical::{generate_deep_nesting, generate_wide_tree};
@@ -43,6 +45,7 @@ use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 use std::cell::RefCell;
 use std::fs;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -109,9 +112,9 @@ impl Default for NestingResult {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<NestingResult>> = RefCell::new(Vec::new());
-    static COMPARATIVE_RESULTS: RefCell<Vec<ComparativeResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<NestingResult>> = const { RefCell::new(Vec::new()) };
+    static COMPARATIVE_RESULTS: RefCell<Vec<ComparativeResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -206,8 +209,10 @@ fn count_item(item: &hedl_core::Item) -> usize {
 /// Count nodes in Node recursively
 fn count_node(node: &hedl_core::Node) -> usize {
     let mut count = 1;
-    for children in node.children.values() {
-        count += children.iter().map(count_node).sum::<usize>();
+    if let Some(children) = node.children() {
+        for child_list in children.values() {
+            count += child_list.iter().map(count_node).sum::<usize>();
+        }
     }
     count
 }
@@ -221,8 +226,7 @@ fn generate_nested_json(depth: usize) -> String {
     let mut json = String::from("{\"level\": 0, \"data\": \"value0\"");
     for i in 1..depth {
         json.push_str(&format!(
-            ", \"nested\": {{\"level\": {}, \"data\": \"value{}\"",
-            i, i
+            ", \"nested\": {{\"level\": {i}, \"data\": \"value{i}\""
         ));
     }
     for _ in 0..depth {
@@ -234,15 +238,14 @@ fn generate_nested_json(depth: usize) -> String {
 /// Generate deeply nested YAML for comparative benchmarking
 fn generate_nested_yaml(depth: usize) -> String {
     if depth == 0 {
-        return "".to_string();
+        return String::new();
     }
 
     let mut yaml = String::from("level: 0\ndata: value0\n");
     for i in 1..depth {
         let indent = "  ".repeat(i);
         yaml.push_str(&format!(
-            "{}nested:\n{}  level: {}\n{}  data: value{}\n",
-            indent, indent, i, indent, i
+            "{indent}nested:\n{indent}  level: {i}\n{indent}  data: value{i}\n"
         ));
     }
     yaml
@@ -253,15 +256,15 @@ fn generate_nested_yaml(depth: usize) -> String {
 #[allow(dead_code)]
 fn generate_nested_xml(depth: usize) -> String {
     if depth == 0 {
-        return "".to_string();
+        return String::new();
     }
 
     let mut xml = String::from("<?xml version=\"1.0\"?>\n");
     for i in 0..depth {
-        xml.push_str(&format!("<level{} data=\"value{}\">", i, i));
+        xml.push_str(&format!("<level{i} data=\"value{i}\">"));
     }
     for i in (0..depth).rev() {
-        xml.push_str(&format!("</level{}>", i));
+        xml.push_str(&format!("</level{i}>"));
     }
     xml
 }
@@ -272,7 +275,7 @@ fn generate_flat_structure(depth: usize, fields_per_level: usize) -> String {
 
     let total_fields = depth * fields_per_level;
     for i in 0..total_fields {
-        doc.push_str(&format!("field_{}: value_{}\n", i, i));
+        doc.push_str(&format!("field_{i}: value_{i}\n"));
     }
 
     doc
@@ -296,9 +299,9 @@ fn generate_nested_arrays(depth: usize, items_per_array: usize) -> String {
         let item_count = if level == 1 { items } else { 1 };
 
         for i in 0..item_count {
-            doc.push_str(&format!("{}item{}:\n", prefix, i));
-            doc.push_str(&format!("{}  id: {}\n", prefix, i));
-            doc.push_str(&format!("{}  value: item_{}\n", prefix, i));
+            doc.push_str(&format!("{prefix}item{i}:\n"));
+            doc.push_str(&format!("{prefix}  id: {i}\n"));
+            doc.push_str(&format!("{prefix}  value: item_{i}\n"));
 
             if level < max_depth && i == 0 {
                 // Only nest under first item to control total depth
@@ -324,18 +327,18 @@ fn generate_mixed_nesting(depth: usize) -> String {
         let prefix = "  ".repeat(indent);
 
         // Always use object syntax (HEDL doesn't have array literals)
-        doc.push_str(&format!("{}field_a: value_a_{}\n", prefix, level));
-        doc.push_str(&format!("{}field_b: value_b_{}\n", prefix, level));
+        doc.push_str(&format!("{prefix}field_a: value_a_{level}\n"));
+        doc.push_str(&format!("{prefix}field_b: value_b_{level}\n"));
 
         if level < max_depth {
             // Alternate between simple nesting and node children
             if level % 2 == 0 {
-                doc.push_str(&format!("{}nested:\n", prefix));
+                doc.push_str(&format!("{prefix}nested:\n"));
                 add_mixed_level(doc, level + 1, max_depth, indent + 1);
             } else {
                 // Add multiple child nodes
                 for i in 0..2 {
-                    doc.push_str(&format!("{}child{}:\n", prefix, i));
+                    doc.push_str(&format!("{prefix}child{i}:\n"));
                     add_mixed_level(doc, level + 1, max_depth, indent + 1);
                 }
             }
@@ -352,9 +355,9 @@ fn generate_extreme_depth(depth: usize) -> String {
 
     for i in 0..depth {
         let indent = "  ".repeat(i + 1);
-        doc.push_str(&format!("{}level_{}: value\n", indent, i));
+        doc.push_str(&format!("{indent}level_{i}: value\n"));
         if i < depth - 1 {
-            doc.push_str(&format!("{}nested:\n", indent));
+            doc.push_str(&format!("{indent}nested:\n"));
         }
     }
 
@@ -366,7 +369,7 @@ fn generate_extreme_width(width: usize) -> String {
     let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
 
     for i in 0..width {
-        doc.push_str(&format!("  field_{}: value_{}\n", i, i));
+        doc.push_str(&format!("  field_{i}: value_{i}\n"));
     }
 
     doc
@@ -380,14 +383,14 @@ fn generate_unbalanced_tree(max_depth: usize) -> String {
     let mut path = String::new();
     for i in 0..max_depth {
         let indent = "  ".repeat(i + 1);
-        path.push_str(&format!("{}deep_child:\n", indent));
-        path.push_str(&format!("{}  level: {}\n", indent, i));
+        path.push_str(&format!("{indent}deep_child:\n"));
+        path.push_str(&format!("{indent}  level: {i}\n"));
     }
     doc.push_str(&path);
 
     // Many shallow children at root
     for i in 0..10 {
-        doc.push_str(&format!("  shallow_{}: leaf_{}\n", i, i));
+        doc.push_str(&format!("  shallow_{i}: leaf_{i}\n"));
     }
 
     doc
@@ -408,11 +411,11 @@ fn generate_dense_nodes(depth: usize, fields_per_node: usize) -> String {
 
         // Add many fields at this level
         for f in 0..fields {
-            doc.push_str(&format!("{}field_{}: value_{}_{}\n", prefix, f, level, f));
+            doc.push_str(&format!("{prefix}field_{f}: value_{level}_{f}\n"));
         }
 
         if level < max_depth {
-            doc.push_str(&format!("{}nested:\n", prefix));
+            doc.push_str(&format!("{prefix}nested:\n"));
             add_dense_level(doc, level + 1, max_depth, fields, indent + 1);
         }
     }
@@ -441,7 +444,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -450,7 +453,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("deep_{}_levels", depth);
+        let name = format!("deep_{depth}_levels");
         record_perf(
             &name,
             iterations,
@@ -460,7 +463,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
 
         // Collect result
         let mut result = NestingResult::default();
-        result.dataset = format!("deep_{}levels", depth);
+        result.dataset = format!("deep_{depth}levels");
         result.depth = depth;
         result.width = fields_per_level;
         result.input_size_bytes = hedl.len();
@@ -505,7 +508,7 @@ fn bench_wide_trees(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -514,7 +517,7 @@ fn bench_wide_trees(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("wide_{}_children", breadth);
+        let name = format!("wide_{breadth}_children");
         record_perf(
             &name,
             iterations,
@@ -524,7 +527,7 @@ fn bench_wide_trees(c: &mut Criterion) {
 
         // Collect result
         let mut result = NestingResult::default();
-        result.dataset = format!("wide_{}", breadth);
+        result.dataset = format!("wide_{breadth}");
         result.depth = depth;
         result.width = breadth;
         result.input_size_bytes = hedl.len();
@@ -561,7 +564,7 @@ fn bench_deep_vs_wide(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(deep_hedl.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     // Collect deep result
@@ -586,7 +589,7 @@ fn bench_deep_vs_wide(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(wide_hedl.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     // Collect wide result
@@ -612,7 +615,7 @@ fn bench_deep_vs_wide(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(balanced_hedl.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     // Collect balanced result
@@ -653,7 +656,7 @@ fn bench_realistic_hierarchy(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -662,7 +665,7 @@ fn bench_realistic_hierarchy(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("hierarchy_{}", size);
+        let name = format!("hierarchy_{size}");
         record_perf(
             &name,
             iterations,
@@ -672,7 +675,7 @@ fn bench_realistic_hierarchy(c: &mut Criterion) {
 
         // Collect result
         let mut result = NestingResult::default();
-        result.dataset = format!("hierarchy_{}", size);
+        result.dataset = format!("hierarchy_{size}");
         result.depth = estimate_nesting_depth(&hedl);
         result.input_size_bytes = hedl.len();
         result.field_count = count_fields(&hedl);
@@ -714,12 +717,12 @@ fn bench_nested_traversal(c: &mut Criterion) {
             b.iter(|| {
                 let total: usize = doc.root.values().map(count_item).sum();
                 black_box(total)
-            })
+            });
         });
 
         // Collect traversal result
         let mut result = NestingResult::default();
-        result.dataset = format!("traversal_{}", depth);
+        result.dataset = format!("traversal_{depth}");
         result.depth = depth;
 
         let mut times = Vec::new();
@@ -754,7 +757,7 @@ fn bench_blog_nesting(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -763,7 +766,7 @@ fn bench_blog_nesting(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("blog_nesting_{}", size);
+        let name = format!("blog_nesting_{size}");
         record_perf(
             &name,
             iterations,
@@ -773,7 +776,7 @@ fn bench_blog_nesting(c: &mut Criterion) {
 
         // Collect result
         let mut result = NestingResult::default();
-        result.dataset = format!("blog_{}", size);
+        result.dataset = format!("blog_{size}");
         result.depth = estimate_nesting_depth(&hedl);
         result.input_size_bytes = hedl.len();
         result.field_count = count_fields(&hedl);
@@ -814,7 +817,7 @@ fn bench_comparative_parsers(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let mut parse_times = Vec::new();
@@ -841,22 +844,19 @@ fn bench_comparative_parsers(c: &mut Criterion) {
             b.iter(|| {
                 let val: Result<JsonValue, _> = serde_json::from_str(input);
                 black_box(val)
-            })
+            });
         });
 
         let mut parse_times = Vec::new();
         let mut max_depth_supported = depth;
         for _ in 0..10 {
             let start = Instant::now();
-            match serde_json::from_str::<JsonValue>(&json) {
-                Ok(val) => {
-                    parse_times.push(start.elapsed().as_nanos() as u64);
-                    black_box(val);
-                }
-                Err(_) => {
-                    max_depth_supported = depth - 1;
-                    break;
-                }
+            if let Ok(val) = serde_json::from_str::<JsonValue>(&json) {
+                parse_times.push(start.elapsed().as_nanos() as u64);
+                black_box(val);
+            } else {
+                max_depth_supported = depth - 1;
+                break;
             }
         }
 
@@ -878,22 +878,19 @@ fn bench_comparative_parsers(c: &mut Criterion) {
             b.iter(|| {
                 let val: Result<YamlValue, _> = serde_yaml::from_str(input);
                 black_box(val)
-            })
+            });
         });
 
         let mut parse_times = Vec::new();
         let mut max_depth_supported = depth;
         for _ in 0..10 {
             let start = Instant::now();
-            match serde_yaml::from_str::<YamlValue>(&yaml) {
-                Ok(val) => {
-                    parse_times.push(start.elapsed().as_nanos() as u64);
-                    black_box(val);
-                }
-                Err(_) => {
-                    max_depth_supported = depth - 1;
-                    break;
-                }
+            if let Ok(val) = serde_yaml::from_str::<YamlValue>(&yaml) {
+                parse_times.push(start.elapsed().as_nanos() as u64);
+                black_box(val);
+            } else {
+                max_depth_supported = depth - 1;
+                break;
             }
         }
 
@@ -929,9 +926,9 @@ fn bench_serialization(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(depth), &doc, |b, doc| {
             b.iter(|| {
-                let serialized = format!("{:?}", doc); // Basic serialization
+                let serialized = format!("{doc:?}"); // Basic serialization
                 black_box(serialized)
-            })
+            });
         });
 
         // Measure serialization times
@@ -941,7 +938,7 @@ fn bench_serialization(c: &mut Criterion) {
                     let mut times = Vec::new();
                     for _ in 0..10 {
                         let start = Instant::now();
-                        let serialized = format!("{:?}", doc);
+                        let serialized = format!("{doc:?}");
                         times.push(start.elapsed().as_nanos() as u64);
                         black_box(serialized);
                     }
@@ -969,13 +966,13 @@ fn bench_flat_structures(c: &mut Criterion) {
         let flat_hedl = generate_flat_structure(depth, fields);
 
         group.bench_with_input(
-            BenchmarkId::new("flat", format!("{}x{}", depth, fields)),
+            BenchmarkId::new("flat", format!("{depth}x{fields}")),
             &flat_hedl,
             |b, input| {
                 b.iter(|| {
                     let doc = hedl_core::parse(input.as_bytes()).unwrap();
                     black_box(doc)
-                })
+                });
             },
         );
 
@@ -1019,7 +1016,7 @@ fn bench_pathological_cases(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(extreme_deep.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     let mut result = NestingResult::default();
@@ -1045,7 +1042,7 @@ fn bench_pathological_cases(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(extreme_wide.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     let mut result = NestingResult::default();
@@ -1071,7 +1068,7 @@ fn bench_pathological_cases(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(unbalanced.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     let mut result = NestingResult::default();
@@ -1098,7 +1095,7 @@ fn bench_pathological_cases(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(dense.as_bytes()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     let mut result = NestingResult::default();
@@ -1141,11 +1138,11 @@ fn bench_data_type_comparison(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let mut result = NestingResult::default();
-        result.dataset = format!("arrays_{}", depth);
+        result.dataset = format!("arrays_{depth}");
         result.depth = depth;
         result.width = 3;
         result.input_size_bytes = arrays.len();
@@ -1167,11 +1164,11 @@ fn bench_data_type_comparison(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let mut result = NestingResult::default();
-        result.dataset = format!("objects_{}", depth);
+        result.dataset = format!("objects_{depth}");
         result.depth = depth;
         result.width = 3;
         result.input_size_bytes = objects.len();
@@ -1193,11 +1190,11 @@ fn bench_data_type_comparison(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let mut result = NestingResult::default();
-        result.dataset = format!("mixed_{}", depth);
+        result.dataset = format!("mixed_{depth}");
         result.depth = depth;
         result.width = 2;
         result.input_size_bytes = mixed.len();
@@ -1238,12 +1235,12 @@ fn create_depth_performance_table(results: &[NestingResult], report: &mut Benchm
     };
 
     for result in results {
-        let parse_avg = if !result.parsing_times_ns.is_empty() {
+        let parse_avg = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let time_per_level = if result.depth > 0 {
@@ -1299,12 +1296,12 @@ fn create_width_depth_tradeoffs_table(results: &[NestingResult], report: &mut Be
     };
 
     for result in results {
-        let parse_avg = if !result.parsing_times_ns.is_empty() {
+        let parse_avg = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let time_per_node = if result.total_nodes > 0 {
@@ -1423,13 +1420,13 @@ fn create_parse_time_by_level_table(results: &[NestingResult], report: &mut Benc
         }
 
         let avg = times.iter().sum::<f64>() / times.len() as f64;
-        let min = times.iter().cloned().fold(f64::MAX, f64::min);
-        let max = times.iter().cloned().fold(0.0, f64::max);
+        let min = times.iter().copied().fold(f64::MAX, f64::min);
+        let max = times.iter().copied().fold(0.0, f64::max);
         let variance = times.iter().map(|t| (t - avg).powi(2)).sum::<f64>() / times.len() as f64;
         let std_dev = variance.sqrt();
 
         table.rows.push(vec![
-            TableCell::String(format!("{}-{}", min_depth, max_depth)),
+            TableCell::String(format!("{min_depth}-{max_depth}")),
             TableCell::Integer(in_range.len() as i64),
             TableCell::Float(avg),
             TableCell::Float(min),
@@ -1463,12 +1460,12 @@ fn create_serialization_performance_table(results: &[NestingResult], report: &mu
             continue;
         }
 
-        let parse_avg = if !result.parsing_times_ns.is_empty() {
+        let parse_avg = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         // Use ACTUAL serialization measurements
@@ -1523,12 +1520,12 @@ fn create_stack_safety_table(results: &[NestingResult], report: &mut BenchmarkRe
     };
 
     for result in results {
-        let parse_avg = if !result.parsing_times_ns.is_empty() {
+        let parse_avg = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         // Risk level based on depth relative to HEDL's security limit of 50
@@ -1579,12 +1576,12 @@ fn create_query_performance_table(results: &[NestingResult], report: &mut Benchm
     };
 
     for result in results {
-        let traversal_avg = if !result.traversal_times_ns.is_empty() {
+        let traversal_avg = if result.traversal_times_ns.is_empty() {
+            0.0
+        } else {
             result.traversal_times_ns.iter().sum::<u64>() as f64
                 / result.traversal_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         // Estimate single node access time
@@ -1639,12 +1636,12 @@ fn create_flat_comparison_table(results: &[NestingResult], report: &mut Benchmar
             continue;
         }
 
-        let nested_time = if !result.parsing_times_ns.is_empty() {
+        let nested_time = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         // Use ACTUAL flat structure measurements
@@ -2042,7 +2039,7 @@ fn generate_insights(results: &[NestingResult], report: &mut BenchmarkReport) {
         let ratio = deep_avg / shallow_avg.max(1.0);
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Deep Nesting {:.1}x Slower Than Shallow", ratio),
+            title: format!("Deep Nesting {ratio:.1}x Slower Than Shallow"),
             description: "Nesting depth has significant performance impact".to_string(),
             data_points: vec![
                 format!("Deep (>10 levels): {:.2}us avg", deep_avg / 1000.0),
@@ -2075,17 +2072,7 @@ fn generate_insights(results: &[NestingResult], report: &mut BenchmarkReport) {
 
     // Insight 3: Stack safety
     let stack_risk: Vec<_> = results.iter().filter(|r| r.depth > 50).collect();
-    if !stack_risk.is_empty() {
-        report.add_insight(Insight {
-            category: "weakness".to_string(),
-            title: format!("{} Datasets with Stack Overflow Risk", stack_risk.len()),
-            description: "Deep nesting may cause stack overflow on some platforms".to_string(),
-            data_points: stack_risk
-                .iter()
-                .map(|r| format!("{}: depth {}", r.dataset, r.depth))
-                .collect(),
-        });
-    } else {
+    if stack_risk.is_empty() {
         report.add_insight(Insight {
             category: "strength".to_string(),
             title: "All Datasets Stack-Safe".to_string(),
@@ -2094,6 +2081,16 @@ fn generate_insights(results: &[NestingResult], report: &mut BenchmarkReport) {
                 "Max depth: {}",
                 results.iter().map(|r| r.depth).max().unwrap_or(0)
             )],
+        });
+    } else {
+        report.add_insight(Insight {
+            category: "weakness".to_string(),
+            title: format!("{} Datasets with Stack Overflow Risk", stack_risk.len()),
+            description: "Deep nesting may cause stack overflow on some platforms".to_string(),
+            data_points: stack_risk
+                .iter()
+                .map(|r| format!("{}: depth {}", r.dataset, r.depth))
+                .collect(),
         });
     }
 
@@ -2105,7 +2102,7 @@ fn generate_insights(results: &[NestingResult], report: &mut BenchmarkReport) {
         let bytes_per_node = total_bytes as f64 / total_nodes as f64;
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Average {:.1} Bytes per Node", bytes_per_node),
+            title: format!("Average {bytes_per_node:.1} Bytes per Node"),
             description: "Memory efficiency across all nested structures".to_string(),
             data_points: vec![
                 format!("Total nodes: {}", total_nodes),
@@ -2133,7 +2130,7 @@ fn generate_insights(results: &[NestingResult], report: &mut BenchmarkReport) {
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Average Traversal Time: {:.2}us", avg_traversal),
+            title: format!("Average Traversal Time: {avg_traversal:.2}us"),
             description: "DFS traversal performance across all datasets".to_string(),
             data_points: vec![format!("{} datasets measured", traversal_results.len())],
         });
@@ -2223,8 +2220,7 @@ fn generate_insights(results: &[NestingResult], report: &mut BenchmarkReport) {
         category: "finding".to_string(),
         title: "Memory-Efficient Deep Nesting".to_string(),
         description: format!(
-            "Nested structures maintain efficient memory usage ({:.2}MB avg footprint)",
-            avg_memory_mb
+            "Nested structures maintain efficient memory usage ({avg_memory_mb:.2}MB avg footprint)"
         ),
         data_points: vec![
             "Stack-based parsing prevents exponential memory growth".to_string(),
@@ -2335,7 +2331,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights",
                         new_report.custom_tables.len(),
@@ -2343,10 +2339,10 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
+                    eprintln!("Export failed: {e}");
                     // Fallback to legacy export
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

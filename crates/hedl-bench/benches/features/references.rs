@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Reference resolution benchmarks.
 //!
 //! Measures HEDL cross-reference (@Type:id) resolution performance for graph structures.
@@ -33,7 +35,7 @@
 //! - Memory usage for reference maps
 //! - Circular reference detection
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::measure_with_throughput;
 use hedl_bench::datasets::{generate_graph, generate_reference_heavy};
 use hedl_bench::report::BenchmarkReport;
@@ -41,6 +43,7 @@ use hedl_bench::{CustomTable, ExportConfig, Insight, TableCell};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -50,7 +53,7 @@ const STANDARD_SIZES: [usize; 3] = [10, 100, 1_000];
 // Comprehensive Result Structure
 // ============================================================================
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct RefResult {
     dataset: String,
     node_count: usize,
@@ -76,7 +79,6 @@ struct ComparativeResult {
     system: String,
     format: String,
     parse_time_ns: u64,
-    resolution_time_ns: u64,
     total_time_ns: u64,
     memory_kb: usize,
     supports_cycles: bool,
@@ -88,33 +90,8 @@ struct ComparativeResult {
 struct AlgorithmResult {
     algorithm: String,
     avg_time_ns: u64,
-    memory_kb: usize,
     complexity: String,
     best_for: String,
-}
-
-impl Default for RefResult {
-    fn default() -> Self {
-        Self {
-            dataset: String::new(),
-            node_count: 0,
-            edge_count: 0,
-            reference_count: 0,
-            parsing_times_ns: Vec::new(),
-            resolution_times_ns: Vec::new(),
-            validation_times_ns: Vec::new(),
-            traversal_dfs_times_ns: Vec::new(),
-            traversal_bfs_times_ns: Vec::new(),
-            input_size_bytes: 0,
-            circular_refs_detected: 0,
-            forward_refs: 0,
-            backward_refs: 0,
-            max_ref_depth: 0,
-            memory_for_ref_map_kb: 0,
-            cache_hits: 0,
-            cache_misses: 0,
-        }
-    }
 }
 
 // ============================================================================
@@ -122,10 +99,10 @@ impl Default for RefResult {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<RefResult>> = RefCell::new(Vec::new());
-    static COMPARATIVE_RESULTS: RefCell<Vec<ComparativeResult>> = RefCell::new(Vec::new());
-    static ALGORITHM_RESULTS: RefCell<Vec<AlgorithmResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<RefResult>> = const { RefCell::new(Vec::new()) };
+    static COMPARATIVE_RESULTS: RefCell<Vec<ComparativeResult>> = const { RefCell::new(Vec::new()) };
+    static ALGORITHM_RESULTS: RefCell<Vec<AlgorithmResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -195,11 +172,9 @@ fn analyze_references(doc: &hedl_core::Document) -> (usize, usize, usize, usize)
 
     // Build node ID map
     let mut node_ids: HashMap<String, usize> = HashMap::new();
-    let mut node_idx = 0;
 
-    for (key, _) in doc.root.iter() {
+    for (node_idx, (key, _)) in doc.root.iter().enumerate() {
         node_ids.insert(key.clone(), node_idx);
-        node_idx += 1;
     }
 
     // Track references and detect cycles
@@ -247,7 +222,7 @@ fn extract_references(item: &hedl_core::Item) -> Vec<String> {
     match item {
         hedl_core::Item::Scalar(s) => {
             // Extract @Type:id references
-            let s_str = format!("{:?}", s); // Simple way to get string representation
+            let s_str = format!("{s:?}"); // Simple way to get string representation
             for part in s_str.split('@') {
                 if let Some(id) = part.split(':').nth(1) {
                     refs.push(id.split('"').next().unwrap_or("").to_string());
@@ -267,11 +242,13 @@ fn extract_references(item: &hedl_core::Item) -> Vec<String> {
                     refs.extend(extract_references(&field_item));
                 }
                 // Recursively check children
-                for child_list in node.children.values() {
-                    for child_node in child_list {
-                        for field in &child_node.fields {
-                            let field_item = hedl_core::Item::Scalar(field.clone());
-                            refs.extend(extract_references(&field_item));
+                if let Some(children) = node.children() {
+                    for child_list in children.values() {
+                        for child_node in child_list {
+                            for field in &child_node.fields {
+                                let field_item = hedl_core::Item::Scalar(field.clone());
+                                refs.extend(extract_references(&field_item));
+                            }
                         }
                     }
                 }
@@ -321,10 +298,10 @@ fn detect_cycle_dfs(
         if let Some(item) = root.get(key) {
             let refs = extract_references(item);
             for ref_id in refs {
-                if !visited.contains(&ref_id) && detect_cycle_dfs(&ref_id, root, visited, rec_stack)
+                if rec_stack.contains(&ref_id)
+                    || (!visited.contains(&ref_id)
+                        && detect_cycle_dfs(&ref_id, root, visited, rec_stack))
                 {
-                    return true;
-                } else if rec_stack.contains(&ref_id) {
                     return true;
                 }
             }
@@ -393,7 +370,7 @@ fn bench_reference_parsing(c: &mut Criterion) {
             b.iter(|| {
                 let doc = hedl_core::parse(input.as_bytes()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -402,7 +379,7 @@ fn bench_reference_parsing(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("ref_parse_{}", size);
+        let name = format!("ref_parse_{size}");
         record_perf(
             &name,
             iterations,
@@ -413,14 +390,14 @@ fn bench_reference_parsing(c: &mut Criterion) {
         let ref_count = count_references(&hedl);
         REPORT.with(|r| {
             if let Some(ref mut report) = *r.borrow_mut() {
-                report.add_note(format!("{}: {} references", name, ref_count));
+                report.add_note(format!("{name}: {ref_count} references"));
             }
         });
 
         // Collect comprehensive result with ACTUAL measurements
         let doc = parse_hedl(&hedl);
         let mut result = RefResult::default();
-        result.dataset = format!("reference_heavy_{}", size);
+        result.dataset = format!("reference_heavy_{size}");
         result.node_count = size;
         result.reference_count = ref_count;
         result.input_size_bytes = hedl.len();
@@ -479,7 +456,7 @@ fn bench_graph_structures(c: &mut Criterion) {
                 b.iter(|| {
                     let doc = hedl_core::parse(input.as_bytes()).unwrap();
                     black_box(doc)
-                })
+                });
             },
         );
 
@@ -489,7 +466,7 @@ fn bench_graph_structures(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("graph_{}_edges_per_node", edges_per_node);
+        let name = format!("graph_{edges_per_node}_edges_per_node");
         record_perf(
             &name,
             iterations,
@@ -500,7 +477,7 @@ fn bench_graph_structures(c: &mut Criterion) {
         // Collect result with ACTUAL measurements
         let doc = parse_hedl(&hedl);
         let mut result = RefResult::default();
-        result.dataset = format!("graph_{}epn", edges_per_node);
+        result.dataset = format!("graph_{edges_per_node}epn");
         result.node_count = node_count;
         result.edge_count = node_count * edges_per_node;
         result.reference_count = count_references(&hedl);
@@ -551,12 +528,12 @@ fn bench_reference_validation(c: &mut Criterion) {
                 // Count items in document root as proxy for validation
                 let ref_count = doc.root.len();
                 black_box(ref_count)
-            })
+            });
         });
 
         // Collect validation times
         let mut result = RefResult::default();
-        result.dataset = format!("validation_{}", size);
+        result.dataset = format!("validation_{size}");
         result.node_count = size;
 
         let mut times = Vec::new();
@@ -600,7 +577,7 @@ fn bench_graph_traversal(c: &mut Criterion) {
             b.iter(|| {
                 let visited: usize = doc.root.values().map(count_item_refs).sum();
                 black_box(visited)
-            })
+            });
         });
 
         // Breadth-first traversal (simulated with simple iteration)
@@ -611,12 +588,12 @@ fn bench_graph_traversal(c: &mut Criterion) {
                     visited += count_item_refs(item);
                 }
                 black_box(visited)
-            })
+            });
         });
 
         // Collect traversal times
         let mut result = RefResult::default();
-        result.dataset = format!("traversal_{}", size);
+        result.dataset = format!("traversal_{size}");
         result.node_count = size;
 
         let mut dfs_times = Vec::new();
@@ -671,12 +648,12 @@ fn bench_reference_map(c: &mut Criterion) {
                     .collect();
 
                 black_box(ref_map)
-            })
+            });
         });
 
         // Collect result with ACTUAL measurements
         let mut result = RefResult::default();
-        result.dataset = format!("ref_map_{}", size);
+        result.dataset = format!("ref_map_{size}");
         result.node_count = size;
 
         // ACTUALLY measure memory (not estimate!)
@@ -739,7 +716,7 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
             for key in doc.root.keys().take(10) {
                 black_box(ref_map.get(key.as_str()));
             }
-        })
+        });
     });
 
     // Algorithm 2: Linear scan (O(n))
@@ -750,7 +727,7 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
             for search_key in doc.root.keys().take(10) {
                 black_box(keys.iter().position(|k| *k == search_key));
             }
-        })
+        });
     });
 
     // Algorithm 3: B-Tree index (O(log n))
@@ -766,7 +743,7 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
             for key in doc.root.keys().take(10) {
                 black_box(ref_map.get(key.as_str()));
             }
-        })
+        });
     });
 
     // Algorithm 4: Perfect hash (pre-computed, O(1))
@@ -784,7 +761,7 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
             for key in doc.root.keys().take(10) {
                 black_box(hash_fn(key));
             }
-        })
+        });
     });
 
     // Record algorithm results
@@ -809,7 +786,6 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
     algo_results.push(AlgorithmResult {
         algorithm: "HashMap lookup".to_string(),
         avg_time_ns: hashmap_avg,
-        memory_kb: 0, // Not measured
         complexity: "O(1)".to_string(),
         best_for: "Random access".to_string(),
     });
@@ -828,7 +804,6 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
     algo_results.push(AlgorithmResult {
         algorithm: "Linear scan".to_string(),
         avg_time_ns: linear_avg,
-        memory_kb: 0, // Not measured
         complexity: "O(n)".to_string(),
         best_for: "Small datasets".to_string(),
     });
@@ -852,7 +827,6 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
     algo_results.push(AlgorithmResult {
         algorithm: "B-Tree index".to_string(),
         avg_time_ns: btree_avg,
-        memory_kb: 0, // Not measured
         complexity: "O(log n)".to_string(),
         best_for: "Sorted access".to_string(),
     });
@@ -876,7 +850,6 @@ fn bench_resolution_algorithms(c: &mut Criterion) {
     algo_results.push(AlgorithmResult {
         algorithm: "Perfect hash".to_string(),
         avg_time_ns: perfect_avg,
-        memory_kb: 0, // Not measured
         complexity: "O(1)".to_string(),
         best_for: "Static refs".to_string(),
     });
@@ -906,7 +879,7 @@ fn bench_graph_database_comparison(c: &mut Criterion) {
         b.iter(|| {
             let doc = parse_hedl(&hedl);
             black_box(doc)
-        })
+        });
     });
 
     // Generate equivalent JSON with embedded objects
@@ -915,7 +888,7 @@ fn bench_graph_database_comparison(c: &mut Criterion) {
         b.iter(|| {
             let val: serde_json::Value = serde_json::from_str(&json_embedded).unwrap();
             black_box(val)
-        })
+        });
     });
 
     // Generate equivalent JSON with ID arrays
@@ -925,7 +898,7 @@ fn bench_graph_database_comparison(c: &mut Criterion) {
             let val: serde_json::Value = serde_json::from_str(&json_ids).unwrap();
             // Simulate resolution
             black_box(val)
-        })
+        });
     });
 
     // Collect comparative results
@@ -944,7 +917,6 @@ fn bench_graph_database_comparison(c: &mut Criterion) {
         system: "HEDL References".to_string(),
         format: "HEDL".to_string(),
         parse_time_ns: hedl_avg,
-        resolution_time_ns: 0, // Included in parse (not separately measured)
         total_time_ns: hedl_avg,
         memory_kb: hedl.len() / 1024,
         supports_cycles: true,
@@ -965,7 +937,6 @@ fn bench_graph_database_comparison(c: &mut Criterion) {
         system: "JSON Embedded".to_string(),
         format: "JSON".to_string(),
         parse_time_ns: json_emb_avg,
-        resolution_time_ns: 0, // No resolution needed
         total_time_ns: json_emb_avg,
         memory_kb: json_embedded.len() / 1024,
         supports_cycles: false,
@@ -986,7 +957,6 @@ fn bench_graph_database_comparison(c: &mut Criterion) {
         system: "JSON ID Arrays".to_string(),
         format: "JSON".to_string(),
         parse_time_ns: json_id_avg,
-        resolution_time_ns: 0, // Not separately measured
         total_time_ns: json_id_avg,
         memory_kb: json_ids.len() / 1024,
         supports_cycles: true,
@@ -1011,16 +981,13 @@ fn generate_json_embedded_graph(nodes: usize, edges_per_node: usize) -> String {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!(
-            "{{\"id\":{},\"value\":\"node_{}\",\"edges\":[",
-            i, i
-        ));
+        json.push_str(&format!("{{\"id\":{i},\"value\":\"node_{i}\",\"edges\":["));
         for j in 0..edges_per_node.min(nodes) {
             let target = (i + j + 1) % nodes;
             if j > 0 {
                 json.push(',');
             }
-            json.push_str(&format!("{{\"target\":{}}}", target));
+            json.push_str(&format!("{{\"target\":{target}}}"));
         }
         json.push_str("]}");
     }
@@ -1034,16 +1001,13 @@ fn generate_json_id_graph(nodes: usize, edges_per_node: usize) -> String {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!(
-            "{{\"id\":{},\"value\":\"node_{}\",\"edges\":[",
-            i, i
-        ));
+        json.push_str(&format!("{{\"id\":{i},\"value\":\"node_{i}\",\"edges\":["));
         for j in 0..edges_per_node.min(nodes) {
             let target = (i + j + 1) % nodes;
             if j > 0 {
                 json.push(',');
             }
-            json.push_str(&format!("{}", target));
+            json.push_str(&format!("{target}"));
         }
         json.push_str("]}");
     }
@@ -1065,7 +1029,7 @@ fn bench_error_handling(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(valid.as_bytes());
             black_box(doc)
-        })
+        });
     });
 
     // Missing target error
@@ -1074,7 +1038,7 @@ fn bench_error_handling(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(missing.as_bytes());
             black_box(doc)
-        })
+        });
     });
 
     // Invalid format error
@@ -1083,7 +1047,7 @@ fn bench_error_handling(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(invalid.as_bytes());
             black_box(doc)
-        })
+        });
     });
 
     // Type mismatch (attempt to reference wrong type)
@@ -1092,7 +1056,7 @@ fn bench_error_handling(c: &mut Criterion) {
         b.iter(|| {
             let doc = hedl_core::parse(mismatch.as_bytes());
             black_box(doc)
-        })
+        });
     });
 
     group.finish();
@@ -1120,20 +1084,20 @@ fn create_reference_resolution_table(results: &[RefResult], report: &mut Benchma
     };
 
     for result in results {
-        let parse_avg = if !result.parsing_times_ns.is_empty() {
+        let parse_avg = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
-        let resolve_avg = if !result.resolution_times_ns.is_empty() {
+        let resolve_avg = if result.resolution_times_ns.is_empty() {
+            0.0
+        } else {
             result.resolution_times_ns.iter().sum::<u64>() as f64
                 / result.resolution_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let throughput = if parse_avg > 0.0 {
@@ -1193,12 +1157,12 @@ fn create_graph_complexity_table(results: &[RefResult], report: &mut BenchmarkRe
             0.0
         };
 
-        let parse_avg = if !result.parsing_times_ns.is_empty() {
+        let parse_avg = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let time_per_edge = if result.edge_count > 0 {
@@ -1391,12 +1355,12 @@ fn create_cache_effectiveness_table(results: &[RefResult], report: &mut Benchmar
             continue; // Skip results without cache data
         };
 
-        let avg_time = if !result.resolution_times_ns.is_empty() {
+        let _avg_time = if result.resolution_times_ns.is_empty() {
+            0.0
+        } else {
             result.resolution_times_ns.iter().sum::<u64>() as f64
                 / result.resolution_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let recommendation = if hit_rate > 80.0 {
@@ -1536,20 +1500,20 @@ fn create_nested_reference_table(results: &[RefResult], report: &mut BenchmarkRe
     };
 
     for result in results {
-        let dfs_avg = if !result.traversal_dfs_times_ns.is_empty() {
+        let dfs_avg = if result.traversal_dfs_times_ns.is_empty() {
+            0.0
+        } else {
             result.traversal_dfs_times_ns.iter().sum::<u64>() as f64
                 / result.traversal_dfs_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
-        let bfs_avg = if !result.traversal_bfs_times_ns.is_empty() {
+        let bfs_avg = if result.traversal_bfs_times_ns.is_empty() {
+            0.0
+        } else {
             result.traversal_bfs_times_ns.iter().sum::<u64>() as f64
                 / result.traversal_bfs_times_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let best_algo = if dfs_avg < bfs_avg { "DFS" } else { "BFS" };
@@ -1585,12 +1549,12 @@ fn create_production_scenarios_table(results: &[RefResult], report: &mut Benchma
     };
 
     for result in results {
-        let time_ms = if !result.parsing_times_ns.is_empty() {
+        let time_ms = if result.parsing_times_ns.is_empty() {
+            0.0
+        } else {
             result.parsing_times_ns.iter().sum::<u64>() as f64
                 / result.parsing_times_ns.len() as f64
                 / 1_000_000.0
-        } else {
-            0.0
         };
 
         let memory = result.input_size_bytes / 1024 + result.memory_for_ref_map_kb;
@@ -1760,7 +1724,7 @@ fn generate_insights(results: &[RefResult], report: &mut BenchmarkReport) {
         let refs_per_ms = (total_refs as f64 * 1_000_000.0) / total_parse_ns as f64;
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Reference Resolution: {:.0} refs/ms", refs_per_ms),
+            title: format!("Reference Resolution: {refs_per_ms:.0} refs/ms"),
             description: "Aggregate reference resolution throughput".to_string(),
             data_points: vec![
                 format!("Total references: {}", total_refs),
@@ -1842,7 +1806,7 @@ fn generate_insights(results: &[RefResult], report: &mut BenchmarkReport) {
 
     report.add_insight(Insight {
         category: "recommendation".to_string(),
-        title: format!("Traversal Algorithm: {}", algo_recommendation),
+        title: format!("Traversal Algorithm: {algo_recommendation}"),
         description: "Based on benchmark results across datasets".to_string(),
         data_points: vec![
             format!("DFS faster in {} cases", dfs_better.len()),
@@ -1856,20 +1820,7 @@ fn generate_insights(results: &[RefResult], report: &mut BenchmarkReport) {
         .filter(|r| r.memory_for_ref_map_kb > 100)
         .collect();
 
-    if !high_memory.is_empty() {
-        report.add_insight(Insight {
-            category: "weakness".to_string(),
-            title: format!(
-                "{} Datasets with High Memory Usage (>100KB)",
-                high_memory.len()
-            ),
-            description: "Consider lazy loading or streaming for large graphs".to_string(),
-            data_points: high_memory
-                .iter()
-                .map(|r| format!("{}: {}KB", r.dataset, r.memory_for_ref_map_kb))
-                .collect(),
-        });
-    } else {
+    if high_memory.is_empty() {
         report.add_insight(Insight {
             category: "strength".to_string(),
             title: "Memory Usage Within Acceptable Bounds".to_string(),
@@ -1883,6 +1834,19 @@ fn generate_insights(results: &[RefResult], report: &mut BenchmarkReport) {
                     / results.len().max(1)
             )],
         });
+    } else {
+        report.add_insight(Insight {
+            category: "weakness".to_string(),
+            title: format!(
+                "{} Datasets with High Memory Usage (>100KB)",
+                high_memory.len()
+            ),
+            description: "Consider lazy loading or streaming for large graphs".to_string(),
+            data_points: high_memory
+                .iter()
+                .map(|r| format!("{}: {}KB", r.dataset, r.memory_for_ref_map_kb))
+                .collect(),
+        });
     }
 
     // Insight 6: Circular reference safety
@@ -1893,7 +1857,7 @@ fn generate_insights(results: &[RefResult], report: &mut BenchmarkReport) {
     if circular_count > 0 {
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!("{} Datasets with Circular References", circular_count),
+            title: format!("{circular_count} Datasets with Circular References"),
             description: "Circular references require special handling".to_string(),
             data_points: vec![
                 "Enable lazy evaluation for circular refs".to_string(),
@@ -1955,23 +1919,22 @@ fn generate_insights(results: &[RefResult], report: &mut BenchmarkReport) {
 
     // Graph Complexity Handling
     let max_edges = results.iter().map(|r| r.edge_count).max().unwrap_or(0);
-    let avg_edges_per_node: f64 = if !results.is_empty() {
+    let avg_edges_per_node: f64 = if results.is_empty() {
+        0.0
+    } else {
         results
             .iter()
             .filter(|r| r.node_count > 0)
             .map(|r| r.edge_count as f64 / r.node_count as f64)
             .sum::<f64>()
             / results.iter().filter(|r| r.node_count > 0).count().max(1) as f64
-    } else {
-        0.0
     };
 
     report.add_insight(Insight {
         category: "strength".to_string(),
         title: "Handles Complex Graph Structures".to_string(),
         description: format!(
-            "Efficiently processes graphs with {:.1} avg edges/node",
-            avg_edges_per_node
+            "Efficiently processes graphs with {avg_edges_per_node:.1} avg edges/node"
         ),
         data_points: vec![
             format!("Max edges tested: {}", max_edges),
@@ -2075,7 +2038,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights",
                         new_report.custom_tables.len(),
@@ -2083,10 +2046,10 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
+                    eprintln!("Export failed: {e}");
                     // Fallback to legacy export
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

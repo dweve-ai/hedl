@@ -44,8 +44,8 @@ fn estimate_tokens_optimized(text: &str) -> usize {
         let b = bytes[i];
 
         if b < 128 {
-            whitespace_count += matches!(b, b' ' | b'\t' | b'\n' | b'\r') as usize;
-            punct_count += matches!(
+            whitespace_count += usize::from(matches!(b, b' ' | b'\t' | b'\n' | b'\r'));
+            punct_count += usize::from(matches!(
                 b,
                 b'!' | b'"'
                     | b'#'
@@ -78,7 +78,7 @@ fn estimate_tokens_optimized(text: &str) -> usize {
                     | b'|'
                     | b'}'
                     | b'~'
-            ) as usize;
+            ));
             i += 1;
         } else {
             let char_len = if b < 0b1110_0000 {
@@ -99,7 +99,7 @@ fn estimate_tokens_optimized(text: &str) -> usize {
 fn estimate_tokens_old(text: &str) -> usize {
     let char_count = text.len();
     let whitespace_count = text.chars().filter(|c| c.is_whitespace()).count();
-    let punct_count = text.chars().filter(|c| c.is_ascii_punctuation()).count();
+    let punct_count = text.chars().filter(char::is_ascii_punctuation).count();
     (char_count + whitespace_count + punct_count) / CHARS_PER_TOKEN
 }
 
@@ -112,23 +112,23 @@ fn main() {
     // Example 1: Small JSON object
     let small_json = r#"{"id": "user-123", "name": "Alice Smith", "email": "alice@example.com"}"#;
     println!("Example 1: Small JSON Object");
-    println!("Text: {}", small_json);
+    println!("Text: {small_json}");
     println!("Length: {} bytes", small_json.len());
     let tokens = estimate_tokens_optimized(small_json);
-    println!("Estimated tokens: {}", tokens);
+    println!("Estimated tokens: {tokens}");
     println!();
 
     // Example 2: HEDL data
-    let hedl = r#"%VERSION: 1.0
+    let hedl = r"%VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
 users: @User
   | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com"#;
+  | bob, Bob Jones, bob@example.com";
     println!("Example 2: HEDL Document");
     println!("Length: {} bytes", hedl.len());
     let tokens = estimate_tokens_optimized(hedl);
-    println!("Estimated tokens: {}", tokens);
+    println!("Estimated tokens: {tokens}");
     println!();
 
     // Example 3: Large document performance test
@@ -167,18 +167,18 @@ users: @User
 
     let speedup = old_duration.as_nanos() as f64 / optimized_duration.as_nanos() as f64;
 
-    println!("Performance ({} iterations):", iterations);
-    println!("  Multi-pass (old): {:?}", old_duration);
-    println!("  Single-pass (new): {:?}", optimized_duration);
-    println!("  Speedup: {:.2}x", speedup);
+    println!("Performance ({iterations} iterations):");
+    println!("  Multi-pass (old): {old_duration:?}");
+    println!("  Single-pass (new): {optimized_duration:?}");
+    println!("  Speedup: {speedup:.2}x");
     println!();
 
     // Correctness verification
     println!("Correctness Verification:");
     let old_result = estimate_tokens_old(&large_doc);
     let new_result = estimate_tokens_optimized(&large_doc);
-    println!("  Multi-pass result: {} tokens", old_result);
-    println!("  Single-pass result: {} tokens", new_result);
+    println!("  Multi-pass result: {old_result} tokens");
+    println!("  Single-pass result: {new_result} tokens");
     println!(
         "  Match: {}",
         if old_result == new_result {
@@ -196,7 +196,7 @@ users: @User
     println!("The optimized byte-level implementation provides:");
     println!("  • Single-pass algorithm (no repeated iteration)");
     println!("  • ASCII fast path for common structured data");
-    println!("  • {:.1}x speedup on large documents", speedup);
+    println!("  • {speedup:.1}x speedup on large documents");
     println!("  • Identical results (correctness preserved)");
     println!("  • Zero allocations and minimal memory overhead");
 }

@@ -20,7 +20,7 @@
 //! This example shows how to configure `max_total_keys` and other security
 //! limits when parsing HEDL documents with different security requirements.
 
-use hedl_core::{parse_with_limits, Limits, ParseOptions};
+use hedl_core::{parse_with_limits, Limits, ParseOptions, ReferenceMode};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("HEDL Custom Limits Example\n");
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    let hedl_large = br#"%VERSION: 1.0
+    let hedl_large = br"%VERSION: 1.0
 ---
 # Large dataset with many objects
 users:
@@ -50,11 +50,11 @@ users:
   bob: user
   charlie: user
   # In a real large dataset, there would be millions of keys
-"#;
+";
 
     let options_large = ParseOptions {
         limits: large_limits.clone(),
-        strict_refs: true,
+        reference_mode: ReferenceMode::Strict,
     };
 
     match parse_with_limits(hedl_large, options_large) {
@@ -62,7 +62,7 @@ users:
             "   Successfully parsed with large limits: {} aliases\n",
             doc.aliases.len()
         ),
-        Err(e) => println!("   Error: {}\n", e),
+        Err(e) => println!("   Error: {e}\n"),
     }
 
     println!("   Configured limits:");
@@ -86,19 +86,20 @@ users:
         max_block_string_size: 1024 * 1024,                // 1 MB
         max_object_keys: 1_000,                            // 1k keys per object
         max_total_keys: 100_000,                           // 100k total keys
+        max_total_ids: 100_000,                            // 100k total IDs
         timeout: Some(std::time::Duration::from_secs(10)), // 10 second timeout
     };
 
-    let hedl_small = br#"%VERSION: 1.0
+    let hedl_small = br"%VERSION: 1.0
 ---
 user:
   name: Alice
   role: admin
-"#;
+";
 
     let options_conservative = ParseOptions {
         limits: conservative_limits.clone(),
-        strict_refs: true,
+        reference_mode: ReferenceMode::Strict,
     };
 
     match parse_with_limits(hedl_small, options_conservative) {
@@ -106,7 +107,7 @@ user:
             "   Successfully parsed with conservative limits: {} items\n",
             doc.root.len()
         ),
-        Err(e) => println!("   Error: {}\n", e),
+        Err(e) => println!("   Error: {e}\n"),
     }
 
     println!("   Configured limits:");
@@ -127,21 +128,21 @@ user:
         ..Limits::default()
     };
 
-    let hedl_too_many = br#"%VERSION: 1.0
+    let hedl_too_many = br"%VERSION: 1.0
 ---
 key1: value1
 key2: value2
 key3: value3
-"#;
+";
 
     let options_strict = ParseOptions {
         limits: strict_limits,
-        strict_refs: true,
+        reference_mode: ReferenceMode::Strict,
     };
 
     match parse_with_limits(hedl_too_many, options_strict) {
         Ok(_) => println!("   Unexpected success!\n"),
-        Err(e) => println!("   Expected error (too many keys): {}\n", e),
+        Err(e) => println!("   Expected error (too many keys): {e}\n"),
     }
 
     // Example 5: Memory estimation

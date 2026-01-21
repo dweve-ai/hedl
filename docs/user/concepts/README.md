@@ -235,7 +235,7 @@ Output Stream
 
 After understanding these concepts:
 
-- **Apply your knowledge:** See [How-To Guides](../how-to/)
+- **Apply your knowledge:** See [CLI Guide](../cli-guide.md)
 - **Learn by doing:** Try the [Tutorials](../tutorials/)
 - **Look up specifics:** Check the [Reference](../reference/)
 - **Get help:** Read the [FAQ](../faq.md)

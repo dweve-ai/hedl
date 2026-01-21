@@ -1,0 +1,81 @@
+# hedl-wasm optimization configuration
+
+[dead_code_elimination]
+enabled = true
+# Functions always considered reachable (entry points)
+preserve_functions = [
+    "parse",
+    "validate",
+    "format",
+    "init",
+    "version",
+    "setMaxInputSize",
+    "getMaxInputSize",
+    # Conditional on features
+    "toJson",
+    "fromJson",
+    "getStats",
+    "compareTokens"
+]
+
+[inlining]
+enabled = true
+# Inline functions called more than this threshold (5% of execution time)
+hot_threshold = 0.05
+# Maximum function size to inline (bytes)
+max_inline_size = 512
+# Force inline these hot path functions
+force_inline = [
+    "check_input_size",
+    "estimate_tokens",
+]
+
+[constant_folding]
+enabled = true
+# Constants to propagate aggressively
+propagate_constants = [
+    "CHARS_PER_TOKEN",
+    "DEFAULT_MAX_INPUT_SIZE",
+    "MAX_INPUT_SIZE"
+]
+# Optimize division by these constants to bit shifts
+optimize_divisions = [4]  # 4 -> right shift by 2
+
+[hedl_patterns]
+enabled = true
+# Optimize state machine branches
+optimize_state_machine = true
+# Optimize memory layout for cache efficiency
+optimize_layout = true
+# Specialize type conversions
+specialize_conversions = true
+# Optimize string operations
+optimize_strings = true
+
+[size_targets]
+# Target sizes in bytes
+minimal = 307200   # 300 KB
+standard = 512000  # 500 KB
+full = 665600      # 650 KB
+
+[performance_targets]
+# Performance improvement targets (percentage)
+parse_improvement = 20
+token_estimation_improvement = 25
+validation_improvement = 15
+
+[validation]
+# Validate WASM output after each pass
+validate_output = true
+# Run test suite on optimized binary
+run_tests = true
+# Benchmark performance
+benchmark = false  # Requires Node.js
+
+[output]
+# Keep intermediate files for debugging
+keep_intermediate = false
+# Verbose output
+verbose = false
+# Generate size report
+generate_report = true

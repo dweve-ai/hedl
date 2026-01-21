@@ -758,7 +758,7 @@ Build a complete ETL pipeline that:
 Congratulations! You've mastered streaming in HEDL.
 
 **Continue your learning:**
-- [How-To: Optimize Performance](../how-to/optimize-performance.md) - Advanced optimization techniques
+- [Configuration](../reference/configuration.md) - Advanced optimization settings
 - [Concepts: Data Model](../concepts/data-model.md) - Understanding HEDL's internal structure
 - [Reference: Configuration](../reference/configuration.md) - Configure streaming parameters
 

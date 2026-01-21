@@ -67,8 +67,8 @@ pub fn parse_reference(s: &str) -> Result<Reference, LexError> {
             });
         }
         Ok(Reference {
-            type_name: Some(type_part.to_string()),
-            id: id_part.to_string(),
+            type_name: Some(type_part.into()),
+            id: id_part.into(),
         })
     } else {
         // Local reference
@@ -80,7 +80,7 @@ pub fn parse_reference(s: &str) -> Result<Reference, LexError> {
         }
         Ok(Reference {
             type_name: None,
-            id: s.to_string(),
+            id: s.into(),
         })
     }
 }
@@ -183,7 +183,7 @@ File: `crates/hedl-json/tests/round_trip_tests.rs`
 
 ```rust
 use hedl_core::parse;
-use hedl_json::{to_json, from_json};
+use hedl_json::{hedl_to_json, json_to_hedl, to_json, from_json};
 use hedl_c14n::canonicalize;
 
 #[test]
@@ -197,9 +197,9 @@ active: true
 
     // HEDL → JSON → HEDL → JSON
     let doc1 = parse(hedl.as_bytes()).unwrap();
-    let json1 = to_json(&doc1).unwrap();
-    let doc2 = from_json(&json1).unwrap();
-    let json2 = to_json(&doc2).unwrap();
+    let json1 = to_json(&doc1, &Default::default()).unwrap();
+    let doc2 = from_json(&json1, &Default::default()).unwrap();
+    let json2 = to_json(&doc2, &Default::default()).unwrap();
 
     // Should be identical
     assert_eq!(json1, json2);
@@ -210,8 +210,8 @@ fn test_round_trip_preserves_types() {
     let hedl = b"%VERSION: 1.0\n---\nint: 42\nfloat: 3.14\nbool: true\nstring: hello\nnull: ~\n";
 
     let doc1 = parse(hedl).unwrap();
-    let json = to_json(&doc1).unwrap();
-    let doc2 = from_json(&json).unwrap();
+    let json = to_json(&doc1, &Default::default()).unwrap();
+    let doc2 = from_json(&json, &Default::default()).unwrap();
 
     // Verify types preserved
     use hedl_core::{Item, Value};
@@ -227,23 +227,22 @@ fn test_cross_format_conversion() {
 
     let doc = parse(hedl).unwrap();
 
-    // Convert to all formats
-    let json = hedl_json::to_json(&doc).unwrap();
-    let yaml = hedl_yaml::to_yaml(&doc).unwrap();
-    let xml = hedl_xml::to_xml(&doc).unwrap();
+    // Convert to multiple formats and back
+    let json_str = to_json(&doc, &Default::default()).unwrap();
+    let doc_from_json = from_json(&json_str, &Default::default()).unwrap();
 
-    // Convert back and verify structure preserved
-    let from_json = hedl_json::from_json(&json).unwrap();
-    let from_yaml = hedl_yaml::from_yaml(&yaml).unwrap();
-    let from_xml = hedl_xml::from_xml(&xml).unwrap();
+    // CSV format
+    let csv_str = hedl_csv::to_csv(&doc).unwrap();
+    let doc_from_csv = hedl_csv::from_csv(&csv_str).unwrap();
 
-    // Canonicalize for comparison
-    let c1 = canonicalize(&from_json).unwrap();
-    let c2 = canonicalize(&from_yaml).unwrap();
-    let c3 = canonicalize(&from_xml).unwrap();
+    // Canonicalize for comparison (since CSV flattens hierarchies)
+    let c1 = canonicalize(&doc).unwrap();
+    let c2 = canonicalize(&doc_from_json).unwrap();
 
+    // Both should parse without errors
+    assert!(!json_str.is_empty());
+    assert!(!csv_str.is_empty());
     assert_eq!(c1, c2);
-    assert_eq!(c2, c3);
 }
 ```
 
@@ -303,9 +302,9 @@ proptest! {
         let hedl1 = format!("%VERSION: 1.0\n---\n{}: {}", key, value);
 
         if let Ok(doc1) = parse(hedl1.as_bytes()) {
-            if let Ok(canon1) = hedl_c14n::canonicalize(&doc1) {
+            if let Ok(canon1) = canonicalize(&doc1) {
                 if let Ok(doc2) = parse(canon1.as_bytes()) {
-                    if let Ok(canon2) = hedl_c14n::canonicalize(&doc2) {
+                    if let Ok(canon2) = canonicalize(&doc2) {
                         // Second canonicalization should be identical
                         assert_eq!(canon1, canon2, "Round-trip not idempotent");
                     }
@@ -465,18 +464,20 @@ fn test_error_schema_mismatch() {
 ```
 crates/hedl-core/
 ├── src/
-│   └── lib.rs          # Unit tests via #[cfg(test)]
+│   └── lib.rs                          # Unit tests via #[cfg(test)]
 ├── tests/
-│   ├── unit/           # Focused unit tests
-│   │   ├── lexer.rs
-│   │   └── parser.rs
-│   ├── integration/    # Cross-module tests
-│   │   ├── round_trip.rs
-│   │   └── conversion.rs
-│   ├── property/       # Property-based tests
-│   │   └── invariants.rs
-│   └── error_paths/    # Error condition tests
-│       └── limits.rs
+│   ├── conformance/                    # Spec conformance tests
+│   ├── fuzz/                           # Fuzz test corpus and seeds
+│   ├── property/                       # Property-based test helpers
+│   ├── conformance_tests.rs            # Conformance test suite
+│   ├── count_hint_tests.rs             # Count hint feature tests
+│   ├── parallel_parsing_tests.rs       # Parallel parsing tests
+│   ├── property_tests.rs               # Property-based tests
+│   ├── simd_tests.rs                   # SIMD optimization tests
+│   ├── stress_tests.rs                 # Stress and scalability tests
+│   ├── unicode_tests.rs                # Unicode handling tests
+│   ├── validation_integration_tests.rs # Validation integration
+│   └── validation_rules_tests.rs       # Validation rule tests
 └── fuzz/
     └── fuzz_targets/
         ├── parse.rs

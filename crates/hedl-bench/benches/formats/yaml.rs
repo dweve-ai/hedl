@@ -23,10 +23,8 @@
 //! - Roundtrip fidelity
 //! - Cross-format comparison showing HEDL advantages
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hedl_bench::helpers::{compare_sizes, measure_throughput_ns};
 use hedl_bench::{
     count_tokens, generate_blog, generate_orders, generate_products, generate_users, sizes,
     BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -34,13 +32,14 @@ use hedl_bench::{
 use hedl_yaml::{from_yaml, to_yaml, FromYamlConfig, ToYamlConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -60,8 +59,8 @@ fn init_report() {
 fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes
-                .map(|bytes| formats::measure_throughput_ns(bytes as usize, total_ns));
+            let throughput_mbs =
+                throughput_bytes.map(|bytes| measure_throughput_ns(bytes as usize, total_ns));
 
             report.add_perf(PerfResult {
                 name: name.to_string(),
@@ -100,7 +99,7 @@ fn bench_hedl_to_yaml_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &doc, |b, doc| {
-            b.iter(|| to_yaml(black_box(doc), &ToYamlConfig::default()))
+            b.iter(|| to_yaml(black_box(doc), &ToYamlConfig::default()));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -108,7 +107,7 @@ fn bench_hedl_to_yaml_users(c: &mut Criterion) {
             let _ = to_yaml(&doc, &ToYamlConfig::default());
         });
         add_perf(
-            &format!("hedl_to_yaml_users_{}", size),
+            &format!("hedl_to_yaml_users_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -127,7 +126,7 @@ fn bench_hedl_to_yaml_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &doc, |b, doc| {
-            b.iter(|| to_yaml(black_box(doc), &ToYamlConfig::default()))
+            b.iter(|| to_yaml(black_box(doc), &ToYamlConfig::default()));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -135,7 +134,7 @@ fn bench_hedl_to_yaml_products(c: &mut Criterion) {
             let _ = to_yaml(&doc, &ToYamlConfig::default());
         });
         add_perf(
-            &format!("hedl_to_yaml_products_{}", size),
+            &format!("hedl_to_yaml_products_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -159,7 +158,7 @@ fn bench_yaml_to_hedl_users(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(yaml.len() as u64));
         group.bench_with_input(BenchmarkId::new("users", size), &yaml, |b, yaml| {
-            b.iter(|| from_yaml(black_box(yaml), &FromYamlConfig::default()))
+            b.iter(|| from_yaml(black_box(yaml), &FromYamlConfig::default()));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -167,7 +166,7 @@ fn bench_yaml_to_hedl_users(c: &mut Criterion) {
             let _ = from_yaml(&yaml, &FromYamlConfig::default());
         });
         add_perf(
-            &format!("yaml_to_hedl_users_{}", size),
+            &format!("yaml_to_hedl_users_{size}"),
             iterations,
             total_ns,
             Some(yaml.len() as u64),
@@ -187,7 +186,7 @@ fn bench_yaml_to_hedl_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(yaml.len() as u64));
         group.bench_with_input(BenchmarkId::new("products", size), &yaml, |b, yaml| {
-            b.iter(|| from_yaml(black_box(yaml), &FromYamlConfig::default()))
+            b.iter(|| from_yaml(black_box(yaml), &FromYamlConfig::default()));
         });
 
         let iterations = if size >= sizes::LARGE { 50 } else { 100 };
@@ -195,7 +194,7 @@ fn bench_yaml_to_hedl_products(c: &mut Criterion) {
             let _ = from_yaml(&yaml, &FromYamlConfig::default());
         });
         add_perf(
-            &format!("yaml_to_hedl_products_{}", size),
+            &format!("yaml_to_hedl_products_{size}"),
             iterations,
             total_ns,
             Some(yaml.len() as u64),
@@ -221,7 +220,7 @@ fn bench_roundtrip_yaml(c: &mut Criterion) {
             b.iter(|| {
                 let yaml = to_yaml(doc, &ToYamlConfig::default()).unwrap();
                 let _doc2 = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
-            })
+            });
         });
 
         let iterations = 50;
@@ -230,7 +229,7 @@ fn bench_roundtrip_yaml(c: &mut Criterion) {
             let _doc2 = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
         });
         add_perf(
-            &format!("roundtrip_yaml_blog_{}", size),
+            &format!("roundtrip_yaml_blog_{size}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -251,7 +250,7 @@ fn bench_cross_format_comparison(c: &mut Criterion) {
     let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
 
-    let size_comp = formats::compare_sizes(hedl.len(), yaml.len());
+    let size_comp = compare_sizes(hedl.len(), yaml.len());
     println!("\n=== HEDL vs YAML Size Comparison ===");
     println!("HEDL size:  {} bytes", size_comp.hedl_bytes);
     println!("YAML size:  {} bytes", size_comp.other_bytes);
@@ -259,11 +258,11 @@ fn bench_cross_format_comparison(c: &mut Criterion) {
     println!("HEDL saves: {:.1}%\n", size_comp.hedl_savings_pct);
 
     group.bench_function("hedl_parse", |b| {
-        b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())))
+        b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())));
     });
 
     group.bench_function("yaml_parse_via_hedl", |b| {
-        b.iter(|| from_yaml(black_box(&yaml), &FromYamlConfig::default()))
+        b.iter(|| from_yaml(black_box(&yaml), &FromYamlConfig::default()));
     });
 
     group.finish();
@@ -319,13 +318,10 @@ struct RoundTripResult {
 #[derive(Clone, Debug)]
 struct SerdeYamlComparison {
     dataset_name: String,
-    dataset_size: usize,
     hedl_parse_ns: u64,
     serde_parse_ns: u64,
     hedl_serialize_ns: u64,
     serde_serialize_ns: u64,
-    hedl_bytes: usize,
-    serde_bytes: usize,
 }
 
 // ============================================================================
@@ -358,7 +354,7 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "HEDL→YAML".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: hedl_text.len(),
                 output_bytes: yaml_text.len(),
@@ -378,7 +374,7 @@ fn collect_conversion_results() -> Vec<ConversionResult> {
 
             results.push(ConversionResult {
                 direction: "YAML→HEDL".to_string(),
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 dataset_size: size,
                 input_bytes: yaml_text.len(),
                 output_bytes: hedl_text.len(),
@@ -408,7 +404,7 @@ fn collect_roundtrip_results() -> Vec<RoundTripResult> {
             let final_hedl = hedl_c14n::canonicalize(&doc2).unwrap_or_default();
 
             results.push(RoundTripResult {
-                dataset_name: format!("{}_{}", dataset_name, size),
+                dataset_name: format!("{dataset_name}_{size}"),
                 original_bytes: original.len(),
                 final_bytes: final_hedl.len(),
                 byte_equal: original == final_hedl,
@@ -481,18 +477,12 @@ fn collect_serde_yaml_comparisons() -> Vec<SerdeYamlComparison> {
             let serde_serialize_ns = serde_serialize_times.iter().sum::<u64>()
                 / serde_serialize_times.len().max(1) as u64;
 
-            // Compare output sizes
-            let serde_yaml_text = serde_yaml::to_string(&serde_value).unwrap();
-
             results.push(SerdeYamlComparison {
-                dataset_name: format!("{}_{}", dataset_name, size),
-                dataset_size: size,
+                dataset_name: format!("{dataset_name}_{size}"),
                 hedl_parse_ns,
                 serde_parse_ns,
                 hedl_serialize_ns,
                 serde_serialize_ns,
-                hedl_bytes: yaml_text.len(),
-                serde_bytes: serde_yaml_text.len(),
             });
         }
     }
@@ -811,10 +801,10 @@ fn create_nested_structure_handling_table(
         let mut nested_hedl = String::from("%VERSION: 1.0\n---\ndata:\n");
         for i in 0..depth {
             let indent = "  ".repeat(i + 1);
-            nested_hedl.push_str(&format!("{}level{}:\n", indent, i));
+            nested_hedl.push_str(&format!("{indent}level{i}:\n"));
         }
         let final_indent = "  ".repeat(depth + 1);
-        nested_hedl.push_str(&format!("{}value: 42\n", final_indent));
+        nested_hedl.push_str(&format!("{final_indent}value: 42\n"));
 
         let doc = hedl_core::parse(nested_hedl.as_bytes()).unwrap();
 
@@ -1111,16 +1101,16 @@ fn create_throughput_comparison_table(results: &[ConversionResult], report: &mut
     }
 
     for (dataset_type, (hedl_to_yaml_mbs, yaml_to_hedl_mbs)) in by_dataset {
-        let avg_hedl_to_yaml = if !hedl_to_yaml_mbs.is_empty() {
-            hedl_to_yaml_mbs.iter().sum::<f64>() / hedl_to_yaml_mbs.len() as f64
-        } else {
+        let avg_hedl_to_yaml = if hedl_to_yaml_mbs.is_empty() {
             0.0
+        } else {
+            hedl_to_yaml_mbs.iter().sum::<f64>() / hedl_to_yaml_mbs.len() as f64
         };
 
-        let avg_yaml_to_hedl = if !yaml_to_hedl_mbs.is_empty() {
-            yaml_to_hedl_mbs.iter().sum::<f64>() / yaml_to_hedl_mbs.len() as f64
-        } else {
+        let avg_yaml_to_hedl = if yaml_to_hedl_mbs.is_empty() {
             0.0
+        } else {
+            yaml_to_hedl_mbs.iter().sum::<f64>() / yaml_to_hedl_mbs.len() as f64
         };
 
         let bidirectional_avg = (avg_hedl_to_yaml + avg_yaml_to_hedl) / 2.0;
@@ -1426,7 +1416,7 @@ fn generate_insights(
         if avg_token_savings > 15.0 {
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("Superior Token Efficiency vs YAML: {:.1}% savings", avg_token_savings),
+                title: format!("Superior Token Efficiency vs YAML: {avg_token_savings:.1}% savings"),
                 description: "HEDL uses significantly fewer tokens than YAML for equivalent data due to compact syntax without indentation overhead".to_string(),
                 data_points: vec![
                     format!("Average HEDL tokens: {:.0}", hedl_to_yaml.iter().map(|r| r.input_tokens).sum::<usize>() as f64 / hedl_to_yaml.len() as f64),
@@ -1450,7 +1440,7 @@ fn generate_insights(
 
     report.add_insight(Insight {
         category: "strength".to_string(),
-        title: format!("Compact Format: {:.1}% smaller than YAML", avg_byte_savings),
+        title: format!("Compact Format: {avg_byte_savings:.1}% smaller than YAML"),
         description:
             "HEDL's concise syntax and lack of indentation overhead results in smaller file sizes"
                 .to_string(),
@@ -1481,7 +1471,7 @@ fn generate_insights(
         if avg_parse_speedup > 1.0 || avg_serialize_speedup > 1.0 {
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("Competitive with serde_yaml: {:.2}x parse, {:.2}x serialize", avg_parse_speedup, avg_serialize_speedup),
+                title: format!("Competitive with serde_yaml: {avg_parse_speedup:.2}x parse, {avg_serialize_speedup:.2}x serialize"),
                 description: "HEDL YAML conversion performance is competitive with industry-standard serde_yaml library".to_string(),
                 data_points: vec![
                     format!("Parse performance: {:.2}x vs serde_yaml", avg_parse_speedup),
@@ -1493,8 +1483,7 @@ fn generate_insights(
             report.add_insight(Insight {
                 category: "weakness".to_string(),
                 title: format!(
-                    "Slower than serde_yaml: {:.2}x parse, {:.2}x serialize",
-                    avg_parse_speedup, avg_serialize_speedup
+                    "Slower than serde_yaml: {avg_parse_speedup:.2}x parse, {avg_serialize_speedup:.2}x serialize"
                 ),
                 description: "serde_yaml outperforms HEDL in YAML conversion speed".to_string(),
                 data_points: vec![
@@ -1559,7 +1548,7 @@ fn generate_insights(
 
     report.add_insight(Insight {
         category: "finding".to_string(),
-        title: format!("Round-Trip Byte Equality: {:.0}%", byte_equal_rate),
+        title: format!("Round-Trip Byte Equality: {byte_equal_rate:.0}%"),
         description: "Percentage of datasets that are byte-for-byte identical after HEDL→YAML→HEDL"
             .to_string(),
         data_points: vec![
@@ -1672,10 +1661,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!(
-                "Linear Performance Scaling: {:.2} μs per record",
-                avg_time_per_record_us
-            ),
+            title: format!("Linear Performance Scaling: {avg_time_per_record_us:.2} μs per record"),
             description: "Conversion performance scales linearly with dataset size".to_string(),
             data_points: vec![
                 format!("Average time per record: {:.2} μs", avg_time_per_record_us),
@@ -1718,7 +1704,7 @@ fn generate_insights(
     if symmetry_ratio > 1.3 {
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("YAML→HEDL {:.1}x Slower Than HEDL→YAML", symmetry_ratio),
+            title: format!("YAML→HEDL {symmetry_ratio:.1}x Slower Than HEDL→YAML"),
             description: "Parsing YAML is more expensive than generating it".to_string(),
             data_points: vec![
                 format!("HEDL→YAML: {:.1} μs", hedl_to_yaml_avg_us),
@@ -1803,7 +1789,7 @@ fn generate_insights(
     if avg_cv < 10.0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("Highly Consistent Performance: {:.1}% CV", avg_cv),
+            title: format!("Highly Consistent Performance: {avg_cv:.1}% CV"),
             description: "Conversion times are very consistent across runs".to_string(),
             data_points: vec![
                 format!("Average coefficient of variation: {:.1}%", avg_cv),
@@ -1876,7 +1862,7 @@ fn export_reports() {
 
         let config = ExportConfig::all();
         if let Err(e) = report.save_all("target/yaml_report", &config) {
-            eprintln!("Warning: Failed to export reports: {}", e);
+            eprintln!("Warning: Failed to export reports: {e}");
         } else {
             println!(
                 "\nReports exported with {} custom tables and {} insights:",

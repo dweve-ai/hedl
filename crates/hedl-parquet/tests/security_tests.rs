@@ -91,7 +91,7 @@ fn test_max_decompressed_size_limit() {
 
     // With 10K rows, this should succeed (well under 100MB)
     if let Err(ref err) = result {
-        println!("Error: {:?}", err);
+        println!("Error: {err:?}");
     }
     assert!(result.is_ok(), "10K rows should be within limits");
 
@@ -214,8 +214,7 @@ fn test_malicious_metadata_identifiers() {
     for key in doc.root.keys() {
         assert!(
             is_valid_identifier(key),
-            "Key '{}' should be a valid identifier",
-            key
+            "Key '{key}' should be a valid identifier"
         );
     }
 }
@@ -242,7 +241,6 @@ fn test_gzip_compression_safety() {
     let doc = create_moderate_document(1000);
 
     let config = ToParquetConfig {
-        compression: Compression::GZIP(Default::default()),
         ..Default::default()
     };
 
@@ -258,7 +256,6 @@ fn test_zstd_compression_safety() {
     let doc = create_moderate_document(1000);
 
     let config = ToParquetConfig {
-        compression: Compression::ZSTD(Default::default()),
         ..Default::default()
     };
 
@@ -347,12 +344,12 @@ fn create_large_decompressed_data(num_rows: usize) -> Vec<u8> {
     for i in 0..num_rows {
         let node = Node::new(
             "Item",
-            format!("item{}", i),
+            format!("item{i}"),
             vec![
-                Value::String(format!("item{}", i)),
-                Value::String(format!("data_{}_1", i)),
-                Value::String(format!("data_{}_2", i)),
-                Value::String(format!("data_{}_3", i)),
+                Value::String(format!("item{i}").into()),
+                Value::String(format!("data_{i}_1").into()),
+                Value::String(format!("data_{i}_2").into()),
+                Value::String(format!("data_{i}_3").into()),
             ],
         );
         list.add_row(node);
@@ -368,7 +365,7 @@ fn create_wide_schema_parquet(num_columns: usize) -> Vec<u8> {
     let mut fields = vec![Field::new("id", DataType::Utf8, false)];
 
     for i in 1..num_columns {
-        fields.push(Field::new(format!("col{}", i), DataType::Int64, true));
+        fields.push(Field::new(format!("col{i}"), DataType::Int64, true));
     }
 
     let schema = Arc::new(Schema::new(fields));
@@ -408,7 +405,7 @@ fn create_large_matrix_parquet(num_columns: usize, num_rows: usize) -> Vec<u8> {
     let mut fields = vec![Field::new("id", DataType::Utf8, false)];
 
     for i in 1..num_columns {
-        fields.push(Field::new(format!("col{}", i), DataType::Int64, true));
+        fields.push(Field::new(format!("col{i}"), DataType::Int64, true));
     }
 
     let schema = Arc::new(Schema::new(fields));
@@ -416,7 +413,7 @@ fn create_large_matrix_parquet(num_columns: usize, num_rows: usize) -> Vec<u8> {
     // Create rows of data
     let mut id_data = Vec::new();
     for i in 0..num_rows {
-        id_data.push(format!("row{}", i));
+        id_data.push(format!("row{i}"));
     }
 
     let mut columns: Vec<Arc<dyn arrow::array::Array>> = Vec::new();
@@ -501,10 +498,10 @@ fn create_moderate_document(num_rows: usize) -> Document {
     for i in 0..num_rows {
         let node = Node::new(
             "Item",
-            format!("item{}", i),
+            format!("item{i}"),
             vec![
-                Value::String(format!("item{}", i)),
-                Value::String(format!("Name {}", i)),
+                Value::String(format!("item{i}").into()),
+                Value::String(format!("Name {i}").into()),
                 Value::Int(i as i64),
             ],
         );
@@ -523,7 +520,7 @@ fn create_document_with_large_metadata() -> Document {
     let large_string = "x".repeat(1024 * 1024);
     doc.root.insert(
         "large_metadata".to_string(),
-        Item::Scalar(Value::String(large_string)),
+        Item::Scalar(Value::String(large_string.into())),
     );
 
     doc
@@ -536,8 +533,7 @@ fn is_valid_identifier(name: &str) -> bool {
         && name
             .chars()
             .next()
-            .map(|c| c.is_alphabetic() || c == '_')
-            .unwrap_or(false)
+            .is_some_and(|c| c.is_alphabetic() || c == '_')
         && name.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
@@ -560,7 +556,6 @@ fn test_security_checks_performance() {
     // 10 iterations should complete in under 1 second
     assert!(
         duration.as_secs() < 1,
-        "Security checks should not significantly impact performance: {:?}",
-        duration
+        "Security checks should not significantly impact performance: {duration:?}"
     );
 }

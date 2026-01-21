@@ -18,7 +18,9 @@
 //! Benchmark runner for executing and collecting results.
 
 use crate::core::config::BenchConfig;
+use crate::core::name_validation::validate_benchmark_name;
 use crate::core::Measurement;
+use crate::error::Result;
 use crate::report::{BenchmarkReport, PerfResult};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -41,27 +43,32 @@ pub struct BenchResult {
 
 impl BenchResult {
     /// Creates a new benchmark result.
-    pub fn new(name: impl Into<String>, iterations: u64, measurement: Measurement) -> Self {
-        Self {
-            name: name.into(),
+    pub fn new(name: impl Into<String>, iterations: u64, measurement: Measurement) -> Result<Self> {
+        let name = name.into();
+        validate_benchmark_name(&name)?;
+        Ok(Self {
+            name,
             iterations,
             measurement,
             size: None,
-        }
+        })
     }
 
     /// Sets the dataset size.
+    #[must_use]
     pub fn with_size(mut self, size: usize) -> Self {
         self.size = Some(size);
         self
     }
 
     /// Returns the average duration per iteration.
+    #[must_use]
     pub fn avg_duration(&self) -> Duration {
         self.measurement.duration / self.iterations.max(1) as u32
     }
 
     /// Returns throughput in MB/s if available.
+    #[must_use]
     pub fn throughput_mbs(&self) -> Option<f64> {
         self.measurement.throughput_mbs()
     }
@@ -70,7 +77,9 @@ impl BenchResult {
 /// Results from a scaling benchmark run.
 #[derive(Debug, Clone)]
 pub struct ScalingResults {
+    /// Benchmark name.
     pub name: String,
+    /// Results mapped by dataset size.
     pub results: HashMap<usize, PerfResult>,
 }
 
@@ -83,6 +92,7 @@ pub struct BenchmarkRunner {
 
 impl BenchmarkRunner {
     /// Creates a new benchmark runner with the specified configuration.
+    #[must_use]
     pub fn new(config: BenchConfig) -> Self {
         Self {
             config,
@@ -92,11 +102,13 @@ impl BenchmarkRunner {
     }
 
     /// Registers a scaling benchmark that runs across all configured sizes.
-    pub fn register_scaling<F>(&mut self, name: &str, bench_fn: F)
+    pub fn register_scaling<F>(&mut self, name: &str, bench_fn: F) -> Result<()>
     where
         F: Fn(usize) + 'static,
     {
+        validate_benchmark_name(name)?;
         self.benchmarks.push((name.to_string(), Box::new(bench_fn)));
+        Ok(())
     }
 
     /// Runs all registered benchmarks.
@@ -118,7 +130,7 @@ impl BenchmarkRunner {
                 results.insert(
                     size,
                     PerfResult {
-                        name: format!("{}_{}", name, size),
+                        name: format!("{name}_{size}"),
                         iterations,
                         total_time_ns: total_ns,
                         throughput_bytes: None,
@@ -138,6 +150,7 @@ impl BenchmarkRunner {
     }
 
     /// Generates a report from collected results.
+    #[must_use]
     pub fn generate_report(&self, title: &str) -> BenchmarkReport {
         let mut report = BenchmarkReport::new(title);
         report.set_timestamp();
@@ -168,9 +181,11 @@ mod tests {
         let config = BenchConfig::default();
         let mut runner = BenchmarkRunner::new(config);
 
-        runner.register_scaling("test", |_size| {
-            // Test benchmark
-        });
+        runner
+            .register_scaling("test", |_size| {
+                // Test benchmark
+            })
+            .unwrap();
 
         assert_eq!(runner.benchmarks.len(), 1);
     }

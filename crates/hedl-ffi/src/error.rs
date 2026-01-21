@@ -31,13 +31,36 @@ thread_local! {
 
 pub(crate) fn set_error(msg: &str) {
     LAST_ERROR.with(|e| {
-        *e.borrow_mut() = CString::new(msg).ok();
+        // Use try_borrow_mut to prevent RefCell panic in case of reentrancy
+        if let Ok(mut err) = e.try_borrow_mut() {
+            *err = CString::new(msg).ok();
+        } else {
+            // RefCell is already borrowed - this indicates reentrancy or
+            // improper error handling. Log to stderr and abort to prevent
+            // undefined behavior from propagating.
+            eprintln!(
+                "FATAL: RefCell panic in error handling - attempted to set error while error is already borrowed. \
+                 This indicates a reentrancy issue or improper error handling. \
+                 Aborting to prevent undefined behavior."
+            );
+            std::process::abort();
+        }
     });
 }
 
 pub(crate) fn clear_error() {
     LAST_ERROR.with(|e| {
-        *e.borrow_mut() = None;
+        // Use try_borrow_mut to prevent RefCell panic
+        if let Ok(mut err) = e.try_borrow_mut() {
+            *err = None;
+        } else {
+            // RefCell is already borrowed - log and abort
+            eprintln!(
+                "FATAL: RefCell panic in error clearing - attempted to clear error while error is already borrowed. \
+                 This indicates a reentrancy issue. Aborting to prevent undefined behavior."
+            );
+            std::process::abort();
+        }
     });
 }
 

@@ -27,7 +27,10 @@ use std::collections::BTreeMap;
 pub struct RuleConfig {
     /// Whether the rule is enabled
     pub enabled: bool,
-    /// Whether to treat warnings as errors
+    /// Whether to escalate all diagnostics from this rule to Error severity.
+    ///
+    /// When true, both Hint and Warning severities become Error, allowing
+    /// enforcement of strict linting in CI/CD pipelines.
     pub error: bool,
 }
 
@@ -67,10 +70,10 @@ pub trait LintRule: Send + Sync {
 pub struct IdNamingRule;
 
 impl LintRule for IdNamingRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "id-naming"
     }
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Check ID naming conventions (lowercase, descriptive)"
     }
 
@@ -91,7 +94,7 @@ impl LintRule for IdNamingRule {
 /// - Stack frames typically consume 100-200 bytes each
 /// - At 1000 depth, this represents ~100-200KB of stack usage
 /// - Most legitimate HEDL documents have <10 levels of nesting
-/// - This limit provides defense-in-depth against DoS attacks
+/// - This limit provides defense-in-depth against `DoS` attacks
 const MAX_RECURSION_DEPTH: usize = 1000;
 
 /// Check all item IDs in a document tree with depth protection.
@@ -114,9 +117,8 @@ fn check_item_ids_bounded(
         diagnostics.push(Diagnostic::warning(
             crate::diagnostic::DiagnosticKind::Custom("max-depth-exceeded".to_string()),
             format!(
-                "Maximum nesting depth of {} exceeded during ID checking. \
-                 Further nested items will not be checked.",
-                MAX_RECURSION_DEPTH
+                "Maximum nesting depth of {MAX_RECURSION_DEPTH} exceeded during ID checking. \
+                 Further nested items will not be checked."
             ),
             "id-naming",
         ));
@@ -128,7 +130,9 @@ fn check_item_ids_bounded(
             Item::List(list) => {
                 for row in &list.rows {
                     check_node_id(&row.id, diagnostics);
-                    check_node_children_bounded(&row.children, diagnostics, depth + 1);
+                    if let Some(children) = row.children() {
+                        check_node_children_bounded(children, diagnostics, depth + 1);
+                    }
                 }
             }
             Item::Object(child) => {
@@ -146,10 +150,7 @@ fn check_node_id(id: &str, diagnostics: &mut Vec<Diagnostic>) {
     if id.len() == 1 {
         diagnostics.push(Diagnostic::hint(
             DiagnosticKind::IdNaming,
-            format!(
-                "ID '{}' is very short, consider a more descriptive name",
-                id
-            ),
+            format!("ID '{id}' is very short, consider a more descriptive name"),
             "id-naming",
         ));
     }
@@ -159,10 +160,7 @@ fn check_node_id(id: &str, diagnostics: &mut Vec<Diagnostic>) {
     if has_digit && all_numeric_or_underscore {
         diagnostics.push(Diagnostic::hint(
             DiagnosticKind::IdNaming,
-            format!(
-                "ID '{}' contains only numbers, consider adding descriptive prefix",
-                id
-            ),
+            format!("ID '{id}' contains only numbers, consider adding descriptive prefix"),
             "id-naming",
         ));
     }
@@ -184,9 +182,8 @@ fn check_node_children_bounded(
         diagnostics.push(Diagnostic::warning(
             crate::diagnostic::DiagnosticKind::Custom("max-depth-exceeded".to_string()),
             format!(
-                "Maximum nesting depth of {} exceeded. \
-                 Further nested nodes will not be checked.",
-                MAX_RECURSION_DEPTH
+                "Maximum nesting depth of {MAX_RECURSION_DEPTH} exceeded. \
+                 Further nested nodes will not be checked."
             ),
             "id-naming",
         ));
@@ -196,7 +193,9 @@ fn check_node_children_bounded(
     for nodes in children.values() {
         for node in nodes {
             check_node_id(&node.id, diagnostics);
-            check_node_children_bounded(&node.children, diagnostics, depth + 1);
+            if let Some(node_children) = node.children() {
+                check_node_children_bounded(node_children, diagnostics, depth + 1);
+            }
         }
     }
 }
@@ -205,10 +204,10 @@ fn check_node_children_bounded(
 pub struct UnusedSchemaRule;
 
 impl LintRule for UnusedSchemaRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "unused-schema"
     }
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Check for unused %STRUCT definitions"
     }
 
@@ -224,7 +223,7 @@ impl LintRule for UnusedSchemaRule {
             if !used_types.contains(type_name.as_str()) {
                 diagnostics.push(Diagnostic::warning(
                     DiagnosticKind::UnusedSchema,
-                    format!("Schema '{}' is defined but never used", type_name),
+                    format!("Schema '{type_name}' is defined but never used"),
                     "unused-schema",
                 ));
             }
@@ -264,9 +263,7 @@ fn collect_used_types_bounded<'a>(
             Item::List(list) => {
                 used.insert(&list.type_name);
                 for row in &list.rows {
-                    for child_type in row.children.keys() {
-                        used.insert(child_type);
-                    }
+                    collect_node_types(row, used, depth + 1);
                 }
             }
             Item::Object(child) => {
@@ -277,25 +274,44 @@ fn collect_used_types_bounded<'a>(
     }
 }
 
-/// Rule: Unused aliases
+/// Recursively collect all type names from a node and its children.
 ///
-/// This rule is available but not enabled by default.
-/// It can be enabled via LintConfig for stricter linting.
-#[allow(dead_code)]
-pub struct UnusedAliasRule;
-
-impl LintRule for UnusedAliasRule {
-    fn id(&self) -> &str {
-        "unused-alias"
+/// Collects types from:
+/// 1. Child node type names (from nested relationships)
+/// 2. Reference values in node fields (qualified references like @Type:id)
+///
+/// # Security
+///
+/// Implements recursion depth limiting to prevent stack overflow from
+/// deeply nested document structures during type collection.
+fn collect_node_types<'a>(
+    node: &'a Node,
+    used: &mut std::collections::HashSet<&'a str>,
+    depth: usize,
+) {
+    if depth > MAX_RECURSION_DEPTH {
+        // Silently stop traversal at max depth for type collection
+        return;
     }
-    fn description(&self) -> &str {
-        "Check for unused %ALIAS definitions"
+
+    // Collect type names from reference values in fields
+    for field in &node.fields {
+        if let hedl_core::Value::Reference(ref r) = field {
+            if let Some(ref type_name) = r.type_name {
+                used.insert(type_name);
+            }
+        }
     }
 
-    fn check(&self, _doc: &Document) -> Vec<Diagnostic> {
-        // Alias usage tracking requires parser-level integration to track references
-        // Returns empty for now as Document doesn't expose alias reference counts
-        Vec::new()
+    // Collect type names from nested children
+    if let Some(children) = node.children() {
+        for (child_type, child_nodes) in children {
+            used.insert(child_type);
+            // Recursively traverse nested children
+            for child_node in child_nodes {
+                collect_node_types(child_node, used, depth + 1);
+            }
+        }
     }
 }
 
@@ -303,10 +319,10 @@ impl LintRule for UnusedAliasRule {
 pub struct EmptyListRule;
 
 impl LintRule for EmptyListRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "empty-list"
     }
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Warn about empty matrix lists"
     }
 
@@ -338,9 +354,8 @@ fn check_empty_lists_bounded(
         diagnostics.push(Diagnostic::warning(
             DiagnosticKind::Custom("max-depth-exceeded".to_string()),
             format!(
-                "Maximum nesting depth of {} exceeded during empty list checking. \
-                 Further nested items will not be checked.",
-                MAX_RECURSION_DEPTH
+                "Maximum nesting depth of {MAX_RECURSION_DEPTH} exceeded during empty list checking. \
+                 Further nested items will not be checked."
             ),
             "empty-list",
         ));
@@ -353,7 +368,7 @@ fn check_empty_lists_bounded(
                 if list.rows.is_empty() {
                     diagnostics.push(Diagnostic::hint(
                         DiagnosticKind::EmptyList,
-                        format!("Matrix list '{}' is empty", key),
+                        format!("Matrix list '{key}' is empty"),
                         "empty-list",
                     ));
                 }
@@ -370,10 +385,10 @@ fn check_empty_lists_bounded(
 pub struct UnqualifiedKvReferenceRule;
 
 impl LintRule for UnqualifiedKvReferenceRule {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "unqualified-kv-ref"
     }
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         "Warn about unqualified references in Key-Value context"
     }
 
@@ -406,9 +421,8 @@ fn check_kv_references_bounded(
         diagnostics.push(Diagnostic::warning(
             DiagnosticKind::Custom("max-depth-exceeded".to_string()),
             format!(
-                "Maximum nesting depth of {} exceeded during reference checking. \
-                 Further nested items will not be checked.",
-                MAX_RECURSION_DEPTH
+                "Maximum nesting depth of {MAX_RECURSION_DEPTH} exceeded during reference checking. \
+                 Further nested items will not be checked."
             ),
             "unqualified-kv-ref",
         ));
@@ -441,9 +455,6 @@ pub fn default_rules() -> Vec<Box<dyn LintRule>> {
     vec![
         Box::new(IdNamingRule),
         Box::new(UnusedSchemaRule),
-        // NOTE: UnusedAliasRule is available but not enabled by default
-        // as it requires parser-level integration to track alias usage.
-        // Enable it manually via LintRunner::add_rule() if needed.
         Box::new(EmptyListRule),
         Box::new(UnqualifiedKvReferenceRule),
     ]
@@ -453,7 +464,7 @@ pub fn default_rules() -> Vec<Box<dyn LintRule>> {
 mod tests {
     use super::*;
     use crate::diagnostic::DiagnosticKind;
-    use hedl_core::{MatrixList, Node, Reference, Value};
+    use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 
     // ==================== RuleConfig tests ====================
 
@@ -478,7 +489,7 @@ mod tests {
     #[test]
     fn test_rule_config_debug() {
         let config = RuleConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("RuleConfig"));
         assert!(debug.contains("enabled"));
     }
@@ -488,7 +499,7 @@ mod tests {
     #[test]
     fn test_default_rules_count() {
         let rules = default_rules();
-        assert_eq!(rules.len(), 4); // UnusedAliasRule is available but not in defaults
+        assert_eq!(rules.len(), 4);
     }
 
     #[test]
@@ -498,9 +509,9 @@ mod tests {
 
         assert!(ids.contains(&"id-naming"));
         assert!(ids.contains(&"unused-schema"));
-        assert!(!ids.contains(&"unused-alias")); // Not in defaults
         assert!(ids.contains(&"empty-list"));
         assert!(ids.contains(&"unqualified-kv-ref"));
+        assert_eq!(ids.len(), 4); // Verify count matches
     }
 
     #[test]
@@ -715,20 +726,85 @@ mod tests {
         assert_eq!(diagnostics.len(), 3);
     }
 
-    // ==================== UnusedAliasRule tests ====================
-
     #[test]
-    fn test_unused_alias_rule_id() {
-        let rule = UnusedAliasRule;
-        assert_eq!(rule.id(), "unused-alias");
+    fn test_unused_schema_deep_nested_types() {
+        let rule = UnusedSchemaRule;
+        let mut doc = Document::new((1, 0));
+
+        // Define schemas
+        doc.structs
+            .insert("User".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("Post".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("Comment".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("UnusedType".to_string(), vec!["id".to_string()]);
+
+        // Create hierarchy: User > Post > Comment
+        // Comment is only used in a deep nest, not as a direct child
+        let mut user_list = MatrixList::new("User", vec!["id".to_string()]);
+        let mut user = Node::new("User", "alice", vec![]);
+
+        // Add a Post child to User
+        let mut post = Node::new("Post", "post1", vec![]);
+
+        // Add a Comment child to Post (deep nesting)
+        let comment = Node::new("Comment", "comment1", vec![]);
+        post.add_child("Comment", comment);
+
+        user.add_child("Post", post);
+        user_list.add_row(user);
+
+        doc.root.insert("users".to_string(), Item::List(user_list));
+
+        let diagnostics = rule.check(&doc);
+
+        // Only UnusedType should be reported as unused
+        // User, Post, and Comment are all used (even Comment which is deeply nested)
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].message().contains("UnusedType"));
     }
 
     #[test]
-    fn test_unused_alias_empty_doc() {
-        let rule = UnusedAliasRule;
-        let doc = Document::new((1, 0));
+    fn test_unused_schema_multiple_branches_deep_nesting() {
+        let rule = UnusedSchemaRule;
+        let mut doc = Document::new((1, 0));
+
+        // Define schemas with multiple branches
+        doc.structs
+            .insert("User".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("Post".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("Comment".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("Like".to_string(), vec!["id".to_string()]);
+        doc.structs
+            .insert("Tag".to_string(), vec!["id".to_string()]);
+
+        // Create hierarchy with multiple branches:
+        // User > Post > Comment
+        //             > Like
+        //      > Tag (directly under User)
+        let mut user_list = MatrixList::new("User", vec!["id".to_string()]);
+        let mut user = Node::new("User", "alice", vec![]);
+
+        // Add Post with Comment and Like children
+        let mut post = Node::new("Post", "post1", vec![]);
+        post.add_child("Comment", Node::new("Comment", "comment1", vec![]));
+        post.add_child("Like", Node::new("Like", "like1", vec![]));
+        user.add_child("Post", post);
+
+        // Add Tag directly to User
+        user.add_child("Tag", Node::new("Tag", "tag1", vec![]));
+
+        user_list.add_row(user);
+        doc.root.insert("users".to_string(), Item::List(user_list));
+
         let diagnostics = rule.check(&doc);
-        // Empty document has no aliases to check
+
+        // All types should be marked as used
         assert!(diagnostics.is_empty());
     }
 
@@ -894,7 +970,7 @@ mod tests {
 
         doc.root.insert(
             "name".to_string(),
-            Item::Scalar(Value::String("test".to_string())),
+            Item::Scalar(Value::String("test".to_string().into())),
         );
         doc.root
             .insert("count".to_string(), Item::Scalar(Value::Int(42)));
@@ -910,7 +986,6 @@ mod tests {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<IdNamingRule>();
         assert_send_sync::<UnusedSchemaRule>();
-        assert_send_sync::<UnusedAliasRule>();
         assert_send_sync::<EmptyListRule>();
         assert_send_sync::<UnqualifiedKvReferenceRule>();
     }

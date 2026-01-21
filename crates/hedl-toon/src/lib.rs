@@ -101,6 +101,7 @@
 //!
 //! TOON Spec: <https://github.com/toon-format/spec>
 
+#![cfg_attr(not(test), warn(missing_docs))]
 mod error;
 mod from_toon;
 mod to_toon;
@@ -218,13 +219,13 @@ mod tests {
 
     #[test]
     fn test_simple_object() {
-        let hedl = r#"%VERSION: 1.0
+        let hedl = r"%VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
 users: @User
   | u1, Alice, alice@example.com
   | u2, Bob, bob@example.com
-"#;
+";
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
         let toon = hedl_to_toon(&doc).unwrap();
 
@@ -236,7 +237,7 @@ users: @User
 
     #[test]
     fn test_nested_object() {
-        let hedl = r#"%VERSION: 1.0
+        let hedl = r"%VERSION: 1.0
 ---
 config:
   name: MyApp
@@ -244,7 +245,7 @@ config:
   settings:
     debug: true
     timeout: 30
-"#;
+";
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
         let toon = hedl_to_toon(&doc).unwrap();
 

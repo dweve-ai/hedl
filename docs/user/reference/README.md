@@ -1,10 +1,10 @@
 # HEDL Reference Documentation
 
-Complete technical reference for HEDL syntax, commands, formats, and configuration.
+Technical reference for HEDL configuration and terminology.
 
 ## Reference Guides
 
-### 1. [CLI Commands](cli-commands.md)
+### 1. [CLI Guide](../cli-guide.md)
 **Complete command-line reference**
 
 Comprehensive documentation for all `hedl` CLI commands:
@@ -13,14 +13,14 @@ Comprehensive documentation for all `hedl` CLI commands:
 - Exit codes
 - Examples for each command
 
-### 2. [File Formats](file-formats.md)
-**Supported format specifications**
+### 2. [Formats Guide](../formats.md)
+**Format conversion guide**
 
-Detailed specifications for all supported formats:
-- JSON, YAML, XML, CSV, Parquet
+Conversion between all supported formats:
+- JSON, YAML, XML, CSV, Parquet, Neo4j, TOON
 - Format-specific options
-- Conversion mappings
-- Limitations and edge cases
+- Conversion examples
+- Best practices
 
 ### 3. [Configuration](configuration.md)
 **Configuration options and environment variables**
@@ -90,8 +90,8 @@ hedl batch-validate *.hedl --parallel
 ### Finding Information
 
 **By task:**
-1. Look up the command in [CLI Commands](cli-commands.md)
-2. Check format details in [File Formats](file-formats.md)
+1. Look up the command in [CLI Guide](../cli-guide.md)
+2. Check format details in [Formats Guide](../formats.md)
 3. Configure via [Configuration](configuration.md)
 
 **By term:**
@@ -132,7 +132,7 @@ Means:
 ## Complementary Documentation
 
 - **Learning HEDL?** Start with [Tutorials](../tutorials/)
-- **Solving a problem?** Check [How-To Guides](../how-to/)
+- **Solving a problem?** Check [Troubleshooting](../troubleshooting.md)
 - **Understanding concepts?** Read [Concepts](../concepts/)
 - **Need help?** See [FAQ](../faq.md) or [Troubleshooting](../troubleshooting.md)
 
@@ -140,7 +140,7 @@ Means:
 
 **Choose a reference guide:**
 
-- [CLI Commands](cli-commands.md) - Complete command reference
-- [File Formats](file-formats.md) - Format specifications
+- [CLI Guide](../cli-guide.md) - Complete command reference
+- [Formats Guide](../formats.md) - Format conversion guide
 - [Configuration](configuration.md) - Settings and tuning
 - [Glossary](glossary.md) - Terminology

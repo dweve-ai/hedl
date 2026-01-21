@@ -2,6 +2,9 @@
 
 Complete reference for HEDL parsing functions and options.
 
+> **Note**: This documents the `hedl` facade crate which provides string-based APIs.
+> For the lower-level `hedl-core` crate (bytes-based), see the [Core API](../rust-api.md).
+
 ## Main Parsing Functions
 
 ### parse
@@ -9,7 +12,11 @@ Complete reference for HEDL parsing functions and options.
 Parse a HEDL string with strict validation.
 
 ```rust
+// From hedl crate (facade)
 pub fn parse(input: &str) -> Result<Document, HedlError>
+
+// From hedl-core (lower-level)
+pub fn parse(input: &[u8]) -> HedlResult<Document>
 ```
 
 **Parameters:**
@@ -77,7 +84,7 @@ pub fn parse_with_limits(
 
 **Example:**
 ```rust
-use hedl::{parse_with_limits, ParseOptions, Limits};
+use hedl::{parse_with_limits, ParseOptions, Limits, ReferenceMode};
 
 let options = ParseOptions {
     limits: Limits {
@@ -85,7 +92,7 @@ let options = ParseOptions {
         max_nodes: 1000,
         ..Limits::default()
     },
-    strict_refs: false,
+    reference_mode: ReferenceMode::Lenient,
 };
 
 let doc = parse_with_limits(input.as_bytes(), options)?;
@@ -97,7 +104,10 @@ let doc = parse_with_limits(input.as_bytes(), options)?;
 
 Detailed document linting for best practices.
 
+> **Note**: Linting functions are from the `hedl-lint` crate, re-exported by `hedl`.
+
 ```rust
+// From hedl-lint (re-exported by hedl)
 pub fn lint(doc: &Document) -> Vec<Diagnostic>
 ```
 
@@ -109,7 +119,7 @@ pub fn lint(doc: &Document) -> Vec<Diagnostic>
 
 **Example:**
 ```rust
-use hedl::{parse, lint};
+use hedl::{parse, lint};  // lint re-exported from hedl-lint
 
 let doc = parse(input)?;
 let diagnostics = lint(&doc);
@@ -152,20 +162,31 @@ let diagnostics = lint_with_config(&doc, config);
 ```rust
 pub struct ParseOptions {
     pub limits: Limits,
-    pub strict_refs: bool,
+    pub reference_mode: ReferenceMode,
 }
 ```
 
 **Fields:**
 - **limits**: Resource limits
-- **strict_refs**: Require all references to be resolved (default: true)
+- **reference_mode**: How to handle unresolved references (default: `ReferenceMode::Strict`)
+
+### ReferenceMode
+
+```rust
+pub enum ReferenceMode {
+    /// Strict mode: Unresolved references cause errors (default).
+    Strict,
+    /// Lenient mode: Unresolved references are silently ignored.
+    Lenient,
+}
+```
 
 **Builder:**
 ```rust
-use hedl_core::ParseOptions;
+use hedl_core::{ParseOptions, ReferenceMode};
 
 let options = ParseOptions::builder()
-    .strict(false)
+    .reference_mode(ReferenceMode::Lenient)
     .max_depth(20)
     .max_array_length(5000)
     .max_file_size(100 * 1024 * 1024)
@@ -177,9 +198,12 @@ let options = ParseOptions::builder()
 ```rust
 impl ParseOptionsBuilder {
     pub fn new() -> Self;
+    pub fn reference_mode(self, mode: ReferenceMode) -> Self;
+    pub fn strict_refs(self) -> Self;    // Shorthand for Strict mode
+    pub fn lenient_refs(self) -> Self;   // Shorthand for Lenient mode
+    pub fn strict(self, strict: bool) -> Self;  // Legacy compat
     pub fn max_depth(self, depth: usize) -> Self;
-    pub fn max_array_length(self, length: usize) -> Self;
-    pub fn strict(self, strict: bool) -> Self;
+    pub fn max_array_length(self, length: usize) -> Self;  // Max nodes in matrix lists
     pub fn max_file_size(self, size: usize) -> Self;
     pub fn max_line_length(self, length: usize) -> Self;
     pub fn max_aliases(self, count: usize) -> Self;
@@ -195,6 +219,8 @@ impl ParseOptionsBuilder {
 ### Limits
 
 ```rust
+use std::time::Duration;
+
 pub struct Limits {
     pub max_file_size: usize,        // Default: 1GB
     pub max_line_length: usize,      // Default: 1MB
@@ -206,6 +232,8 @@ pub struct Limits {
     pub max_block_string_size: usize, // Default: 10MB
     pub max_object_keys: usize,      // Default: 10k
     pub max_total_keys: usize,       // Default: 10M
+    pub max_total_ids: usize,        // Default: 10M
+    pub timeout: Option<Duration>,   // Default: 30 seconds (None disables)
 }
 ```
 
@@ -252,16 +280,10 @@ pub enum Severity {
 ```rust
 pub enum DiagnosticKind {
     IdNaming,              // ID naming convention violation
-    TypeNaming,            // Type naming convention violation
     UnusedSchema,          // Unused schema definition
-    UnusedAlias,           // Unused alias definition
-    AmbiguousReference,    // Potentially ambiguous reference
     EmptyList,             // Empty matrix list
-    InconsistentDitto,     // Inconsistent ditto usage
-    MissingIdColumn,       // Missing ID column
-    DuplicateKey,          // Duplicate keys in object
     UnqualifiedKvReference, // Unqualified reference in Key-Value context
-    Custom(String),        // Custom rule violation
+    Custom(String),        // Custom rule violation (for user-defined rules)
 }
 ```
 
@@ -342,7 +364,8 @@ while let Some(event) = parser.next_event().await? {
 Scan a line for protected regions (quoted strings and expressions) where special characters like `#` and `,` lose their usual meaning.
 
 ```rust
-use hedl::lex::{scan_regions, Region, RegionType};
+use hedl::lex::{scan_regions, Region};
+use hedl_core::lex::RegionType;
 
 let line = "name: \"John Doe\", age: $(calculate_age(birth_date)) # comment";
 let regions = scan_regions(line);

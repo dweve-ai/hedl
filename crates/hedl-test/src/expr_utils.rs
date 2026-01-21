@@ -85,7 +85,7 @@ impl fmt::Display for ExprError {
                 write!(f, "Expression cannot be empty")
             }
             ExprError::ParseFailed { source, input } => {
-                write!(f, "Failed to parse expression '{}': {}", input, source)
+                write!(f, "Failed to parse expression '{input}': {source}")
             }
             ExprError::Missing => {
                 write!(f, "Expression is missing or null")
@@ -132,8 +132,9 @@ impl std::error::Error for ExprError {}
 /// let e = expr("user.name");
 /// let e = expr("data.values.first");
 /// ```
+#[must_use]
 pub fn expr(s: &str) -> Expression {
-    try_expr(s).unwrap_or_else(|e| panic!("Invalid test expression: {}", e))
+    try_expr(s).unwrap_or_else(|e| panic!("Invalid test expression: {e}"))
 }
 
 /// Safe variant of `expr()` that returns a `Result` instead of panicking.
@@ -214,7 +215,7 @@ pub fn try_expr(s: &str) -> Result<Expression, ExprError> {
     })
 }
 
-/// Helper to create a Value::Expression from a valid expression string.
+/// Helper to create a `Value::Expression` from a valid expression string.
 ///
 /// This function panics on invalid input. Use [`try_expr_value()`] for
 /// error handling.
@@ -229,8 +230,9 @@ pub fn try_expr(s: &str) -> Result<Expression, ExprError> {
 /// let v = expr_value("foo()");
 /// let v = expr_value("x.y");
 /// ```
+#[must_use]
 pub fn expr_value(s: &str) -> Value {
-    Value::Expression(expr(s))
+    Value::Expression(Box::new(expr(s)))
 }
 
 /// Safe variant of `expr_value()` that returns a `Result` instead of panicking.
@@ -255,7 +257,7 @@ pub fn expr_value(s: &str) -> Value {
 /// }
 /// ```
 pub fn try_expr_value(s: &str) -> Result<Value, ExprError> {
-    try_expr(s).map(Value::Expression)
+    try_expr(s).map(|e| Value::Expression(Box::new(e)))
 }
 
 // Helper trait for Expression to check literal type (test helper only)
@@ -340,7 +342,7 @@ mod tests {
     fn test_try_expr_empty_input() {
         match try_expr("") {
             Err(ExprError::EmptyInput) => {}
-            other => panic!("Expected EmptyInput error, got: {:?}", other),
+            other => panic!("Expected EmptyInput error, got: {other:?}"),
         }
     }
 
@@ -350,12 +352,12 @@ mod tests {
             Err(ExprError::ParseFailed { input, .. }) => {
                 assert_eq!(input, "!!!");
             }
-            other => panic!("Expected ParseFailed error, got: {:?}", other),
+            other => panic!("Expected ParseFailed error, got: {other:?}"),
         }
 
         match try_expr(")(") {
             Err(ExprError::ParseFailed { .. }) => {}
-            other => panic!("Expected ParseFailed error, got: {:?}", other),
+            other => panic!("Expected ParseFailed error, got: {other:?}"),
         }
     }
 
@@ -382,7 +384,7 @@ mod tests {
     fn test_try_expr_value_empty() {
         match try_expr_value("") {
             Err(ExprError::EmptyInput) => {}
-            other => panic!("Expected EmptyInput error, got: {:?}", other),
+            other => panic!("Expected EmptyInput error, got: {other:?}"),
         }
     }
 
@@ -409,7 +411,7 @@ mod tests {
     fn test_expr_is_expression_trait() {
         // Verify that Expression has necessary trait implementations
         let e = expr("42");
-        let _ = format!("{:?}", e); // Debug
+        let _ = format!("{e:?}"); // Debug
         let e2 = expr("42");
         let _ = e == e2; // PartialEq
         let _ = e.clone(); // Clone

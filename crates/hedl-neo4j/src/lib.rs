@@ -27,7 +27,7 @@
 //!
 //! | HEDL Concept | Neo4j Representation |
 //! |--------------|---------------------|
-//! | MatrixList type | Node label |
+//! | `MatrixList` type | Node label |
 //! | Node ID | `_hedl_id` property (configurable) |
 //! | Node fields | Node properties |
 //! | Reference (`@Type:id`) | Relationship to target node |
@@ -39,7 +39,7 @@
 //!
 //! | Neo4j Concept | HEDL Representation |
 //! |---------------|---------------------|
-//! | Node label | Struct type / MatrixList type |
+//! | Node label | Struct type / `MatrixList` type |
 //! | Node properties | Field values |
 //! | Relationship | Reference field or NEST hierarchy |
 //! | `HAS_*` relationship | Inferred NEST |
@@ -133,27 +133,59 @@
 //! MERGE (from)-[rel:AUTHOR]->(to);
 //! ```
 
+#![cfg_attr(not(test), warn(missing_docs))]
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+pub mod batch_executor;
 pub mod config;
+pub mod constants;
 pub mod cypher;
 pub mod error;
 pub mod from_neo4j;
 pub mod mapping;
 pub mod to_cypher;
+pub mod util;
+
+// Batching modules for transaction optimization
+pub mod batching;
+mod size_estimation;
+
+#[cfg(feature = "async")]
+pub mod batch_read;
+
+#[cfg(feature = "async")]
+pub mod async_client;
 
 // Re-export main types at crate root for convenience
 pub use config::{
-    FromNeo4jConfig, FromNeo4jConfigBuilder, ObjectHandling, RelationshipNaming, ToCypherConfig,
-    ToCypherConfigBuilder, DEFAULT_MAX_STRING_LENGTH,
+    BatchSizeStrategy, FromNeo4jConfig, FromNeo4jConfigBuilder, IsolationLevel, ObjectHandling,
+    RelationshipNaming, ToCypherConfig, ToCypherConfigBuilder, TransactionStrategy,
+    DEFAULT_FROM_NEO4J_BATCH_SIZE, DEFAULT_MAX_STRING_LENGTH, DEFAULT_TRANSACTION_BATCH_SIZE,
+    DEFAULT_TRANSACTION_ROW_LIMIT,
 };
-pub use cypher::{CypherScript, CypherStatement, CypherValue, StatementType};
+pub use cypher::{CypherScript, CypherStatement, CypherValue, RenderMode, StatementType};
 pub use error::{Neo4jError, Result};
 pub use from_neo4j::{
-    build_record, build_relationship, from_neo4j_records, neo4j_to_hedl, Neo4jRecord,
+    build_record, build_relationship, from_neo4j_records, from_records_iter,
+    from_records_streaming, neo4j_to_hedl, Neo4jRecord,
 };
+
+#[cfg(feature = "async")]
+pub use from_neo4j::{
+    query_multi_label_batch, query_nodes_batch, query_nodes_with_relationships_batch,
+};
+
+#[cfg(feature = "async")]
+pub use batch_read::{BatchQuery, BatchReadConfig};
+
+#[cfg(feature = "async")]
+pub use async_client::AsyncNeo4jClient;
+
 pub use mapping::{Neo4jNode, Neo4jRelationship};
 pub use to_cypher::{
     hedl_to_cypher, node_to_cypher_inline, to_cypher, to_cypher_statements, to_cypher_stream,
 };
+
+// Re-export batching utilities for transaction optimization
+pub use batching::{batch_statements, TransactionBatch};

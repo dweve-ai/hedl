@@ -35,6 +35,7 @@ use crate::datasets::{generate_blog, generate_deep_hierarchy, generate_nested, g
 /// # Returns
 ///
 /// HEDL document string with deep nesting.
+#[must_use]
 pub fn generate_deep_nesting(depth: usize, fields_per_level: usize) -> String {
     if depth == 0 {
         return "%VERSION: 1.0\n---\n".to_string();
@@ -53,13 +54,12 @@ pub fn generate_deep_nesting(depth: usize, fields_per_level: usize) -> String {
 
         for field_idx in 0..fields_per_level {
             doc.push_str(&format!(
-                "{}field{}: val{}_{}\n",
-                prefix, field_idx, current_level, field_idx
+                "{prefix}field{field_idx}: val{current_level}_{field_idx}\n"
             ));
         }
 
         if current_level < max_depth {
-            doc.push_str(&format!("{}nested:\n", prefix));
+            doc.push_str(&format!("{prefix}nested:\n"));
             add_level(
                 doc,
                 current_level + 1,
@@ -87,6 +87,7 @@ pub fn generate_deep_nesting(depth: usize, fields_per_level: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with wide tree structure.
+#[must_use]
 pub fn generate_wide_tree(breadth: usize, depth: usize) -> String {
     if depth == 0 || breadth == 0 {
         return "%VERSION: 1.0\n---\n".to_string();
@@ -112,9 +113,9 @@ pub fn generate_wide_tree(breadth: usize, depth: usize) -> String {
 
         for child_idx in 0..breadth {
             *id_counter += 1;
-            doc.push_str(&format!("{}child{}:\n", prefix, child_idx));
-            doc.push_str(&format!("{}  id: {}\n", prefix, id_counter));
-            doc.push_str(&format!("{}  name: node_{}\n", prefix, id_counter));
+            doc.push_str(&format!("{prefix}child{child_idx}:\n"));
+            doc.push_str(&format!("{prefix}  id: {id_counter}\n"));
+            doc.push_str(&format!("{prefix}  name: node_{id_counter}\n"));
 
             if current_depth + 1 < max_depth {
                 generate_children(
@@ -144,6 +145,7 @@ pub fn generate_wide_tree(breadth: usize, depth: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with balanced tree.
+#[must_use]
 pub fn generate_balanced_tree(nodes: usize) -> String {
     if nodes == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -162,7 +164,7 @@ pub fn generate_balanced_tree(nodes: usize) -> String {
 
 /// Generates organizational hierarchy (company/division/department/team).
 ///
-/// Uses the existing deep_hierarchy generator with specified entity count.
+/// Uses the existing `deep_hierarchy` generator with specified entity count.
 ///
 /// # Arguments
 ///
@@ -171,6 +173,7 @@ pub fn generate_balanced_tree(nodes: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with organizational hierarchy.
+#[must_use]
 pub fn generate_org_hierarchy(entity_count: usize) -> String {
     generate_deep_hierarchy(entity_count)
 }
@@ -185,6 +188,7 @@ pub fn generate_org_hierarchy(entity_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with blog post hierarchy.
+#[must_use]
 pub fn generate_blog_hierarchy(post_count: usize, comments_per_post: usize) -> String {
     generate_blog(post_count, comments_per_post)
 }
@@ -198,6 +202,7 @@ pub fn generate_blog_hierarchy(post_count: usize, comments_per_post: usize) -> S
 /// # Returns
 ///
 /// HEDL document string with order hierarchy.
+#[must_use]
 pub fn generate_order_hierarchy(order_count: usize) -> String {
     generate_orders(order_count)
 }
@@ -211,6 +216,7 @@ pub fn generate_order_hierarchy(order_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with custom nesting.
+#[must_use]
 pub fn generate_custom_nested(depth: usize) -> String {
     generate_nested(depth)
 }

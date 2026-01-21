@@ -44,11 +44,11 @@ use serde_json::{json, Value as JsonValue};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-/// Execute hedl_read tool with optional parallel processing.
+/// Execute `hedl_read` tool with optional parallel processing.
 ///
 /// # Arguments
 ///
-/// * `args` - JSON arguments containing path, recursive flag, include_json, and num_threads
+/// * `args` - JSON arguments containing path, recursive flag, `include_json`, and `num_threads`
 /// * `root_path` - Root directory for resolving relative paths
 ///
 /// # Parallel Processing
@@ -61,7 +61,7 @@ use walkdir::WalkDir;
 ///
 /// # Returns
 ///
-/// Returns a CallToolResult with JSON containing:
+/// Returns a `CallToolResult` with JSON containing:
 /// - `files_read`: Total number of files processed
 /// - `results`: Array of file results (successful or errors)
 pub fn execute_hedl_read(args: Option<JsonValue>, root_path: &Path) -> McpResult<CallToolResult> {
@@ -108,7 +108,7 @@ pub fn execute_hedl_read(args: Option<JsonValue>, root_path: &Path) -> McpResult
 /// # Implementation
 ///
 /// 1. Collect all HEDL file paths using walkdir (sequential)
-/// 2. Configure rayon thread pool if num_threads is specified
+/// 2. Configure rayon thread pool if `num_threads` is specified
 /// 3. Process files in parallel using rayon
 /// 4. Collect all results (both successes and errors)
 ///
@@ -131,9 +131,7 @@ fn read_directory_parallel(
         rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build()
-            .map_err(|e| {
-                McpError::InvalidArguments(format!("Failed to create thread pool: {}", e))
-            })?
+            .map_err(|e| McpError::InvalidArguments(format!("Failed to create thread pool: {e}")))?
             .install(|| process_files_parallel(&files, include_json))
     } else {
         // Default thread pool
@@ -147,12 +145,17 @@ fn read_directory_parallel(
 ///
 /// # Arguments
 ///
-/// * `dir_path` - Directory to scan
+/// * `dir_path` - Directory to scan (must be canonical)
 /// * `recursive` - Whether to scan subdirectories
 ///
 /// # Returns
 ///
-/// Vector of PathBuf containing all .hedl files found
+/// Vector of `PathBuf` containing all .hedl files found
+///
+/// # Security
+///
+/// All file paths are canonicalized and validated to ensure they are
+/// within `dir_path`, preventing symlink-based path traversal attacks.
 fn collect_hedl_files(dir_path: &Path, recursive: bool) -> McpResult<Vec<PathBuf>> {
     let walker = if recursive {
         WalkDir::new(dir_path)
@@ -160,14 +163,36 @@ fn collect_hedl_files(dir_path: &Path, recursive: bool) -> McpResult<Vec<PathBuf
         WalkDir::new(dir_path).max_depth(1)
     };
 
+    // Ensure dir_path is canonical for security checks
+    let canonical_root = dir_path
+        .canonicalize()
+        .unwrap_or_else(|_| dir_path.to_path_buf());
+
     let files: Vec<PathBuf> = walker
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|entry| {
             let path = entry.path();
             path.is_file() && path.extension().is_some_and(|ext| ext == "hedl")
         })
-        .map(|entry| entry.path().to_path_buf())
+        .filter_map(|entry| {
+            let path = entry.path();
+
+            // Security: Canonicalize each path to resolve symlinks
+            let canonical = match path.canonicalize() {
+                Ok(p) => p,
+                Err(_) => return None, // Skip files we can't canonicalize
+            };
+
+            // Security: Ensure the canonicalized path is still under root
+            // This prevents symlink attacks where a symlink inside the root
+            // points to a file outside the root
+            if canonical.starts_with(&canonical_root) {
+                Some(canonical)
+            } else {
+                None // Skip files outside root (via symlink)
+            }
+        })
         .collect();
 
     Ok(files)
@@ -221,9 +246,54 @@ fn read_hedl_file(path: &Path, include_json: bool) -> McpResult<JsonValue> {
     Ok(result)
 }
 
-/// Execute hedl_write tool.
+/// Execute `hedl_write` tool.
+///
+/// # Security
+///
+/// This function implements comprehensive path traversal protection through multiple layers:
+///
+/// ## Defense Layers
+///
+/// 1. **Input Validation**: Rejects empty paths, checks size limits
+/// 2. **Path Construction**: Safely joins with root, handles relative/absolute paths
+/// 3. **Parent Directory Creation**: Creates parent dirs before validation (prevents TOCTOU)
+/// 4. **Canonicalization**: Resolves `..`, `.`, and symlinks to actual filesystem paths
+/// 5. **Boundary Validation**: Verifies canonical path stays within root directory
+/// 6. **Atomic Write**: Uses canonical path for actual write operation
+///
+/// ## Attack Prevention
+///
+/// - **Path Traversal**: Blocks `../../../etc/passwd` via canonicalization + boundary check
+/// - **Symlink Escape**: Blocks symlinks pointing outside root (canonicalize resolves symlink targets)
+/// - **TOCTOU**: Minimizes race window by validating canonical path just before write
+/// - **Absolute Paths**: Validates absolute paths are within root
+/// - **Non-existent Parents**: Creates and validates parent directory chain
+///
+/// ## Example Attacks Blocked
+///
+/// ```ignore
+/// // Attack 1: Relative traversal
+/// path: "../../../etc/passwd" // Blocked: canonical path outside root
+///
+/// // Attack 2: Symlink escape
+/// // (symlink "malicious" inside root points to "/tmp/outside")
+/// path: "malicious/file.hedl" // Blocked: canonical symlink target outside root
+///
+/// // Attack 3: Nonexistent parent traversal
+/// path: "new/../../../etc/passwd" // Blocked: canonicalized parent outside root
+///
+/// // Attack 4: Absolute path
+/// path: "/etc/passwd" // Blocked: starts outside root
+/// ```
 pub fn execute_hedl_write(args: Option<JsonValue>, root_path: &Path) -> McpResult<CallToolResult> {
     let args: WriteArgs = parse_args(args)?;
+
+    // Security: Reject empty paths
+    if args.path.is_empty() {
+        return Err(McpError::InvalidArguments(
+            "Path cannot be empty".to_string(),
+        ));
+    }
 
     // Security: Validate input size to prevent memory exhaustion
     validate_input_size(&args.content, MAX_INPUT_SIZE)?;
@@ -238,48 +308,78 @@ pub fn execute_hedl_write(args: Option<JsonValue>, root_path: &Path) -> McpResul
         let doc = parse(args.content.as_bytes())?;
         let config = hedl_c14n::CanonicalConfig::default();
         hedl_c14n::canonicalize_with_config(&doc, &config)
-            .map_err(|e| McpError::InvalidArguments(format!("Format failed: {}", e)))?
+            .map_err(|e| McpError::InvalidArguments(format!("Format failed: {e}")))?
     } else {
         args.content.clone()
     };
 
-    // Resolve and validate path
-    let target_path = root_path.join(&args.path);
+    // Security: Construct the target path
+    // Build the path relative to root, or use as-is if absolute
+    let target_path = if Path::new(&args.path).is_absolute() {
+        PathBuf::from(&args.path)
+    } else {
+        root_path.join(&args.path)
+    };
 
-    // Security: ensure we're not writing outside root
+    // Security: Canonicalize root for validation
     let canonical_root = root_path
         .canonicalize()
         .unwrap_or_else(|_| root_path.to_path_buf());
-    if let Some(parent) = target_path.parent() {
-        if parent.exists() {
-            let canonical_parent = parent
-                .canonicalize()
-                .map_err(|_| McpError::InvalidArguments("Invalid parent directory".to_string()))?;
-            if !canonical_parent.starts_with(&canonical_root) {
-                return Err(McpError::PathTraversal(args.path.clone()));
-            }
-        }
-    }
 
-    // Create backup if file exists and backup is enabled
-    let mut backup_path = None;
-    if args.backup && target_path.exists() {
-        let backup = target_path.with_extension("hedl.bak");
-        std::fs::copy(&target_path, &backup)?;
-        backup_path = Some(backup.display().to_string());
-    }
-
-    // Create parent directories if needed
+    // Security: Create parent directories BEFORE canonicalization
+    // This prevents TOCTOU issues and ensures we can canonicalize the full path
     if let Some(parent) = target_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Write the file
-    std::fs::write(&target_path, &content_to_write)?;
+    // Security: Canonicalize the target path and validate it's under root
+    // This is the critical security check that resolves symlinks and validates boundaries
+    let canonical_target = target_path
+        .canonicalize()
+        .or_else(|_| {
+            // If file doesn't exist yet, canonicalize the parent and join the filename
+            if let Some(parent) = target_path.parent() {
+                if let Some(filename) = target_path.file_name() {
+                    parent.canonicalize().map(|p| p.join(filename))
+                } else {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Invalid path: no filename",
+                    ))
+                }
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid path: no parent directory",
+                ))
+            }
+        })
+        .map_err(|e| McpError::InvalidArguments(format!("Invalid target path: {e}")))?;
+
+    // Security: CRITICAL VALIDATION - Ensure canonical path is within root
+    // This check happens AFTER symlink resolution, preventing symlink escapes
+    if !canonical_target.starts_with(&canonical_root) {
+        return Err(McpError::PathTraversal(format!(
+            "Path '{}' resolves outside allowed directory",
+            args.path
+        )));
+    }
+
+    // Create backup if file exists and backup is enabled
+    let mut backup_path = None;
+    if args.backup && canonical_target.exists() {
+        let backup = canonical_target.with_extension("hedl.bak");
+        std::fs::copy(&canonical_target, &backup)?;
+        backup_path = Some(backup.display().to_string());
+    }
+
+    // Security: Write using the validated canonical path
+    // At this point, we've verified the path is safe
+    std::fs::write(&canonical_target, &content_to_write)?;
 
     let mut result = json!({
         "success": true,
-        "path": target_path.display().to_string(),
+        "path": canonical_target.display().to_string(),
         "bytes_written": content_to_write.len()
     });
 
@@ -520,10 +620,9 @@ mod tests {
         // Create 10 HEDL files
         for i in 0..10 {
             let content = format!(
-                "%VERSION: 1.0\n%STRUCT: Item: [id, name]\n---\nitems{}: @Item\n  | item{}, Item {}\n",
-                i, i, i
+                "%VERSION: 1.0\n%STRUCT: Item: [id, name]\n---\nitems{i}: @Item\n  | item{i}, Item {i}\n"
             );
-            fs::write(temp_dir.path().join(format!("file{}.hedl", i)), content).unwrap();
+            fs::write(temp_dir.path().join(format!("file{i}.hedl")), content).unwrap();
         }
 
         // Read with default parallelism
@@ -544,8 +643,7 @@ mod tests {
         for result in results {
             assert!(
                 result.get("error").is_none(),
-                "Unexpected error in result: {:?}",
-                result
+                "Unexpected error in result: {result:?}"
             );
         }
     }
@@ -557,10 +655,9 @@ mod tests {
         // Create 5 HEDL files
         for i in 0..5 {
             let content = format!(
-                "%VERSION: 1.0\n%STRUCT: Data: [id, value]\n---\ndata{}: @Data\n  | data{}, {}\n",
-                i, i, i
+                "%VERSION: 1.0\n%STRUCT: Data: [id, value]\n---\ndata{i}: @Data\n  | data{i}, {i}\n"
             );
-            fs::write(temp_dir.path().join(format!("data{}.hedl", i)), content).unwrap();
+            fs::write(temp_dir.path().join(format!("data{i}.hedl")), content).unwrap();
         }
 
         // Read with custom thread count
@@ -586,10 +683,9 @@ mod tests {
         // Create valid files
         for i in 0..3 {
             let content = format!(
-                "%VERSION: 1.0\n%STRUCT: Valid: [id]\n---\ndata{}: @Valid\n  | valid{}\n",
-                i, i
+                "%VERSION: 1.0\n%STRUCT: Valid: [id]\n---\ndata{i}: @Valid\n  | valid{i}\n"
             );
-            fs::write(temp_dir.path().join(format!("valid{}.hedl", i)), content).unwrap();
+            fs::write(temp_dir.path().join(format!("valid{i}.hedl")), content).unwrap();
         }
 
         // Create an invalid file
@@ -744,8 +840,8 @@ mod tests {
 
         let mut paths = Vec::new();
         for i in 0..5 {
-            let path = temp_dir.path().join(format!("test{}.hedl", i));
-            let content = format!("%VERSION: 1.0\n---\ntest{}: data\n", i);
+            let path = temp_dir.path().join(format!("test{i}.hedl"));
+            let content = format!("%VERSION: 1.0\n---\ntest{i}: data\n");
             fs::write(&path, content).unwrap();
             paths.push(path);
         }

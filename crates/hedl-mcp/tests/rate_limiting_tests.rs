@@ -17,7 +17,7 @@
 
 //! Integration tests for MCP server rate limiting.
 //!
-//! Tests the token bucket rate limiting implementation to ensure DoS protection.
+//! Tests the token bucket rate limiting implementation to ensure `DoS` protection.
 
 use hedl_mcp::{JsonRpcRequest, McpServer, McpServerConfig, RateLimiter};
 use serde_json::{json, Value};
@@ -48,7 +48,7 @@ fn ping_request(id: u64) -> JsonRpcRequest {
 
 #[test]
 fn test_rate_limiter_basic_functionality() {
-    let mut limiter = RateLimiter::new(10, 5);
+    let limiter = RateLimiter::new(10, 5);
 
     // Should allow 10 requests (burst capacity)
     for i in 0..10 {
@@ -68,7 +68,7 @@ fn test_rate_limiter_basic_functionality() {
 
 #[test]
 fn test_rate_limiter_refill() {
-    let mut limiter = RateLimiter::new(100, 50); // 50 tokens/sec
+    let limiter = RateLimiter::new(100, 50); // 50 tokens/sec
 
     // Consume all tokens
     for _ in 0..100 {
@@ -89,14 +89,13 @@ fn test_rate_limiter_refill() {
 
     assert!(
         (8..=12).contains(&allowed),
-        "Expected ~10 refilled tokens, got {}",
-        allowed
+        "Expected ~10 refilled tokens, got {allowed}"
     );
 }
 
 #[test]
 fn test_rate_limiter_reset() {
-    let mut limiter = RateLimiter::new(50, 25);
+    let limiter = RateLimiter::new(50, 25);
 
     // Consume some tokens
     for _ in 0..30 {
@@ -200,9 +199,11 @@ fn test_rate_limiting_disabled_when_burst_zero() {
     // Should allow unlimited requests when disabled
     for i in 0..1000 {
         let response = server.handle_request(ping_request(i + 2));
-        if response.error.is_some() {
-            panic!("Request {} failed but rate limiting is disabled", i + 1);
-        }
+        assert!(
+            response.error.is_none(),
+            "Request {} failed but rate limiting is disabled",
+            i + 1
+        );
     }
 }
 
@@ -235,15 +236,17 @@ fn test_rate_limiting_disabled_when_rate_zero() {
     // Should allow unlimited requests when disabled
     for i in 0..1000 {
         let response = server.handle_request(ping_request(i + 2));
-        if response.error.is_some() {
-            panic!("Request {} failed but rate limiting is disabled", i + 1);
-        }
+        assert!(
+            response.error.is_none(),
+            "Request {} failed but rate limiting is disabled",
+            i + 1
+        );
     }
 }
 
 #[test]
 fn test_burst_capacity_allows_short_bursts() {
-    let mut limiter = RateLimiter::new(200, 100); // 100/sec sustained, 200 burst
+    let limiter = RateLimiter::new(200, 100); // 100/sec sustained, 200 burst
 
     // Should allow burst of 200
     for i in 0..200 {
@@ -263,7 +266,7 @@ fn test_burst_capacity_allows_short_bursts() {
 
 #[test]
 fn test_sustained_rate_enforcement() {
-    let mut limiter = RateLimiter::new(10, 100); // 100/sec, small burst
+    let limiter = RateLimiter::new(10, 100); // 100/sec, small burst
 
     // Consume initial burst
     for _ in 0..10 {
@@ -283,14 +286,13 @@ fn test_sustained_rate_enforcement() {
 
     assert!(
         (8..=12).contains(&allowed),
-        "Expected ~10 requests allowed after refill, got {}",
-        allowed
+        "Expected ~10 requests allowed after refill, got {allowed}"
     );
 }
 
 #[test]
 fn test_rate_limiter_token_count() {
-    let mut limiter = RateLimiter::new(100, 50);
+    let limiter = RateLimiter::new(100, 50);
 
     assert_eq!(limiter.tokens(), 100, "Should start full");
     assert_eq!(limiter.max_tokens(), 100);
@@ -306,7 +308,7 @@ fn test_rate_limiter_token_count() {
 
 #[test]
 fn test_concurrent_request_simulation() {
-    let mut limiter = RateLimiter::new(50, 25); // 25 req/sec, 50 burst
+    let limiter = RateLimiter::new(50, 25); // 25 req/sec, 50 burst
 
     // Simulate rapid burst
     let mut burst_allowed = 0;
@@ -331,8 +333,7 @@ fn test_concurrent_request_simulation() {
 
     assert!(
         (23..=27).contains(&refilled_allowed),
-        "Expected ~25 requests after 1s refill, got {}",
-        refilled_allowed
+        "Expected ~25 requests after 1s refill, got {refilled_allowed}"
     );
 }
 
@@ -349,7 +350,7 @@ fn test_default_config_rate_limits() {
 
 #[test]
 fn test_rate_limiter_multiple_refills() {
-    let mut limiter = RateLimiter::new(100, 50);
+    let limiter = RateLimiter::new(100, 50);
 
     // Consume all tokens
     for _ in 0..100 {
@@ -360,7 +361,7 @@ fn test_rate_limiter_multiple_refills() {
     for cycle in 0..5 {
         thread::sleep(Duration::from_millis(100)); // ~5 tokens per cycle
 
-        let allowed = if limiter.check_limit() { 1 } else { 0 };
+        let allowed = i32::from(limiter.check_limit());
         assert!(
             allowed > 0,
             "Should allow at least one request in cycle {}",
@@ -372,13 +373,13 @@ fn test_rate_limiter_multiple_refills() {
 #[test]
 fn test_rate_limiter_edge_cases() {
     // Very small burst
-    let mut limiter = RateLimiter::new(1, 1);
+    let limiter = RateLimiter::new(1, 1);
     assert!(limiter.check_limit());
     assert!(!limiter.check_limit());
 
-    // Very large burst - note that with 5000/sec refill rate, even a few
-    // microseconds can refill a token, so we need to consume them faster
-    let mut limiter = RateLimiter::new(10000, 5000);
+    // Very large burst with very low refill rate to avoid timing issues
+    // With 1 token/sec refill, even a 100ms delay won't refill a full token
+    let limiter = RateLimiter::new(10000, 1);
     let mut consumed = 0;
     for _ in 0..10010 {
         if limiter.check_limit() {
@@ -390,16 +391,18 @@ fn test_rate_limiter_edge_cases() {
     // Should consume at least the initial burst
     assert!(
         consumed >= 10000,
-        "Should consume at least burst capacity, got {}",
-        consumed
+        "Should consume at least burst capacity, got {consumed}"
     );
-    // And should eventually hit the limit
-    assert!(!limiter.check_limit(), "Should eventually be rate limited");
+    // And should hit the limit since refill rate is very low
+    assert!(
+        !limiter.check_limit(),
+        "Should be rate limited with low refill rate"
+    );
 }
 
 #[test]
 fn test_rate_limiter_no_time_drift() {
-    let mut limiter = RateLimiter::new(100, 50);
+    let limiter = RateLimiter::new(100, 50);
 
     // Consume tokens
     for _ in 0..50 {

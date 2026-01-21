@@ -54,6 +54,15 @@ tmp/
 temp/
 *.tmp
 *.bak
+*.backup
+*.orig
+.tmp_marker
+
+# Generated metrics
+.unsafe-metrics.csv
+
+# Secrets/salts
+.hedl-mcp-salt
 
 # Environment
 .env
@@ -68,4 +77,11 @@ logs/
 *.proptest-regressions
 .backup
 crates/hedl-bench/target/
+
+# Dweve
 .analysis
+.plan
+
+# Deprecated files
+.deprecated/
+*.proptest-regressions

@@ -79,7 +79,7 @@ fn main() {
     // 1. Create or load baseline
     let baseline_path = Path::new("target/demo/baseline_example.json");
     let mut baseline = if baseline_path.exists() {
-        println!("Loading existing baseline from {:?}", baseline_path);
+        println!("Loading existing baseline from {baseline_path:?}");
         load_baseline(baseline_path)
     } else {
         println!("Creating new baseline");
@@ -97,13 +97,13 @@ fn main() {
         ] {
             let avg_ns = run_benchmark(name, *size);
             b.benchmarks.insert(
-                name.to_string(),
+                (*name).to_string(),
                 BaselineMetrics {
                     mean_ns: avg_ns,
                     std_dev_ns: avg_ns / 10, // Approximate
                 },
             );
-            println!("  {}: {} ns", name, avg_ns);
+            println!("  {name}: {avg_ns} ns");
         }
 
         save_baseline(&b, baseline_path);
@@ -121,7 +121,7 @@ fn main() {
         ("large", sizes::LARGE),
     ] {
         let current_ns = run_benchmark(name, *size);
-        println!("  {}: {} ns", name, current_ns);
+        println!("  {name}: {current_ns} ns");
 
         // Compare against baseline
         if let Some(baseline_metrics) = baseline.benchmarks.get(*name) {
@@ -138,7 +138,7 @@ fn main() {
             };
 
             results.push(RegressionResult {
-                name: name.to_string(),
+                name: (*name).to_string(),
                 baseline_ns,
                 current_ns,
                 change_percent,
@@ -199,7 +199,7 @@ fn main() {
         }
         baseline.timestamp = chrono::Utc::now().to_rfc3339();
         save_baseline(&baseline, baseline_path);
-        println!("Baseline updated: {:?}", baseline_path);
+        println!("Baseline updated: {baseline_path:?}");
     }
 }
 
@@ -207,7 +207,7 @@ fn main() {
 // Helper Functions
 // ============================================================================
 
-fn run_benchmark(name: &str, size: usize) -> u64 {
+fn run_benchmark(_name: &str, size: usize) -> u64 {
     let hedl = generate_users(size);
     let iterations = 100;
 

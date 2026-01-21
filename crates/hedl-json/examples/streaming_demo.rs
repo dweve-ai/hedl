@@ -43,7 +43,7 @@ fn main() {
         count += 1;
         println!("  Document {}: {} fields", count, doc.root.len());
     }
-    println!("  Total: {} documents processed\n", count);
+    println!("  Total: {count} documents processed\n");
 
     // Example 2: JSON Array Streaming
     println!("2. JSON Array Streaming");
@@ -76,7 +76,7 @@ fn main() {
         let mut doc = hedl_core::Document::new((1, 0));
         doc.root.insert(
             "id".to_string(),
-            hedl_core::Item::Scalar(hedl_core::Value::String(i.to_string())),
+            hedl_core::Item::Scalar(hedl_core::Value::String(i.to_string().into())),
         );
         doc.root.insert(
             "value".to_string(),
@@ -89,7 +89,7 @@ fn main() {
     let output = String::from_utf8(buffer).unwrap();
     println!("  Generated JSONL:");
     for line in output.lines() {
-        println!("    {}", line);
+        println!("    {line}");
     }
     println!();
 
@@ -124,8 +124,8 @@ fn main() {
     let config = StreamConfig::default();
     let streamer = JsonLinesStreamer::new(reader, config);
 
-    let total = streamer.filter_map(|r| r.ok()).count();
-    println!("  Processed {} documents from large dataset", total);
+    let total = streamer.filter_map(std::result::Result::ok).count();
+    println!("  Processed {total} documents from large dataset");
     println!("  Memory used: Only one document at a time!");
     println!();
 

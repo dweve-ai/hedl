@@ -1,15 +1,58 @@
+# =============================================================================
+# HEDL C14N - crates/hedl-c14n/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-c14n"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 description = "HEDL canonicalization and pretty-printing"
+documentation = "https://docs.rs/hedl-c14n"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
-hedl-core.workspace = true
+hedl-core = { workspace = true }
+itoa = "1.0"
 
 [dev-dependencies]
-proptest = "1.0"
+proptest = { workspace = true }
 
+[features]
+default = []

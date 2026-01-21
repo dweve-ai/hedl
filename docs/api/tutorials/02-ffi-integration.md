@@ -16,13 +16,13 @@ Download the latest release from GitHub:
 
 ```bash
 # Linux
-wget https://github.com/dweve/hedl/releases/download/v0.1.0/libhedl.so
+wget https://github.com/dweve/hedl/releases/download/v1.2.0/libhedl.so
 
 # macOS
-wget https://github.com/dweve/hedl/releases/download/v0.1.0/libhedl.dylib
+wget https://github.com/dweve/hedl/releases/download/v1.2.0/libhedl.dylib
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://github.com/dweve/hedl/releases/download/v0.1.0/hedl.dll -OutFile hedl.dll
+Invoke-WebRequest -Uri https://github.com/dweve/hedl/releases/download/v1.2.0/hedl.dll -OutFile hedl.dll
 ```
 
 ### Build from Source

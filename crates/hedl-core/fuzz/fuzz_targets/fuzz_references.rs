@@ -63,7 +63,7 @@
 //! ```
 
 use libfuzzer_sys::fuzz_target;
-use hedl_core::{parse_with_limits, ParseOptions, Limits};
+use hedl_core::{parse_with_limits, ParseOptions, Limits}, ReferenceMode;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(text) = std::str::from_utf8(data) {
@@ -71,7 +71,7 @@ fuzz_target!(|data: &[u8]| {
         // This should catch unresolved and ambiguous references
         let strict_options = ParseOptions {
             limits: Limits::default(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         };
 
         let result = parse_with_limits(text.as_bytes(), strict_options);
@@ -90,7 +90,7 @@ fuzz_target!(|data: &[u8]| {
         // This should allow unresolved references but still detect ambiguity
         let non_strict_options = ParseOptions {
             limits: Limits::default(),
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let result2 = parse_with_limits(text.as_bytes(), non_strict_options.clone());
@@ -116,7 +116,7 @@ fuzz_target!(|data: &[u8]| {
                 max_object_keys: 20,
                 max_total_keys: 100,
             },
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         };
 
         let _ = parse_with_limits(text.as_bytes(), limited_options);
@@ -128,7 +128,7 @@ fuzz_target!(|data: &[u8]| {
                 max_nest_depth: 2,
                 ..Limits::default()
             },
-            strict_refs: false,
+            reference_mode: ReferenceMode::Lenient,
         };
 
         let _ = parse_with_limits(text.as_bytes(), minimal_options);
@@ -139,7 +139,7 @@ fuzz_target!(|data: &[u8]| {
                 max_aliases: 0,         // No aliases allowed
                 ..Limits::default()
             },
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         };
 
         let _ = parse_with_limits(text.as_bytes(), no_alias_options);

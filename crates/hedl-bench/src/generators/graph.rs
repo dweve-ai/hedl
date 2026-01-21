@@ -34,6 +34,7 @@ use crate::datasets::{generate_graph, generate_reference_heavy};
 /// # Returns
 ///
 /// HEDL document string with DAG structure.
+#[must_use]
 pub fn generate_dag(nodes: usize, edges: usize) -> String {
     if nodes == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -55,6 +56,7 @@ pub fn generate_dag(nodes: usize, edges: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with linked list structure.
+#[must_use]
 pub fn generate_linked_list(length: usize) -> String {
     if length == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -70,7 +72,7 @@ pub fn generate_linked_list(length: usize) -> String {
         } else {
             "null".to_string()
         };
-        doc.push_str(&format!("| {}, value_{}, {}\n", i, i, next_ref));
+        doc.push_str(&format!("| {i}, value_{i}, {next_ref}\n"));
     }
 
     doc
@@ -86,6 +88,7 @@ pub fn generate_linked_list(length: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with complex graph structure.
+#[must_use]
 pub fn generate_complex_graph(nodes: usize, density: f32) -> String {
     if nodes == 0 || density <= 0.0 {
         return generate_linked_list(nodes);
@@ -116,6 +119,7 @@ pub fn generate_complex_graph(nodes: usize, density: f32) -> String {
 /// # Returns
 ///
 /// HEDL document string with reference-heavy structure.
+#[must_use]
 pub fn generate_reference_graph(entity_count: usize) -> String {
     generate_reference_heavy(entity_count)
 }
@@ -130,6 +134,7 @@ pub fn generate_reference_graph(entity_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with bidirectional graph.
+#[must_use]
 pub fn generate_bidirectional_graph(nodes: usize, edges_per_node: usize) -> String {
     if nodes == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -144,7 +149,7 @@ pub fn generate_bidirectional_graph(nodes: usize, edges_per_node: usize) -> Stri
         for j in 1..=edges_per_node {
             let target = (i + j) % nodes;
             if target != i {
-                edges.push(format!("@Node:{}", target));
+                edges.push(format!("@Node:{target}"));
             }
         }
 
@@ -163,6 +168,7 @@ pub fn generate_bidirectional_graph(nodes: usize, edges_per_node: usize) -> Stri
 /// # Returns
 ///
 /// HEDL document string with tree as graph.
+#[must_use]
 pub fn generate_tree_graph(nodes: usize) -> String {
     if nodes == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -190,10 +196,10 @@ pub fn generate_tree_graph(nodes: usize) -> String {
 
         let mut children = Vec::new();
         if left_child < nodes {
-            children.push(format!("@TreeNode:{}", left_child));
+            children.push(format!("@TreeNode:{left_child}"));
         }
         if right_child < nodes {
-            children.push(format!("@TreeNode:{}", right_child));
+            children.push(format!("@TreeNode:{right_child}"));
         }
 
         doc.push_str(&format!(

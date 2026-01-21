@@ -111,7 +111,7 @@
 //! ```
 
 use parking_lot::RwLock;
-use roxmltree::{Document as XmlDocument, Node};
+use roxmltree::{Document as XmlDocument, Node, ParsingOptions};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -412,8 +412,16 @@ impl SchemaValidator {
 
     /// Parse XSD schema document
     fn parse_xsd(xsd: &str) -> Result<Schema, ValidationError> {
-        let doc = XmlDocument::parse(xsd).map_err(|e| ValidationError::SchemaParseError {
-            message: e.to_string(),
+        // Security: Use explicit parsing options with DTD disabled
+        let options = ParsingOptions {
+            allow_dtd: false, // Explicitly disable DTD processing for security
+            ..Default::default()
+        };
+
+        let doc = XmlDocument::parse_with_options(xsd, options).map_err(|e| {
+            ValidationError::SchemaParseError {
+                message: e.to_string(),
+            }
         })?;
 
         let root = doc.root_element();
@@ -443,7 +451,7 @@ impl SchemaValidator {
     }
 
     /// Parse an element definition
-    fn parse_element(node: &Node) -> Result<ElementDef, ValidationError> {
+    fn parse_element(node: &Node<'_, '_>) -> Result<ElementDef, ValidationError> {
         let name = node
             .attribute("name")
             .ok_or_else(|| ValidationError::SchemaParseError {
@@ -483,7 +491,7 @@ impl SchemaValidator {
     }
 
     /// Parse a complex type definition
-    fn parse_complex_type(node: &Node) -> Result<ComplexType, ValidationError> {
+    fn parse_complex_type(node: &Node<'_, '_>) -> Result<ComplexType, ValidationError> {
         let mut sequence = Vec::new();
         let mut attributes = Vec::new();
 
@@ -510,7 +518,7 @@ impl SchemaValidator {
     }
 
     /// Parse an attribute definition
-    fn parse_attribute(node: &Node) -> Result<AttributeDef, ValidationError> {
+    fn parse_attribute(node: &Node<'_, '_>) -> Result<AttributeDef, ValidationError> {
         let name = node
             .attribute("name")
             .ok_or_else(|| ValidationError::SchemaParseError {
@@ -591,10 +599,18 @@ impl SchemaValidator {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn validate(&self, xml: &str) -> Result<(), ValidationError> {
-        let doc = XmlDocument::parse(xml).map_err(|e| ValidationError::DocumentParseError {
-            message: e.to_string(),
-            line: None,
-            column: None,
+        // Security: Use explicit parsing options with DTD disabled
+        let options = ParsingOptions {
+            allow_dtd: false, // Explicitly disable DTD processing for security
+            ..Default::default()
+        };
+
+        let doc = XmlDocument::parse_with_options(xml, options).map_err(|e| {
+            ValidationError::DocumentParseError {
+                message: e.to_string(),
+                line: None,
+                column: None,
+            }
         })?;
 
         let root = doc.root_element();
@@ -618,7 +634,7 @@ impl SchemaValidator {
     /// Validate an element against schema definition
     fn validate_element(
         &self,
-        node: &Node,
+        node: &Node<'_, '_>,
         schema_elem: &ElementDef,
     ) -> Result<(), ValidationError> {
         let line = node.document().text_pos_at(node.range().start).row as usize;
@@ -643,7 +659,7 @@ impl SchemaValidator {
     /// Validate element type
     fn validate_type(
         &self,
-        node: &Node,
+        node: &Node<'_, '_>,
         type_ref: &str,
         line: usize,
     ) -> Result<(), ValidationError> {
@@ -695,7 +711,7 @@ impl SchemaValidator {
     /// Validate attributes against complex type definition
     fn validate_attributes_complex(
         &self,
-        node: &Node,
+        node: &Node<'_, '_>,
         complex_type: &ComplexType,
         line: usize,
     ) -> Result<(), ValidationError> {
@@ -729,7 +745,7 @@ impl SchemaValidator {
     /// Validate child elements against complex type sequence
     fn validate_children_complex(
         &self,
-        node: &Node,
+        node: &Node<'_, '_>,
         complex_type: &ComplexType,
         line: usize,
     ) -> Result<(), ValidationError> {

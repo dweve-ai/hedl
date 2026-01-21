@@ -33,6 +33,8 @@ for handle in handles {
 
 ### Concurrent Parsing
 
+Using the `rayon` crate (add to Cargo.toml: `rayon = "1.10"`):
+
 ```rust
 use rayon::prelude::*;
 
@@ -181,6 +183,8 @@ public:
 
 ## Async Rust Patterns
 
+The following examples use `tokio` (add to Cargo.toml: `tokio = { version = "1", features = ["full"] }`).
+
 ### Tokio Integration
 
 ```rust
@@ -198,6 +202,8 @@ async fn load_and_parse(path: &str) -> Result<Document, HedlError> {
 ```
 
 ### Concurrent File Processing
+
+Using `futures` crate (add to Cargo.toml: `futures = "0.3"`):
 
 ```rust
 use tokio::fs;
@@ -281,6 +287,8 @@ impl ParseCounter {
 ```
 
 ### Lock-Free Patterns
+
+Using the `crossbeam` crate (add to Cargo.toml: `crossbeam = "0.8"`):
 
 ```rust
 use crossbeam::queue::SegQueue;
@@ -395,6 +403,8 @@ impl DocStore {
 ```
 
 ### Lock-Free Alternatives
+
+Using the `arc-swap` crate (add to Cargo.toml: `arc-swap = "1.7"`):
 
 ```rust
 use arc_swap::ArcSwap;

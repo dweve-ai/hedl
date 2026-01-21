@@ -36,6 +36,22 @@
 //! - Closing `"""` must be on its own line (only whitespace/comments allowed after)
 //! - Content between delimiters is preserved as-is, including leading/trailing whitespace
 //! - Size limits are enforced to prevent memory exhaustion
+//!
+//! # Security
+//!
+//! This module implements robust overflow protection to prevent memory exhaustion attacks:
+//!
+//! - **Fail-Fast Overflow Detection**: All size calculations use `checked_add` to detect
+//!   integer overflow at the earliest point, ensuring malicious inputs cannot bypass security limits.
+//! - **Per-Line Validation**: Each line's contribution to the total size is validated before
+//!   accumulation, preventing individual oversized lines from saturating size counters.
+//! - **Cumulative Size Tracking**: Total block string size is tracked across all lines and
+//!   validated against configurable limits (`max_block_string_size`).
+//! - **No Silent Failures**: Integer overflows are never silently capped; they always result
+//!   in explicit security errors with clear diagnostic messages.
+//!
+//! These protections ensure that block string parsing cannot be exploited for DoS attacks
+//! through memory exhaustion, even with carefully crafted inputs near `usize::MAX`.
 
 use crate::error::{HedlError, HedlResult};
 use crate::lex::is_valid_key_token;
@@ -113,7 +129,10 @@ impl BlockStringState {
         } else {
             // Check size limit before accumulating
             // Add 1 for the newline that will be added when joining
-            let line_contribution = line.len().saturating_add(1);
+            let line_contribution = line
+                .len()
+                .checked_add(1)
+                .ok_or_else(|| HedlError::security("line length overflow", line_num))?;
             let new_size = self
                 .total_size
                 .checked_add(line_contribution)
@@ -441,5 +460,207 @@ mod tests {
 
         let content = result.unwrap();
         assert_eq!(content, "\n  indented\n    more indented\n");
+    }
+
+    // Security tests for overflow detection
+
+    #[test]
+    fn test_block_string_line_overflow() {
+        // Test that a line with length usize::MAX causes overflow when adding 1
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: 0,
+        };
+        let limits = Limits {
+            max_block_string_size: usize::MAX,
+            ..Default::default()
+        };
+
+        // Create a string that would overflow when adding 1
+        // We can't actually allocate usize::MAX - 1 bytes in tests,
+        // so we test the logic by verifying the check exists
+        // by using a smaller case that would still overflow at usize::MAX
+
+        // Instead, test near-overflow with a very large size
+        state.total_size = usize::MAX - 10;
+        let result = state.process_line("x".repeat(100).as_str(), 1, &limits);
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("overflow"),
+            "Expected overflow error, got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_block_string_cumulative_overflow() {
+        // Test cumulative overflow detection
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: usize::MAX - 10,
+        };
+        let limits = Limits {
+            max_block_string_size: usize::MAX,
+            ..Default::default()
+        };
+
+        let result = state.process_line("x".repeat(100).as_str(), 1, &limits);
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("overflow"),
+            "Expected overflow error, got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_block_string_normal_operation_unaffected() {
+        // Verify normal operation still works with the checked_add change
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: 0,
+        };
+        let limits = Limits {
+            max_block_string_size: 1000,
+            ..Default::default()
+        };
+
+        // Normal lines should work fine
+        assert!(state.process_line("normal line", 1, &limits).is_ok());
+        assert!(state.process_line("another line", 2, &limits).is_ok());
+        assert!(state.process_line("third line", 3, &limits).is_ok());
+
+        // Complete the block string
+        let result = state.process_line("\"\"\"", 4, &limits);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+
+    #[test]
+    fn test_block_string_overflow_at_exactly_max() {
+        // Test overflow when line.len() == usize::MAX
+        // We can't create such a string, but we can test that
+        // a line that would overflow when adding 1 is caught
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: 0,
+        };
+        let limits = Limits {
+            max_block_string_size: usize::MAX,
+            ..Default::default()
+        };
+
+        // Set total_size close to max to trigger overflow in checked_add
+        state.total_size = usize::MAX - 5;
+
+        let result = state.process_line("123456", 1, &limits);
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("overflow"),
+            "Expected overflow error, got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn test_block_string_no_overflow_just_under_limit() {
+        // Test that we can get close to the limit without overflow
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: 90,
+        };
+        let limits = Limits {
+            max_block_string_size: 100,
+            ..Default::default()
+        };
+
+        // Add a line that brings us to exactly the limit
+        // line.len() = 8, +1 for newline = 9, total = 99 (under limit)
+        let result = state.process_line("12345678", 1, &limits);
+        assert!(result.is_ok());
+        assert_eq!(state.total_size, 99);
+    }
+
+    #[test]
+    fn test_block_string_overflow_security_message() {
+        // Verify that overflow errors are marked as security errors
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: usize::MAX - 1,
+        };
+        let limits = Limits {
+            max_block_string_size: usize::MAX,
+            ..Default::default()
+        };
+
+        let result = state.process_line("test", 42, &limits);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+
+        // Should be a security error with overflow in the message
+        assert!(
+            err_msg.contains("overflow"),
+            "Expected overflow in error message"
+        );
+
+        // Verify it's the line length overflow that triggers first
+        // (since line.len() + 1 would overflow before total_size check)
+        assert!(
+            err_msg.contains("line length overflow")
+                || err_msg.contains("block string size overflow")
+        );
+    }
+
+    #[test]
+    fn test_block_string_closing_overflow() {
+        // Test overflow detection in the closing path
+        let mut state = BlockStringState {
+            key: "test".to_string(),
+            content: vec!["".to_string()],
+            start_line: 1,
+            indent: 0,
+            total_size: usize::MAX - 5,
+        };
+        let limits = Limits {
+            max_block_string_size: usize::MAX,
+            ..Default::default()
+        };
+
+        // Try to close with content that would overflow
+        let result = state.process_line("long content before\"\"\"", 2, &limits);
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("overflow"),
+            "Expected overflow error, got: {}",
+            err_msg
+        );
     }
 }

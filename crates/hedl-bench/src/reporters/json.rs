@@ -53,7 +53,7 @@ mod tests {
         export_json(&report, temp.path()).unwrap();
 
         let content = fs::read_to_string(temp.path()).unwrap();
-        println!("JSON content: {}", content);
+        println!("JSON content: {content}");
         // Check for presence of title field (may have different formatting)
         assert!(content.contains("Test"));
         assert!(content.contains("results"));

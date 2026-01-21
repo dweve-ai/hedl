@@ -49,8 +49,8 @@ impl CallbackContext {
 
 /// Test callback that captures data into a Vec
 unsafe extern "C" fn test_callback(data: *const c_char, len: usize, user_data: *mut c_void) {
-    let ctx = &mut *(user_data as *mut CallbackContext);
-    let slice = slice::from_raw_parts(data as *const u8, len);
+    let ctx = &mut *user_data.cast::<CallbackContext>();
+    let slice = slice::from_raw_parts(data.cast::<u8>(), len);
     ctx.data.extend_from_slice(slice);
     ctx.call_count += 1;
 }
@@ -59,7 +59,7 @@ unsafe extern "C" fn test_callback(data: *const c_char, len: usize, user_data: *
 unsafe fn create_test_document() -> *mut HedlDocument {
     let hedl = b"%VERSION: 1.0\n---\nperson:\n  name: Alice\n  age: 30\n  city: NYC\0";
     let mut doc: *mut HedlDocument = ptr::null_mut();
-    let result = hedl_parse(hedl.as_ptr() as *const c_char, -1, 0, &mut doc);
+    let result = hedl_parse(hedl.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
     assert_eq!(result, HEDL_OK);
     assert!(!doc.is_null());
     doc
@@ -72,15 +72,14 @@ unsafe fn create_large_document() -> *mut HedlDocument {
     // Create a document with many entities to generate large output
     for i in 0..10000 {
         hedl.push_str(&format!(
-            "entity{}:\n  field1: value_{}\n  field2: value_{}\n  field3: value_{}\n",
-            i, i, i, i
+            "entity{i}:\n  field1: value_{i}\n  field2: value_{i}\n  field3: value_{i}\n"
         ));
     }
 
     hedl.push('\0');
 
     let mut doc: *mut HedlDocument = ptr::null_mut();
-    let result = hedl_parse(hedl.as_ptr() as *const c_char, -1, 0, &mut doc);
+    let result = hedl_parse(hedl.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
     assert_eq!(result, HEDL_OK);
     assert!(!doc.is_null());
     doc
@@ -96,8 +95,11 @@ fn test_canonicalize_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result =
-            hedl_canonicalize_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_canonicalize_callback(
+            doc,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -118,8 +120,12 @@ fn test_json_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result =
-            hedl_to_json_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_to_json_callback(
+            doc,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -144,7 +150,7 @@ fn test_json_callback_with_metadata() {
             doc,
             1, // include_metadata
             test_callback,
-            &mut ctx as *mut _ as *mut c_void,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
         );
 
         assert_eq!(result, HEDL_OK);
@@ -165,8 +171,12 @@ fn test_yaml_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result =
-            hedl_to_yaml_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_to_yaml_callback(
+            doc,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -186,7 +196,11 @@ fn test_xml_callback() {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_xml_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_to_xml_callback(
+            doc,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -217,7 +231,7 @@ fn test_csv_callback() {
             "]\0"
         );
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let parse_result = hedl_parse(hedl.as_ptr() as *const c_char, -1, 0, &mut doc);
+        let parse_result = hedl_parse(hedl.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         if parse_result != HEDL_OK {
             // If parsing fails, just skip the test gracefully
@@ -227,7 +241,11 @@ fn test_csv_callback() {
 
         let mut ctx = CallbackContext::new();
 
-        let result = hedl_to_csv_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_to_csv_callback(
+            doc,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         // CSV conversion might fail if the document structure isn't suitable
         // Just verify it doesn't crash and returns a valid error code
@@ -252,7 +270,7 @@ fn test_neo4j_callback() {
             doc,
             1, // use_merge
             test_callback,
-            &mut ctx as *mut _ as *mut c_void,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
         );
 
         assert_eq!(result, HEDL_OK);
@@ -274,7 +292,7 @@ fn test_callback_null_document() {
         let result = hedl_canonicalize_callback(
             ptr::null(),
             test_callback,
-            &mut ctx as *mut _ as *mut c_void,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
         );
 
         assert_eq!(result, HEDL_ERR_NULL_PTR);
@@ -294,8 +312,12 @@ fn test_json_callback_vs_regular() {
 
         // Test with callback
         let mut ctx = CallbackContext::new();
-        let result_cb =
-            hedl_to_json_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result_cb = hedl_to_json_callback(
+            doc,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
         assert_eq!(result_cb, HEDL_OK);
         let json_cb = ctx.as_string();
 
@@ -321,7 +343,12 @@ fn test_yaml_callback_vs_regular() {
 
         // Test with callback
         let mut ctx = CallbackContext::new();
-        hedl_to_yaml_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
+        hedl_to_yaml_callback(
+            doc,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
         let yaml_cb = ctx.as_string();
 
         // Test with regular API
@@ -345,7 +372,11 @@ fn test_xml_callback_vs_regular() {
 
         // Test with callback
         let mut ctx = CallbackContext::new();
-        hedl_to_xml_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
+        hedl_to_xml_callback(
+            doc,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
         let xml_cb = ctx.as_string();
 
         // Test with regular API
@@ -368,7 +399,11 @@ fn test_canonicalize_callback_vs_regular() {
 
         // Test with callback
         let mut ctx = CallbackContext::new();
-        hedl_canonicalize_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
+        hedl_canonicalize_callback(
+            doc,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
         let can_cb = ctx.as_string();
 
         // Test with regular API
@@ -395,8 +430,12 @@ fn test_large_json_callback() {
         let doc = create_large_document();
         let mut ctx = CallbackContext::new();
 
-        let result =
-            hedl_to_json_callback(doc, 0, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_to_json_callback(
+            doc,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -418,8 +457,11 @@ fn test_large_canonicalize_callback() {
         let doc = create_large_document();
         let mut ctx = CallbackContext::new();
 
-        let result =
-            hedl_canonicalize_callback(doc, test_callback, &mut ctx as *mut _ as *mut c_void);
+        let result = hedl_canonicalize_callback(
+            doc,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx).cast::<c_void>(),
+        );
 
         assert_eq!(result, HEDL_OK);
         assert_eq!(ctx.call_count, 1);
@@ -474,8 +516,18 @@ fn test_multiple_callbacks_different_documents() {
         let mut ctx1 = CallbackContext::new();
         let mut ctx2 = CallbackContext::new();
 
-        hedl_to_json_callback(doc1, 0, test_callback, &mut ctx1 as *mut _ as *mut c_void);
-        hedl_to_json_callback(doc2, 0, test_callback, &mut ctx2 as *mut _ as *mut c_void);
+        hedl_to_json_callback(
+            doc1,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx1).cast::<c_void>(),
+        );
+        hedl_to_json_callback(
+            doc2,
+            0,
+            test_callback,
+            std::ptr::addr_of_mut!(ctx2).cast::<c_void>(),
+        );
 
         // Both should have same output (same source document)
         assert_eq!(ctx1.as_string(), ctx2.as_string());
@@ -511,13 +563,13 @@ fn test_callback_thread_safety() {
             ) {
                 let ctx_arc = &*(user_data as *const Arc<Mutex<CallbackContext>>);
                 let mut ctx = ctx_arc.lock().unwrap();
-                let slice = slice::from_raw_parts(data as *const u8, len);
+                let slice = slice::from_raw_parts(data.cast::<u8>(), len);
                 ctx.data.extend_from_slice(slice);
                 ctx.call_count += 1;
             }
 
             let doc = create_test_document();
-            let ctx_ptr = &ctx_clone as *const _ as *mut c_void;
+            let ctx_ptr = std::ptr::addr_of!(ctx_clone) as *mut c_void;
             hedl_to_json_callback(doc, 0, thread_callback, ctx_ptr);
             hedl_free_document(doc);
         });

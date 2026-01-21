@@ -23,15 +23,20 @@
 /// Type of protected region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegionType {
+    /// A quoted string region.
     Quote,
+    /// An expression `$(...)` region.
     Expression,
 }
 
 /// A protected region in a line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Region {
+    /// Start byte offset in the line.
     pub start: usize,
+    /// End byte offset in the line (exclusive).
     pub end: usize,
+    /// The type of protected region.
     pub region_type: RegionType,
 }
 

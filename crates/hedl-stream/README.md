@@ -25,10 +25,10 @@ Production-grade streaming with comprehensive features:
 
 ```toml
 [dependencies]
-hedl-stream = "1.0"
+hedl-stream = "1.2"
 
 # For async support:
-hedl-stream = { version = "1.0", features = ["async"] }
+hedl-stream = { version = "1.2", features = ["async"] }
 tokio = { version = "1", features = ["io-util"] }
 ```
 
@@ -78,7 +78,7 @@ println!("Processed {} nodes from multi-GB file", node_count);
 Fine-tune parsing with `StreamingParserConfig`:
 
 ```rust
-use hedl_stream::{StreamingParser, StreamingParserConfig};
+use hedl_stream::{StreamingParser, StreamingParserConfig, MemoryLimits};
 use std::time::Duration;
 use std::fs::File;
 
@@ -87,6 +87,8 @@ let config = StreamingParserConfig {
     max_indent_depth: 50,            // 50 levels max nesting (default: 100)
     buffer_size: 128 * 1024,         // 128 KB I/O buffer (default: 64 KB)
     timeout: Some(Duration::from_secs(30)), // 30-second timeout (default: None)
+    memory_limits: MemoryLimits::default(), // Default memory limits
+    enable_pooling: false,           // Disable buffer pooling (default: false)
 };
 
 let file = File::open("untrusted_input.hedl")?;
@@ -119,6 +121,18 @@ let parser = StreamingParser::with_config(file, config)?;
 - Raises `Timeout` error if exceeded
 - Critical for untrusted input: prevents CPU DoS attacks
 - Recommended: None for trusted data, 10-60s for untrusted
+
+**memory_limits** (default: MemoryLimits::default())
+- Controls buffer pooling behavior and memory constraints
+- Use `MemoryLimits::default()` for normal operation
+- Use `MemoryLimits::untrusted()` for stricter limits on untrusted input
+- See `MemoryLimits` documentation for detailed configuration
+
+**enable_pooling** (default: false)
+- Enable buffer pooling to reduce allocations
+- Useful for high-throughput scenarios with many concurrent parsers
+- Requires `memory_limits.enable_buffer_pooling` to also be true
+- Recommended: false for single-parser use, true for concurrent scenarios
 
 ## Event Types
 
@@ -168,6 +182,7 @@ pub struct NodeInfo {
     pub parent_id: Option<String>,    // Parent entity ID if nested
     pub parent_type: Option<String>,  // Parent entity type if nested
     pub line: usize,                  // Source line number
+    pub child_count: Option<usize>,   // Expected child count from |[N] syntax
 }
 ```
 
@@ -327,6 +342,8 @@ for event in parser {
 - `OrphanRow { line, message }` - Child row without parent entity
 - `ShapeMismatch { line, expected, got }` - Column count doesn't match schema
 - `Timeout { elapsed, limit }` - Parsing exceeded timeout duration
+- `LineTooLong { line, length, limit }` - Line exceeds max_line_length configuration
+- `InvalidUtf8 { line, error }` - Invalid UTF-8 with detailed error information
 
 ## Use Cases
 

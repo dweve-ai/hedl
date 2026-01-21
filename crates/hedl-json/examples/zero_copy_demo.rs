@@ -33,7 +33,7 @@ fn main() {
             "name": format!("User{}", i),
             "email": format!("user{}@example.com", i),
             "bio": "This is a biography field with some text",
-            "score": i as f64
+            "score": f64::from(i)
         }));
     }
     let json_str = json!({"users": users}).to_string();
@@ -46,7 +46,7 @@ fn main() {
     let start = Instant::now();
     let doc1 = from_json(&json_str, &config).unwrap();
     let elapsed1 = start.elapsed();
-    println!("   Time: {:?}", elapsed1);
+    println!("   Time: {elapsed1:?}");
     println!(
         "   Result: {} root items, {} structs\n",
         doc1.root.len(),
@@ -59,7 +59,7 @@ fn main() {
     let start = Instant::now();
     let doc2 = from_json_value_owned(json_value.clone(), &config).unwrap();
     let elapsed2 = start.elapsed();
-    println!("   Time: {:?}", elapsed2);
+    println!("   Time: {elapsed2:?}");
     println!(
         "   Result: {} root items, {} structs\n",
         doc2.root.len(),
@@ -69,10 +69,7 @@ fn main() {
     // Comparison
     let speedup = elapsed1.as_secs_f64() / elapsed2.as_secs_f64();
     println!("Performance Comparison:");
-    println!(
-        "- Zero-copy path is {:.2}x the time of regular path",
-        speedup
-    );
+    println!("- Zero-copy path is {speedup:.2}x the time of regular path");
     if speedup > 1.0 {
         println!("- Speedup: {:.1}% faster", (speedup - 1.0) * 100.0);
     } else {

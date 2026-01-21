@@ -26,6 +26,7 @@ graph TB
         YAML[YAML Adapter]
         XML[XML Adapter]
         CSV[CSV Adapter]
+        TOON[TOON Adapter]
         Parquet[Parquet Adapter]
         Neo4j[Neo4j Adapter]
     end
@@ -54,12 +55,13 @@ graph TB
     YAML --> CoreAPI
     XML --> CoreAPI
     CSV --> CoreAPI
+    TOON --> CoreAPI
     Parquet --> CoreAPI
     Neo4j --> CoreAPI
 
     C14N --> CoreAPI
     Lint --> CoreAPI
-    Stream --> Parser
+    Stream --> CoreAPI
 
     CoreAPI --> Parser
     Parser --> AST
@@ -79,7 +81,7 @@ graph TB
 
 **Crates**:
 - `hedl-core`: Core parser engine
-- `hedl`: Public API facade
+- `hedl`: Public API facade (aggregates hedl-core, hedl-c14n, hedl-json, hedl-lint, and optional format adapters)
 
 **Responsibilities**:
 1. Lexical analysis and validation
@@ -116,9 +118,9 @@ pub struct MatrixList {
 pub struct Node {
     pub type_name: String,
     pub id: String,
-    pub fields: Vec<Value>,
-    pub children: BTreeMap<String, Vec<Node>>,
-    pub child_count: Option<usize>,
+    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,  // Lazy allocation
+    pub child_count: u16,  // Compact hint (u16 saves 6 bytes vs Option<usize>)
 }
 
 pub enum Value {
@@ -126,10 +128,10 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),           // Box<str> reduces enum size
+    Tensor(Box<Tensor>),        // Boxed to reduce enum size
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>), // Boxed to reduce enum size
 }
 
 // Parsing interface (from hedl-core/src/parser.rs)
@@ -157,6 +159,7 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
 - `hedl-c14n`: Canonicalization
 - `hedl-lint`: Static analysis
 - `hedl-stream`: Streaming parser
+- `hedl-test`: Test infrastructure (shared fixtures and utilities)
 
 **Responsibilities**:
 
@@ -166,11 +169,8 @@ pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Docu
 - Hash-friendly output
 
 ```rust
-pub fn canonicalize(doc: &Document, config: &C14nConfig) -> Result<String> {
-    // Sort keys alphabetically
-    // Apply consistent formatting
-    // Generate deterministic output
-}
+pub fn canonicalize(doc: &Document) -> Result<String, HedlError>;
+pub fn canonicalize_with_config(doc: &Document, config: &CanonicalConfig) -> Result<String, HedlError>;
 ```
 
 **Use Cases**:
@@ -216,6 +216,17 @@ pub async fn process_stream<R: AsyncRead + Unpin>(
     }
     Ok(())
 }
+```
+
+#### hedl-test (Test Infrastructure)
+- Shared test fixtures
+- Common test utilities
+- Roundtrip test helpers
+- Used by hedl-bench and format adapter tests
+
+```rust
+pub fn roundtrip_fixtures() -> Vec<(&'static str, &'static str)>;
+pub fn assert_roundtrip<T: Serialize + DeserializeOwned>(value: &T);
 ```
 
 ### Layer 3: Format Adapter Layer
@@ -461,6 +472,12 @@ impl McpServer {
 2. Lower layers MUST NOT depend on higher layers
 3. Layers MAY NOT skip layers (except via explicit interfaces)
 
+**Facade Pattern**: The `hedl` crate serves as an explicit aggregation facade:
+- Aggregates core functionality (hedl-core, hedl-c14n, hedl-json, hedl-lint)
+- Optionally aggregates format adapters (hedl-yaml, hedl-xml, hedl-csv, hedl-toon, hedl-parquet, hedl-neo4j)
+- Provides unified API for consumers
+- Allows layer composition while maintaining clean boundaries
+
 **Example Violations** (not allowed):
 ```rust
 // ❌ Core depending on format adapter
@@ -492,7 +509,8 @@ Each layer defines stable interfaces:
 ```rust
 // hedl-core provides
 pub struct Document { /* ... */ }
-pub fn parse(input: &str, opts: &ParseOptions) -> Result<Document>;
+pub fn parse(input: &[u8]) -> HedlResult<Document>;
+pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Document>;
 ```
 
 **Layer 2 → Layer 3**:
@@ -578,6 +596,36 @@ fn test_document_api_stability() {
     let _version = doc.version;
     let _root = &doc.root;
     let _structs = &doc.structs;
+}
+```
+
+### Performance Testing
+
+**hedl-bench** provides comprehensive benchmarking infrastructure:
+
+- Core benchmarks (parsing, lexer, validation)
+- Format conversion benchmarks (JSON, YAML, XML, CSV, TOON, Parquet, Neo4j)
+- Feature benchmarks (streaming, tensors, references, nesting)
+- Bindings benchmarks (FFI, WASM)
+- Tools benchmarks (LSP, MCP, linting)
+- Integration and regression tracking
+
+**Dependency**: hedl-bench depends on hedl-test for shared fixtures and utilities.
+
+```rust
+// Benchmarking with hedl-bench (uses hedl-test fixtures)
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use hedl_test::roundtrip_fixtures;
+
+fn benchmark_parsing(c: &mut Criterion) {
+    let fixtures = roundtrip_fixtures();
+    c.bench_function("parse_hedl", |b| {
+        b.iter(|| {
+            for (name, content) in &fixtures {
+                black_box(hedl::parse(content.as_bytes()));
+            }
+        });
+    });
 }
 ```
 

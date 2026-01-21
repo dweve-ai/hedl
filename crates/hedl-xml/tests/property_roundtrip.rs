@@ -30,7 +30,7 @@
 //!
 //! # Known Limitations
 //!
-//! - **Whitespace**: Trailing whitespace may be trimmed by XML parsers (XMLspec compliant)
+//! - **Whitespace**: Trailing whitespace may be trimmed by XML parsers (`XMLspec` compliant)
 //! - **Empty Strings**: May be represented differently in XML but preserve semantics
 //! - **Floating Point**: Small precision loss may occur in float roundtrips
 
@@ -56,14 +56,15 @@ proptest! {
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         // Verify key is preserved
         prop_assert!(doc2.root.contains_key(&key), "Missing key: {}", key);
@@ -81,26 +82,27 @@ proptest! {
         value in "[a-zA-Z0-9]{0,50}"  // No trailing spaces to avoid XML trimming
     ) {
         let mut root = BTreeMap::new();
-        root.insert(key.clone(), Item::Scalar(Value::String(value.clone())));
+        root.insert(key.clone(), Item::Scalar(Value::String(value.clone().into())));
 
         let doc = Document {
             version: (1, 0),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         prop_assert!(doc2.root.contains_key(&key), "Missing key: {}", key);
 
         if let Some(Item::Scalar(Value::String(v))) = doc2.root.get(&key) {
-            prop_assert_eq!(v, &value);
+            prop_assert_eq!(v.as_ref(), value.as_str());
         }
     }
 
@@ -112,27 +114,28 @@ proptest! {
         suffix in "[a-zA-Z0-9]{0,10}",  // No trailing whitespace
         special in prop_oneof!["<", ">", "&", "\"", "'"]
     ) {
-        let value = format!("{}{}{}", prefix, special, suffix);
+        let value = format!("{prefix}{special}{suffix}");
 
         let mut root = BTreeMap::new();
-        root.insert(key.clone(), Item::Scalar(Value::String(value.clone())));
+        root.insert(key.clone(), Item::Scalar(Value::String(value.clone().into())));
 
         let doc = Document {
             version: (1, 0),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         if let Some(Item::Scalar(Value::String(v))) = doc2.root.get(&key) {
-            prop_assert_eq!(v, &value, "Special character not preserved");
+            prop_assert_eq!(v.as_ref(), value.as_str(), "Special character not preserved");
         }
     }
 
@@ -150,19 +153,20 @@ proptest! {
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml1 = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml1 = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml1, &parse_config).map_err(|e| TestCaseError::fail(e))?;
-        let xml2 = to_xml(&doc2, &config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml1, &parse_config).map_err(TestCaseError::fail)?;
+        let xml2 = to_xml(&doc2, &config).map_err(TestCaseError::fail)?;
 
         // Parse both XMLs and compare
-        let doc1_reparsed = from_xml(&xml1, &parse_config).map_err(|e| TestCaseError::fail(e))?;
-        let doc2_reparsed = from_xml(&xml2, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc1_reparsed = from_xml(&xml1, &parse_config).map_err(TestCaseError::fail)?;
+        let doc2_reparsed = from_xml(&xml2, &parse_config).map_err(TestCaseError::fail)?;
 
         // Both should have the same key
         prop_assert_eq!(
@@ -178,7 +182,7 @@ proptest! {
         value in prop_oneof![
             any::<i64>().prop_map(Value::Int),
             any::<bool>().prop_map(Value::Bool),
-            "[a-zA-Z0-9 <>&\"']{0,30}".prop_map(|s| Value::String(s)),
+            "[a-zA-Z0-9 <>&\"']{0,30}".prop_map(|s: String| Value::String(s.into())),
         ]
     ) {
         let mut root = BTreeMap::new();
@@ -189,11 +193,12 @@ proptest! {
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         // If we can parse it back, it's well-formed
         let parse_config = FromXmlConfig::default();
@@ -216,14 +221,15 @@ proptest! {
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         if let Some(Item::Scalar(Value::Bool(v))) = doc2.root.get(&key) {
             prop_assert_eq!(*v, value);
@@ -244,14 +250,15 @@ proptest! {
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         if let Some(Item::Scalar(Value::Float(v))) = doc2.root.get(&key) {
             // Allow small tolerance for float roundtrip
@@ -270,48 +277,47 @@ proptest! {
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         prop_assert!(doc2.root.contains_key(&key), "Missing key for null value");
     }
 
-    /// Property: Leading whitespace in strings is preserved (trailing may be trimmed)
+    /// Property: Non-whitespace strings are preserved in XML roundtrip
+    /// Note: XML parsers MAY normalize whitespace according to the XML spec (section 3.3.3),
+    /// so we test only non-whitespace content for exact preservation.
     #[test]
-    #[ignore]  // XML parsers may trim trailing whitespace per spec
-    fn prop_xml_whitespace_preserved(
+    fn prop_xml_string_content_preserved(
         key in "[a-z][a-z0-9]{2,10}",
-        leading in "[ \t\n]{0,3}",
-        middle in "[a-zA-Z0-9]{0,20}",
-        trailing in "[ \t\n]{0,3}"
+        content in "[a-zA-Z0-9]{1,30}"
     ) {
-        let value = format!("{}{}{}", leading, middle, trailing);
-
         let mut root = BTreeMap::new();
-        root.insert(key.clone(), Item::Scalar(Value::String(value.clone())));
+        root.insert(key.clone(), Item::Scalar(Value::String(content.clone().into())));
 
         let doc = Document {
             version: (1, 0),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
             root,
         };
 
         let config = ToXmlConfig::default();
-        let xml = to_xml(&doc, &config).map_err(|e| TestCaseError::fail(e))?;
+        let xml = to_xml(&doc, &config).map_err(TestCaseError::fail)?;
 
         let parse_config = FromXmlConfig::default();
-        let doc2 = from_xml(&xml, &parse_config).map_err(|e| TestCaseError::fail(e))?;
+        let doc2 = from_xml(&xml, &parse_config).map_err(TestCaseError::fail)?;
 
         if let Some(Item::Scalar(Value::String(v))) = doc2.root.get(&key) {
-            prop_assert_eq!(v, &value, "Whitespace not preserved");
+            prop_assert_eq!(v.as_ref(), content.as_str(), "String content not preserved");
         }
     }
 

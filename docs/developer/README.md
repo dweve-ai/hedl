@@ -93,7 +93,7 @@ let doc = parse("%VERSION: 1.0\n---\nkey: value")?;
 
 The core data structures:
 
-- `Document` - Top-level container with `version`, `structs`, `aliases`, `nests`, and `root`
+- `Document` - Top-level container with `version`, `schema_versions`, `structs`, `aliases`, `nests`, and `root`
 - `Item` - Body item enum: `Scalar`, `Object`, or `List`
 - `Node` - A row in a matrix list with `type_name`, `id`, `fields`, and `children`
 - `MatrixList` - Typed list with `type_name`, `schema`, and `rows`
@@ -165,8 +165,8 @@ cargo doc --workspace --all-features --no-deps --open
 
 ## Key Design Principles
 
-### 1. Zero-Copy Parsing
-Where possible, HEDL uses string slices (`&str`) instead of owned strings to minimize allocations.
+### 1. Efficient Parsing
+During parsing, HEDL uses zero-copy techniques (iterators over slices, references to input). The final AST uses owned strings (`String`, `Box<str>`) for safety and simplicity.
 
 ### 2. Error Handling
 All errors use the `thiserror` crate for comprehensive error messages with source locations.

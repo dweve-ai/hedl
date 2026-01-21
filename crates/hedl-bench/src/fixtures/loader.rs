@@ -20,6 +20,7 @@
 //! Provides functions for loading test fixtures from the fixtures directory,
 //! with fallback to generated data.
 
+use crate::core::name_validation::validate_benchmark_name;
 use crate::{generate_users, sizes, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -37,10 +38,13 @@ use std::path::PathBuf;
 ///
 /// Result containing fixture content as string.
 pub fn load_fixture(name: &str) -> Result<String> {
+    // Validate the name for path safety
+    validate_benchmark_name(name)?;
+
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let path = PathBuf::from(manifest_dir)
         .join("fixtures")
-        .join(format!("{}.hedl", name));
+        .join(format!("{name}.hedl"));
 
     if path.exists() {
         std::fs::read_to_string(&path).map_err(|e| crate::BenchError::IoError(e.to_string()))
@@ -54,7 +58,8 @@ pub fn load_fixture(name: &str) -> Result<String> {
 ///
 /// # Returns
 ///
-/// HashMap mapping fixture names to their content.
+/// `HashMap` mapping fixture names to their content.
+#[must_use]
 pub fn load_all_fixtures() -> HashMap<String, String> {
     let mut fixtures = HashMap::new();
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -119,6 +124,7 @@ fn generate_fallback_fixture(name: &str) -> String {
 /// # Returns
 ///
 /// Vector of fixture names.
+#[must_use]
 pub fn list_fixtures() -> Vec<String> {
     let mut names = Vec::new();
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -136,7 +142,11 @@ pub fn list_fixtures() -> Vec<String> {
     }
 
     // Add standard sizes
-    names.extend(["small", "medium", "large"].iter().map(|s| s.to_string()));
+    names.extend(
+        ["small", "medium", "large"]
+            .iter()
+            .map(|s| (*s).to_string()),
+    );
     names.sort();
     names.dedup();
 

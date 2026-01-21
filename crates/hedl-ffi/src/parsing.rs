@@ -22,9 +22,10 @@ use crate::audit::{
 };
 use crate::error::{clear_error, set_error};
 use crate::memory::{hedl_free_document, is_valid_document_ptr};
+use crate::reentrancy::check_ffi_reentrancy;
 use crate::types::{HedlDocument, HEDL_ERR_NULL_PTR, HEDL_ERR_PARSE, HEDL_OK};
 use crate::utils::get_input_string;
-use hedl_core::{parse_with_limits, ParseOptions};
+use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::time::Instant;
@@ -42,7 +43,7 @@ use std::time::Instant;
 /// * `out_doc` - Pointer to store document handle
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -69,6 +70,14 @@ pub unsafe extern "C" fn hedl_parse(
 
     clear_error();
 
+    // Check for reentrant call
+    if let Some(code) = check_ffi_reentrancy() {
+        let duration = start.elapsed();
+        set_error("Reentrant call: FFI function called from within callback");
+        audit_call_failure("hedl_parse", code, "Reentrant call detected", duration);
+        return code;
+    }
+
     if input.is_null() || out_doc.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
@@ -92,7 +101,11 @@ pub unsafe extern "C" fn hedl_parse(
     };
 
     let options = ParseOptions {
-        strict_refs: strict != 0,
+        reference_mode: if strict != 0 {
+            ReferenceMode::Strict
+        } else {
+            ReferenceMode::Lenient
+        },
         ..Default::default()
     };
 
@@ -105,7 +118,7 @@ pub unsafe extern "C" fn hedl_parse(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("Parse error: {}", e);
+            let msg = format!("Parse error: {e}");
             set_error(&msg);
             *out_doc = ptr::null_mut();
             audit_call_failure("hedl_parse", HEDL_ERR_PARSE, &msg, duration);
@@ -122,7 +135,7 @@ pub unsafe extern "C" fn hedl_parse(
 /// * `strict` - Non-zero for strict mode
 ///
 /// # Returns
-/// HEDL_OK if valid, error code if invalid.
+/// `HEDL_OK` if valid, error code if invalid.
 ///
 /// # Safety
 /// Input pointer must be valid.
@@ -132,6 +145,12 @@ pub unsafe extern "C" fn hedl_validate(
     input_len: c_int,
     strict: c_int,
 ) -> c_int {
+    // Check for reentrant call first (before calling hedl_parse)
+    if let Some(code) = check_ffi_reentrancy() {
+        set_error("Reentrant call: FFI function called from within callback");
+        return code;
+    }
+
     let mut doc: *mut HedlDocument = ptr::null_mut();
     let result = hedl_parse(input, input_len, strict, &mut doc);
     if !doc.is_null() {
@@ -147,7 +166,7 @@ pub unsafe extern "C" fn hedl_validate(
 /// Get the HEDL version of a parsed document.
 ///
 /// # Safety
-/// All pointers must be valid. Returns HEDL_ERR_NULL_PTR if doc is NULL or poisoned.
+/// All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if doc is NULL or poisoned.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_get_version(
     doc: *const HedlDocument,

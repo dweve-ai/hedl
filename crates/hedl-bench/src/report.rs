@@ -52,11 +52,13 @@ impl Default for ExportConfig {
 
 impl ExportConfig {
     /// Create config with all exports enabled
+    #[must_use]
     pub fn all() -> Self {
         Self::default()
     }
 
     /// Create config with all exports disabled
+    #[must_use]
     pub fn none() -> Self {
         Self {
             json: false,
@@ -66,6 +68,7 @@ impl ExportConfig {
     }
 
     /// Create config with only JSON export enabled
+    #[must_use]
     pub fn json_only() -> Self {
         Self {
             json: true,
@@ -75,6 +78,7 @@ impl ExportConfig {
     }
 
     /// Create config with only Markdown export enabled
+    #[must_use]
     pub fn markdown_only() -> Self {
         Self {
             json: false,
@@ -84,6 +88,7 @@ impl ExportConfig {
     }
 
     /// Create config with only HTML export enabled
+    #[must_use]
     pub fn html_only() -> Self {
         Self {
             json: false,
@@ -93,18 +98,21 @@ impl ExportConfig {
     }
 
     /// Enable JSON export
+    #[must_use]
     pub fn with_json(mut self) -> Self {
         self.json = true;
         self
     }
 
     /// Enable Markdown export
+    #[must_use]
     pub fn with_markdown(mut self) -> Self {
         self.markdown = true;
         self
     }
 
     /// Enable HTML export
+    #[must_use]
     pub fn with_html(mut self) -> Self {
         self.html = true;
         self
@@ -114,12 +122,18 @@ impl ExportConfig {
 /// Performance benchmark result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerfResult {
+    /// Name of the benchmark test.
     pub name: String,
+    /// Number of iterations run.
     pub iterations: u64,
+    /// Total elapsed time in nanoseconds.
     pub total_time_ns: u64,
+    /// Total bytes processed (for throughput calculation).
     pub throughput_bytes: Option<u64>,
+    /// Average time per iteration in nanoseconds.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avg_time_ns: Option<u64>,
+    /// Throughput in megabytes per second.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub throughput_mbs: Option<f64>,
 }
@@ -128,29 +142,39 @@ pub struct PerfResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum TableCell {
+    /// String cell value.
     String(String),
+    /// Integer cell value.
     Integer(i64),
+    /// Floating-point cell value.
     Float(f64),
+    /// Boolean cell value.
     Bool(bool),
 }
 
 impl TableCell {
+    /// Convert the cell to a string representation.
+    #[must_use]
     pub fn as_string(&self) -> String {
         match self {
             TableCell::String(s) => s.clone(),
             TableCell::Integer(i) => i.to_string(),
-            TableCell::Float(f) => format!("{:.2}", f),
+            TableCell::Float(f) => format!("{f:.2}"),
             TableCell::Bool(b) => b.to_string(),
         }
     }
 
+    /// Format the cell with specified decimal precision for floats.
+    #[must_use]
     pub fn format_with_precision(&self, precision: usize) -> String {
         match self {
-            TableCell::Float(f) => format!("{:.prec$}", f, prec = precision),
+            TableCell::Float(f) => format!("{f:.precision$}"),
             _ => self.as_string(),
         }
     }
 
+    /// Convert the cell to a float value (returns 0.0 for non-numeric types).
+    #[must_use]
     pub fn as_float(&self) -> f64 {
         match self {
             TableCell::Float(f) => *f,
@@ -159,6 +183,8 @@ impl TableCell {
         }
     }
 
+    /// Convert the cell to an integer value (returns 0 for non-numeric types).
+    #[must_use]
     pub fn as_integer(&self) -> i64 {
         match self {
             TableCell::Integer(i) => *i,
@@ -171,41 +197,61 @@ impl TableCell {
 /// Custom table for flexible benchmark reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomTable {
+    /// Table title displayed in reports.
     pub title: String,
+    /// Column header labels.
     pub headers: Vec<String>,
+    /// Data rows (each row is a vector of cells).
     pub rows: Vec<Vec<TableCell>>,
+    /// Optional footer row (for totals/summaries).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub footer: Option<Vec<TableCell>>,
 }
 
+/// Result of format accuracy testing for a dataset.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FormatDatasetResult {
+    /// Format name (e.g., "HEDL", "JSON").
     pub format: String,
+    /// Number of correctly answered questions.
     pub correct: usize,
+    /// Total number of questions.
     pub total: usize,
+    /// Accuracy percentage (0.0 to 100.0).
     pub accuracy_pct: f64,
 }
 
+/// A row in a format comparison table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComparisonRow {
+    /// Name of the metric being compared.
     pub metric: String,
+    /// Values for each format being compared.
     pub values: Vec<String>,
 }
 
 /// Dynamic insight/recommendation based on actual results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Insight {
-    pub category: String, // "strength", "weakness", "recommendation", "finding"
+    /// Category: "strength", "weakness", "recommendation", or "finding".
+    pub category: String,
+    /// Short title summarizing the insight.
     pub title: String,
+    /// Detailed description of the insight.
     pub description: String,
+    /// Supporting data points or evidence.
     pub data_points: Vec<String>,
 }
 
 impl PerfResult {
+    /// Calculate average time per iteration in nanoseconds.
+    #[must_use]
     pub fn avg_time_ns(&self) -> u64 {
         self.total_time_ns / self.iterations
     }
 
+    /// Calculate throughput in megabytes per second.
+    #[must_use]
     pub fn throughput_mbs(&self) -> Option<f64> {
         self.throughput_bytes.map(|bytes| {
             let bytes_per_sec = (bytes as f64 * 1e9) / self.total_time_ns as f64;
@@ -230,6 +276,8 @@ pub enum ComplexityLevel {
 }
 
 impl ComplexityLevel {
+    /// Get string representation of the complexity level.
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             ComplexityLevel::Flat => "Flat",
@@ -240,6 +288,8 @@ impl ComplexityLevel {
         }
     }
 
+    /// Get a description of what this complexity level means.
+    #[must_use]
     pub fn description(&self) -> &'static str {
         match self {
             ComplexityLevel::Flat => "Simple tabular data, no nesting",
@@ -254,32 +304,50 @@ impl ComplexityLevel {
 /// Format comparison metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FormatMetrics {
+    /// Dataset or test case name.
     pub name: String,
+    /// Complexity level of the dataset.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub complexity: Option<ComplexityLevel>,
+    /// Token count for HEDL format.
     pub hedl_tokens: usize,
+    /// Token count for JSON format.
     pub json_tokens: usize,
+    /// Token count for YAML format.
     pub yaml_tokens: usize,
+    /// Token count for XML format.
     pub xml_tokens: usize,
+    /// Token count for TOON format.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub toon_tokens: Option<usize>,
+    /// Token count for CSV format.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub csv_tokens: Option<usize>,
+    /// Byte size for HEDL format.
     pub hedl_bytes: usize,
+    /// Byte size for JSON format.
     pub json_bytes: usize,
+    /// Byte size for YAML format.
     pub yaml_bytes: usize,
+    /// Byte size for XML format.
     pub xml_bytes: usize,
+    /// Byte size for TOON format.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub toon_bytes: Option<usize>,
+    /// Byte size for CSV format.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub csv_bytes: Option<usize>,
+    /// Percentage token savings vs JSON.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_savings_vs_json: Option<f64>,
+    /// Percentage byte savings vs JSON.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub byte_savings_vs_json: Option<f64>,
 }
 
 impl FormatMetrics {
+    /// Calculate percentage token savings vs JSON format.
+    #[must_use]
     pub fn token_savings_vs_json(&self) -> f64 {
         if self.json_tokens == 0 {
             return 0.0;
@@ -287,6 +355,8 @@ impl FormatMetrics {
         ((self.json_tokens - self.hedl_tokens) as f64 / self.json_tokens as f64) * 100.0
     }
 
+    /// Calculate percentage byte savings vs JSON format.
+    #[must_use]
     pub fn byte_savings_vs_json(&self) -> f64 {
         if self.json_bytes == 0 {
             return 0.0;
@@ -298,25 +368,30 @@ impl FormatMetrics {
 /// Comprehensive benchmark report
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BenchmarkReport {
+    /// Report title.
     pub title: String,
+    /// Performance benchmark results.
     pub perf_results: Vec<PerfResult>,
+    /// Format comparison metrics.
     pub format_metrics: Vec<FormatMetrics>,
+    /// Additional notes and observations.
     pub notes: Vec<String>,
+    /// Generation timestamp (Unix seconds).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<String>,
+    /// Additional key-value metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
-
-    // Custom tables for flexible reporting
+    /// Custom tables for flexible reporting.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub custom_tables: Vec<CustomTable>,
-
-    // Dynamic insights and recommendations
+    /// Dynamic insights and recommendations.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub insights: Vec<Insight>,
 }
 
 impl BenchmarkReport {
+    /// Create a new benchmark report with the given title.
     pub fn new(title: impl Into<String>) -> Self {
         Self {
             title: title.into(),
@@ -330,26 +405,32 @@ impl BenchmarkReport {
         }
     }
 
+    /// Add a performance benchmark result.
     pub fn add_perf(&mut self, result: PerfResult) {
         self.perf_results.push(result);
     }
 
+    /// Add format comparison metrics.
     pub fn add_format(&mut self, metrics: FormatMetrics) {
         self.format_metrics.push(metrics);
     }
 
+    /// Add a note or observation.
     pub fn add_note(&mut self, note: impl Into<String>) {
         self.notes.push(note.into());
     }
 
+    /// Add a custom table for flexible reporting.
     pub fn add_custom_table(&mut self, table: CustomTable) {
         self.custom_tables.push(table);
     }
 
+    /// Add a dynamic insight or recommendation.
     pub fn add_insight(&mut self, insight: Insight) {
         self.insights.push(insight);
     }
 
+    /// Set the timestamp to current time.
     pub fn set_timestamp(&mut self) {
         use std::time::SystemTime;
         if let Ok(duration) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -371,13 +452,14 @@ impl BenchmarkReport {
     }
 
     /// Export report as Markdown
+    #[must_use]
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
 
         md.push_str(&format!("# {}\n\n", self.title));
 
         if let Some(ts) = &self.timestamp {
-            md.push_str(&format!("**Generated**: {}\n\n", ts));
+            md.push_str(&format!("**Generated**: {ts}\n\n"));
         }
 
         if !self.perf_results.is_empty() {
@@ -389,8 +471,7 @@ impl BenchmarkReport {
                 let avg_time = Self::format_time(result.avg_time_ns());
                 let throughput = result
                     .throughput_mbs()
-                    .map(|mbs| format!("{:.2} MB/s", mbs))
-                    .unwrap_or_else(|| "N/A".to_string());
+                    .map_or_else(|| "N/A".to_string(), |mbs| format!("{mbs:.2} MB/s"));
 
                 md.push_str(&format!(
                     "| {} | {} | {} | {} |\n",
@@ -497,23 +578,19 @@ impl BenchmarkReport {
                 let total_savings = ((total_json - total_hedl) as f64 / total_json as f64) * 100.0;
                 if has_toon && has_csv {
                     md.push_str(&format!(
-                        "| **TOTAL** | **{}** | **{}** | **{}** | **{}** | **{}** | **{}** | **{:.1}%** |\n",
-                        total_hedl, total_json, total_yaml, total_xml, total_toon, total_csv, total_savings
+                        "| **TOTAL** | **{total_hedl}** | **{total_json}** | **{total_yaml}** | **{total_xml}** | **{total_toon}** | **{total_csv}** | **{total_savings:.1}%** |\n"
                     ));
                 } else if has_toon {
                     md.push_str(&format!(
-                        "| **TOTAL** | **{}** | **{}** | **{}** | **{}** | **{}** | **{:.1}%** |\n",
-                        total_hedl, total_json, total_yaml, total_xml, total_toon, total_savings
+                        "| **TOTAL** | **{total_hedl}** | **{total_json}** | **{total_yaml}** | **{total_xml}** | **{total_toon}** | **{total_savings:.1}%** |\n"
                     ));
                 } else if has_csv {
                     md.push_str(&format!(
-                        "| **TOTAL** | **{}** | **{}** | **{}** | **{}** | **{}** | **{:.1}%** |\n",
-                        total_hedl, total_json, total_yaml, total_xml, total_csv, total_savings
+                        "| **TOTAL** | **{total_hedl}** | **{total_json}** | **{total_yaml}** | **{total_xml}** | **{total_csv}** | **{total_savings:.1}%** |\n"
                     ));
                 } else {
                     md.push_str(&format!(
-                        "| **TOTAL** | **{}** | **{}** | **{}** | **{}** | **{:.1}%** |\n",
-                        total_hedl, total_json, total_yaml, total_xml, total_savings
+                        "| **TOTAL** | **{total_hedl}** | **{total_json}** | **{total_yaml}** | **{total_xml}** | **{total_savings:.1}%** |\n"
                     ));
                 }
             }
@@ -530,7 +607,7 @@ impl BenchmarkReport {
             // Header row
             md.push_str("| ");
             for header in &table.headers {
-                md.push_str(&format!("{} | ", header));
+                md.push_str(&format!("{header} | "));
             }
             md.push('\n');
 
@@ -580,7 +657,7 @@ impl BenchmarkReport {
 
                 if !insight.data_points.is_empty() {
                     for point in &insight.data_points {
-                        md.push_str(&format!("- {}\n", point));
+                        md.push_str(&format!("- {point}\n"));
                     }
                     md.push('\n');
                 }
@@ -604,6 +681,7 @@ impl BenchmarkReport {
     }
 
     /// Export report as HTML
+    #[must_use]
     pub fn to_html(&self) -> String {
         let mut html = String::new();
 
@@ -637,7 +715,7 @@ impl BenchmarkReport {
         html.push_str(&format!("<h1>{}</h1>\n", self.title));
 
         if let Some(ts) = &self.timestamp {
-            html.push_str(&format!("<p class=\"timestamp\">Generated: {}</p>\n", ts));
+            html.push_str(&format!("<p class=\"timestamp\">Generated: {ts}</p>\n"));
         }
 
         if !self.perf_results.is_empty() {
@@ -648,8 +726,7 @@ impl BenchmarkReport {
                 let avg_time = Self::format_time(result.avg_time_ns());
                 let throughput = result
                     .throughput_mbs()
-                    .map(|mbs| format!("{:.2} MB/s", mbs))
-                    .unwrap_or_else(|| "N/A".to_string());
+                    .map_or_else(|| "N/A".to_string(), |mbs| format!("{mbs:.2} MB/s"));
 
                 html.push_str(&format!(
                     "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
@@ -748,7 +825,7 @@ impl BenchmarkReport {
 
             // Header row
             for header in &table.headers {
-                html.push_str(&format!("<th>{}</th>", header));
+                html.push_str(&format!("<th>{header}</th>"));
             }
             html.push_str("</tr>\n</thead>\n<tbody>\n");
 
@@ -791,7 +868,7 @@ impl BenchmarkReport {
                 if !insight.data_points.is_empty() {
                     html.push_str("<ul>\n");
                     for point in &insight.data_points {
-                        html.push_str(&format!("<li>{}</li>\n", point));
+                        html.push_str(&format!("<li>{point}</li>\n"));
                     }
                     html.push_str("</ul>\n");
                 }
@@ -801,7 +878,7 @@ impl BenchmarkReport {
         if !self.notes.is_empty() {
             html.push_str("<div class=\"notes\">\n<h2>Notes</h2>\n<ol>\n");
             for note in &self.notes {
-                html.push_str(&format!("<li>{}</li>\n", note));
+                html.push_str(&format!("<li>{note}</li>\n"));
             }
             html.push_str("</ol>\n</div>\n");
         }
@@ -843,7 +920,7 @@ impl BenchmarkReport {
         if config.json {
             let json_path = base.with_extension("json");
             if let Err(e) = self.save_json(&json_path) {
-                errors.push(format!("JSON export failed: {}", e));
+                errors.push(format!("JSON export failed: {e}"));
             } else {
                 println!("✅ JSON report: {}", json_path.display());
             }
@@ -852,7 +929,7 @@ impl BenchmarkReport {
         if config.markdown {
             let md_path = base.with_extension("md");
             if let Err(e) = self.save_markdown(&md_path) {
-                errors.push(format!("Markdown export failed: {}", e));
+                errors.push(format!("Markdown export failed: {e}"));
             } else {
                 println!("✅ Markdown report: {}", md_path.display());
             }
@@ -861,7 +938,7 @@ impl BenchmarkReport {
         if config.html {
             let html_path = base.with_extension("html");
             if let Err(e) = self.save_html(&html_path) {
-                errors.push(format!("HTML export failed: {}", e));
+                errors.push(format!("HTML export failed: {e}"));
             } else {
                 println!("✅ HTML report: {}", html_path.display());
             }
@@ -912,7 +989,7 @@ impl BenchmarkReport {
 
             // Print header
             for header in &table.headers {
-                print!("{:<20} | ", header);
+                print!("{header:<20} | ");
             }
             println!();
             println!("{}", "-".repeat(table.headers.len() * 23));
@@ -949,7 +1026,7 @@ impl BenchmarkReport {
             println!("{} {}", emoji, insight.title);
             println!("  {}", insight.description);
             for point in &insight.data_points {
-                println!("  - {}", point);
+                println!("  - {point}");
             }
             println!();
         }
@@ -967,8 +1044,7 @@ impl BenchmarkReport {
             let avg_time = Self::format_time(result.avg_time_ns());
             let throughput = result
                 .throughput_mbs()
-                .map(|mbs| format!("{:.2} MB/s", mbs))
-                .unwrap_or_else(|| "N/A".to_string());
+                .map_or_else(|| "N/A".to_string(), |mbs| format!("{mbs:.2} MB/s"));
 
             println!(
                 "{:<40} | {:>12} | {:>15} | {:>12}",
@@ -1138,7 +1214,7 @@ impl BenchmarkReport {
 
     fn format_time(ns: u64) -> String {
         if ns < 1_000 {
-            format!("{} ns", ns)
+            format!("{ns} ns")
         } else if ns < 1_000_000 {
             format!("{:.2} µs", ns as f64 / 1_000.0)
         } else if ns < 1_000_000_000 {
@@ -1265,14 +1341,18 @@ impl fmt::Display for BenchmarkReport {
 /// Summary report combining multiple benchmark results
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SummaryReport {
+    /// Individual benchmark reports included in this summary.
     pub reports: Vec<BenchmarkReport>,
 }
 
 impl SummaryReport {
+    /// Create an empty summary report.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add a benchmark report to the summary.
     pub fn add_report(&mut self, report: BenchmarkReport) {
         self.reports.push(report);
     }
@@ -1290,8 +1370,8 @@ impl SummaryReport {
 
         println!("\n## Overview\n");
         println!("Total Benchmark Reports: {}", self.reports.len());
-        println!("Total Performance Tests: {}", total_perf_tests);
-        println!("Total Format Comparisons: {}", total_format_comparisons);
+        println!("Total Performance Tests: {total_perf_tests}");
+        println!("Total Format Comparisons: {total_format_comparisons}");
 
         // Aggregate token efficiency
         let mut total_hedl_tokens = 0;
@@ -1308,9 +1388,9 @@ impl SummaryReport {
             let overall_savings =
                 ((total_json_tokens - total_hedl_tokens) as f64 / total_json_tokens as f64) * 100.0;
             println!("\n## Token Efficiency Across All Benchmarks\n");
-            println!("Total HEDL Tokens:  {}", total_hedl_tokens);
-            println!("Total JSON Tokens:  {}", total_json_tokens);
-            println!("Overall Savings:    {:.1}%", overall_savings);
+            println!("Total HEDL Tokens:  {total_hedl_tokens}");
+            println!("Total JSON Tokens:  {total_json_tokens}");
+            println!("Overall Savings:    {overall_savings:.1}%");
         }
 
         println!("\n## Individual Reports\n");

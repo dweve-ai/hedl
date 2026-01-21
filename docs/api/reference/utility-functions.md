@@ -10,20 +10,40 @@ You can access these features by directly using `hedl_core::traverse` module.
 **Example:**
 ```rust
 use hedl_core::traverse::{traverse, DocumentVisitor, VisitorContext};
+use hedl_core::{Value, Node};
 
 struct CountingVisitor {
-    count: usize,
+    scalar_count: usize,
+    node_count: usize,
 }
 
 impl DocumentVisitor for CountingVisitor {
-    fn visit_value(&mut self, value: &hedl_core::Value, _ctx: &VisitorContext) {
-        self.count += 1;
+    type Error = std::convert::Infallible;
+
+    fn visit_scalar(
+        &mut self,
+        _key: &str,
+        _value: &Value,
+        _ctx: &VisitorContext,
+    ) -> Result<(), Self::Error> {
+        self.scalar_count += 1;
+        Ok(())
+    }
+
+    fn visit_node(
+        &mut self,
+        _node: &Node,
+        _schema: &[String],
+        _ctx: &VisitorContext,
+    ) -> Result<(), Self::Error> {
+        self.node_count += 1;
+        Ok(())
     }
 }
 
-let mut visitor = CountingVisitor { count: 0 };
-traverse(&doc, &mut visitor);
-println!("Total values: {}", visitor.count);
+let mut visitor = CountingVisitor { scalar_count: 0, node_count: 0 };
+traverse(&doc, &mut visitor)?;
+println!("Scalars: {}, Nodes: {}", visitor.scalar_count, visitor.node_count);
 ```
 
 ## Lexical Utilities
@@ -86,7 +106,8 @@ assert_eq!(r1.id, "alice");
 assert_eq!(r1.type_name, None);
 
 let r2 = parse_reference("@User:alice")?;
-assert_eq!(r2.type_name, Some("User".to_string()));
+assert_eq!(r2.type_name.as_deref(), Some("User"));
+assert_eq!(r2.id, "alice");
 ```
 
 ## CSV Utilities
@@ -102,13 +123,33 @@ pub fn parse_csv_row(row: &str) -> Result<Vec<CsvField>, LexError>
 **Example:**
 ```rust
 use hedl::csv::parse_csv_row;
-use hedl_core::lex::LexError;
+use hedl::lex::LexError;
 
 let fields = parse_csv_row("alice, Alice Smith, alice@example.com")?;
 assert_eq!(fields.len(), 3);
 ```
 
 ## Tensor Utilities
+
+### is_tensor_literal
+
+Quick check if string looks like a tensor literal.
+
+```rust
+pub fn is_tensor_literal(s: &str) -> bool
+```
+
+Fast check without full validation. Use `parse_tensor` for complete validation.
+
+**Example:**
+```rust
+use hedl::lex::is_tensor_literal;
+
+assert!(is_tensor_literal("[1, 2, 3]"));
+assert!(is_tensor_literal("[[1, 2], [3, 4]]"));
+assert!(!is_tensor_literal("hello"));
+assert!(!is_tensor_literal("@reference"));
+```
 
 ### parse_tensor
 
@@ -158,14 +199,193 @@ Calculate indentation info from a line.
 pub fn calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>, LexError>
 ```
 
+**Parameters:**
+- `line`: The line to analyze
+- `line_num`: Line number (1-indexed) for error reporting
+
+**Returns:**
+- `Ok(None)` if the line is blank (only whitespace)
+- `Ok(Some(IndentInfo))` with spaces and level information
+- `Err` if indentation uses tabs or odd number of spaces
+
 **Example:**
 ```rust
-use hedl::lex::calculate_indent;
+use hedl_core::lex::calculate_indent;
 
 let info = calculate_indent("  key: value", 1)?.unwrap();
 assert_eq!(info.level, 1);
 assert_eq!(info.spaces, 2);
 ```
+
+### validate_indent
+
+Validate that indent level doesn't exceed maximum.
+
+```rust
+pub fn validate_indent(info: IndentInfo, max_depth: usize, line_num: u32) -> Result<(), LexError>
+```
+
+**Parameters:**
+- `info`: Indentation information to validate
+- `max_depth`: Maximum allowed indentation depth
+- `line_num`: Line number (1-indexed) for error reporting
+
+**Returns:**
+- `Ok(())` if indent is within limits
+- `Err(LexError::IndentTooDeep)` if indentation exceeds maximum
+
+**Example:**
+```rust
+use hedl_core::lex::{calculate_indent, validate_indent};
+
+let info = calculate_indent("    nested: value", 5)?.unwrap();
+validate_indent(info, 10, 5)?; // OK, level 2 is within max of 10
+```
+
+## String Transformation Utilities
+
+### singularize_and_capitalize
+
+Convert pluralized snake_case to singular PascalCase.
+
+```rust
+pub fn singularize_and_capitalize(s: &str) -> String
+```
+
+Useful when converting from formats like JSON/XML/YAML where collection keys are often pluralized (e.g., "users", "posts") but HEDL struct types should be singular PascalCase (e.g., "User", "Post").
+
+**Singularization Rules:**
+- `-ies` suffix: `categories` → `category`
+- `-es` suffix (after x/s/sh/ch): `boxes` → `box`, `classes` → `class`
+- `-s` suffix: `users` → `user`
+- Snake case conversion: `user_posts` → `UserPost`
+
+**Example:**
+```rust
+use hedl::lex::singularize_and_capitalize;
+
+assert_eq!(singularize_and_capitalize("users"), "User");
+assert_eq!(singularize_and_capitalize("categories"), "Category");
+assert_eq!(singularize_and_capitalize("user_posts"), "UserPost");
+assert_eq!(singularize_and_capitalize("boxes"), "Box");
+```
+
+## Reference Parsing Utilities
+
+### parse_reference_at
+
+Parse reference with source position information.
+
+```rust
+pub fn parse_reference_at(s: &str, pos: SourcePos) -> Result<Reference, LexError>
+```
+
+Same as `parse_reference`, but allows specifying the source position for better error messages.
+
+**Parameters:**
+- `s`: Reference string (with or without leading `@`)
+- `pos`: Source position for error reporting
+
+**Example:**
+```rust
+use hedl_core::lex::{parse_reference_at, SourcePos};
+
+let pos = SourcePos::new(42, 10);
+let r = parse_reference_at("@User:user_1", pos)?;
+assert_eq!(r.type_name.as_deref(), Some("User"));
+assert_eq!(r.id, "user_1");
+```
+
+## Region Scanning Utilities
+
+### scan_regions
+
+Scan line for protected regions (quoted strings and expressions).
+
+```rust
+pub fn scan_regions(line: &str) -> Vec<Region>
+```
+
+Identifies regions where special characters like `#` and `,` lose their usual meaning. Returns regions for quoted strings (`"..."`) and expressions (`$(...)`).
+
+**Returns:**
+- Vector of `Region` structs with start/end positions and type
+
+**Example:**
+```rust
+use hedl::lex::scan_regions;
+
+let regions = scan_regions(r#"name: "John", age: $(years)"#);
+// Returns 2 regions: one Quote region for "John", one Expression region for $(years)
+```
+
+## Expression Parsing Utilities
+
+### parse_expression
+
+Parse expression from content inside `$(...)`.
+
+```rust
+pub fn parse_expression(s: &str) -> Result<Expression, LexError>
+```
+
+Parses the expression grammar:
+- Identifiers: `x`, `foo_bar`
+- Literals: `42`, `3.5`, `"hello"`, `true`, `false`
+- Function calls: `func(arg1, arg2)`
+- Field access: `target.field`
+
+**Example:**
+```rust
+use hedl_core::lex::parse_expression;
+
+// Parse identifier
+let expr = parse_expression("foo")?;
+
+// Parse function call
+let expr = parse_expression("concat(a, b)")?;
+
+// Parse field access
+let expr = parse_expression("user.name")?;
+```
+
+### parse_expression_token
+
+Parse expression content from a `$(...)` token.
+
+```rust
+pub fn parse_expression_token(s: &str) -> Result<Expression, LexError>
+```
+
+Extracts content between `$(` and `)` and parses it. Handles nested parentheses and quotes.
+
+**Example:**
+```rust
+use hedl_core::lex::parse_expression_token;
+
+let expr = parse_expression_token("$(now())")?;
+let expr = parse_expression_token("$(concat(\"a\", \"b\"))")?;
+let expr = parse_expression_token("$(user.profile.name)")?;
+```
+
+## Type Inference Utilities
+
+### Inference in hedl-core
+
+Type inference functions are available in `hedl-core::lex` module but not re-exported by the `hedl` facade. For custom type inference, use `hedl-core` directly:
+
+```rust
+use hedl_core::lex::infer_value;
+use std::collections::HashMap;
+
+// Infer value from string in Key-Value context
+// Follows the inference ladder (HEDL Spec Section 8.2)
+let result = infer_value("42", None)?;  // Returns Value::Int(42)
+```
+
+For most use cases, type inference is handled automatically during parsing via the main `hedl::parse()` function. Custom inference is only needed for special scenarios.
+
+**Note**: The `infer_value()` in `hedl-core` differs from the main `inference::infer_value()` in core (which uses `InferenceContext`). For detailed inference API, see hedl-core documentation.
 
 ## Reference Resolution
 
@@ -208,13 +428,14 @@ use std::collections::BTreeMap;
 
 // Programmatic construction
 let mut root = BTreeMap::new();
-root.insert("name".to_string(), Item::Scalar(Value::String("Alice".to_string())));
+root.insert("name".to_string(), Item::Scalar(Value::String("Alice".into())));
 root.insert("age".to_string(), Item::Scalar(Value::Int(30)));
 
 let doc = Document {
     version: (1, 0),
-    structs: BTreeMap::new(),
+    schema_versions: BTreeMap::new(),
     aliases: BTreeMap::new(),
+    structs: BTreeMap::new(),
     nests: BTreeMap::new(),
     root,
 };
@@ -267,8 +488,9 @@ fn merge_documents(docs: &[Document]) -> Document {
 
     Document {
         version: (1, 0),
-        structs: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
+        structs: BTreeMap::new(),
         nests: BTreeMap::new(),
         root: merged_root,
     }

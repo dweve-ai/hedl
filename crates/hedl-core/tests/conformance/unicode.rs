@@ -43,7 +43,7 @@ fn test_rtl_arabic_value() {
 
     let greeting = doc.root.get("greeting").unwrap();
     if let Item::Scalar(Value::String(s)) = greeting {
-        assert_eq!(s, "مرحبا بك");
+        assert_eq!(s.as_ref(), "مرحبا بك");
     } else {
         panic!("Expected string value");
     }
@@ -59,7 +59,7 @@ fn test_rtl_hebrew_value() {
 
     let greeting = doc.root.get("greeting").unwrap();
     if let Item::Scalar(Value::String(s)) = greeting {
-        assert_eq!(s, "שלום");
+        assert_eq!(s.as_ref(), "שלום");
     } else {
         panic!("Expected string value");
     }
@@ -75,7 +75,7 @@ fn test_rtl_mixed_in_value() {
 
     let message = doc.root.get("message").unwrap();
     if let Item::Scalar(Value::String(s)) = message {
-        assert_eq!(s, "Hello مرحبا World שלום");
+        assert_eq!(s.as_ref(), "Hello مرحبا World שלום");
     } else {
         panic!("Expected string value");
     }
@@ -91,7 +91,7 @@ fn test_rtl_arabic_quoted() {
 
     let greeting = doc.root.get("greeting").unwrap();
     if let Item::Scalar(Value::String(s)) = greeting {
-        assert_eq!(s, "مرحبا بك");
+        assert_eq!(s.as_ref(), "مرحبا بك");
     } else {
         panic!("Expected string value");
     }
@@ -110,10 +110,10 @@ fn test_rtl_in_matrix_list() {
     if let Item::List(list) = data {
         assert_eq!(list.rows.len(), 2);
         if let Value::String(s) = &list.rows[0].fields[1] {
-            assert_eq!(s, "مرحبا");
+            assert_eq!(s.as_ref(), "مرحبا");
         }
         if let Value::String(s) = &list.rows[1].fields[1] {
-            assert_eq!(s, "שלום");
+            assert_eq!(s.as_ref(), "שלום");
         }
     } else {
         panic!("Expected list");
@@ -176,7 +176,7 @@ fn test_combining_spanish_n() {
 
     let word = doc.root.get("word").unwrap();
     if let Item::Scalar(Value::String(s)) = word {
-        assert_eq!(s, "niño");
+        assert_eq!(s.as_ref(), "niño");
     } else {
         panic!("Expected string value");
     }
@@ -192,7 +192,7 @@ fn test_combining_german_umlauts() {
 
     let word = doc.root.get("word").unwrap();
     if let Item::Scalar(Value::String(s)) = word {
-        assert_eq!(s, "Müller");
+        assert_eq!(s.as_ref(), "Müller");
     } else {
         panic!("Expected string value");
     }
@@ -212,7 +212,7 @@ fn test_emoji_basic() {
 
     let reaction = doc.root.get("reaction").unwrap();
     if let Item::Scalar(Value::String(s)) = reaction {
-        assert_eq!(s, "🎉");
+        assert_eq!(s.as_ref(), "🎉");
     } else {
         panic!("Expected string value");
     }
@@ -228,7 +228,7 @@ fn test_emoji_skin_tone_modifier() {
 
     let thumb = doc.root.get("thumb").unwrap();
     if let Item::Scalar(Value::String(s)) = thumb {
-        assert_eq!(s, "👍🏿");
+        assert_eq!(s.as_ref(), "👍🏿");
     } else {
         panic!("Expected string value");
     }
@@ -262,7 +262,7 @@ fn test_emoji_sequence() {
 
     let emojis = doc.root.get("emojis").unwrap();
     if let Item::Scalar(Value::String(s)) = emojis {
-        assert_eq!(s, "🎉🎊🎈");
+        assert_eq!(s.as_ref(), "🎉🎊🎈");
     } else {
         panic!("Expected string value");
     }
@@ -280,10 +280,10 @@ fn test_emoji_in_matrix() {
     if let Item::List(list) = data {
         assert_eq!(list.rows.len(), 2);
         if let Value::String(s) = &list.rows[0].fields[1] {
-            assert_eq!(s, "🎉");
+            assert_eq!(s.as_ref(), "🎉");
         }
         if let Value::String(s) = &list.rows[1].fields[1] {
-            assert_eq!(s, "👍🏿");
+            assert_eq!(s.as_ref(), "👍🏿");
         }
     } else {
         panic!("Expected list");
@@ -421,7 +421,7 @@ fn test_4byte_utf8_cjk() {
 
     let char_val = doc.root.get("char").unwrap();
     if let Item::Scalar(Value::String(s)) = char_val {
-        assert_eq!(s, "𠀀");
+        assert_eq!(s.as_ref(), "𠀀");
     } else {
         panic!("Expected string value");
     }
@@ -438,7 +438,7 @@ fn test_4byte_utf8_emoji() {
 
     let face = doc.root.get("face").unwrap();
     if let Item::Scalar(Value::String(s)) = face {
-        assert_eq!(s, "😀");
+        assert_eq!(s.as_ref(), "😀");
     } else {
         panic!("Expected string value");
     }
@@ -455,7 +455,7 @@ fn test_4byte_utf8_musical() {
 
     let music = doc.root.get("music").unwrap();
     if let Item::Scalar(Value::String(s)) = music {
-        assert_eq!(s, "𝄞");
+        assert_eq!(s.as_ref(), "𝄞");
     } else {
         panic!("Expected string value");
     }
@@ -471,7 +471,7 @@ fn test_4byte_utf8_multiple() {
 
     let data = doc.root.get("data").unwrap();
     if let Item::Scalar(Value::String(s)) = data {
-        assert_eq!(s, "𠀀𝄞😀");
+        assert_eq!(s.as_ref(), "𠀀𝄞😀");
     } else {
         panic!("Expected string value");
     }
@@ -491,7 +491,7 @@ fn test_bom_skipped() {
 
     let data = doc.root.get("data").unwrap();
     if let Item::Scalar(Value::String(s)) = data {
-        assert_eq!(s, "test");
+        assert_eq!(s.as_ref(), "test");
     } else {
         panic!("Expected string value");
     }
@@ -528,7 +528,7 @@ fn test_unicode_in_quoted_string() {
 
     let text = doc.root.get("text").unwrap();
     if let Item::Scalar(Value::String(s)) = text {
-        assert_eq!(s, "Hello 世界 🌍");
+        assert_eq!(s.as_ref(), "Hello 世界 🌍");
     } else {
         panic!("Expected string value");
     }
@@ -584,7 +584,7 @@ fn test_cjk_chinese() {
 
     let greeting = doc.root.get("greeting").unwrap();
     if let Item::Scalar(Value::String(s)) = greeting {
-        assert_eq!(s, "你好世界");
+        assert_eq!(s.as_ref(), "你好世界");
     } else {
         panic!("Expected string value");
     }
@@ -600,7 +600,7 @@ fn test_cjk_japanese() {
 
     let text = doc.root.get("text").unwrap();
     if let Item::Scalar(Value::String(s)) = text {
-        assert_eq!(s, "こんにちは カタカナ 漢字");
+        assert_eq!(s.as_ref(), "こんにちは カタカナ 漢字");
     } else {
         panic!("Expected string value");
     }
@@ -616,7 +616,7 @@ fn test_cjk_korean() {
 
     let greeting = doc.root.get("greeting").unwrap();
     if let Item::Scalar(Value::String(s)) = greeting {
-        assert_eq!(s, "안녕하세요");
+        assert_eq!(s.as_ref(), "안녕하세요");
     } else {
         panic!("Expected string value");
     }
@@ -634,13 +634,13 @@ fn test_cjk_in_matrix() {
     if let Item::List(list) = data {
         assert_eq!(list.rows.len(), 3);
         if let Value::String(s) = &list.rows[0].fields[1] {
-            assert_eq!(s, "你好");
+            assert_eq!(s.as_ref(), "你好");
         }
         if let Value::String(s) = &list.rows[1].fields[1] {
-            assert_eq!(s, "こんにちは");
+            assert_eq!(s.as_ref(), "こんにちは");
         }
         if let Value::String(s) = &list.rows[2].fields[1] {
-            assert_eq!(s, "안녕하세요");
+            assert_eq!(s.as_ref(), "안녕하세요");
         }
     } else {
         panic!("Expected list");

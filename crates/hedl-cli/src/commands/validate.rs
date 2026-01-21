@@ -18,8 +18,9 @@
 //! Validate command - HEDL file syntax and structure validation
 
 use super::read_file;
+use crate::error::CliError;
 use colored::Colorize;
-use hedl_core::{parse_with_limits, ParseOptions};
+use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 
 /// Validate a HEDL file for syntax and structural correctness.
 ///
@@ -47,7 +48,7 @@ use hedl_core::{parse_with_limits, ParseOptions};
 /// ```no_run
 /// use hedl_cli::commands::validate;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), hedl_cli::error::CliError> {
 /// // Validate a well-formed HEDL file
 /// validate("valid.hedl", false)?;
 ///
@@ -68,12 +69,16 @@ use hedl_core::{parse_with_limits, ParseOptions};
 /// - HEDL version
 /// - Count of structs, aliases, and nests
 /// - Strict mode indicator if enabled
-pub fn validate(file: &str, strict: bool) -> Result<(), String> {
+pub fn validate(file: &str, strict: bool) -> Result<(), CliError> {
     let content = read_file(file)?;
 
     // Configure parser options with strict mode
     let options = ParseOptions {
-        strict_refs: strict,
+        reference_mode: if strict {
+            ReferenceMode::Strict
+        } else {
+            ReferenceMode::Lenient
+        },
         ..ParseOptions::default()
     };
 
@@ -91,7 +96,7 @@ pub fn validate(file: &str, strict: bool) -> Result<(), String> {
         }
         Err(e) => {
             println!("{} {}", "✗".red().bold(), file);
-            Err(format!("{}", e))
+            Err(CliError::parse(e.to_string()))
         }
     }
 }

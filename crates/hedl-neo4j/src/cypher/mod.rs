@@ -22,11 +22,20 @@
 
 pub mod escape;
 pub mod statements;
+pub mod unicode;
+pub mod validate;
 
+// Escaping & transformation
 pub use escape::{
-    escape_identifier, escape_label, escape_relationship_type, escape_string, is_valid_identifier,
-    normalize_unicode, quote_string, to_identifier, to_relationship_type, validate_identifier,
-    validate_string_length,
+    escape_identifier, escape_label, escape_relationship_type, escape_string, quote_string,
+    to_identifier, to_relationship_type, validate_id, validate_id_strict,
 };
 
-pub use statements::{CypherScript, CypherStatement, CypherValue, StatementType};
+// Statement building
+pub use statements::{CypherScript, CypherStatement, CypherValue, RenderMode, StatementType};
+
+// Unicode security
+pub use unicode::{normalize_unicode, sanitize_identifier, sanitize_string_value};
+
+// Validation
+pub use validate::{is_valid_identifier, validate_identifier, validate_string_length};

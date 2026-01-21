@@ -34,17 +34,18 @@ use crate::datasets::{generate_analytics, generate_events, generate_products, ge
 /// # Returns
 ///
 /// HEDL document string with flat structure.
+#[must_use]
 pub fn generate_flat_struct(field_count: usize) -> String {
     let mut fields = Vec::new();
     for i in 0..field_count {
-        fields.push(format!("field{}", i));
+        fields.push(format!("field{i}"));
     }
 
     format!(
         "%VERSION: 1.0\n%STRUCT: Record (1): [{}]\ndata: @Record\n| {}",
         fields.join(","),
         (0..field_count)
-            .map(|i| format!("value{}", i))
+            .map(|i| format!("value{i}"))
             .collect::<Vec<_>>()
             .join(", ")
     )
@@ -62,6 +63,7 @@ pub fn generate_flat_struct(field_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with simple nesting.
+#[must_use]
 pub fn generate_nested_simple(depth: usize) -> String {
     if depth == 0 {
         return generate_flat_struct(3);
@@ -78,7 +80,7 @@ pub fn generate_nested_simple(depth: usize) -> String {
             level,
             level - 1
         ));
-        doc.push_str(&format!("  | {}, child_{}\n", level, level));
+        doc.push_str(&format!("  | {level}, child_{level}\n"));
     }
 
     doc
@@ -95,6 +97,7 @@ pub fn generate_nested_simple(depth: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with list structure.
+#[must_use]
 pub fn generate_list_simple(item_count: usize) -> String {
     generate_users(item_count)
 }
@@ -108,6 +111,7 @@ pub fn generate_list_simple(item_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with tabular data.
+#[must_use]
 pub fn generate_users_simple(row_count: usize) -> String {
     generate_users(row_count)
 }
@@ -121,6 +125,7 @@ pub fn generate_users_simple(row_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with product data.
+#[must_use]
 pub fn generate_products_simple(row_count: usize) -> String {
     generate_products(row_count)
 }
@@ -134,6 +139,7 @@ pub fn generate_products_simple(row_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with analytics data.
+#[must_use]
 pub fn generate_analytics_simple(row_count: usize) -> String {
     generate_analytics(row_count)
 }
@@ -147,6 +153,7 @@ pub fn generate_analytics_simple(row_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with event data.
+#[must_use]
 pub fn generate_events_simple(row_count: usize) -> String {
     generate_events(row_count)
 }

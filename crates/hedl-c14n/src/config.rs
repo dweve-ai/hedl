@@ -87,7 +87,7 @@ pub enum QuotingStrategy {
 ///
 /// - `quoting`: Controls when strings are quoted (minimal or always)
 /// - `use_ditto`: Enables `^` ditto markers for repeated values in matrix rows
-/// - `sort_keys`: Sort object keys alphabetically (note: BTreeMap is already sorted)
+/// - `sort_keys`: Sort object keys alphabetically (note: `BTreeMap` is already sorted)
 /// - `inline_schemas`: Use inline schemas `@Type[cols]` vs header `%STRUCT` directives
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -114,8 +114,8 @@ pub struct CanonicalConfig {
 
     /// Sort object keys alphabetically.
     ///
-    /// Note: This field is currently redundant since BTreeMap inherently maintains
-    /// sorted order. Kept for API compatibility and future HashMap support.
+    /// Note: This field is currently redundant since `BTreeMap` inherently maintains
+    /// sorted order. Kept for API compatibility and future `HashMap` support.
     ///
     /// Default: `true`
     pub sort_keys: bool,
@@ -153,6 +153,7 @@ impl Default for CanonicalConfig {
 
 impl CanonicalConfig {
     /// Create a new configuration with all default values.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -173,29 +174,34 @@ impl CanonicalConfig {
     ///     .quoting(QuotingStrategy::Minimal)
     ///     .build();
     /// ```
+    #[must_use]
     pub fn builder() -> CanonicalConfigBuilder {
         CanonicalConfigBuilder::new()
     }
 
     /// Set the quoting strategy.
+    #[must_use]
     pub fn with_quoting(mut self, quoting: QuotingStrategy) -> Self {
         self.quoting = quoting;
         self
     }
 
     /// Set whether to use ditto optimization.
+    #[must_use]
     pub fn with_ditto(mut self, use_ditto: bool) -> Self {
         self.use_ditto = use_ditto;
         self
     }
 
     /// Set whether to sort keys.
+    #[must_use]
     pub fn with_sort_keys(mut self, sort_keys: bool) -> Self {
         self.sort_keys = sort_keys;
         self
     }
 
     /// Set whether to use inline schemas.
+    #[must_use]
     pub fn with_inline_schemas(mut self, inline_schemas: bool) -> Self {
         self.inline_schemas = inline_schemas;
         self
@@ -262,6 +268,7 @@ impl CanonicalConfigBuilder {
     /// let config = builder.build();
     /// assert_eq!(config, CanonicalConfig::default());
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self {
             quoting: QuotingStrategy::Minimal,
@@ -287,6 +294,7 @@ impl CanonicalConfigBuilder {
     ///     .build();
     /// assert_eq!(config.quoting, QuotingStrategy::Always);
     /// ```
+    #[must_use]
     pub fn quoting(mut self, quoting: QuotingStrategy) -> Self {
         self.quoting = quoting;
         self
@@ -311,6 +319,7 @@ impl CanonicalConfigBuilder {
     ///     .build();
     /// assert!(!config.use_ditto);
     /// ```
+    #[must_use]
     pub fn use_ditto(mut self, use_ditto: bool) -> Self {
         self.use_ditto = use_ditto;
         self
@@ -318,8 +327,8 @@ impl CanonicalConfigBuilder {
 
     /// Set whether to sort object keys alphabetically.
     ///
-    /// Note: This field is currently redundant since BTreeMap inherently maintains
-    /// sorted order. Kept for API compatibility and future HashMap support.
+    /// Note: This field is currently redundant since `BTreeMap` inherently maintains
+    /// sorted order. Kept for API compatibility and future `HashMap` support.
     ///
     /// # Arguments
     ///
@@ -335,6 +344,7 @@ impl CanonicalConfigBuilder {
     ///     .build();
     /// assert!(!config.sort_keys);
     /// ```
+    #[must_use]
     pub fn sort_keys(mut self, sort_keys: bool) -> Self {
         self.sort_keys = sort_keys;
         self
@@ -369,6 +379,7 @@ impl CanonicalConfigBuilder {
     ///     .build();
     /// assert!(config.inline_schemas);
     /// ```
+    #[must_use]
     pub fn inline_schemas(mut self, inline_schemas: bool) -> Self {
         self.inline_schemas = inline_schemas;
         self
@@ -394,6 +405,7 @@ impl CanonicalConfigBuilder {
     /// assert!(config.sort_keys);        // Still default
     /// assert!(!config.inline_schemas);  // Still default
     /// ```
+    #[must_use]
     pub fn build(self) -> CanonicalConfig {
         CanonicalConfig {
             quoting: self.quoting,
@@ -420,8 +432,8 @@ mod tests {
     fn test_quoting_strategy_debug() {
         let minimal = QuotingStrategy::Minimal;
         let always = QuotingStrategy::Always;
-        assert!(format!("{:?}", minimal).contains("Minimal"));
-        assert!(format!("{:?}", always).contains("Always"));
+        assert!(format!("{minimal:?}").contains("Minimal"));
+        assert!(format!("{always:?}").contains("Always"));
     }
 
     #[test]
@@ -459,7 +471,7 @@ mod tests {
     #[test]
     fn test_canonical_config_debug() {
         let config = CanonicalConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("CanonicalConfig"));
         assert!(debug.contains("quoting"));
         assert!(debug.contains("use_ditto"));
@@ -693,7 +705,7 @@ mod tests {
     #[test]
     fn test_builder_debug() {
         let builder = CanonicalConfig::builder();
-        let debug = format!("{:?}", builder);
+        let debug = format!("{builder:?}");
         assert!(debug.contains("CanonicalConfigBuilder"));
         assert!(debug.contains("quoting"));
         assert!(debug.contains("use_ditto"));

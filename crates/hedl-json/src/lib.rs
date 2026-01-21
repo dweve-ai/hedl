@@ -22,17 +22,17 @@
 //! # Features
 //!
 //! - **Bidirectional Conversion**: HEDL ↔ JSON with full fidelity
-//! - **JSONPath Queries**: Extract data using standard JSONPath expressions
+//! - **`JSONPath` Queries**: Extract data using standard `JSONPath` expressions
 //! - **JSON Schema Generation**: Generate JSON Schema Draft 7 from HEDL documents
 //! - **Partial Parsing**: Continue parsing despite errors and collect all errors
 //! - **Streaming Support**: Memory-efficient processing of large files
 //! - **JSONL Support**: Newline-delimited JSON for logs and streaming
 //! - **Zero-Copy Optimization**: Reduced allocations for better performance
-//! - **Security Limits**: Configurable limits to prevent DoS attacks
+//! - **Security Limits**: Configurable limits to prevent `DoS` attacks
 //!
 //! # Modules
 //!
-//! - [`jsonpath`]: JSONPath query engine for extracting specific data
+//! - [`jsonpath`]: `JSONPath` query engine for extracting specific data
 //! - [`schema_gen`]: JSON Schema generation from HEDL documents
 //! - [`streaming`]: Streaming parsers for large files and JSONL format
 //!
@@ -48,7 +48,7 @@
 //! let json_out = hedl_to_json(&doc).unwrap();
 //! ```
 //!
-//! ## JSONPath Queries
+//! ## `JSONPath` Queries
 //!
 //! ```rust
 //! use hedl_json::jsonpath::{query, QueryConfig};
@@ -133,12 +133,18 @@
 //! }
 //! ```
 //!
+#![cfg_attr(not(test), warn(missing_docs))]
 mod from_json;
 pub mod jsonpath;
+pub mod schema_cache;
 pub mod schema_gen;
 pub mod streaming;
+pub mod string_cache;
 mod to_json;
 // pub mod partial;
+
+#[cfg(feature = "validation")]
+pub mod validation;
 
 // Re-export the shared DEFAULT_SCHEMA from hedl-core for internal use
 pub(crate) use hedl_core::convert::DEFAULT_SCHEMA;
@@ -154,10 +160,12 @@ pub use from_json::{
     ErrorTolerance,
     FromJsonConfig,
     FromJsonConfigBuilder,
+    JsonConversionError,
     ParseError,
     PartialConfig,
     PartialConfigBuilder,
     PartialResult,
+    SurrogatePolicy,
     DEFAULT_MAX_ARRAY_SIZE,
     DEFAULT_MAX_DEPTH,
     DEFAULT_MAX_OBJECT_SIZE,

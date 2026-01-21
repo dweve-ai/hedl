@@ -23,7 +23,7 @@
 //! - %NEST: ParentType > ChildType
 
 use super::error::LexError;
-use super::span::{SourcePos, Span};
+use super::span::Span;
 use super::tokens::{is_valid_key_token, is_valid_type_name};
 use std::collections::HashMap;
 
@@ -64,6 +64,11 @@ pub struct NestDirective {
 ///
 /// Syntax: `%STRUCT: TypeName: [col1, col2, ...]`
 ///
+/// # Arguments
+///
+/// * `payload` - The directive content after `%STRUCT:`
+/// * `span` - Source span for this directive (use `Span::synthetic()` if unknown)
+///
 /// # Errors
 ///
 /// Returns error if:
@@ -73,13 +78,18 @@ pub struct NestDirective {
 /// - Duplicate column names
 /// - No columns provided
 pub fn parse_struct(payload: &str) -> Result<StructDirective, LexError> {
+    parse_struct_with_span(payload, Span::synthetic())
+}
+
+/// Parse a %STRUCT directive with source span.
+pub fn parse_struct_with_span(payload: &str, span: Span) -> Result<StructDirective, LexError> {
     // Split on first colon to get TypeName and column list
     let parts: Vec<&str> = payload.splitn(2, ':').map(|s| s.trim()).collect();
 
     if parts.len() != 2 {
         return Err(LexError::InvalidToken {
             message: "STRUCT directive must be: TypeName: [col1, col2, ...]".to_string(),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -93,17 +103,17 @@ pub fn parse_struct(payload: &str) -> Result<StructDirective, LexError> {
                 "invalid type name '{}': must be PascalCase [A-Z][A-Za-z0-9]*",
                 type_name
             ),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
     // Parse column list
-    let columns = parse_column_list(column_part)?;
+    let columns = parse_column_list_with_span(column_part, span)?;
 
     if columns.is_empty() {
         return Err(LexError::InvalidToken {
             message: "STRUCT directive must have at least one column".to_string(),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -113,7 +123,7 @@ pub fn parse_struct(payload: &str) -> Result<StructDirective, LexError> {
         if seen.insert(col, ()).is_some() {
             return Err(LexError::InvalidToken {
                 message: format!("duplicate column name '{}' in STRUCT", col),
-                pos: SourcePos::new(1, 1),
+                pos: span.start(),
             });
         }
     }
@@ -121,13 +131,17 @@ pub fn parse_struct(payload: &str) -> Result<StructDirective, LexError> {
     Ok(StructDirective {
         type_name: type_name.to_string(),
         columns,
-        span: Span::default(), // TODO: Caller should provide actual span
+        span,
     })
 }
 
 /// Parse a %ALIAS directive.
 ///
 /// Syntax: `%ALIAS: %key: "expansion value"`
+///
+/// # Arguments
+///
+/// * `payload` - The directive content after `%ALIAS:`
 ///
 /// # Errors
 ///
@@ -136,13 +150,18 @@ pub fn parse_struct(payload: &str) -> Result<StructDirective, LexError> {
 /// - Key (after %) is not valid Key token
 /// - Value is not a quoted string
 pub fn parse_alias(payload: &str) -> Result<AliasDirective, LexError> {
+    parse_alias_with_span(payload, Span::synthetic())
+}
+
+/// Parse a %ALIAS directive with source span.
+pub fn parse_alias_with_span(payload: &str, span: Span) -> Result<AliasDirective, LexError> {
     // Split on first colon to get key and value
     let parts: Vec<&str> = payload.splitn(2, ':').map(|s| s.trim()).collect();
 
     if parts.len() != 2 {
         return Err(LexError::InvalidToken {
             message: "ALIAS directive must be: %key: \"value\"".to_string(),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -153,7 +172,7 @@ pub fn parse_alias(payload: &str) -> Result<AliasDirective, LexError> {
     if !key_part.starts_with('%') {
         return Err(LexError::InvalidToken {
             message: format!("ALIAS key must start with %: got '{}'", key_part),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -163,17 +182,17 @@ pub fn parse_alias(payload: &str) -> Result<AliasDirective, LexError> {
     if !is_valid_key_token(key) {
         return Err(LexError::InvalidToken {
             message: format!("invalid ALIAS key '{}': must be [a-z_][a-z0-9_]*", key),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
     // Parse quoted value
-    let value = parse_quoted_string(value_part)?;
+    let value = parse_quoted_string_with_span(value_part, span)?;
 
     Ok(AliasDirective {
         key: key.to_string(),
         value,
-        span: Span::default(), // TODO: Caller should provide actual span
+        span,
     })
 }
 
@@ -181,19 +200,29 @@ pub fn parse_alias(payload: &str) -> Result<AliasDirective, LexError> {
 ///
 /// Syntax: `%NEST: ParentType > ChildType`
 ///
+/// # Arguments
+///
+/// * `payload` - The directive content after `%NEST:`
+/// * `span` - Source span for this directive (use `Span::synthetic()` if unknown)
+///
 /// # Errors
 ///
 /// Returns error if:
 /// - Missing > separator
 /// - ParentType or ChildType are not valid TypeNames
 pub fn parse_nest(payload: &str) -> Result<NestDirective, LexError> {
+    parse_nest_with_span(payload, Span::synthetic())
+}
+
+/// Parse a %NEST directive with source span.
+pub fn parse_nest_with_span(payload: &str, span: Span) -> Result<NestDirective, LexError> {
     // Split on >
     let parts: Vec<&str> = payload.split('>').map(|s| s.trim()).collect();
 
     if parts.len() != 2 {
         return Err(LexError::InvalidToken {
             message: "NEST directive must be: ParentType > ChildType".to_string(),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -207,7 +236,7 @@ pub fn parse_nest(payload: &str) -> Result<NestDirective, LexError> {
                 "invalid parent type name '{}': must be PascalCase",
                 parent_type
             ),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -217,26 +246,32 @@ pub fn parse_nest(payload: &str) -> Result<NestDirective, LexError> {
                 "invalid child type name '{}': must be PascalCase",
                 child_type
             ),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
     Ok(NestDirective {
         parent_type: parent_type.to_string(),
         child_type: child_type.to_string(),
-        span: Span::default(), // TODO: Caller should provide actual span
+        span,
     })
 }
 
 /// Parse a column list: `[col1, col2, ...]`
+#[allow(dead_code)]
 fn parse_column_list(s: &str) -> Result<Vec<String>, LexError> {
+    parse_column_list_with_span(s, Span::synthetic())
+}
+
+/// Parse a column list with source span for error reporting.
+fn parse_column_list_with_span(s: &str, span: Span) -> Result<Vec<String>, LexError> {
     let s = s.trim();
 
     // Must start with [ and end with ]
     if !s.starts_with('[') || !s.ends_with(']') {
         return Err(LexError::InvalidToken {
             message: "column list must be enclosed in []".to_string(),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
@@ -255,14 +290,14 @@ fn parse_column_list(s: &str) -> Result<Vec<String>, LexError> {
         if col.is_empty() {
             return Err(LexError::InvalidToken {
                 message: "trailing comma or empty column name in column list".to_string(),
-                pos: SourcePos::new(1, 1),
+                pos: span.start(),
             });
         }
 
         if !is_valid_key_token(col) {
             return Err(LexError::InvalidToken {
                 message: format!("invalid column name '{}': must be [a-z_][a-z0-9_]*", col),
-                pos: SourcePos::new(1, 1),
+                pos: span.start(),
             });
         }
 
@@ -274,34 +309,79 @@ fn parse_column_list(s: &str) -> Result<Vec<String>, LexError> {
 
 /// Parse a quoted string value.
 ///
-/// Handles "" escaping for literal quotes.
+/// Handles escape sequences:
+/// - `""` - literal quote (CSV-style)
+/// - `\"` - literal quote (backslash-style)
+/// - `\\` - literal backslash
+/// - `\n` - newline
+/// - `\t` - tab
+/// - `\r` - carriage return
+///
+/// This matches the escape handling in CSV quoted fields for consistency.
+#[allow(dead_code)]
 fn parse_quoted_string(s: &str) -> Result<String, LexError> {
+    parse_quoted_string_with_span(s, Span::synthetic())
+}
+
+/// Parse a quoted string value with source span for error reporting.
+fn parse_quoted_string_with_span(s: &str, span: Span) -> Result<String, LexError> {
     let s = s.trim();
 
     if !s.starts_with('"') || !s.ends_with('"') {
         return Err(LexError::InvalidToken {
             message: "value must be a quoted string".to_string(),
-            pos: SourcePos::new(1, 1),
+            pos: span.start(),
         });
     }
 
     let content = &s[1..s.len() - 1];
 
-    // Handle "" escaping
+    // Handle escape sequences
     let mut result = String::new();
     let mut chars = content.chars().peekable();
 
     while let Some(ch) = chars.next() {
         if ch == '"' {
             if chars.peek() == Some(&'"') {
-                // Escaped quote
+                // "" escaping (CSV-style)
                 chars.next();
                 result.push('"');
             } else {
                 // Unescaped quote in middle of string is an error
-                return Err(LexError::UnclosedQuote {
-                    pos: SourcePos::new(1, 1),
-                });
+                return Err(LexError::UnclosedQuote { pos: span.start() });
+            }
+        } else if ch == '\\' {
+            // Backslash escape sequences (matches CSV row parser)
+            if let Some(&next_ch) = chars.peek() {
+                match next_ch {
+                    'n' => {
+                        chars.next();
+                        result.push('\n');
+                    }
+                    't' => {
+                        chars.next();
+                        result.push('\t');
+                    }
+                    'r' => {
+                        chars.next();
+                        result.push('\r');
+                    }
+                    '\\' => {
+                        chars.next();
+                        result.push('\\');
+                    }
+                    '"' => {
+                        chars.next();
+                        result.push('"');
+                    }
+                    _ => {
+                        // Unknown escape, keep the backslash
+                        result.push(ch);
+                    }
+                }
+            } else {
+                // Trailing backslash
+                result.push(ch);
             }
         } else {
             result.push(ch);
@@ -385,6 +465,45 @@ mod tests {
         let a = parse_alias("%name: \"John \"\"Doc\"\" Doe\"").unwrap();
         assert_eq!(a.key, "name");
         assert_eq!(a.value, "John \"Doc\" Doe");
+    }
+
+    #[test]
+    fn test_parse_alias_backslash_quote_escape() {
+        // Backslash escape for quote (like CSV)
+        let a = parse_alias(r#"%name: "say \"hello\"""#).unwrap();
+        assert_eq!(a.key, "name");
+        assert_eq!(a.value, "say \"hello\"");
+    }
+
+    #[test]
+    fn test_parse_alias_backslash_newline_escape() {
+        let a = parse_alias(r#"%msg: "line1\nline2""#).unwrap();
+        assert_eq!(a.value, "line1\nline2");
+    }
+
+    #[test]
+    fn test_parse_alias_backslash_tab_escape() {
+        let a = parse_alias(r#"%data: "col1\tcol2""#).unwrap();
+        assert_eq!(a.value, "col1\tcol2");
+    }
+
+    #[test]
+    fn test_parse_alias_backslash_carriage_return_escape() {
+        let a = parse_alias(r#"%crlf: "line\r\n""#).unwrap();
+        assert_eq!(a.value, "line\r\n");
+    }
+
+    #[test]
+    fn test_parse_alias_backslash_backslash_escape() {
+        let a = parse_alias(r#"%path: "C:\\Users\\test""#).unwrap();
+        assert_eq!(a.value, "C:\\Users\\test");
+    }
+
+    #[test]
+    fn test_parse_alias_unknown_backslash_escape_preserved() {
+        // Unknown escape sequences keep the backslash
+        let a = parse_alias(r#"%unknown: "test\x""#).unwrap();
+        assert_eq!(a.value, "test\\x");
     }
 
     #[test]
@@ -526,12 +645,12 @@ mod tests {
         let a = StructDirective {
             type_name: "User".to_string(),
             columns: vec!["id".to_string(), "name".to_string()],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let b = StructDirective {
             type_name: "User".to_string(),
             columns: vec!["id".to_string(), "name".to_string()],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(a, b);
     }
@@ -541,7 +660,7 @@ mod tests {
         let s = StructDirective {
             type_name: "User".to_string(),
             columns: vec!["id".to_string()],
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let debug = format!("{:?}", s);
         assert!(debug.contains("User"));
@@ -632,12 +751,12 @@ mod tests {
         let a = AliasDirective {
             key: "test".to_string(),
             value: "value".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let b = AliasDirective {
             key: "test".to_string(),
             value: "value".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(a, b);
     }
@@ -647,7 +766,7 @@ mod tests {
         let a = AliasDirective {
             key: "test".to_string(),
             value: "value".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let debug = format!("{:?}", a);
         assert!(debug.contains("test"));
@@ -729,12 +848,12 @@ mod tests {
         let a = NestDirective {
             parent_type: "User".to_string(),
             child_type: "Post".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let b = NestDirective {
             parent_type: "User".to_string(),
             child_type: "Post".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         assert_eq!(a, b);
     }
@@ -744,7 +863,7 @@ mod tests {
         let n = NestDirective {
             parent_type: "User".to_string(),
             child_type: "Post".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let debug = format!("{:?}", n);
         assert!(debug.contains("User"));
@@ -756,7 +875,7 @@ mod tests {
         let original = NestDirective {
             parent_type: "User".to_string(),
             child_type: "Post".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
         let cloned = original.clone();
         assert_eq!(original, cloned);

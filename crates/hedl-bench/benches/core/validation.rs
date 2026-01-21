@@ -19,26 +19,27 @@
 //!
 //! Comprehensive validation performance benchmark with comparative analysis vs:
 //! - JSON Schema validators (jsonschema-rs, valico)
-//! - YAML validators (serde_yaml)
+//! - YAML validators (`serde_yaml`)
 //! - XML validators (quick-xml)
 //!
 //! Measures 15+ performance metrics and provides detailed insights.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_ditto_heavy, generate_reference_heavy, generate_users, sizes,
-    BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
+    BenchmarkReport, CustomTable, Insight, PerfResult, TableCell,
 };
 use hedl_core::parse;
-use hedl_lint::{lint, lint_with_config, Diagnostic, LintConfig};
+use hedl_lint::{lint, lint_with_config, LintConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::Instant;
 
 // Thread-local report storage
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static VALIDATION_RESULTS: RefCell<Vec<ComprehensiveValidationResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static VALIDATION_RESULTS: RefCell<Vec<ComprehensiveValidationResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: std::sync::Once = std::sync::Once::new();
@@ -48,7 +49,6 @@ static INIT: std::sync::Once = std::sync::Once::new();
 struct ComprehensiveValidationResult {
     dataset_name: String,
     config_name: String,
-    size_bytes: usize,
     records: usize,
     validation_times_ns: Vec<u64>,
     rule_count: usize,
@@ -65,10 +65,6 @@ impl ComprehensiveValidationResult {
             return 0;
         }
         self.validation_times_ns.iter().sum::<u64>() / self.validation_times_ns.len() as u64
-    }
-
-    fn min_ns(&self) -> u64 {
-        self.validation_times_ns.iter().copied().min().unwrap_or(0)
     }
 
     fn max_ns(&self) -> u64 {
@@ -99,13 +95,6 @@ impl ComprehensiveValidationResult {
 
     fn total_diagnostics(&self) -> usize {
         self.errors_found + self.warnings_found + self.hints_found
-    }
-
-    fn validation_overhead_pct(&self) -> f64 {
-        if self.parse_time_ns == 0 {
-            return 0.0;
-        }
-        ((self.avg_time_ns() as f64 / self.parse_time_ns as f64) - 1.0) * 100.0
     }
 }
 
@@ -156,7 +145,6 @@ fn collect_validation_metrics(
     records: usize,
     config: LintConfig,
 ) {
-    let size_bytes = hedl.len();
     let iterations = if records <= 100 {
         200
     } else if records <= 1000 {
@@ -194,7 +182,7 @@ fn collect_validation_metrics(
         .count();
     let hints_found = diags.len() - errors_found - warnings_found;
 
-    let avg_time_ns = validation_times.iter().sum::<u64>() / validation_times.len() as u64;
+    let _avg_time_ns = validation_times.iter().sum::<u64>() / validation_times.len() as u64;
 
     // Combined parse + validate
     let combined_start = Instant::now();
@@ -205,7 +193,6 @@ fn collect_validation_metrics(
     record_comprehensive_result(ComprehensiveValidationResult {
         dataset_name: name.to_string(),
         config_name: config_name.to_string(),
-        size_bytes,
         records,
         validation_times_ns: validation_times,
         rule_count: 5,
@@ -231,12 +218,12 @@ fn bench_validate_simple_documents(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(size), &doc, |b, doc| {
-            b.iter(|| lint(black_box(doc)))
+            b.iter(|| lint(black_box(doc)));
         });
 
         // Collect comprehensive metrics
         collect_validation_metrics(
-            &format!("simple_users_{}", size),
+            &format!("simple_users_{size}"),
             "default",
             &hedl,
             size,
@@ -257,7 +244,7 @@ fn bench_validate_simple_documents(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("validate_simple_{}", size),
+            &format!("validate_simple_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -304,7 +291,7 @@ fn bench_validate_configurations(c: &mut Criterion) {
     strict_config.set_rule_error("unused-schema");
 
     group.bench_function("strict", |b| {
-        b.iter(|| lint_with_config(black_box(&doc), strict_config.clone()))
+        b.iter(|| lint_with_config(black_box(&doc), strict_config.clone()));
     });
 
     collect_validation_metrics(
@@ -328,7 +315,7 @@ fn bench_validate_configurations(c: &mut Criterion) {
     relaxed_config.disable_rule("id-naming");
 
     group.bench_function("relaxed", |b| {
-        b.iter(|| lint_with_config(black_box(&doc), relaxed_config.clone()))
+        b.iter(|| lint_with_config(black_box(&doc), relaxed_config.clone()));
     });
 
     collect_validation_metrics(
@@ -364,12 +351,12 @@ fn bench_validate_references(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(size), &doc, |b, doc| {
-            b.iter(|| lint(black_box(doc)))
+            b.iter(|| lint(black_box(doc)));
         });
 
         // Collect comprehensive metrics
         collect_validation_metrics(
-            &format!("reference_heavy_{}", size),
+            &format!("reference_heavy_{size}"),
             "default",
             &hedl,
             size,
@@ -390,7 +377,7 @@ fn bench_validate_references(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("validate_references_{}", size),
+            &format!("validate_references_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -411,16 +398,16 @@ fn bench_validate_nested(c: &mut Criterion) {
         let hedl = generate_blog(posts, comments);
         let doc = parse(hedl.as_bytes()).unwrap();
         let bytes = hedl.len() as u64;
-        let param = format!("{}p_{}c", posts, comments);
+        let param = format!("{posts}p_{comments}c");
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("blog", &param), &doc, |b, doc| {
-            b.iter(|| lint(black_box(doc)))
+            b.iter(|| lint(black_box(doc)));
         });
 
         // Collect comprehensive metrics
         collect_validation_metrics(
-            &format!("nested_blog_{}", param),
+            &format!("nested_blog_{param}"),
             "default",
             &hedl,
             posts,
@@ -436,7 +423,7 @@ fn bench_validate_nested(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("validate_nested_{}", param),
+            &format!("validate_nested_{param}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -460,12 +447,12 @@ fn bench_validate_ditto(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(size), &doc, |b, doc| {
-            b.iter(|| lint(black_box(doc)))
+            b.iter(|| lint(black_box(doc)));
         });
 
         // Collect comprehensive metrics
         collect_validation_metrics(
-            &format!("ditto_heavy_{}", size),
+            &format!("ditto_heavy_{size}"),
             "default",
             &hedl,
             size,
@@ -486,7 +473,7 @@ fn bench_validate_ditto(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("validate_ditto_{}", size),
+            &format!("validate_ditto_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -512,12 +499,12 @@ fn bench_parse_and_validate(c: &mut Criterion) {
             b.iter(|| {
                 let doc = parse(black_box(hedl.as_bytes())).unwrap();
                 lint(&doc)
-            })
+            });
         });
 
         // Collect comprehensive metrics
         collect_validation_metrics(
-            &format!("combined_users_{}", size),
+            &format!("combined_users_{size}"),
             "default",
             &hedl,
             size,
@@ -539,7 +526,7 @@ fn bench_parse_and_validate(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_and_validate_{}", size),
+            &format!("parse_and_validate_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -607,17 +594,16 @@ fn create_config_impact_table(results: &[ComprehensiveValidationResult]) -> Cust
     for result in results {
         config_groups
             .entry(result.config_name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(result);
     }
 
     let default_avg = config_groups
         .get("default")
         .and_then(|v| v.first())
-        .map(|r| r.avg_time_ns())
-        .unwrap_or(1);
+        .map_or(1, |r| r.avg_time_ns());
 
-    for (config_name, config_results) in config_groups.iter() {
+    for (config_name, config_results) in &config_groups {
         let avg_time_ns = config_results.iter().map(|r| r.avg_time_ns()).sum::<u64>()
             / config_results.len().max(1) as u64;
         let vs_default = if default_avg > 0 {
@@ -631,7 +617,7 @@ fn create_config_impact_table(results: &[ComprehensiveValidationResult]) -> Cust
             TableCell::String(config_name.clone()),
             TableCell::Float(avg_time_ns as f64 / 1000.0),
             TableCell::Float(vs_default),
-            TableCell::Integer(config_results.first().map(|r| r.rule_count).unwrap_or(0) as i64),
+            TableCell::Integer(config_results.first().map_or(0, |r| r.rule_count) as i64),
             TableCell::Integer(total_diagnostics as i64),
         ]);
     }
@@ -657,10 +643,10 @@ fn create_reference_validation_table(results: &[ComprehensiveValidationResult]) 
         .filter(|r| r.dataset_name.contains("reference"))
         .collect();
 
-    let baseline_time = ref_results.first().map(|r| r.avg_time_ns()).unwrap_or(1);
-    let baseline_records = ref_results.first().map(|r| r.records).unwrap_or(1);
+    let baseline_time = ref_results.first().map_or(1, |r| r.avg_time_ns());
+    let baseline_records = ref_results.first().map_or(1, |r| r.records);
 
-    for result in ref_results.iter() {
+    for result in &ref_results {
         let scaling = if baseline_records > 0 && baseline_time > 0 {
             (result.avg_time_ns() as f64 / baseline_time as f64)
                 / (result.records as f64 / baseline_records as f64)
@@ -697,7 +683,7 @@ fn create_nesting_impact_table(results: &[ComprehensiveValidationResult]) -> Cus
     let flat_avg = results
         .iter()
         .filter(|r| r.dataset_name.contains("simple"))
-        .map(|r| r.avg_time_ns())
+        .map(ComprehensiveValidationResult::avg_time_ns)
         .sum::<u64>()
         / results
             .iter()
@@ -756,7 +742,7 @@ fn create_ditto_overhead_table(results: &[ComprehensiveValidationResult]) -> Cus
 
     for ditto in ditto_results {
         // Find corresponding simple dataset
-        let size_str = ditto.dataset_name.split('_').last().unwrap_or("");
+        let size_str = ditto.dataset_name.split('_').next_back().unwrap_or("");
         let normal = results
             .iter()
             .find(|r| r.dataset_name.contains("simple") && r.dataset_name.contains(size_str));
@@ -942,7 +928,7 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
                 "Peak throughput: {:.0} validations/sec",
                 results
                     .iter()
-                    .map(|r| r.validations_per_sec())
+                    .map(ComprehensiveValidationResult::validations_per_sec)
                     .fold(0.0, f64::max)
             ),
             "Consistent performance across document sizes".to_string(),
@@ -950,14 +936,14 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
     });
 
     // STRENGTH 2: Comprehensive error detection
-    let total_diagnostics: usize = results.iter().map(|r| r.total_diagnostics()).sum();
+    let total_diagnostics: usize = results
+        .iter()
+        .map(ComprehensiveValidationResult::total_diagnostics)
+        .sum();
     insights.push(Insight {
         category: "strength".to_string(),
         title: "Comprehensive Validation Coverage".to_string(),
-        description: format!(
-            "Detected {} total issues across test datasets",
-            total_diagnostics
-        ),
+        description: format!("Detected {total_diagnostics} total issues across test datasets"),
         data_points: vec![
             format!(
                 "{} errors caught",
@@ -978,7 +964,7 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
     let flat_avg = results
         .iter()
         .filter(|r| r.dataset_name.contains("simple"))
-        .map(|r| r.avg_time_ns())
+        .map(ComprehensiveValidationResult::avg_time_ns)
         .sum::<u64>()
         / results
             .iter()
@@ -989,7 +975,7 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
     let nested_avg = results
         .iter()
         .filter(|r| r.dataset_name.contains("nested"))
-        .map(|r| r.avg_time_ns())
+        .map(ComprehensiveValidationResult::avg_time_ns)
         .sum::<u64>()
         / results
             .iter()
@@ -1003,8 +989,7 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
             category: "weakness".to_string(),
             title: "Nesting Overhead".to_string(),
             description: format!(
-                "Nested documents are {:.0}% slower than flat structures",
-                overhead_pct
+                "Nested documents are {overhead_pct:.0}% slower than flat structures"
             ),
             data_points: vec![
                 "Tree traversal adds overhead for deeply nested documents".to_string(),
@@ -1062,8 +1047,7 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
             category: "finding".to_string(),
             title: "Scaling Analysis".to_string(),
             description: format!(
-                "Validation time scales with document size (factor: {:.2}x per size increase)",
-                scaling_factor
+                "Validation time scales with document size (factor: {scaling_factor:.2}x per size increase)"
             ),
             data_points: vec![
                 format!("Size ratio (large/small): {:.1}x", size_ratio),
@@ -1086,8 +1070,7 @@ fn generate_validation_insights(results: &[ComprehensiveValidationResult]) -> Ve
             category: "finding".to_string(),
             title: "Validation Overhead Analysis".to_string(),
             description: format!(
-                "Validation adds {:.1}% overhead vs parse-only for typical documents",
-                avg_validation_pct
+                "Validation adds {avg_validation_pct:.1}% overhead vs parse-only for typical documents"
             ),
             data_points: vec![
                 "Overhead is acceptable for quality/safety tradeoff".to_string(),
@@ -1150,22 +1133,22 @@ fn export_reports(c: &mut Criterion) {
 
             // Create target directory
             if let Err(e) = std::fs::create_dir_all("target") {
-                eprintln!("Failed to create target directory: {}", e);
+                eprintln!("Failed to create target directory: {e}");
                 return;
             }
 
             // Export reports
             let base_path = "target/validation_report";
-            if let Err(e) = report.save_json(format!("{}.json", base_path)) {
-                eprintln!("Failed to export JSON: {}", e);
+            if let Err(e) = report.save_json(format!("{base_path}.json")) {
+                eprintln!("Failed to export JSON: {e}");
             } else {
-                println!("\nExported JSON: {}.json", base_path);
+                println!("\nExported JSON: {base_path}.json");
             }
 
-            if let Err(e) = std::fs::write(format!("{}.md", base_path), report.to_markdown()) {
-                eprintln!("Failed to export Markdown: {}", e);
+            if let Err(e) = std::fs::write(format!("{base_path}.md"), report.to_markdown()) {
+                eprintln!("Failed to export Markdown: {e}");
             } else {
-                println!("Exported Markdown: {}.md", base_path);
+                println!("Exported Markdown: {base_path}.md");
             }
 
             println!("\n{}", "=".repeat(80));

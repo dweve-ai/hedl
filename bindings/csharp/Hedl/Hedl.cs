@@ -288,6 +288,12 @@ namespace Dweve.Hedl
             return ptr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(ptr);
         }
 
+        /// <summary>
+        /// Reads a UTF-8 string from native memory and frees it.
+        /// Note: Embedded NUL bytes will truncate the string. This is a limitation
+        /// of Marshal.PtrToStringUTF8. In practice, HEDL text data should not
+        /// contain embedded NULs as they are not valid in most text contexts.
+        /// </summary>
         internal static string ReadAndFreeString(IntPtr ptr)
         {
             if (ptr == IntPtr.Zero)
@@ -433,7 +439,12 @@ namespace Dweve.Hedl
             {
                 ThrowIfDisposed();
                 var c = NativeMethods.hedl_schema_count(_ptr);
-                if (c < 0) throw HedlException.FromLibrary((HedlErrorCode)c);
+                if (c < 0)
+                {
+                    // Count functions return -1 on error, get actual error from last error
+                    var msg = NativeMethods.GetLastError() ?? "Failed to get schema count";
+                    throw new HedlException(msg, HedlErrorCode.NullPtr);
+                }
                 return c;
             }
         }
@@ -447,7 +458,12 @@ namespace Dweve.Hedl
             {
                 ThrowIfDisposed();
                 var c = NativeMethods.hedl_alias_count(_ptr);
-                if (c < 0) throw HedlException.FromLibrary((HedlErrorCode)c);
+                if (c < 0)
+                {
+                    // Count functions return -1 on error, get actual error from last error
+                    var msg = NativeMethods.GetLastError() ?? "Failed to get alias count";
+                    throw new HedlException(msg, HedlErrorCode.NullPtr);
+                }
                 return c;
             }
         }
@@ -461,7 +477,12 @@ namespace Dweve.Hedl
             {
                 ThrowIfDisposed();
                 var c = NativeMethods.hedl_root_item_count(_ptr);
-                if (c < 0) throw HedlException.FromLibrary((HedlErrorCode)c);
+                if (c < 0)
+                {
+                    // Count functions return -1 on error, get actual error from last error
+                    var msg = NativeMethods.GetLastError() ?? "Failed to get root item count";
+                    throw new HedlException(msg, HedlErrorCode.NullPtr);
+                }
                 return c;
             }
         }
@@ -539,6 +560,10 @@ namespace Dweve.Hedl
         /// <summary>
         /// Converts the document to Parquet bytes.
         /// </summary>
+        /// <exception cref="HedlException">
+        /// Thrown if conversion fails or if the output exceeds Int32.MaxValue bytes (~2GB).
+        /// For outputs larger than 2GB, use the streaming API or process in chunks.
+        /// </exception>
         public byte[] ToParquet()
         {
             ThrowIfDisposed();
@@ -546,8 +571,20 @@ namespace Dweve.Hedl
             if (result != (int)HedlErrorCode.Ok)
                 throw HedlException.FromLibrary((HedlErrorCode)result);
 
-            var data = new byte[(int)len];
-            Marshal.Copy(dataPtr, data, 0, (int)len);
+            // Check for overflow before casting to int
+            // .NET byte arrays are limited to Int32.MaxValue (~2GB)
+            var length = (ulong)len;
+            if (length > int.MaxValue)
+            {
+                NativeMethods.hedl_free_bytes(dataPtr, len);
+                throw new HedlException(
+                    $"Parquet output size ({length / 1073741824.0:F2}GB) exceeds .NET array limit of 2GB. " +
+                    "Consider using streaming or chunked processing for large outputs.",
+                    HedlErrorCode.Alloc);
+            }
+
+            var data = new byte[(int)length];
+            Marshal.Copy(dataPtr, data, 0, (int)length);
             NativeMethods.hedl_free_bytes(dataPtr, len);
             ResourceLimits.CheckOutputSize(data);
             return data;

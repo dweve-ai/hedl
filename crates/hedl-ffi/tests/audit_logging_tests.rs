@@ -110,7 +110,7 @@ fn test_nested_audit_calls() {
 #[test]
 fn test_sanitize_pointer() {
     let value = 42;
-    let ptr = &value as *const i32;
+    let ptr = std::ptr::addr_of!(value);
 
     let sanitized = sanitize_pointer(ptr);
     assert!(sanitized.starts_with("PTR@"));
@@ -181,8 +181,7 @@ fn test_performance_metrics() {
     let avg = metrics.avg_duration().unwrap();
     assert!(
         avg >= Duration::from_millis(115) && avg <= Duration::from_millis(120),
-        "Average duration should be around 116-117ms, got {:?}",
-        avg
+        "Average duration should be around 116-117ms, got {avg:?}"
     );
 }
 
@@ -224,7 +223,7 @@ fn test_multithreaded_audit_logging() {
     let threads: Vec<_> = (0..4)
         .map(|i| {
             std::thread::spawn(move || {
-                audit_call_start("thread_function", &[("thread_id", &format!("{}", i))]);
+                audit_call_start("thread_function", &[("thread_id", &format!("{i}"))]);
 
                 std::thread::sleep(Duration::from_millis(10));
 

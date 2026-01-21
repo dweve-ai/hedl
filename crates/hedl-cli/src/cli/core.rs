@@ -134,7 +134,7 @@ impl CoreCommands {
     /// # Errors
     ///
     /// Returns `Err` if the command execution fails.
-    pub fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), crate::error::CliError> {
         match self {
             CoreCommands::Validate { file, strict } => commands::validate(&file, strict),
             CoreCommands::Format {

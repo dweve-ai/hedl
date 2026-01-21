@@ -69,7 +69,7 @@ fn test_large_array_optimization() {
             "id": i.to_string(),
             "name": format!("User{}", i),
             "email": format!("user{}@example.com", i),
-            "score": i as f64
+            "score": f64::from(i)
         }));
     }
 
@@ -137,8 +137,8 @@ fn test_reference_strings_handled_correctly() {
 
     if let Some(hedl_core::Item::Scalar(hedl_core::Value::Reference(ref_))) = doc.root.get("owner")
     {
-        assert_eq!(ref_.id, "123");
-        assert_eq!(ref_.type_name, Some("User".to_string()));
+        assert_eq!(ref_.id, "123".into());
+        assert_eq!(ref_.type_name, Some("User".to_string().into()));
     } else {
         panic!("Reference should be parsed");
     }

@@ -24,6 +24,7 @@ use crate::batch::{
     BatchConfig, BatchProcessor, FormatOperation, LintOperation, ValidationOperation,
 };
 use crate::error::CliError;
+use crate::file_discovery::{DiscoveryConfig, FileDiscovery};
 use colored::Colorize;
 use std::path::PathBuf;
 
@@ -34,8 +35,10 @@ use std::path::PathBuf;
 ///
 /// # Arguments
 ///
-/// * `files` - List of file paths to validate
+/// * `patterns` - List of file patterns (glob patterns or explicit paths)
 /// * `strict` - If `true`, enables strict reference validation for all files
+/// * `recursive` - Enable recursive directory traversal
+/// * `max_depth` - Maximum recursion depth
 /// * `parallel` - If `true`, processes files in parallel (automatically enabled for 4+ files)
 /// * `verbose` - If `true`, shows detailed progress information
 ///
@@ -55,14 +58,14 @@ use std::path::PathBuf;
 /// ```no_run
 /// use hedl_cli::commands::batch_validate;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Validate multiple files in parallel
-/// let files = vec!["file1.hedl".to_string(), "file2.hedl".to_string()];
-/// batch_validate(files, false, true, false)?;
+/// let patterns = vec!["*.hedl".to_string()];
+/// batch_validate(patterns, false, false, 10, true, false)?;
 ///
 /// // Strict validation with verbose output
-/// let files = vec!["test1.hedl".to_string(), "test2.hedl".to_string()];
-/// batch_validate(files, true, true, true)?;
+/// let patterns = vec!["**/*.hedl".to_string()];
+/// batch_validate(patterns, true, true, 10, true, true)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -79,25 +82,62 @@ use std::path::PathBuf;
 /// Automatically uses parallel processing when beneficial (4+ files by default).
 /// Can be forced with the `parallel` flag for smaller file sets.
 pub fn batch_validate(
-    files: Vec<String>,
+    patterns: Vec<String>,
     strict: bool,
+    recursive: bool,
+    max_depth: usize,
     parallel: bool,
     verbose: bool,
-) -> Result<(), String> {
-    let paths: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
+) -> Result<(), CliError> {
+    batch_validate_with_config(
+        patterns, strict, recursive, max_depth, parallel, verbose, None,
+    )
+}
 
-    let config = BatchConfig {
+/// Batch validate with custom configuration.
+///
+/// Like `batch_validate`, but allows overriding the max files limit.
+pub fn batch_validate_with_config(
+    patterns: Vec<String>,
+    strict: bool,
+    recursive: bool,
+    max_depth: usize,
+    parallel: bool,
+    verbose: bool,
+    max_files_override: Option<Option<usize>>,
+) -> Result<(), CliError> {
+    // Discover files from patterns
+    let discovery_config = DiscoveryConfig {
+        max_depth: Some(max_depth),
+        extension: Some("hedl".to_string()),
+        recursive,
+        ..Default::default()
+    };
+
+    let discovery = FileDiscovery::new(patterns, discovery_config);
+    let paths = discovery.discover()?;
+
+    let mut config = BatchConfig {
         parallel_threshold: if parallel { 1 } else { usize::MAX },
         verbose,
         ..Default::default()
     };
 
+    // Apply CLI override if provided
+    if let Some(override_limit) = max_files_override {
+        config.max_files = override_limit;
+    }
+
+    // Validate file count against limit
+    crate::batch::validate_file_count(paths.len(), config.max_files)?;
+
+    // Warn if processing many files
+    crate::batch::warn_large_batch(paths.len(), verbose);
+
     let processor = BatchProcessor::new(config);
     let operation = ValidationOperation { strict };
 
-    let results = processor
-        .process(&paths, operation, true)
-        .map_err(|e: CliError| e.to_string())?;
+    let results = processor.process(&paths, operation, true)?;
 
     if results.has_failures() {
         eprintln!();
@@ -109,11 +149,11 @@ pub fn batch_validate(
                 eprintln!("    {}", e.to_string().dimmed());
             }
         }
-        return Err(format!(
+        return Err(CliError::invalid_input(format!(
             "{} of {} files failed validation",
             results.failure_count(),
             results.total_files()
-        ));
+        )));
     }
 
     Ok(())
@@ -127,11 +167,13 @@ pub fn batch_validate(
 ///
 /// # Arguments
 ///
-/// * `files` - List of file paths to format
+/// * `patterns` - List of file patterns (glob patterns or explicit paths)
 /// * `output_dir` - Optional output directory for formatted files. If `None`, files are processed in-place
 /// * `check` - If `true`, only checks if files are canonical without reformatting
 /// * `ditto` - If `true`, uses ditto optimization (repeated values as `"`)
 /// * `with_counts` - If `true`, automatically adds count hints to all matrix lists
+/// * `recursive` - Enable recursive directory traversal
+/// * `max_depth` - Maximum recursion depth
 /// * `parallel` - If `true`, processes files in parallel (automatically enabled for 4+ files)
 /// * `verbose` - If `true`, shows detailed progress information
 ///
@@ -154,18 +196,14 @@ pub fn batch_validate(
 /// ```no_run
 /// use hedl_cli::commands::batch_format;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Format files to output directory
-/// let files = vec!["file1.hedl".to_string(), "file2.hedl".to_string()];
-/// batch_format(files, Some("formatted/".to_string()), false, true, false, true, false)?;
+/// let patterns = vec!["*.hedl".to_string()];
+/// batch_format(patterns, Some("formatted/".to_string()), false, true, false, false, 10, true, false)?;
 ///
 /// // Check if files are canonical
-/// let files = vec!["test1.hedl".to_string(), "test2.hedl".to_string()];
-/// batch_format(files, None, true, true, false, true, false)?;
-///
-/// // Format with count hints
-/// let files = vec!["data.hedl".to_string()];
-/// batch_format(files, Some("output/".to_string()), false, true, true, false, true)?;
+/// let patterns = vec!["**/*.hedl".to_string()];
+/// batch_format(patterns, None, true, true, false, true, 10, true, false)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -181,22 +219,75 @@ pub fn batch_validate(
 ///
 /// Automatically uses parallel processing when beneficial (4+ files by default).
 /// Can be forced with the `parallel` flag for smaller file sets.
+#[allow(clippy::too_many_arguments)]
 pub fn batch_format(
-    files: Vec<String>,
+    patterns: Vec<String>,
     output_dir: Option<String>,
     check: bool,
     ditto: bool,
     with_counts: bool,
+    recursive: bool,
+    max_depth: usize,
     parallel: bool,
     verbose: bool,
-) -> Result<(), String> {
-    let paths: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
+) -> Result<(), CliError> {
+    batch_format_with_config(
+        patterns,
+        output_dir,
+        check,
+        ditto,
+        with_counts,
+        recursive,
+        max_depth,
+        parallel,
+        verbose,
+        None,
+    )
+}
 
-    let config = BatchConfig {
+/// Batch format with custom configuration.
+///
+/// Like `batch_format`, but allows overriding the max files limit.
+#[allow(clippy::too_many_arguments)]
+pub fn batch_format_with_config(
+    patterns: Vec<String>,
+    output_dir: Option<String>,
+    check: bool,
+    ditto: bool,
+    with_counts: bool,
+    recursive: bool,
+    max_depth: usize,
+    parallel: bool,
+    verbose: bool,
+    max_files_override: Option<Option<usize>>,
+) -> Result<(), CliError> {
+    // Discover files from patterns
+    let discovery_config = DiscoveryConfig {
+        max_depth: Some(max_depth),
+        extension: Some("hedl".to_string()),
+        recursive,
+        ..Default::default()
+    };
+
+    let discovery = FileDiscovery::new(patterns, discovery_config);
+    let paths = discovery.discover()?;
+
+    let mut config = BatchConfig {
         parallel_threshold: if parallel { 1 } else { usize::MAX },
         verbose,
         ..Default::default()
     };
+
+    // Apply CLI override if provided
+    if let Some(override_limit) = max_files_override {
+        config.max_files = override_limit;
+    }
+
+    // Validate file count against limit
+    crate::batch::validate_file_count(paths.len(), config.max_files)?;
+
+    // Warn if processing many files
+    crate::batch::warn_large_batch(paths.len(), verbose);
 
     let processor = BatchProcessor::new(config);
     let operation = FormatOperation {
@@ -205,23 +296,23 @@ pub fn batch_format(
         with_counts,
     };
 
-    let results = processor
-        .process(&paths, operation, true)
-        .map_err(|e: CliError| e.to_string())?;
+    let results = processor.process(&paths, operation, true)?;
 
     // If not in check mode and output_dir is specified, write formatted files
     if !check {
         if let Some(out_dir) = output_dir {
-            std::fs::create_dir_all(&out_dir)
-                .map_err(|e| format!("Failed to create output directory '{}': {}", out_dir, e))?;
+            std::fs::create_dir_all(&out_dir).map_err(|e| CliError::io_error(&out_dir, e))?;
 
             for result in results.successes() {
                 if let Ok(formatted) = &result.result {
-                    let output_path = PathBuf::from(&out_dir)
-                        .join(result.path.file_name().ok_or("Invalid file name")?);
-                    std::fs::write(&output_path, formatted).map_err(|e| {
-                        format!("Failed to write '{}': {}", output_path.display(), e)
-                    })?;
+                    let output_path = PathBuf::from(&out_dir).join(
+                        result
+                            .path
+                            .file_name()
+                            .ok_or_else(|| CliError::invalid_input("Invalid file name"))?,
+                    );
+                    std::fs::write(&output_path, formatted)
+                        .map_err(|e| CliError::io_error(&output_path, e))?;
                 }
             }
         }
@@ -237,11 +328,11 @@ pub fn batch_format(
                 eprintln!("    {}", e.to_string().dimmed());
             }
         }
-        return Err(format!(
+        return Err(CliError::invalid_input(format!(
             "{} of {} files failed formatting",
             results.failure_count(),
             results.total_files()
-        ));
+        )));
     }
 
     Ok(())
@@ -255,8 +346,10 @@ pub fn batch_format(
 ///
 /// # Arguments
 ///
-/// * `files` - List of file paths to lint
+/// * `patterns` - List of file patterns (glob patterns or explicit paths)
 /// * `warn_error` - If `true`, treat warnings as errors (fail on any warning)
+/// * `recursive` - Enable recursive directory traversal
+/// * `max_depth` - Maximum recursion depth
 /// * `parallel` - If `true`, processes files in parallel (automatically enabled for 4+ files)
 /// * `verbose` - If `true`, shows detailed progress information
 ///
@@ -278,14 +371,14 @@ pub fn batch_format(
 /// ```no_run
 /// use hedl_cli::commands::batch_lint;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Lint multiple files
-/// let files = vec!["file1.hedl".to_string(), "file2.hedl".to_string()];
-/// batch_lint(files, false, true, false)?;
+/// let patterns = vec!["*.hedl".to_string()];
+/// batch_lint(patterns, false, false, 10, true, false)?;
 ///
 /// // Strict linting (warnings as errors)
-/// let files = vec!["test1.hedl".to_string(), "test2.hedl".to_string()];
-/// batch_lint(files, true, true, true)?;
+/// let patterns = vec!["**/*.hedl".to_string()];
+/// batch_lint(patterns, true, true, 10, true, true)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -303,25 +396,62 @@ pub fn batch_format(
 /// Automatically uses parallel processing when beneficial (4+ files by default).
 /// Can be forced with the `parallel` flag for smaller file sets.
 pub fn batch_lint(
-    files: Vec<String>,
+    patterns: Vec<String>,
     warn_error: bool,
+    recursive: bool,
+    max_depth: usize,
     parallel: bool,
     verbose: bool,
-) -> Result<(), String> {
-    let paths: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
+) -> Result<(), CliError> {
+    batch_lint_with_config(
+        patterns, warn_error, recursive, max_depth, parallel, verbose, None,
+    )
+}
 
-    let config = BatchConfig {
+/// Batch lint with custom configuration.
+///
+/// Like `batch_lint`, but allows overriding the max files limit.
+pub fn batch_lint_with_config(
+    patterns: Vec<String>,
+    warn_error: bool,
+    recursive: bool,
+    max_depth: usize,
+    parallel: bool,
+    verbose: bool,
+    max_files_override: Option<Option<usize>>,
+) -> Result<(), CliError> {
+    // Discover files from patterns
+    let discovery_config = DiscoveryConfig {
+        max_depth: Some(max_depth),
+        extension: Some("hedl".to_string()),
+        recursive,
+        ..Default::default()
+    };
+
+    let discovery = FileDiscovery::new(patterns, discovery_config);
+    let paths = discovery.discover()?;
+
+    let mut config = BatchConfig {
         parallel_threshold: if parallel { 1 } else { usize::MAX },
         verbose,
         ..Default::default()
     };
 
+    // Apply CLI override if provided
+    if let Some(override_limit) = max_files_override {
+        config.max_files = override_limit;
+    }
+
+    // Validate file count against limit
+    crate::batch::validate_file_count(paths.len(), config.max_files)?;
+
+    // Warn if processing many files
+    crate::batch::warn_large_batch(paths.len(), verbose);
+
     let processor = BatchProcessor::new(config);
     let operation = LintOperation { warn_error };
 
-    let results = processor
-        .process(&paths, operation, true)
-        .map_err(|e: CliError| e.to_string())?;
+    let results = processor.process(&paths, operation, true)?;
 
     // Show lint diagnostics for files that have issues
     let mut total_issues = 0;
@@ -333,7 +463,7 @@ pub fn batch_lint(
                 println!();
                 println!("{} {}:", "Linting".yellow().bold(), result.path.display());
                 for diagnostic in diagnostics {
-                    println!("  {}", diagnostic);
+                    println!("  {diagnostic}");
                 }
             }
         }
@@ -349,11 +479,11 @@ pub fn batch_lint(
                 eprintln!("    {}", e.to_string().dimmed());
             }
         }
-        return Err(format!(
+        return Err(CliError::invalid_input(format!(
             "{} of {} files failed linting",
             results.failure_count(),
             results.total_files()
-        ));
+        )));
     }
 
     if total_issues > 0 {

@@ -26,7 +26,10 @@ mod lint;
 mod stats;
 mod validate;
 
-pub use batch_commands::{batch_format, batch_lint, batch_validate};
+pub use batch_commands::{
+    batch_format, batch_format_with_config, batch_lint, batch_lint_with_config, batch_validate,
+    batch_validate_with_config,
+};
 pub use completion::{generate_completion_for_command, print_installation_instructions};
 pub use convert::{
     from_csv, from_json, from_parquet, from_toon, from_xml, from_yaml, to_csv, to_json, to_parquet,
@@ -38,11 +41,13 @@ pub use lint::lint;
 pub use stats::stats;
 pub use validate::validate;
 
+use crate::error::CliError;
 use std::fs;
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 /// Default maximum file size to prevent OOM attacks (1 GB)
-/// Can be overridden via HEDL_MAX_FILE_SIZE environment variable
+/// Can be overridden via `HEDL_MAX_FILE_SIZE` environment variable
 pub const DEFAULT_MAX_FILE_SIZE: u64 = 1024 * 1024 * 1024;
 
 /// Get the maximum file size from environment or use default.
@@ -101,7 +106,7 @@ fn get_max_file_size() -> u64 {
 /// ```no_run
 /// use hedl_cli::commands::read_file;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), hedl_cli::error::CliError> {
 /// // Read a small HEDL file
 /// let content = read_file("example.hedl")?;
 /// assert!(!content.is_empty());
@@ -124,25 +129,21 @@ fn get_max_file_size() -> u64 {
 ///
 /// Uses `fs::metadata()` to check file size before allocating memory, preventing
 /// unnecessary memory allocation for oversized files.
-pub fn read_file(path: &str) -> Result<String, String> {
+pub fn read_file(path: &str) -> Result<String, CliError> {
     // Check file size first to prevent reading extremely large files
-    let metadata =
-        fs::metadata(path).map_err(|e| format!("Failed to get metadata for '{}': {}", path, e))?;
+    let metadata = fs::metadata(path).map_err(|e| CliError::io_error(path, e))?;
 
     let max_file_size = get_max_file_size();
 
     if metadata.len() > max_file_size {
-        return Err(format!(
-            "File '{}' is too large ({} bytes). Maximum allowed size is {} bytes ({} MB).\n\
-             To process larger files, set HEDL_MAX_FILE_SIZE environment variable (in bytes).",
+        return Err(CliError::file_too_large(
             path,
             metadata.len(),
             max_file_size,
-            max_file_size / (1024 * 1024)
         ));
     }
 
-    fs::read_to_string(path).map_err(|e| format!("Failed to read '{}': {}", path, e))
+    fs::read_to_string(path).map_err(|e| CliError::io_error(path, e))
 }
 
 /// Write content to a file or stdout.
@@ -171,7 +172,7 @@ pub fn read_file(path: &str) -> Result<String, String> {
 /// ```no_run
 /// use hedl_cli::commands::write_output;
 ///
-/// # fn main() -> Result<(), String> {
+/// # fn main() -> Result<(), hedl_cli::error::CliError> {
 /// // Write to stdout
 /// let hedl_content = "%VERSION: 1.0\n---\nteams: @Team[name]\n  |t1,Team A\n  |t2,Team B";
 /// write_output(hedl_content, None)?;
@@ -186,11 +187,14 @@ pub fn read_file(path: &str) -> Result<String, String> {
 ///
 /// Does not panic under normal circumstances. All I/O errors are returned
 /// as `Err` values.
-pub fn write_output(content: &str, path: Option<&str>) -> Result<(), String> {
+pub fn write_output(content: &str, path: Option<&str>) -> Result<(), CliError> {
     match path {
-        Some(p) => fs::write(p, content).map_err(|e| format!("Failed to write '{}': {}", p, e)),
+        Some(p) => fs::write(p, content).map_err(|e| CliError::io_error(p, e)),
         None => io::stdout()
             .write_all(content.as_bytes())
-            .map_err(|e| format!("Failed to write to stdout: {}", e)),
+            .map_err(|e| CliError::Io {
+                path: PathBuf::from("<stdout>"),
+                message: e.to_string(),
+            }),
     }
 }

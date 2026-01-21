@@ -178,11 +178,11 @@ match parse(input) {
 #### Pre-allocate Structures
 
 ```rust
-use hedl::ParseOptions;
+use hedl::{ParseOptions, ReferenceMode};
 
 // For known document sizes, set appropriate limits
 let options = ParseOptions {
-    strict_refs: true,
+    reference_mode: ReferenceMode::Strict,
     ..Default::default()
 };
 
@@ -408,6 +408,7 @@ impl DocumentBuilder {
     pub fn build(self) -> Document {
         Document {
             version: self.version,
+            schema_versions: BTreeMap::new(),
             structs: self.structs,
             aliases: self.aliases,
             nests: self.nests,
@@ -446,7 +447,7 @@ mod tests {
     fn test_json_conversion() {
         let input = "%VERSION: 1.0\n---\nkey: value\nnum: 42";
         let doc = parse(input).unwrap();
-        let json = hedl::json::to_json(&doc).unwrap();
+        let json = hedl::to_json(&doc).unwrap();
 
         // Verify JSON output contains expected values
         assert!(json.contains("\"key\""));
@@ -455,9 +456,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Syntax error")]
     fn test_invalid_syntax() {
-        parse("invalid hedl").unwrap();
+        let result = parse("invalid hedl");
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err().kind, hedl::HedlErrorKind::Syntax));
     }
 }
 ```
@@ -493,7 +495,7 @@ mod prop_tests {
                 .add_scalar("bool", Value::Bool(b))
                 .build();
 
-            let json = hedl::json::to_json(&doc).unwrap();
+            let json = hedl::to_json(&doc).unwrap();
             let json_value: serde_json::Value = serde_json::from_str(&json).unwrap();
 
             prop_assert_eq!(&json_value["str"], &serde_json::Value::String(s));
@@ -549,11 +551,8 @@ mod integration_tests {
 ### Measuring Token Savings
 
 ```rust
-use hedl_wasm::getStats; // Available in WASM binding
-
-fn measure_token_efficiency(hedl_text: &str) {
-    // Note: This example assumes WASM bindings
-    // For pure Rust, implement token counting logic
+fn measure_token_efficiency(hedl_text: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use hedl::{parse, to_json};
 
     println!("HEDL document:");
     println!("{}", hedl_text);
@@ -561,8 +560,8 @@ fn measure_token_efficiency(hedl_text: &str) {
     // Estimate tokens (simplified: ~4 chars per token)
     let hedl_tokens = hedl_text.len() / 4;
 
-    let doc = hedl::parse(hedl_text).unwrap();
-    let json = hedl::to_json(&doc).unwrap();
+    let doc = parse(hedl_text)?;
+    let json = to_json(&doc)?;
     let json_tokens = json.len() / 4;
 
     let savings = ((json_tokens - hedl_tokens) as f64 / json_tokens as f64) * 100.0;
@@ -570,6 +569,8 @@ fn measure_token_efficiency(hedl_text: &str) {
     println!("HEDL tokens: {}", hedl_tokens);
     println!("JSON tokens: {}", json_tokens);
     println!("Token savings: {:.1}%", savings);
+
+    Ok(())
 }
 ```
 

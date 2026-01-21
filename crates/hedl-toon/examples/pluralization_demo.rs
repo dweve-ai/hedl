@@ -31,42 +31,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "-".repeat(50));
     let doc1 = create_parent_child_doc();
     let toon1 = hedl_to_toon(&doc1)?;
-    println!("{}\n", toon1);
+    println!("{toon1}\n");
 
     // Example 2: People
     println!("Example 2: Person → People");
     println!("{}", "-".repeat(50));
     let doc2 = create_team_person_doc();
     let toon2 = hedl_to_toon(&doc2)?;
-    println!("{}\n", toon2);
+    println!("{toon2}\n");
 
     // Example 3: Mice
     println!("Example 3: Mouse → Mice");
     println!("{}", "-".repeat(50));
     let doc3 = create_lab_mouse_doc();
     let toon3 = hedl_to_toon(&doc3)?;
-    println!("{}\n", toon3);
+    println!("{toon3}\n");
 
     // Example 4: Teeth
     println!("Example 4: Tooth → Teeth");
     println!("{}", "-".repeat(50));
     let doc4 = create_mouth_tooth_doc();
     let toon4 = hedl_to_toon(&doc4)?;
-    println!("{}\n", toon4);
+    println!("{toon4}\n");
 
     // Example 5: Cacti
     println!("Example 5: Cactus → Cacti");
     println!("{}", "-".repeat(50));
     let doc5 = create_garden_cactus_doc();
     let toon5 = hedl_to_toon(&doc5)?;
-    println!("{}\n", toon5);
+    println!("{toon5}\n");
 
     // Example 6: Regular plural (for comparison)
     println!("Example 6: Item → Items (Regular Plural)");
     println!("{}", "-".repeat(50));
     let doc6 = create_order_item_doc();
     let toon6 = hedl_to_toon(&doc6)?;
-    println!("{}\n", toon6);
+    println!("{toon6}\n");
 
     Ok(())
 }
@@ -83,31 +83,32 @@ fn create_parent_child_doc() -> Document {
         "Parent",
         "p1",
         vec![
-            Value::String("p1".to_string()),
-            Value::String("John".to_string()),
+            Value::String("p1".to_string().into()),
+            Value::String("John".to_string().into()),
         ],
     );
 
-    parent_node.children.insert(
-        "Child".to_string(),
-        vec![
-            Node::new(
-                "Child",
-                "c1",
-                vec![
-                    Value::String("c1".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-            ),
-            Node::new(
-                "Child",
-                "c2",
-                vec![
-                    Value::String("c2".to_string()),
-                    Value::String("Bob".to_string()),
-                ],
-            ),
-        ],
+    parent_node.add_child(
+        "Child",
+        Node::new(
+            "Child",
+            "c1",
+            vec![
+                Value::String("c1".to_string().into()),
+                Value::String("Alice".to_string().into()),
+            ],
+        ),
+    );
+    parent_node.add_child(
+        "Child",
+        Node::new(
+            "Child",
+            "c2",
+            vec![
+                Value::String("c2".to_string().into()),
+                Value::String("Bob".to_string().into()),
+            ],
+        ),
     );
 
     parent_list.add_row(parent_node);
@@ -128,39 +129,43 @@ fn create_team_person_doc() -> Document {
         "Team",
         "t1",
         vec![
-            Value::String("t1".to_string()),
-            Value::String("Engineering".to_string()),
+            Value::String("t1".to_string().into()),
+            Value::String("Engineering".to_string().into()),
         ],
     );
 
-    team_node.children.insert(
-        "Person".to_string(),
-        vec![
-            Node::new(
-                "Person",
-                "p1",
-                vec![
-                    Value::String("p1".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-            ),
-            Node::new(
-                "Person",
-                "p2",
-                vec![
-                    Value::String("p2".to_string()),
-                    Value::String("Bob".to_string()),
-                ],
-            ),
-            Node::new(
-                "Person",
-                "p3",
-                vec![
-                    Value::String("p3".to_string()),
-                    Value::String("Carol".to_string()),
-                ],
-            ),
-        ],
+    team_node.add_child(
+        "Person",
+        Node::new(
+            "Person",
+            "p1",
+            vec![
+                Value::String("p1".to_string().into()),
+                Value::String("Alice".to_string().into()),
+            ],
+        ),
+    );
+    team_node.add_child(
+        "Person",
+        Node::new(
+            "Person",
+            "p2",
+            vec![
+                Value::String("p2".to_string().into()),
+                Value::String("Bob".to_string().into()),
+            ],
+        ),
+    );
+    team_node.add_child(
+        "Person",
+        Node::new(
+            "Person",
+            "p3",
+            vec![
+                Value::String("p3".to_string().into()),
+                Value::String("Carol".to_string().into()),
+            ],
+        ),
     );
 
     team_list.add_row(team_node);
@@ -180,31 +185,32 @@ fn create_lab_mouse_doc() -> Document {
         "Lab",
         "lab1",
         vec![
-            Value::String("lab1".to_string()),
-            Value::String("Genetics Lab".to_string()),
+            Value::String("lab1".to_string().into()),
+            Value::String("Genetics Lab".to_string().into()),
         ],
     );
 
-    lab_node.children.insert(
-        "Mouse".to_string(),
-        vec![
-            Node::new(
-                "Mouse",
-                "m1",
-                vec![
-                    Value::String("m1".to_string()),
-                    Value::String("C57BL/6".to_string()),
-                ],
-            ),
-            Node::new(
-                "Mouse",
-                "m2",
-                vec![
-                    Value::String("m2".to_string()),
-                    Value::String("BALB/c".to_string()),
-                ],
-            ),
-        ],
+    lab_node.add_child(
+        "Mouse",
+        Node::new(
+            "Mouse",
+            "m1",
+            vec![
+                Value::String("m1".to_string().into()),
+                Value::String("C57BL/6".to_string().into()),
+            ],
+        ),
+    );
+    lab_node.add_child(
+        "Mouse",
+        Node::new(
+            "Mouse",
+            "m2",
+            vec![
+                Value::String("m2".to_string().into()),
+                Value::String("BALB/c".to_string().into()),
+            ],
+        ),
     );
 
     lab_list.add_row(lab_node);
@@ -224,31 +230,32 @@ fn create_mouth_tooth_doc() -> Document {
         "Patient",
         "pt1",
         vec![
-            Value::String("pt1".to_string()),
-            Value::String("John Doe".to_string()),
+            Value::String("pt1".to_string().into()),
+            Value::String("John Doe".to_string().into()),
         ],
     );
 
-    patient_node.children.insert(
-        "Tooth".to_string(),
-        vec![
-            Node::new(
-                "Tooth",
-                "t1",
-                vec![
-                    Value::String("t1".to_string()),
-                    Value::String("upper-left-1".to_string()),
-                ],
-            ),
-            Node::new(
-                "Tooth",
-                "t2",
-                vec![
-                    Value::String("t2".to_string()),
-                    Value::String("upper-right-1".to_string()),
-                ],
-            ),
-        ],
+    patient_node.add_child(
+        "Tooth",
+        Node::new(
+            "Tooth",
+            "t1",
+            vec![
+                Value::String("t1".to_string().into()),
+                Value::String("upper-left-1".to_string().into()),
+            ],
+        ),
+    );
+    patient_node.add_child(
+        "Tooth",
+        Node::new(
+            "Tooth",
+            "t2",
+            vec![
+                Value::String("t2".to_string().into()),
+                Value::String("upper-right-1".to_string().into()),
+            ],
+        ),
     );
 
     patient_list.add_row(patient_node);
@@ -269,39 +276,43 @@ fn create_garden_cactus_doc() -> Document {
         "Garden",
         "g1",
         vec![
-            Value::String("g1".to_string()),
-            Value::String("Desert Garden".to_string()),
+            Value::String("g1".to_string().into()),
+            Value::String("Desert Garden".to_string().into()),
         ],
     );
 
-    garden_node.children.insert(
-        "Cactus".to_string(),
-        vec![
-            Node::new(
-                "Cactus",
-                "c1",
-                vec![
-                    Value::String("c1".to_string()),
-                    Value::String("Saguaro".to_string()),
-                ],
-            ),
-            Node::new(
-                "Cactus",
-                "c2",
-                vec![
-                    Value::String("c2".to_string()),
-                    Value::String("Barrel".to_string()),
-                ],
-            ),
-            Node::new(
-                "Cactus",
-                "c3",
-                vec![
-                    Value::String("c3".to_string()),
-                    Value::String("Prickly Pear".to_string()),
-                ],
-            ),
-        ],
+    garden_node.add_child(
+        "Cactus",
+        Node::new(
+            "Cactus",
+            "c1",
+            vec![
+                Value::String("c1".to_string().into()),
+                Value::String("Saguaro".to_string().into()),
+            ],
+        ),
+    );
+    garden_node.add_child(
+        "Cactus",
+        Node::new(
+            "Cactus",
+            "c2",
+            vec![
+                Value::String("c2".to_string().into()),
+                Value::String("Barrel".to_string().into()),
+            ],
+        ),
+    );
+    garden_node.add_child(
+        "Cactus",
+        Node::new(
+            "Cactus",
+            "c3",
+            vec![
+                Value::String("c3".to_string().into()),
+                Value::String("Prickly Pear".to_string().into()),
+            ],
+        ),
     );
 
     garden_list.add_row(garden_node);
@@ -322,31 +333,32 @@ fn create_order_item_doc() -> Document {
         "Order",
         "o1",
         vec![
-            Value::String("o1".to_string()),
-            Value::String("ACME Corp".to_string()),
+            Value::String("o1".to_string().into()),
+            Value::String("ACME Corp".to_string().into()),
         ],
     );
 
-    order_node.children.insert(
-        "Item".to_string(),
-        vec![
-            Node::new(
-                "Item",
-                "i1",
-                vec![
-                    Value::String("i1".to_string()),
-                    Value::String("Widget A".to_string()),
-                ],
-            ),
-            Node::new(
-                "Item",
-                "i2",
-                vec![
-                    Value::String("i2".to_string()),
-                    Value::String("Gadget B".to_string()),
-                ],
-            ),
-        ],
+    order_node.add_child(
+        "Item",
+        Node::new(
+            "Item",
+            "i1",
+            vec![
+                Value::String("i1".to_string().into()),
+                Value::String("Widget A".to_string().into()),
+            ],
+        ),
+    );
+    order_node.add_child(
+        "Item",
+        Node::new(
+            "Item",
+            "i2",
+            vec![
+                Value::String("i2".to_string().into()),
+                Value::String("Gadget B".to_string().into()),
+            ],
+        ),
     );
 
     order_list.add_row(order_node);

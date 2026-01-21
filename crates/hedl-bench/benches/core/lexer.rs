@@ -20,17 +20,18 @@
 //! Measures tokenization, span tracking, and error recovery performance using
 //! the new infrastructure from src/core/, src/harness/, and src/reporters/.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_products, generate_users, sizes, BenchmarkReport, PerfResult,
 };
 use hedl_core::lex::{parse_expression, parse_reference, scan_regions};
 use std::cell::RefCell;
+use std::hint::black_box;
 use std::time::Instant;
 
 // Thread-local report storage
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 static INIT: std::sync::Once = std::sync::Once::new();
@@ -97,7 +98,7 @@ fn bench_parse_reference(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_reference_{}", name),
+            &format!("parse_reference_{name}"),
             iterations,
             total_ns,
             Some(input.len() as u64),
@@ -133,7 +134,7 @@ fn bench_parse_expression(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_expression_{}", name),
+            &format!("parse_expression_{name}"),
             iterations,
             total_ns,
             Some(input.len() as u64),
@@ -171,7 +172,7 @@ fn bench_scan_regions(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("scan_regions_{}", name),
+            &format!("scan_regions_{name}"),
             iterations,
             total_ns,
             Some(input.len() as u64),
@@ -194,7 +195,7 @@ fn bench_scan_documents(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("users", size), &hedl, |b, input| {
-            b.iter(|| scan_regions(black_box(input)))
+            b.iter(|| scan_regions(black_box(input)));
         });
 
         // Collect metrics
@@ -211,7 +212,7 @@ fn bench_scan_documents(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("scan_documents_users_{}", size),
+            &format!("scan_documents_users_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -235,7 +236,7 @@ fn bench_scan_complex_documents(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("products", size), &hedl, |b, input| {
-            b.iter(|| scan_regions(black_box(input)))
+            b.iter(|| scan_regions(black_box(input)));
         });
 
         let iterations = if size <= sizes::SMALL { 500 } else { 50 };
@@ -246,7 +247,7 @@ fn bench_scan_complex_documents(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("scan_complex_products_{}", size),
+            &format!("scan_complex_products_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -290,22 +291,22 @@ fn export_reports(c: &mut Criterion) {
 
             // Create target directory
             if let Err(e) = std::fs::create_dir_all("target") {
-                eprintln!("Failed to create target directory: {}", e);
+                eprintln!("Failed to create target directory: {e}");
                 return;
             }
 
             // Export reports using built-in methods
             let base_path = "target/lexer_report";
-            if let Err(e) = report.save_json(format!("{}.json", base_path)) {
-                eprintln!("Failed to export JSON: {}", e);
+            if let Err(e) = report.save_json(format!("{base_path}.json")) {
+                eprintln!("Failed to export JSON: {e}");
             } else {
-                println!("Exported JSON: {}.json", base_path);
+                println!("Exported JSON: {base_path}.json");
             }
 
-            if let Err(e) = std::fs::write(format!("{}.md", base_path), report.to_markdown()) {
-                eprintln!("Failed to export Markdown: {}", e);
+            if let Err(e) = std::fs::write(format!("{base_path}.md"), report.to_markdown()) {
+                eprintln!("Failed to export Markdown: {e}");
             } else {
-                println!("Exported Markdown: {}.md", base_path);
+                println!("Exported Markdown: {base_path}.md");
             }
 
             println!("\nRECOMMENDATIONS:");

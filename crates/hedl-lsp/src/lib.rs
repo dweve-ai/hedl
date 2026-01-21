@@ -126,6 +126,7 @@
 //! - [`symbols`]: Document and workspace symbol providers
 //! - [`utils`]: Safe string handling utilities for UTF-8 safety
 
+#![cfg_attr(not(test), warn(missing_docs))]
 pub mod analysis;
 mod backend;
 pub mod completion;
@@ -133,6 +134,7 @@ pub mod constants;
 pub mod document_manager;
 pub mod hover;
 pub mod reference_index;
+pub mod rename;
 pub mod symbols;
 pub mod utils;
 

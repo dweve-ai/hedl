@@ -53,7 +53,13 @@ fn test_array_streamer_basic_workflow() {
     }
 
     assert_eq!(count, 3);
-    assert_eq!(names, vec!["Alice", "Bob", "Charlie"]);
+    assert_eq!(
+        names
+            .iter()
+            .map(std::convert::AsRef::as_ref)
+            .collect::<Vec<_>>(),
+        vec!["Alice", "Bob", "Charlie"]
+    );
 }
 
 #[test]
@@ -122,7 +128,7 @@ fn test_array_streamer_mixed_types() {
 
 #[test]
 fn test_array_streamer_empty_array() {
-    let json = r#"[]"#;
+    let json = r"[]";
 
     let reader = Cursor::new(json.as_bytes());
     let config = StreamConfig::default();
@@ -184,20 +190,37 @@ fn test_array_streamer_with_nested_arrays() {
 
     let results: Vec<_> = streamer.collect();
     assert_eq!(results.len(), 3);
-    assert!(results.iter().all(|r| r.is_ok()));
+    assert!(results.iter().all(std::result::Result::is_ok));
 }
 
 #[test]
 fn test_array_streamer_error_recovery() {
-    // JsonArrayStreamer parses the entire array first, so invalid syntax
-    // is detected during initialization, not iteration
+    // With true streaming (default), errors are detected during iteration
+    // With buffered mode (true_streaming=false), errors are detected at initialization
     let json = r#"[{"valid": 1}, invalid, {"also_valid": 2}]"#;
 
     let reader = Cursor::new(json.as_bytes());
-    let config = StreamConfig::default();
+    let config = StreamConfig::default(); // true_streaming enabled by default
     let result = JsonArrayStreamer::new(reader, config);
 
-    // Should fail during initialization due to invalid JSON
+    // With true streaming, initialization succeeds but iteration yields errors
+    if let Ok(streamer) = result {
+        // True streaming mode: error occurs during iteration
+        let results: Vec<_> = streamer.collect();
+        assert!(!results.is_empty());
+        // First element should be valid
+        assert!(results[0].is_ok());
+        // Second element (invalid) should be an error
+        assert!(results[1].is_err());
+    } else {
+        // Buffered mode: error at initialization (also valid)
+    }
+
+    // Also test with buffered mode explicitly
+    let reader = Cursor::new(json.as_bytes());
+    let config = StreamConfig::builder().true_streaming(false).build();
+    let result = JsonArrayStreamer::new(reader, config);
+    // Buffered mode should fail at initialization due to invalid JSON
     assert!(result.is_err());
 }
 
@@ -392,7 +415,7 @@ fn test_jsonl_streamer_unicode_content() {
 
     // Verify Unicode is preserved
     if let Some(Item::Scalar(Value::String(text))) = docs[0].root.get("text") {
-        assert_eq!(text, "Hello 世界");
+        assert_eq!(text.as_ref(), "Hello 世界");
     }
 }
 
@@ -410,11 +433,11 @@ fn test_jsonl_streamer_empty_input() {
 
 #[test]
 fn test_jsonl_streamer_only_comments_and_blanks() {
-    let jsonl = r#"# Comment 1
+    let jsonl = r"# Comment 1
 
 # Comment 2
 
-"#;
+";
 
     let reader = Cursor::new(jsonl.as_bytes());
     let config = StreamConfig::default();
@@ -435,8 +458,10 @@ fn test_jsonl_writer_basic_workflow() {
 
     for i in 1..=5 {
         let mut doc = Document::new((1, 0));
-        doc.root
-            .insert("id".to_string(), Item::Scalar(Value::String(i.to_string())));
+        doc.root.insert(
+            "id".to_string(),
+            Item::Scalar(Value::String(i.to_string().into())),
+        );
         doc.root
             .insert("value".to_string(), Item::Scalar(Value::Int(i * 10)));
         writer.write_document(&doc).unwrap();
@@ -480,7 +505,7 @@ fn test_jsonl_writer_complex_documents() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "string".to_string(),
-        Item::Scalar(Value::String("test".to_string())),
+        Item::Scalar(Value::String("test".to_string().into())),
     );
     doc.root
         .insert("int".to_string(), Item::Scalar(Value::Int(42)));
@@ -554,7 +579,7 @@ fn test_jsonl_roundtrip_large_dataset() {
     let mut writer = JsonLinesWriter::new(&mut buffer);
 
     for i in 0..1000 {
-        let doc = create_test_document(&i.to_string(), &format!("User{}", i), i as i64);
+        let doc = create_test_document(&i.to_string(), &format!("User{i}"), i64::from(i));
         writer.write_document(&doc).unwrap();
     }
     writer.flush().unwrap();
@@ -580,7 +605,9 @@ fn test_jsonl_roundtrip_special_characters() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "text".to_string(),
-        Item::Scalar(Value::String("Line1\nLine2\tTab\"Quote'".to_string())),
+        Item::Scalar(Value::String(
+            "Line1\nLine2\tTab\"Quote'".to_string().into(),
+        )),
     );
     writer.write_document(&doc).unwrap();
     writer.flush().unwrap();
@@ -592,7 +619,7 @@ fn test_jsonl_roundtrip_special_characters() {
 
     let restored = streamer.next().unwrap().unwrap();
     if let Some(Item::Scalar(Value::String(text))) = restored.root.get("text") {
-        assert_eq!(text, "Line1\nLine2\tTab\"Quote'");
+        assert_eq!(text.as_ref(), "Line1\nLine2\tTab\"Quote'");
     }
 }
 
@@ -605,7 +632,7 @@ fn test_streaming_memory_bounded() {
     // Generate large dataset that would OOM if loaded entirely
     let mut jsonl = String::new();
     for i in 0..100_000 {
-        jsonl.push_str(&format!(r#"{{"id": "{}", "data": "x"}}"#, i));
+        jsonl.push_str(&format!(r#"{{"id": "{i}", "data": "x"}}"#));
         jsonl.push('\n');
     }
 
@@ -668,11 +695,11 @@ fn create_test_document(id: &str, name: &str, age: i64) -> Document {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "id".to_string(),
-        Item::Scalar(Value::String(id.to_string())),
+        Item::Scalar(Value::String(id.to_string().into())),
     );
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String(name.to_string())),
+        Item::Scalar(Value::String(name.to_string().into())),
     );
     doc.root
         .insert("age".to_string(), Item::Scalar(Value::Int(age)));

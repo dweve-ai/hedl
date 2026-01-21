@@ -19,8 +19,15 @@
 
 use crate::cache::OperationCache;
 use crate::error::McpResult;
-use crate::protocol::*;
+use crate::protocol::{
+    CallToolParams, CallToolResult, Content, InitializeParams, InitializeResult, JsonRpcRequest,
+    JsonRpcResponse, ListResourcesResult, ListToolsResult, ReadResourceParams, ReadResourceResult,
+    Resource, ResourceContent, ResourcesCapability, ServerCapabilities, ServerInfo,
+    ToolsCapability,
+};
 use crate::rate_limiter::RateLimiter;
+use crate::resource_limits::ResourceLimitManager;
+use crate::tools::helpers::resolve_safe_path;
 use crate::tools::{execute_tool, get_tools};
 use crate::{SERVER_NAME, VERSION};
 use serde_json::{json, Value};
@@ -61,7 +68,7 @@ pub struct McpServerConfig {
     /// Default: 100 requests/second.
     pub rate_limit_per_second: usize,
 
-    /// Cache size for immutable operations (validate, lint, analyze_schema).
+    /// Cache size for immutable operations (validate, lint, `analyze_schema`).
     ///
     /// Caches results of expensive operations to improve performance on
     /// repeated requests. Set to 0 to disable caching.
@@ -87,21 +94,21 @@ impl Default for McpServerConfig {
 /// Implements the Model Context Protocol (MCP) for AI/LLM integration with HEDL.
 /// Provides JSON-RPC 2.0 communication over stdio transport with support for:
 ///
-/// - Tool execution (10 HEDL manipulation tools)
+/// - Tool execution (11 HEDL manipulation tools)
 /// - Resource management (HEDL file discovery and reading)
 /// - Protocol lifecycle (initialize, shutdown)
 /// - Rate limiting (token bucket algorithm)
 ///
 /// # Thread Safety
 ///
-/// The cache uses DashMap for lock-free concurrent access. Rate limiter uses
+/// The cache uses `DashMap` for lock-free concurrent access. Rate limiter uses
 /// atomic operations. Request handling remains sequential via stdio transport.
 ///
 /// # Security
 ///
 /// All file operations are scoped to `config.root_path` with path traversal
 /// protection via canonical path validation. Rate limiting protects against
-/// DoS attacks via request flooding.
+/// `DoS` attacks via request flooding.
 pub struct McpServer {
     /// Server configuration including root path and metadata.
     config: McpServerConfig,
@@ -112,17 +119,24 @@ pub struct McpServer {
     /// on `shutdown`. Used to enforce proper protocol lifecycle.
     initialized: bool,
 
-    /// Rate limiter for DoS protection.
+    /// Rate limiter for `DoS` protection.
     ///
     /// Uses token bucket algorithm to limit request rate. None if rate limiting
     /// is disabled (burst = 0).
     rate_limiter: Option<RateLimiter>,
 
-    /// Operation cache for immutable operations (validate, lint, analyze_schema).
+    /// Operation cache for immutable operations (validate, lint, `analyze_schema`).
     ///
-    /// Thread-safe LRU cache using DashMap. Provides 2-5x speedup on repeated
+    /// Thread-safe LRU cache using `DashMap`. Provides 2-5x speedup on repeated
     /// requests with the same content. None if caching is disabled (size = 0).
     cache: Option<Arc<OperationCache>>,
+
+    /// Comprehensive resource limit manager.
+    ///
+    /// Manages all resource limits including request/response size, per-client
+    /// rate limiting, memory usage, concurrency, and timeouts. None if resource
+    /// limits are disabled.
+    resource_limits: Option<Arc<ResourceLimitManager>>,
 }
 
 impl McpServer {
@@ -147,6 +161,7 @@ impl McpServer {
     /// };
     /// let server = McpServer::new(config);
     /// ```
+    #[must_use]
     pub fn new(config: McpServerConfig) -> Self {
         // Create rate limiter if enabled (burst > 0)
         let rate_limiter = if config.rate_limit_burst > 0 && config.rate_limit_per_second > 0 {
@@ -170,7 +185,27 @@ impl McpServer {
             initialized: false,
             rate_limiter,
             cache,
+            resource_limits: None,
         }
+    }
+
+    /// Set the resource limit manager for this server.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource_limits` - Resource limit manager to use
+    pub fn with_resource_limits(mut self, resource_limits: ResourceLimitManager) -> Self {
+        self.resource_limits = Some(Arc::new(resource_limits));
+        self
+    }
+
+    /// Get a reference to the resource limit manager (if enabled).
+    ///
+    /// # Returns
+    ///
+    /// Reference to the resource limit manager if enabled, `None` otherwise.
+    pub fn resource_limits(&self) -> Option<&Arc<ResourceLimitManager>> {
+        self.resource_limits.as_ref()
     }
 
     /// Check if rate limit is exceeded and consume a token.
@@ -186,9 +221,14 @@ impl McpServer {
     ///
     /// # Security
     ///
-    /// Protects against DoS attacks via request flooding.
-    fn check_rate_limit(&mut self) -> Result<(), ()> {
-        match &mut self.rate_limiter {
+    /// Protects against `DoS` attacks via request flooding.
+    ///
+    /// # Thread Safety
+    ///
+    /// The rate limiter uses interior mutability, so this method can take
+    /// `&self` instead of `&mut self`.
+    fn check_rate_limit(&self) -> Result<(), ()> {
+        match &self.rate_limiter {
             Some(limiter) => {
                 if limiter.check_limit() {
                     Ok(())
@@ -214,6 +254,7 @@ impl McpServer {
     ///
     /// let server = McpServer::with_root(PathBuf::from("/data"));
     /// ```
+    #[must_use]
     pub fn with_root(root_path: PathBuf) -> Self {
         Self::new(McpServerConfig {
             root_path,
@@ -291,24 +332,39 @@ impl McpServer {
                     })),
                 );
                 let response_str = serde_json::to_string(&error_response)?;
-                writeln!(stdout, "{}", response_str)?;
+                writeln!(stdout, "{response_str}")?;
                 stdout.flush()?;
                 continue;
             }
 
             match serde_json::from_str::<JsonRpcRequest>(&line) {
                 Ok(request) => {
+                    // Validate JSON-RPC protocol compliance
+                    if let Err(validation_error) = request.validate() {
+                        let response = JsonRpcResponse::error(
+                            request.id.clone(),
+                            -32600, // Invalid Request error code
+                            format!("Invalid request: {validation_error}"),
+                            None,
+                        );
+                        let response_str = serde_json::to_string(&response)?;
+                        debug!("Sending validation error: {}", response_str);
+                        writeln!(stdout, "{response_str}")?;
+                        stdout.flush()?;
+                        continue;
+                    }
+
                     let response = self.handle_request(request);
                     let response_str = serde_json::to_string(&response)?;
                     debug!("Sending: {}", response_str);
-                    writeln!(stdout, "{}", response_str)?;
+                    writeln!(stdout, "{response_str}")?;
                     stdout.flush()?;
                 }
                 Err(e) => {
                     let response =
-                        JsonRpcResponse::error(None, -32700, format!("Parse error: {}", e), None);
+                        JsonRpcResponse::error(None, -32700, format!("Parse error: {e}"), None);
                     let response_str = serde_json::to_string(&response)?;
-                    writeln!(stdout, "{}", response_str)?;
+                    writeln!(stdout, "{response_str}")?;
                     stdout.flush()?;
                 }
             }
@@ -370,6 +426,26 @@ impl McpServer {
 
                     debug!("Received: {}", line);
 
+                    // Check request size limits before parsing
+                    if let Some(ref limits) = self.resource_limits {
+                        if let Err(e) = limits.request_limits.check_raw_size(line.as_bytes()) {
+                            let error_response = JsonRpcResponse::error(
+                                None,
+                                e.error_code(),
+                                format!("Request size limit exceeded: {e}"),
+                                Some(json!({
+                                    "error": e.to_string(),
+                                    "limit": limits.request_limits.max_total_size()
+                                })),
+                            );
+                            let response_str = serde_json::to_string(&error_response)?;
+                            stdout.write_all(response_str.as_bytes()).await?;
+                            stdout.write_all(b"\n").await?;
+                            stdout.flush().await?;
+                            continue;
+                        }
+                    }
+
                     // Check rate limit before processing request
                     if let Err(()) = self.check_rate_limit() {
                         let error_response = JsonRpcResponse::error(
@@ -390,6 +466,22 @@ impl McpServer {
 
                     match serde_json::from_str::<JsonRpcRequest>(line) {
                         Ok(request) => {
+                            // Validate JSON-RPC protocol compliance
+                            if let Err(validation_error) = request.validate() {
+                                let response = JsonRpcResponse::error(
+                                    request.id.clone(),
+                                    -32600, // Invalid Request error code
+                                    format!("Invalid request: {validation_error}"),
+                                    None,
+                                );
+                                let response_str = serde_json::to_string(&response)?;
+                                debug!("Sending validation error: {}", response_str);
+                                stdout.write_all(response_str.as_bytes()).await?;
+                                stdout.write_all(b"\n").await?;
+                                stdout.flush().await?;
+                                continue;
+                            }
+
                             let response = self.handle_request(request);
                             let response_str = serde_json::to_string(&response)?;
                             debug!("Sending: {}", response_str);
@@ -401,7 +493,7 @@ impl McpServer {
                             let response = JsonRpcResponse::error(
                                 None,
                                 -32700,
-                                format!("Parse error: {}", e),
+                                format!("Parse error: {e}"),
                                 None,
                             );
                             let response_str = serde_json::to_string(&response)?;
@@ -445,8 +537,40 @@ impl McpServer {
     ///
     /// A JSON-RPC response with either a result or error. Unknown methods
     /// return a "Method not found" error (-32601).
+    pub fn handle_request_string(&mut self, request_str: &str) -> String {
+        if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(request_str) {
+            let response = self.handle_request(request);
+            serde_json::to_string(&response).unwrap_or_else(|_| {
+                serde_json::json!({"jsonrpc": "2.0", "error": {"code": -32603, "message": "Internal error"}, "id": null}).to_string()
+            })
+        } else {
+            // Parse error
+            let error_response =
+                JsonRpcResponse::error(None, -32700, "Parse error".to_string(), None);
+            serde_json::to_string(&error_response).unwrap_or_else(|_| {
+                r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"},"id":null}"#
+                    .to_string()
+            })
+        }
+    }
+
+    /// Handles an incoming JSON-RPC request and returns a response.
     pub fn handle_request(&mut self, request: JsonRpcRequest) -> JsonRpcResponse {
         let id = request.id.clone();
+
+        // Check parsed request size limits
+        if let Some(ref limits) = self.resource_limits {
+            if let Err(e) = limits.request_limits.check_parsed_request(&request) {
+                return JsonRpcResponse::error(
+                    id,
+                    e.error_code(),
+                    format!("Request validation failed: {e}"),
+                    Some(json!({
+                        "error": e.to_string()
+                    })),
+                );
+            }
+        }
 
         match request.method.as_str() {
             "initialize" => self.handle_initialize(id, request.params),
@@ -459,7 +583,7 @@ impl McpServer {
             "ping" => JsonRpcResponse::success(id, json!({})),
             method => {
                 warn!("Unknown method: {}", method);
-                JsonRpcResponse::error(id, -32601, format!("Method not found: {}", method), None)
+                JsonRpcResponse::error(id, -32601, format!("Method not found: {method}"), None)
             }
         }
     }
@@ -486,7 +610,7 @@ impl McpServer {
                     return JsonRpcResponse::error(
                         id,
                         -32602,
-                        format!("Invalid params: {}", e),
+                        format!("Invalid params: {e}"),
                         None,
                     );
                 }
@@ -613,7 +737,7 @@ impl McpServer {
                     return JsonRpcResponse::error(
                         id,
                         -32602,
-                        format!("Invalid params: {}", e),
+                        format!("Invalid params: {e}"),
                         None,
                     );
                 }
@@ -632,17 +756,28 @@ impl McpServer {
         }
 
         // Execute tool (cache miss or non-cacheable operation)
-        match execute_tool(
-            &params.name,
-            params.arguments.clone(),
-            &self.config.root_path,
-        ) {
+        // Special handling for batch tool which needs cache access
+        let result = if params.name == "batch" {
+            crate::tools::execute_batch(
+                params.arguments.clone(),
+                &self.config.root_path,
+                self.cache.clone(),
+            )
+        } else {
+            execute_tool(
+                &params.name,
+                params.arguments.clone(),
+                &self.config.root_path,
+            )
+        };
+
+        match result {
             Ok(result) => {
                 let result_value = serde_json::to_value(&result)
                     .expect("CallToolResult serialization cannot fail");
 
-                // Cache result for immutable operations
-                if self.cache.is_some() {
+                // Cache result for immutable operations (not batch)
+                if self.cache.is_some() && params.name != "batch" {
                     self.try_cache_result(&params.name, &params.arguments, &result_value);
                 }
 
@@ -651,7 +786,7 @@ impl McpServer {
             Err(e) => {
                 let result = CallToolResult {
                     content: vec![Content::Text {
-                        text: format!("Error: {}", e),
+                        text: format!("Error: {e}"),
                     }],
                     is_error: Some(true),
                 };
@@ -670,37 +805,61 @@ impl McpServer {
     fn try_get_cached(&self, tool_name: &str, arguments: &Option<Value>) -> Option<Value> {
         let cache = self.cache.as_ref()?;
         let args = arguments.as_ref()?;
+        let cache_key = Self::build_cache_key(tool_name, args)?;
+        cache.get(tool_name, &cache_key)
+    }
 
-        // Extract the primary input field for each cacheable operation
-        let cache_key = match tool_name {
+    /// Build a cache key for cacheable operations.
+    /// Uses content hash instead of full content to avoid memory bloat.
+    fn build_cache_key(tool_name: &str, args: &Value) -> Option<String> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Hash content to avoid storing full HEDL in cache key
+        let hash_content = |s: &str| -> u64 {
+            let mut hasher = DefaultHasher::new();
+            s.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        match tool_name {
             "hedl_validate" => {
                 let hedl = args.get("hedl")?.as_str()?;
-                let strict = args.get("strict").and_then(|v| v.as_bool()).unwrap_or(true);
-                let lint = args.get("lint").and_then(|v| v.as_bool()).unwrap_or(true);
-                format!("{}:{}:{}", hedl, strict, lint)
+                let hedl_hash = hash_content(hedl);
+                let strict = args
+                    .get("strict")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true);
+                let lint = args
+                    .get("lint")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true);
+                Some(format!("{hedl_hash:016x}:{strict}:{lint}"))
             }
             "hedl_query" => {
                 let hedl = args.get("hedl")?.as_str()?;
+                let hedl_hash = hash_content(hedl);
                 let type_name = args.get("type_name").and_then(|v| v.as_str()).unwrap_or("");
                 let id = args.get("id").and_then(|v| v.as_str()).unwrap_or("");
                 let include_children = args
                     .get("include_children")
-                    .and_then(|v| v.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(true);
-                format!("{}:{}:{}:{}", hedl, type_name, id, include_children)
+                Some(format!(
+                    "{hedl_hash:016x}:{type_name}:{id}:{include_children}"
+                ))
             }
             "hedl_stats" => {
                 let hedl = args.get("hedl")?.as_str()?;
+                let hedl_hash = hash_content(hedl);
                 let tokenizer = args
                     .get("tokenizer")
                     .and_then(|v| v.as_str())
                     .unwrap_or("simple");
-                format!("{}:{}", hedl, tokenizer)
+                Some(format!("{hedl_hash:016x}:{tokenizer}"))
             }
-            _ => return None, // Non-cacheable operation
-        };
-
-        cache.get(tool_name, &cache_key)
+            _ => None, // Non-cacheable operation
+        }
     }
 
     /// Try to cache the result of an immutable operation.
@@ -715,42 +874,10 @@ impl McpServer {
             None => return,
         };
 
-        // Extract the primary input field for each cacheable operation (same as try_get_cached)
-        let cache_key = match tool_name {
-            "hedl_validate" => {
-                let hedl = match args.get("hedl").and_then(|v| v.as_str()) {
-                    Some(h) => h,
-                    None => return,
-                };
-                let strict = args.get("strict").and_then(|v| v.as_bool()).unwrap_or(true);
-                let lint = args.get("lint").and_then(|v| v.as_bool()).unwrap_or(true);
-                format!("{}:{}:{}", hedl, strict, lint)
-            }
-            "hedl_query" => {
-                let hedl = match args.get("hedl").and_then(|v| v.as_str()) {
-                    Some(h) => h,
-                    None => return,
-                };
-                let type_name = args.get("type_name").and_then(|v| v.as_str()).unwrap_or("");
-                let id = args.get("id").and_then(|v| v.as_str()).unwrap_or("");
-                let include_children = args
-                    .get("include_children")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true);
-                format!("{}:{}:{}:{}", hedl, type_name, id, include_children)
-            }
-            "hedl_stats" => {
-                let hedl = match args.get("hedl").and_then(|v| v.as_str()) {
-                    Some(h) => h,
-                    None => return,
-                };
-                let tokenizer = args
-                    .get("tokenizer")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("simple");
-                format!("{}:{}", hedl, tokenizer)
-            }
-            _ => return, // Non-cacheable operation
+        // Use shared cache key builder (DRY)
+        let cache_key = match Self::build_cache_key(tool_name, args) {
+            Some(k) => k,
+            None => return,
         };
 
         cache.insert(tool_name, &cache_key, result.clone());
@@ -760,6 +887,11 @@ impl McpServer {
     ///
     /// Lists all HEDL files in the configured root directory as resources.
     /// Resources are exposed with `file://` URIs and MIME type `text/hedl`.
+    ///
+    /// # Security
+    ///
+    /// All files listed are guaranteed to be within the `root_path` directory.
+    /// The listing only scans the configured root directory (non-recursive).
     ///
     /// # Arguments
     ///
@@ -773,9 +905,36 @@ impl McpServer {
         // List .hedl files in root as resources
         let mut resources = Vec::new();
 
-        if let Ok(entries) = std::fs::read_dir(&self.config.root_path) {
-            for entry in entries.filter_map(|e| e.ok()) {
+        // Canonicalize root to ensure we're working with the real path
+        let canonical_root = match self.config.root_path.canonicalize() {
+            Ok(path) => path,
+            Err(e) => {
+                error!("Failed to canonicalize root_path: {}", e);
+                return JsonRpcResponse::error(
+                    id,
+                    -32002,
+                    format!("Failed to access root directory: {e}"),
+                    None,
+                );
+            }
+        };
+
+        if let Ok(entries) = std::fs::read_dir(&canonical_root) {
+            for entry in entries.filter_map(std::result::Result::ok) {
                 let path = entry.path();
+
+                // Security: Double-check the path is still within root
+                // This handles any race conditions with symlink changes
+                if let Ok(canonical_path) = path.canonicalize() {
+                    if !canonical_path.starts_with(&canonical_root) {
+                        debug!(
+                            "Skipping file outside root path: {}",
+                            canonical_path.display()
+                        );
+                        continue;
+                    }
+                }
+
                 if path.is_file() && path.extension().is_some_and(|ext| ext == "hedl") {
                     if let Some(name) = path.file_name() {
                         resources.push(Resource {
@@ -799,8 +958,14 @@ impl McpServer {
     /// Handle the `resources/read` method.
     ///
     /// Reads the content of a HEDL resource identified by URI. Supports `file://`
-    /// URIs and plain file paths. No path traversal protection is applied here
-    /// (resources are pre-validated in `resources/list`).
+    /// URIs and plain file paths. All file access is sandboxed to `root_path`
+    /// with path traversal protection via canonical path validation.
+    ///
+    /// # Security
+    ///
+    /// - Path traversal attempts are blocked and logged
+    /// - Symbolic links pointing outside root are rejected
+    /// - Only files within the configured `root_path` can be read
     ///
     /// # Arguments
     ///
@@ -819,7 +984,7 @@ impl McpServer {
                     return JsonRpcResponse::error(
                         id,
                         -32602,
-                        format!("Invalid params: {}", e),
+                        format!("Invalid params: {e}"),
                         None,
                     );
                 }
@@ -829,14 +994,33 @@ impl McpServer {
             }
         };
 
-        // Parse file:// URI
-        let path = if params.uri.starts_with("file://") {
+        // Parse file:// URI to extract the path
+        let path_str = if params.uri.starts_with("file://") {
             &params.uri[7..]
         } else {
             &params.uri
         };
 
-        match std::fs::read_to_string(path) {
+        // SECURITY: Validate path is within root directory
+        // This prevents path traversal attacks like ../../etc/passwd
+        let safe_path = match resolve_safe_path(&self.config.root_path, path_str) {
+            Ok(path) => path,
+            Err(e) => {
+                // Log security event for path traversal attempts
+                warn!(
+                    "Path traversal attempt blocked in resources/read: uri={}, error={}",
+                    params.uri, e
+                );
+                return JsonRpcResponse::error(
+                    id,
+                    -32003, // PathTraversal error code
+                    format!("Path traversal not allowed: {e}"),
+                    None,
+                );
+            }
+        };
+
+        match std::fs::read_to_string(&safe_path) {
             Ok(content) => {
                 let result = ReadResourceResult {
                     contents: vec![ResourceContent {
@@ -852,7 +1036,7 @@ impl McpServer {
                 )
             }
             Err(e) => {
-                JsonRpcResponse::error(id, -32002, format!("Failed to read resource: {}", e), None)
+                JsonRpcResponse::error(id, -32002, format!("Failed to read resource: {e}"), None)
             }
         }
     }

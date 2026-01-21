@@ -65,6 +65,7 @@ pub struct Statistics {
 /// # Returns
 ///
 /// Aggregated results summary.
+#[must_use]
 pub fn aggregate_results(results: &[BenchResult]) -> AggregatedResults {
     if results.is_empty() {
         return AggregatedResults {
@@ -107,6 +108,7 @@ pub fn aggregate_results(results: &[BenchResult]) -> AggregatedResults {
 /// # Returns
 ///
 /// Statistical summary.
+#[must_use]
 pub fn compute_statistics(results: &[BenchResult]) -> Statistics {
     if results.is_empty() {
         return Statistics {
@@ -154,7 +156,8 @@ pub fn compute_statistics(results: &[BenchResult]) -> Statistics {
 ///
 /// # Returns
 ///
-/// HashMap of category to results.
+/// `HashMap` of category to results.
+#[must_use]
 pub fn group_by_category(results: &[BenchResult]) -> HashMap<Category, Vec<BenchResult>> {
     let mut grouped: HashMap<Category, Vec<BenchResult>> = HashMap::new();
 
@@ -196,7 +199,7 @@ mod tests {
     use crate::core::Measurement;
 
     fn create_test_result(name: &str, millis: u64) -> BenchResult {
-        BenchResult::new(name, 1, Measurement::new(Duration::from_millis(millis)))
+        BenchResult::new(name, 1, Measurement::new(Duration::from_millis(millis))).unwrap()
     }
 
     #[test]

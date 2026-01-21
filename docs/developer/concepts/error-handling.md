@@ -105,7 +105,7 @@ Error: unclosed string quote
 For documents with potential reference issues:
 
 ```rust
-use hedl_core::{parse, parse_with_limits, ParseOptions, HedlErrorKind};
+use hedl_core::{parse, parse_with_limits, ParseOptions, ReferenceMode, HedlErrorKind};
 
 // Try strict parsing first, fall back to lenient
 let doc = match parse(input) {
@@ -113,7 +113,7 @@ let doc = match parse(input) {
     Err(e) if matches!(e.kind, HedlErrorKind::Reference) => {
         // Lenient mode: use non-strict reference validation
         let options = ParseOptions::builder()
-            .strict_refs(false)
+            .reference_mode(ReferenceMode::Lenient)
             .build();
         parse_with_limits(input, options)?
     }

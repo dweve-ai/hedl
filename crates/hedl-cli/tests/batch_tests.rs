@@ -17,6 +17,7 @@
 
 //! Comprehensive tests for batch processing functionality
 
+use assert_cmd::cargo_bin;
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
@@ -24,7 +25,7 @@ use tempfile::{tempdir, TempDir};
 
 /// Test helper to create a HEDL command
 fn hedl_cmd() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    Command::new(cargo_bin!("hedl"))
 }
 
 /// Create a temporary directory with multiple test HEDL files
@@ -33,14 +34,14 @@ fn create_test_files(count: usize) -> (TempDir, Vec<String>) {
     let mut paths = Vec::new();
 
     for i in 0..count {
-        let path = dir.path().join(format!("test{}.hedl", i));
+        let path = dir.path().join(format!("test{i}.hedl"));
         let content = format!(
-            r#"%VERSION: 1.0
+            r"%VERSION: 1.0
 ---
 id: {}
 name: Test {}
 value: {}
-"#,
+",
             i,
             i,
             i * 10
@@ -60,13 +61,13 @@ fn create_mixed_test_files() -> (TempDir, Vec<String>, Vec<String>) {
 
     // Create valid files
     for i in 0..3 {
-        let path = dir.path().join(format!("valid{}.hedl", i));
+        let path = dir.path().join(format!("valid{i}.hedl"));
         let content = format!(
-            r#"%VERSION: 1.0
+            r"%VERSION: 1.0
 ---
 id: {}
 value: {}
-"#,
+",
             i,
             i * 10
         );
@@ -76,13 +77,12 @@ value: {}
 
     // Create invalid files
     for i in 0..2 {
-        let path = dir.path().join(format!("invalid{}.hedl", i));
+        let path = dir.path().join(format!("invalid{i}.hedl"));
         let content = format!(
-            r#"%VERSION: 1.0
+            r"%VERSION: 1.0
 ---
-invalid syntax here {}
-"#,
-            i
+invalid syntax here {i}
+"
         );
         fs::write(&path, content).expect("Failed to write invalid file");
         invalid_paths.push(path.to_str().unwrap().to_string());
@@ -207,7 +207,7 @@ fn test_batch_format_to_output_dir() {
 
     // Verify output files were created
     for i in 0..5 {
-        let output_file = output_dir.path().join(format!("test{}.hedl", i));
+        let output_file = output_dir.path().join(format!("test{i}.hedl"));
         assert!(
             output_file.exists(),
             "Output file {} should exist",
@@ -216,7 +216,7 @@ fn test_batch_format_to_output_dir() {
 
         let content = fs::read_to_string(&output_file).expect("Failed to read output file");
         assert!(content.contains("%VERSION: 1.0"));
-        assert!(content.contains(&format!("id: {}", i)));
+        assert!(content.contains(&format!("id: {i}")));
     }
 }
 
@@ -226,20 +226,20 @@ fn test_batch_format_check_mode() {
 
     // Create a canonical file
     let canonical_path = dir.path().join("canonical.hedl");
-    let canonical_content = r#"%VERSION: 1.0
+    let canonical_content = r"%VERSION: 1.0
 ---
 a: 1
 b: 2
-"#;
+";
     fs::write(&canonical_path, canonical_content).expect("Failed to write canonical file");
 
     // Create a non-canonical file
     let non_canonical_path = dir.path().join("non_canonical.hedl");
-    let non_canonical_content = r#"%VERSION: 1.0
+    let non_canonical_content = r"%VERSION: 1.0
 ---
 a:1
 b:2
-"#;
+";
     fs::write(&non_canonical_path, non_canonical_content)
         .expect("Failed to write non-canonical file");
 
@@ -258,14 +258,14 @@ fn test_batch_format_with_ditto() {
     let dir = tempdir().expect("Failed to create temp dir");
     let path = dir.path().join("test.hedl");
 
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
 d: @T
   | x,1
   | y,1
   | z,1
-"#;
+";
     fs::write(&path, content).expect("Failed to write test file");
 
     hedl_cmd()
@@ -281,13 +281,13 @@ fn test_batch_format_with_counts() {
     let dir = tempdir().expect("Failed to create temp dir");
     let path = dir.path().join("test.hedl");
 
-    let content = r#"%VERSION: 1.0
+    let content = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 teams: @Team
   | t1,Warriors
   | t2,Lakers
-"#;
+";
     fs::write(&path, content).expect("Failed to write test file");
 
     let output_dir = tempdir().expect("Failed to create output dir");
@@ -505,7 +505,7 @@ fn test_batch_validate_then_format() {
 
     // Verify formatted files exist
     for i in 0..5 {
-        let formatted_file = output_dir.path().join(format!("test{}.hedl", i));
+        let formatted_file = output_dir.path().join(format!("test{i}.hedl"));
         assert!(formatted_file.exists());
     }
 }
@@ -529,7 +529,7 @@ fn test_batch_format_then_lint() {
         .map(|i| {
             output_dir
                 .path()
-                .join(format!("test{}.hedl", i))
+                .join(format!("test{i}.hedl"))
                 .to_str()
                 .unwrap()
                 .to_string()
@@ -570,7 +570,7 @@ fn test_batch_all_operations_sequence() {
         .map(|i| {
             output_dir
                 .path()
-                .join(format!("test{}.hedl", i))
+                .join(format!("test{i}.hedl"))
                 .to_str()
                 .unwrap()
                 .to_string()

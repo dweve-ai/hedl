@@ -371,9 +371,21 @@ fn test_child_attachment() {
     let list = doc.get("users").unwrap().as_list().unwrap();
     assert_eq!(list.rows.len(), 2);
     // First user should have 2 children
-    assert_eq!(list.rows[0].children.get("Post").map(|c| c.len()), Some(2));
+    assert_eq!(
+        list.rows[0]
+            .children
+            .as_ref()
+            .and_then(|c| c.get("Post").map(std::vec::Vec::len)),
+        Some(2)
+    );
     // Second user should have 1 child
-    assert_eq!(list.rows[1].children.get("Post").map(|c| c.len()), Some(1));
+    assert_eq!(
+        list.rows[1]
+            .children
+            .as_ref()
+            .and_then(|c| c.get("Post").map(std::vec::Vec::len)),
+        Some(1)
+    );
 }
 
 /// B.5.3: Alias expansion
@@ -400,7 +412,7 @@ fn test_hash_in_quoted_field() {
     // fields[0] is ID, fields[1] is value
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("value # with hash".to_string())
+        Value::String("value # with hash".into())
     );
 }
 
@@ -414,7 +426,7 @@ fn test_matrix_row_comment_stripped() {
     let doc = result.unwrap();
     let list = doc.get("data").unwrap().as_list().unwrap();
     // fields[0] is ID, fields[1] is value
-    assert_eq!(list.rows[0].fields[1], Value::String("test".to_string()));
+    assert_eq!(list.rows[0].fields[1], Value::String("test".into()));
 }
 
 /// B.5.6: Quoted string escaping
@@ -429,7 +441,7 @@ fn test_quoted_string_escaping() {
     // fields[0] is ID, fields[1] is value
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("escaped \"quote\"".to_string())
+        Value::String("escaped \"quote\"".into())
     );
 }
 
@@ -477,9 +489,9 @@ fn test_at_and_dollar_in_strings() {
     // fields[0] is ID, fields[1] is email, fields[2] is price
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("alice@example.com".to_string())
+        Value::String("alice@example.com".into())
     );
-    assert_eq!(list.rows[0].fields[2], Value::String("100$".to_string()));
+    assert_eq!(list.rows[0].fields[2], Value::String("100$".into()));
 }
 
 // =============================================================================
@@ -525,7 +537,7 @@ fn test_empty_alias() {
     let doc = result.unwrap();
     let list = doc.get("data").unwrap().as_list().unwrap();
     // fields[0] is ID, fields[1] is value
-    assert_eq!(list.rows[0].fields[1], Value::String("".to_string()));
+    assert_eq!(list.rows[0].fields[1], Value::String("".into()));
 }
 
 /// B.6.5: Whitespace preservation in quoted strings
@@ -536,7 +548,7 @@ fn test_whitespace_preservation() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("key").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("  spaces  ".to_string()));
+    assert_eq!(*val, Value::String("  spaces  ".into()));
 }
 
 /// B.6.6: Boolean case sensitivity
@@ -553,11 +565,11 @@ fn test_boolean_case_sensitivity() {
     );
     assert_eq!(
         *doc.get("b").unwrap().as_scalar().unwrap(),
-        Value::String("True".to_string())
+        Value::String("True".into())
     );
     assert_eq!(
         *doc.get("c").unwrap().as_scalar().unwrap(),
-        Value::String("TRUE".to_string())
+        Value::String("TRUE".into())
     );
 }
 
@@ -572,7 +584,7 @@ fn test_expression_nested_call() {
     let val = doc.get("expr").unwrap().as_scalar().unwrap();
     match val {
         Value::Expression(e) => {
-            assert!(matches!(e, Expression::Call { name, .. } if name == "outer"));
+            assert!(matches!(e.as_ref(), Expression::Call { name, .. } if name == "outer"));
         }
         _ => panic!("Expected expression"),
     }
@@ -596,7 +608,7 @@ fn test_tab_in_quoted_string_ok() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("key").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("a\tb".to_string()));
+    assert_eq!(*val, Value::String("a\tb".into()));
 }
 
 /// B.6.10: CRLF line endings -> OK
@@ -642,10 +654,13 @@ tensor_test: @TensorTest[id, data]
     // t1 with child c1
     // fields[0]=id, fields[1]=value, fields[2]=ref
     assert_eq!(tests.rows[0].id, "t1");
-    assert_eq!(tests.rows[0].fields[1], Value::String("simple".to_string()));
+    assert_eq!(tests.rows[0].fields[1], Value::String("simple".into()));
     assert_eq!(tests.rows[0].fields[2], Value::Null);
     assert_eq!(
-        tests.rows[0].children.get("Child").map(|c| c.len()),
+        tests.rows[0]
+            .children
+            .as_ref()
+            .and_then(|c| c.get("Child").map(std::vec::Vec::len)),
         Some(1)
     );
 
@@ -654,7 +669,10 @@ tensor_test: @TensorTest[id, data]
     assert_eq!(tests.rows[1].fields[1], Value::Int(42));
     assert!(matches!(tests.rows[1].fields[2], Value::Reference(_)));
     assert_eq!(
-        tests.rows[1].children.get("Child").map(|c| c.len()),
+        tests.rows[1]
+            .children
+            .as_ref()
+            .and_then(|c| c.get("Child").map(std::vec::Vec::len)),
         Some(1)
     );
 
@@ -689,7 +707,7 @@ fn test_nested_objects() {
     let db = config.get("database").unwrap().as_object().unwrap();
     assert_eq!(
         *db.get("host").unwrap().as_scalar().unwrap(),
-        Value::String("localhost".to_string())
+        Value::String("localhost".into())
     );
     assert_eq!(
         *db.get("port").unwrap().as_scalar().unwrap(),
@@ -740,7 +758,7 @@ fn test_key_value_ditto_is_string() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("caret").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("^".to_string()));
+    assert_eq!(*val, Value::String("^".into()));
 }
 
 /// Alias that expands to number
@@ -766,7 +784,7 @@ fn test_scientific_notation_is_string() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("value").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("1e10".to_string()));
+    assert_eq!(*val, Value::String("1e10".into()));
 }
 
 /// Underscore in numbers is string
@@ -777,7 +795,7 @@ fn test_underscore_in_numbers_is_string() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("value").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("1_000".to_string()));
+    assert_eq!(*val, Value::String("1_000".into()));
 }
 
 /// Leading zeros are allowed in numbers
@@ -799,7 +817,7 @@ fn test_empty_quoted_string() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("value").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("".to_string()));
+    assert_eq!(*val, Value::String("".into()));
 }
 
 /// Multiple spaces after colon is OK
@@ -810,7 +828,7 @@ fn test_multiple_spaces_after_colon() {
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("value").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("test".to_string()));
+    assert_eq!(*val, Value::String("test".into()));
 }
 
 /// Blank lines are ignored
@@ -885,7 +903,7 @@ This is line 2.
     let doc = result.unwrap();
     let val = doc.get("text").unwrap().as_scalar().unwrap();
     let expected = "\nThis is line 1.\nThis is line 2.\n";
-    assert_eq!(*val, Value::String(expected.to_string()));
+    assert_eq!(*val, Value::String(expected.into()));
 }
 
 /// Block string with internal quotes - single-line format rejected per SPEC Section 8.2
@@ -903,10 +921,7 @@ She said "hello" loudly
     let doc = result.unwrap();
     let val = doc.get("text").unwrap().as_scalar().unwrap();
     // Note: leading newline is preserved per SPEC
-    assert_eq!(
-        *val,
-        Value::String("\nShe said \"hello\" loudly\n".to_string())
-    );
+    assert_eq!(*val, Value::String("\nShe said \"hello\" loudly\n".into()));
 }
 
 /// Block string with blank lines
@@ -935,7 +950,7 @@ other: 42
     let doc = result.unwrap();
     assert_eq!(
         *doc.get("text").unwrap().as_scalar().unwrap(),
-        Value::String("\nhello\n".to_string())
+        Value::String("\nhello\n".into())
     );
     assert_eq!(
         *doc.get("other").unwrap().as_scalar().unwrap(),
@@ -984,7 +999,7 @@ hello
     assert!(result.is_ok());
     let doc = result.unwrap();
     let val = doc.get("text").unwrap().as_scalar().unwrap();
-    assert_eq!(*val, Value::String("\nhello\n".to_string()));
+    assert_eq!(*val, Value::String("\nhello\n".into()));
 }
 
 // =============================================================================
@@ -995,14 +1010,14 @@ hello
 #[test]
 fn test_elastic_alignment_internal_spacing() {
     // Extra spaces within row content for visual column alignment
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 %STRUCT: Point: [id,x,y]
 ---
 points: @Point
   | p1,     1,     2
   | p2,    10,    20
   | p3,   100,   200
-"#;
+";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -1017,13 +1032,13 @@ points: @Point
 /// Normal matrix rows still work
 #[test]
 fn test_elastic_alignment_normal() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 %STRUCT: Point: [id,x,y]
 ---
 points: @Point
   | p1, 1, 2
   | p2, 3, 4
-"#;
+";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -1052,10 +1067,9 @@ msgs: @Msg
     if let Value::String(s) = &list.rows[0].fields[1] {
         assert!(
             s.contains('\n'),
-            "Expected actual newline in m1 content, got: {:?}",
-            s
+            "Expected actual newline in m1 content, got: {s:?}"
         );
-        assert_eq!(s, "Hello\nWorld");
+        assert_eq!(s.as_ref(), "Hello\nWorld");
     } else {
         panic!("Expected string for m1");
     }
@@ -1064,10 +1078,9 @@ msgs: @Msg
     if let Value::String(s) = &list.rows[1].fields[1] {
         assert!(
             s.contains('\t'),
-            "Expected actual tab in m2 content, got: {:?}",
-            s
+            "Expected actual tab in m2 content, got: {s:?}"
         );
-        assert_eq!(s, "Tab\there");
+        assert_eq!(s.as_ref(), "Tab\there");
     } else {
         panic!("Expected string for m2");
     }
@@ -1075,9 +1088,9 @@ msgs: @Msg
     // m3: \\ is converted to single backslash
     if let Value::String(s) = &list.rows[2].fields[1] {
         assert_eq!(
-            s, "Path\\to\\file",
-            "Expected single backslashes, got: {:?}",
-            s
+            s.as_ref(),
+            "Path\\to\\file",
+            "Expected single backslashes, got: {s:?}"
         );
     } else {
         panic!("Expected string for m3");
@@ -1111,10 +1124,10 @@ text: """content on same line"""
 /// Test that truncated object (no children) is detected per SPEC Section 14.5
 #[test]
 fn test_spec_14_5_truncated_object_detected() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 ---
 config:
-"#;
+";
     let result = parse(doc.as_bytes());
     assert!(
         result.is_err(),
@@ -1131,11 +1144,11 @@ config:
 /// Test that complete objects are not flagged as truncated
 #[test]
 fn test_spec_14_5_complete_object_not_truncated() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 ---
 config:
   port: 8080
-"#;
+";
     let result = parse(doc.as_bytes());
     assert!(
         result.is_ok(),
@@ -1147,11 +1160,11 @@ config:
 /// Test that empty lists are allowed (not considered truncated)
 #[test]
 fn test_spec_14_5_empty_list_allowed() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r"%VERSION: 1.0
 %STRUCT: User: [id,name]
 ---
 users: @User
-"#;
+";
     let result = parse(doc.as_bytes());
     assert!(
         result.is_ok(),

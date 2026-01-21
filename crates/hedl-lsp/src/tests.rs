@@ -18,7 +18,7 @@
 //! Comprehensive tests for HEDL LSP implementation.
 //!
 //! Tests cover all roadmap requirements:
-//! - Autocomplete for IDs and TypeNames from Header
+//! - Autocomplete for IDs and `TypeNames` from Header
 //! - Reference checking (suggesting `alice`, `bob` while typing `@User:`)
 //! - Indentation and context awareness
 
@@ -280,13 +280,11 @@ mod completion_tests {
         // Note: Completions are based on extracted entities from the valid document
         assert!(
             labels.contains(&"alice"),
-            "Should suggest alice: got {:?}",
-            labels
+            "Should suggest alice: got {labels:?}"
         );
         assert!(
             labels.contains(&"bob"),
-            "Should suggest bob: got {:?}",
-            labels
+            "Should suggest bob: got {labels:?}"
         );
     }
 
@@ -916,7 +914,7 @@ mod cache_tests {
 
         // Open 5 documents (fill cache)
         for i in 0..5 {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             let params = DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri,
@@ -1029,7 +1027,7 @@ mod cache_tests {
 
         // Open 3 documents
         for i in 0..3 {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             let params = DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
                     uri,

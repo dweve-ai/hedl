@@ -15,13 +15,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This module is deprecated - allow using deprecated items within it
+#![allow(deprecated)]
+
 //! LLM Accuracy Testing Harness
 //!
 //! Tests how well LLMs can comprehend and extract information from HEDL documents
 //! compared to equivalent JSON/YAML representations.
 //!
 //! Supported providers (December 2025):
-//! - DeepSeek: deepseek-chat, deepseek-reasoner (V3.2)
+//! - `DeepSeek`: deepseek-chat, deepseek-reasoner (V3.2)
 //! - Mistral: mistral-large-latest, magistral-medium, devstral-2
 //!
 //! Usage:
@@ -41,16 +44,27 @@ use super::questions::{AnswerType, Question, QuestionType};
 /// Result of a single accuracy test
 #[derive(Debug, Clone)]
 pub struct TestResult {
+    /// The question prompt that was asked.
     pub question: String,
+    /// Category of the question.
     pub question_type: QuestionType,
+    /// Expected (ground truth) answer.
     pub expected: String,
+    /// Actual answer from the LLM.
     pub actual: String,
+    /// Whether the answer was correct.
     pub correct: bool,
+    /// Format the data was presented in.
     pub format: DataFormat,
+    /// Difficulty level of the test.
     pub difficulty: Difficulty,
+    /// Model name used for the test.
     pub model: String,
+    /// Response latency in milliseconds.
     pub latency_ms: u64,
+    /// Number of input tokens.
     pub tokens_in: usize,
+    /// Number of output tokens.
     pub tokens_out: usize,
 }
 
@@ -60,11 +74,17 @@ pub struct TestResult {
 /// converted to for testing LLM comprehension across formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataFormat {
+    /// HEDL format.
     Hedl,
+    /// JSON format.
     Json,
+    /// YAML format.
     Yaml,
+    /// XML format.
     Xml,
+    /// TOON format.
     Toon,
+    /// CSV format.
     Csv,
 }
 
@@ -105,10 +125,15 @@ impl std::fmt::Display for Difficulty {
 /// Aggregated results for a test run
 #[derive(Debug, Default)]
 pub struct AccuracyReport {
+    /// Model name tested.
     pub model: String,
+    /// Total number of questions asked.
     pub total_questions: usize,
+    /// Results aggregated by format.
     pub results_by_format: Vec<FormatResults>,
+    /// Results aggregated by question type.
     pub results_by_type: Vec<TypeResults>,
+    /// Results aggregated by difficulty level.
     pub results_by_difficulty: Vec<DifficultyResults>,
 }
 
@@ -163,6 +188,7 @@ pub struct DifficultyResults {
 
 impl AccuracyReport {
     /// Generate a formatted report
+    #[must_use]
     pub fn report(&self) -> String {
         let mut out = String::new();
         out.push_str(&format!("\n{}\n", "=".repeat(70)));
@@ -218,18 +244,20 @@ impl AccuracyReport {
 /// LLM API Provider
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Provider {
-    /// DeepSeek API (api.deepseek.com)
+    /// `DeepSeek` API (api.deepseek.com)
     /// Models: deepseek-chat, deepseek-reasoner
     DeepSeek,
     /// Mistral API (api.mistral.ai)
     /// Models: mistral-large-latest, magistral-medium, devstral-2, ministral-3b
     Mistral,
-    /// OpenAI API (api.openai.com)
+    /// `OpenAI` API (api.openai.com)
     /// Models: gpt-5.1, gpt-5.1-codex, gpt-5, gpt-4.1, gpt-4o, o1, o3
     OpenAI,
 }
 
 impl Provider {
+    /// Get the base URL for this provider's API.
+    #[must_use]
     pub fn api_base(&self) -> &'static str {
         match self {
             Provider::DeepSeek => "https://api.deepseek.com/v1",
@@ -238,6 +266,8 @@ impl Provider {
         }
     }
 
+    /// Get the environment variable name for the API key.
+    #[must_use]
     pub fn env_var(&self) -> &'static str {
         match self {
             Provider::DeepSeek => "DEEPSEEK_API_KEY",
@@ -246,6 +276,8 @@ impl Provider {
         }
     }
 
+    /// Get the default model name for this provider.
+    #[must_use]
     pub fn default_model(&self) -> &'static str {
         match self {
             Provider::DeepSeek => "deepseek-chat",
@@ -308,14 +340,23 @@ impl Default for AccuracyConfig {
 /// Test dataset with HEDL source and questions
 #[derive(Debug, Clone)]
 pub struct TestDataset {
+    /// Dataset name identifier.
     pub name: String,
+    /// Difficulty level of the dataset.
     pub difficulty: Difficulty,
+    /// HEDL format source.
     pub hedl: String,
+    /// JSON format conversion.
     pub json: String,
+    /// YAML format conversion.
     pub yaml: String,
+    /// XML format conversion.
     pub xml: String,
+    /// TOON format conversion.
     pub toon: String,
+    /// CSV format conversion.
     pub csv: String,
+    /// Questions to ask about this dataset.
     pub questions: Vec<Question>,
 }
 
@@ -332,21 +373,21 @@ impl TestDataset {
         questions: Vec<Question>,
         difficulty: Difficulty,
     ) -> Result<Self, String> {
-        let doc = hedl_core::parse(hedl.as_bytes())
-            .map_err(|e| format!("Failed to parse HEDL: {}", e))?;
+        let doc =
+            hedl_core::parse(hedl.as_bytes()).map_err(|e| format!("Failed to parse HEDL: {e}"))?;
 
         let json = hedl_json::to_json(&doc, &hedl_json::ToJsonConfig::default())
-            .map_err(|e| format!("Failed to convert to JSON: {}", e))?;
+            .map_err(|e| format!("Failed to convert to JSON: {e}"))?;
 
         let yaml = hedl_yaml::to_yaml(&doc, &hedl_yaml::ToYamlConfig::default())
-            .map_err(|e| format!("Failed to convert to YAML: {}", e))?;
+            .map_err(|e| format!("Failed to convert to YAML: {e}"))?;
 
         let xml = hedl_xml::to_xml(&doc, &hedl_xml::ToXmlConfig::default())
-            .map_err(|e| format!("Failed to convert to XML: {}", e))?;
+            .map_err(|e| format!("Failed to convert to XML: {e}"))?;
 
         // Generate TOON using proper hedl-toon crate
-        let toon = hedl_toon::hedl_to_toon(&doc)
-            .map_err(|e| format!("Failed to convert to TOON: {}", e))?;
+        let toon =
+            hedl_toon::hedl_to_toon(&doc).map_err(|e| format!("Failed to convert to TOON: {e}"))?;
 
         // Generate CSV (may fail for nested/complex structures - that's OK)
         let csv = hedl_csv::to_csv(&doc).unwrap_or_else(|_| {
@@ -368,6 +409,7 @@ impl TestDataset {
     }
 
     /// Get data in specified format
+    #[must_use]
     pub fn data(&self, format: DataFormat) -> &str {
         match format {
             DataFormat::Hedl => &self.hedl,
@@ -381,6 +423,7 @@ impl TestDataset {
 }
 
 /// Build the prompt for LLM testing
+#[must_use]
 pub fn build_prompt(data: &str, format: DataFormat, question: &Question) -> String {
     let format_desc = match format {
         DataFormat::Hedl => "HEDL (Human-Efficient Data Language)",
@@ -419,7 +462,7 @@ pub fn build_prompt(data: &str, format: DataFormat, question: &Question) -> Stri
     // Format hints - ~10 lines each for fairness. Not counted in token metrics.
     let format_hint = match format {
         DataFormat::Hedl => {
-            r#"
+            r"
 HEDL FORMAT GUIDE:
 - %STRUCT: Type: [col1,col2,col3] declares columns for entity type
 - | rows contain values matching column positions
@@ -427,10 +470,10 @@ HEDL FORMAT GUIDE:
 - Indentation (2 spaces) shows nesting hierarchy
 - @Type:id references another entity
 - Count hints (N) in %STRUCT show expected entity count
-- --- separates header from data section"#
+- --- separates header from data section"
         }
         DataFormat::Toon => {
-            r#"
+            r"
 TOON FORMAT GUIDE:
 - List header: key: [count]{col1,col2,...} declares N items with columns
 - Each following line is a data row: val1,val2,...
@@ -440,7 +483,7 @@ TOON FORMAT GUIDE:
 - Objects: key: {} followed by indented children
 - Strings with special chars are quoted
 - Numbers, booleans, null are unquoted
-- References appear as @Type:id strings"#
+- References appear as @Type:id strings"
         }
         DataFormat::Json => {
             r#"
@@ -456,7 +499,7 @@ JSON FORMAT GUIDE:
 - All keys are strings"#
         }
         DataFormat::Yaml => {
-            r#"
+            r"
 YAML FORMAT GUIDE:
 - Key-value: key: value (space after colon required)
 - Lists: - item (dash prefix) or [item1, item2]
@@ -466,7 +509,7 @@ YAML FORMAT GUIDE:
 - null or ~ for missing values
 - References appear as strings @Type:id
 - Multi-line strings use | or >
-- Comments start with #"#
+- Comments start with #"
         }
         DataFormat::Xml => {
             r#"
@@ -497,7 +540,7 @@ CSV FORMAT GUIDE:
     };
 
     format!(
-        r#"You are analyzing data in {} format. Answer the question based solely on the data provided.{}
+        r"You are analyzing data in {} format. Answer the question based solely on the data provided.{}
 
 DATA:
 ```
@@ -508,7 +551,7 @@ QUESTION: {}
 
 INSTRUCTIONS: {}
 
-ANSWER:"#,
+ANSWER:",
         format_desc, format_hint, data, question.prompt, answer_instruction
     )
 }
@@ -517,6 +560,7 @@ ANSWER:"#,
 /// - Easy: 5-10 entities, flat structure, simple queries
 /// - Medium: 50-100 entities, some nesting, aggregation
 /// - Hard: 200+ entities, deep nesting, cross-references, complex queries
+#[must_use]
 pub fn generate_test_datasets() -> Vec<TestDataset> {
     let mut datasets = Vec::new();
 
@@ -653,7 +697,7 @@ pub fn generate_test_datasets() -> Vec<TestDataset> {
     }
 
     // 6. DEEP ORG: Smaller but deeply nested organization (no aliases/dittos for LLM accuracy)
-    let org_hedl = r#"%VERSION: 1.0
+    let org_hedl = r"%VERSION: 1.0
 %STRUCT: Company: [id,name,founded,industry,status]
 %STRUCT: Department: [id,name,budget,head,location]
 %STRUCT: Team: [id,name,focus,lead,members]
@@ -693,7 +737,7 @@ companies: @Company
         |e018,Rachel Green,DevOps Lead,145000,active,remote
         |e019,Sam Turner,Site Reliability Engineer,130000,active,remote
         |e020,Tina Black,Cloud Engineer,125000,active,onsite
-"#;
+";
 
     let org_questions = generate_organization_questions();
     if let Ok(ds) = TestDataset::from_hedl("organization", org_hedl, org_questions) {
@@ -702,7 +746,7 @@ companies: @Company
 
     // 2. E-COMMERCE: Products with tensors, ratings, inventory tracking
     // Schema optimized: frequently-queried fields (name, status, ratings) placed early
-    let ecommerce_hedl = r#"%VERSION: 1.0
+    let ecommerce_hedl = r"%VERSION: 1.0
 %STRUCT: Category: [id,name,parent,margin]
 %STRUCT: Product: [id,name,status,ratings,price,cost,stock,category,tags]
 %STRUCT: Review: [id,author,rating,helpful_votes,text]
@@ -738,7 +782,7 @@ products: @Product
   |p007,4K Monitor 32in,low_stock,[4, 5, 4, 4, 5, 4, 5],449.99,280.00,6,@Category:computers,[monitor, 4k, 32inch]
     |r013,designer,5,41,Color accuracy is perfect
     |r014,developer,4,29,Great for coding split-screen
-"#;
+";
 
     let ecommerce_questions = generate_ecommerce_questions();
     if let Ok(ds) = TestDataset::from_hedl("ecommerce", ecommerce_hedl, ecommerce_questions) {
@@ -747,7 +791,7 @@ products: @Product
 
     // 3. ANALYTICS: Time-series with complex aggregations
     // Flat table - uses inline schema and compact format
-    let analytics_hedl = r#"%VERSION: 1.0
+    let analytics_hedl = r"%VERSION: 1.0
 ---
 metrics: @Metric[id,metric_name,value,source,timestamp,dimensions,percentiles]
   |m001,page_load_time,1250,web,2024-12-01T00:00:00Z,[homepage, us-east],[850, 1100, 1400, 2100, 3500]
@@ -766,7 +810,7 @@ metrics: @Metric[id,metric_name,value,source,timestamp,dimensions,percentiles]
   |m014,throughput,2340,api,2024-12-01T04:00:00Z,[orders, us-east],~
   |m015,throughput,1890,api,2024-12-01T04:00:00Z,[orders, eu-west],~
   |m016,throughput,3210,api,2024-12-01T04:00:00Z,[orders, ap-south],~
-"#;
+";
 
     let analytics_questions = generate_analytics_questions();
     if let Ok(ds) = TestDataset::from_hedl("analytics", analytics_hedl, analytics_questions) {
@@ -774,7 +818,7 @@ metrics: @Metric[id,metric_name,value,source,timestamp,dimensions,percentiles]
     }
 
     // 4. KNOWLEDGE GRAPH: Complex cross-references
-    let knowledge_hedl = r#"%VERSION: 1.0
+    let knowledge_hedl = r"%VERSION: 1.0
 %STRUCT: Person: [id,name,birth_year,occupation,known_for]
 %STRUCT: Organization: [id,name,founded,type,headquarters]
 %STRUCT: Publication: [id,title,year,authors,citations,topics]
@@ -810,7 +854,7 @@ affiliations: @Affiliation
   |aff06,@Person:mccarthy,@Organization:mit,Professor,1958,1962
   |aff07,@Person:mccarthy,@Organization:stanford,Professor,1962,2011
   |aff08,@Person:kay,@Organization:stanford,Adjunct Professor,1984,~
-"#;
+";
 
     let knowledge_questions = generate_knowledge_questions();
     if let Ok(ds) = TestDataset::from_hedl("knowledge", knowledge_hedl, knowledge_questions) {
@@ -1501,6 +1545,7 @@ fn generate_deep_hierarchy_questions() -> Vec<Question> {
 }
 
 /// Simulate an accuracy test (for testing the harness without API calls)
+#[must_use]
 pub fn simulate_test(dataset: &TestDataset, format: DataFormat, question: &Question) -> TestResult {
     let prompt = build_prompt(dataset.data(format), format, question);
 
@@ -1520,6 +1565,8 @@ pub fn simulate_test(dataset: &TestDataset, format: DataFormat, question: &Quest
     }
 }
 
+// Tests for deprecated legacy module - allowed to use deprecated APIs
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
     use super::*;

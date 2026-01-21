@@ -1,49 +1,60 @@
 # Validator Component
 
-> Semantic validation and constraint checking in HEDL
+> Comprehensive validation framework for HEDL documents
 
 ## Overview
 
-HEDL validation is integrated into the parsing process. The parser enforces semantic correctness, resolves references, and validates security limits during parsing.
+HEDL provides a comprehensive validation framework that goes beyond basic syntax checking to validate semantic correctness, type safety, referential integrity, and custom business logic. The validation system consists of both parse-time validation (enforced during parsing) and post-parse validation (using the extensible validation framework).
 
 ## Responsibility
 
-**Primary Function**: Ensure semantic correctness during parsing
+**Primary Function**: Ensure document correctness at multiple levels
 
 **Key Responsibilities**:
-1. Reference validation and resolution
-2. Schema validation (struct definitions match usage)
-3. Security limit enforcement
-4. Duplicate ID detection
-5. Orphan row detection (children without NEST)
-6. Type collision detection
+1. Parse-time validation (integrated into parser):
+   - Reference validation and resolution
+   - Schema validation (struct definitions match usage)
+   - Security limit enforcement
+   - Duplicate ID detection
+   - Orphan row detection (children without NEST)
+2. Post-parse validation (extensible framework):
+   - Type collision detection
+   - Custom business rules
+   - Semantic correctness checks
+   - Cross-document validation
 
 ## Architecture
 
 ```mermaid
-graph LR
-    PARSE[Parser] --> VALIDATE[Validation]
-    VALIDATE --> REFS[Reference Resolution]
-    VALIDATE --> LIMITS[Limit Enforcement]
-    VALIDATE --> SCHEMA[Schema Validation]
+graph TB
+    PARSE[Parser] --> PARSE_VAL[Parse-time Validation]
+    PARSE_VAL --> REFS[Reference Resolution]
+    PARSE_VAL --> LIMITS[Limit Enforcement]
+    PARSE_VAL --> SCHEMA[Schema Validation]
 
-    REFS --> DOC[Valid Document]
+    REFS --> DOC[Document]
     LIMITS --> DOC
     SCHEMA --> DOC
 
-    style VALIDATE fill:#e1f5ff
+    DOC --> POST_VAL[Post-parse Validation]
+    POST_VAL --> RULES[Validation Rules]
+    RULES --> DIAG[Diagnostics]
+    DIAG --> VALID_DOC[Validated Document]
+
+    style PARSE_VAL fill:#e1f5ff
+    style POST_VAL fill:#fff3e0
 ```
 
-## Validation During Parsing
+## Parse-time Validation
 
-Validation happens at parse time, not as a separate pass:
+Basic validation happens during parsing to catch critical errors early:
 
 ```rust
 use hedl::{parse_with_limits, ParseOptions};
 
 // Parse with validation
 let opts = ParseOptions::builder()
-    .strict(true)  // Strict reference checking
+    .reference_mode(ReferenceMode::Strict)  // Strict reference checking
     .max_nodes(10_000)  // Enforce limits
     .build();
 
@@ -86,14 +97,14 @@ let mut registry = TypeRegistry::new();
 for (key, item) in &doc.root {
     if let Item::List(list) = item {
         for node in &list.rows {
-            register_node(&mut registry, &node.type_name, &node.id, line_num)?;
+            register_node(&mut registry, &node.type_name, &node.id, line_num, &limits)?;
         }
     }
 }
 
 // 2. Resolve and validate references
-// Reference validation based on ParseOptions.strict
-resolve_references(&doc, &options)?;
+// Reference validation based on ParseOptions.reference_mode
+resolve_references(&doc, options.reference_mode)?;
 ```
 
 Reference errors occur when:
@@ -215,11 +226,11 @@ assert!(matches!(
 
 ```rust
 // Strict mode: unresolved references are errors
-let opts = ParseOptions::builder().strict(true).build();
+let opts = ParseOptions::builder().reference_mode(ReferenceMode::Strict).build();
 let doc = parse_with_limits(input, opts)?;  // Fails on bad refs
 
 // Lenient mode: unresolved references are ignored
-let opts = ParseOptions::builder().strict(false).build();
+let opts = ParseOptions::builder().reference_mode(ReferenceMode::Lenient).build();
 let doc = parse_with_limits(input, opts)?;  // Continues despite bad refs
 ```
 
@@ -248,6 +259,80 @@ let doc = parse_with_limits(input, opts)?;  // Continues despite bad refs
 - Easy to extend
 
 **Trade-off**: Additional memory for registry
+
+## Post-parse Validation Framework
+
+The validation module (`hedl_core::validation`) provides an extensible framework for advanced validation:
+
+```rust
+use hedl_core::validation::{ValidationRunner, LintConfig};
+
+let doc = hedl_core::parse(input)?;
+let runner = ValidationRunner::new(LintConfig::default());
+let result = runner.validate(&doc);
+
+if !result.is_valid {
+    for diagnostic in result.diagnostics {
+        eprintln!("{}", diagnostic);
+    }
+}
+```
+
+### Built-in Rules
+
+The framework includes several built-in validation rules:
+
+- **DuplicateKeyRule**: Detects duplicate keys in objects
+- **InvalidReferenceRule**: Validates reference integrity
+- **TypeMismatchRule**: Checks type consistency
+- **UnusedReferenceRule**: Finds unreferenced nodes
+
+### Custom Rules
+
+You can implement custom validation rules using the `Rule` trait:
+
+```rust
+use hedl_core::validation::{Rule, ValidationContext, Diagnostic, RuleCategory, Severity};
+
+struct TeamSizeRule;
+
+impl Rule for TeamSizeRule {
+    fn id(&self) -> &str { "team-size" }
+    fn description(&self) -> &str { "Teams must have 3-50 members" }
+    fn category(&self) -> RuleCategory { RuleCategory::BusinessLogic }
+    fn default_severity(&self) -> Severity { Severity::Warning }
+
+    fn check(&self, doc: &Document, context: &mut ValidationContext)
+        -> Result<Vec<Diagnostic>, HedlError>
+    {
+        // Custom validation logic here
+        Ok(vec![])
+    }
+}
+```
+
+### Diagnostic System
+
+The validation framework provides rich diagnostics with:
+- Severity levels (Error, Warning, Info)
+- Source locations with line and column numbers
+- Suggested fixes (auto-fixable diagnostics)
+- Related diagnostics for cross-references
+- Diagnostic tags for categorization
+
+## Design Decisions
+
+### Why Two-tier Validation?
+
+**Decision**: Parse-time validation + Post-parse validation framework
+
+**Rationale**:
+- Parse-time: Fail-fast for critical errors (syntax, security limits)
+- Post-parse: Flexible validation for semantic rules
+- Extensibility: Custom rules without modifying parser
+- Performance: Optional validation passes
+
+**Trade-off**: More complex architecture
 
 ## Related Documentation
 

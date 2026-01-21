@@ -10,16 +10,14 @@ This document describes how data flows through the HEDL ecosystem, from raw text
 graph LR
     INPUT[Raw Text Input]
     PREPROCESS[Preprocessing]
-    LEX[Lexical Analysis]
-    PARSE[Parsing]
-    VALIDATE[Validation]
+    PARSE[Parsing with<br/>Lexical Validation]
+    VALIDATE[Reference<br/>Resolution]
     AST[Document AST]
     TRANSFORM[Transformation]
     OUTPUT[Output Format]
 
     INPUT --> PREPROCESS
-    PREPROCESS --> LEX
-    LEX --> PARSE
+    PREPROCESS --> PARSE
     PARSE --> VALIDATE
     VALIDATE --> AST
     AST --> TRANSFORM
@@ -50,17 +48,13 @@ graph TB
         HEADER[Header<br/>Metadata]
     end
 
-    subgraph "Lexical Analysis"
-        TOKENS[Token Stream]
-        INDENT[Indent<br/>Validation]
-        REGIONS[Region<br/>Scanning]
-    end
-
     subgraph "Parsing"
         BODY[Body Parsing]
         MATRIX[Matrix List<br/>Parsing]
         EXPR[Expression<br/>Parsing]
         REF[Reference<br/>Parsing]
+        INDENT[Indent<br/>Validation]
+        LEX_UTILS[Lex Utilities<br/>(on-demand)]
     end
 
     subgraph "Validation"
@@ -84,15 +78,15 @@ graph TB
     ALIAS --> HEADER
     NEST --> HEADER
 
-    PREPROC --> TOKENS
-    TOKENS --> INDENT
-    TOKENS --> REGIONS
-    INDENT --> BODY
-    REGIONS --> BODY
+    PREPROC --> BODY
+    HEADER --> BODY
 
-    BODY --> MATRIX
-    BODY --> EXPR
-    BODY --> REF
+    BODY --> LEX_UTILS
+    LEX_UTILS --> INDENT
+    LEX_UTILS --> MATRIX
+    LEX_UTILS --> EXPR
+    LEX_UTILS --> REF
+
     MATRIX --> REFS
     EXPR --> REFS
     REF --> REFS
@@ -124,11 +118,11 @@ graph TB
 **Key Functions**:
 ```rust
 // From hedl-core/src/preprocess.rs
-fn preprocess(input: &str) -> impl Iterator<Item = (usize, &str)>  // Returns (line_num, line)
-fn is_comment_line(line: &str) -> bool
-fn is_blank_line(line: &str) -> bool
+pub fn preprocess(input: &[u8], limits: &Limits) -> HedlResult<PreprocessedInput>
+// Returns PreprocessedInput with lines() iterator yielding (line_num, line_content)
+
 // From hedl-core/src/lex/mod.rs
-fn strip_comment(line: &str) -> &str
+pub fn strip_comment(line: &str) -> &str
 ```
 
 #### Phase 2: Header Processing
@@ -148,6 +142,7 @@ From hedl-core/src/document.rs:
 ```rust
 pub struct Document {
     pub version: (u32, u32),
+    pub schema_versions: BTreeMap<String, SchemaVersion>,  // Schema evolution
     pub aliases: BTreeMap<String, String>,  // name -> replacement string
     pub structs: BTreeMap<String, Vec<String>>,  // type -> columns
     pub nests: BTreeMap<String, String>,  // parent -> child
@@ -163,88 +158,56 @@ fn parse_header(lines: &[&str], limits: &Limits) -> HedlResult<ParsedHeader>
 // Note: Header is internal structure, Document fields are public API
 ```
 
-#### Phase 3: Lexical Analysis
+#### Phase 3: Parsing with Lexical Validation
 
-**Input**: Body lines (after `---`)
+**Input**: Body lines (after `---`) + Header metadata
 
 **Operations**:
-1. **Direct Parsing**: Parser consumes input directly (no separate tokenization phase)
+The parser directly processes lines and calls lexical utilities as needed:
+1. **Body Parsing**: Build object hierarchy using stack-based parsing
 2. **Indent Validation**: Check indentation consistency using `calculate_indent`
 3. **CSV Row Parsing**: Parse matrix rows using `parse_csv_row` from `lex::row` module
-4. **Reference Parsing**: Extract `@Type:id` references during value inference
-5. **Block String Parsing**: Handle `"""..."""` multi-line strings
+4. **Tensor Parsing**: Parse multi-dimensional arrays using `parse_tensor`
+5. **Reference Parsing**: Validate and parse `@Type:id` references
+6. **Token Validation**: Validate key names, type names, IDs using token validators
+7. **Block String Parsing**: Handle `"""..."""` multi-line strings (via block_string module)
+8. **Value Inference**: Determine types for unquoted values
 
-**Output**: Parsed values and structures (no intermediate token stream)
+**Output**: Document AST (no intermediate token stream)
+
+**Key Design**: HEDL uses direct parsing without a separate tokenization phase. Lexical utilities are called on-demand by the parser.
 
 **Key Functions**:
 ```rust
 // From hedl-core/src/lex/mod.rs
-pub fn calculate_indent(line: &str) -> HedlResult<usize>  // Returns spaces count
+pub fn calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>, LexError>
 pub fn is_valid_key_token(s: &str) -> bool
 pub fn is_valid_type_name(s: &str) -> bool
 pub fn strip_comment(line: &str) -> &str
 
 // From hedl-core/src/lex/row.rs
-pub fn parse_csv_row(line: &str) -> HedlResult<Vec<String>>  // Returns field values
+pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError>
+
+// From hedl-core/src/lex/tensor.rs
+pub fn parse_tensor(s: &str) -> Result<Tensor, LexError>
 
 // From hedl-core/src/inference.rs
 fn infer_value(token: &str, ctx: &InferenceContext, line_num: usize) -> HedlResult<Value>
 ```
 
-#### Phase 4: Parsing
+#### Phase 4: Validation
 
-**Input**: Preprocessed lines + Header metadata
-
-**Operations**:
-1. **Body Parsing**: Build object hierarchy
-2. **Matrix List Parsing**: Parse CSV-style tables
-3. **Expression Parsing**: Handle `$(...)` deferred computation
-4. **Tensor Parsing**: Parse `[1, 2, 3]` numerical arrays
-5. **Value Inference**: Determine types for unquoted values
-
-**Output**: Unvalidated AST
-
-**Key Types**:
-```rust
-pub struct Document {
-    pub version: (u32, u32),
-    pub aliases: BTreeMap<String, String>,
-    pub structs: BTreeMap<String, Vec<String>>,
-    pub nests: BTreeMap<String, String>,
-    pub root: BTreeMap<String, Item>,
-}
-
-pub enum Item {
-    Scalar(Value),
-    Object(BTreeMap<String, Item>),
-    List(MatrixList),
-}
-```
-
-**Key Functions**:
-```rust
-// From hedl-core/src/parser.rs
-// Note: These are internal functions; public API is parse() and parse_with_limits()
-fn parse_body_section(...) -> HedlResult<BTreeMap<String, Item>>  // Internal parsing
-fn parse_item(...) -> HedlResult<(String, Item, usize)>  // Parse single item recursively
-
-// From hedl-core/src/inference.rs
-fn infer_value(token: &str, ctx: &InferenceContext, line_num: usize) -> HedlResult<Value>
-```
-
-#### Phase 5: Validation
-
-**Input**: Unvalidated AST
+**Input**: Document AST from parsing
 
 **Operations**:
-1. **Reference Resolution**: Resolve `@Type:id` to actual nodes
-2. **Schema Validation**: Verify matrix lists match STRUCT definitions
+1. **Reference Resolution**: Resolve `@Type:id` to actual nodes (if in Strict mode)
+2. **Schema Validation**: Verify matrix lists match STRUCT definitions (done during parsing)
 3. **NEST Validation**: Build parent-child relationships
-4. **Resource Limits**: Enforce security limits
+4. **Resource Limits**: Enforce security limits (enforced during parsing)
 
 **Output**: Validated Document
 
-**Validation During Parsing**:
+**Validation Design**:
 
 Reference resolution and validation occur during parsing, not as a separate post-processing phase:
 
@@ -423,10 +386,10 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),
+    Tensor(Box<Tensor>),
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>),
 }
 ```
 

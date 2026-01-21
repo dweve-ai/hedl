@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Example demonstrating custom pluralization using the list_key parameter.
+//! Example demonstrating custom pluralization using the `list_key` parameter.
 //!
 //! This example shows how to handle irregular plural forms and custom list naming
 //! when importing CSV data into HEDL documents.
@@ -27,10 +27,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 1: Irregular Plural - Person -> people
     println!("Example 1: Irregular Plural (Person -> people)");
-    let csv_people = r#"id,name,age,occupation
+    let csv_people = r"id,name,age,occupation
 1,Alice Johnson,30,Engineer
 2,Bob Smith,25,Designer
-3,Carol Williams,35,Manager"#;
+3,Carol Williams,35,Manager";
 
     let config = FromCsvConfig {
         list_key: Some("people".to_string()),

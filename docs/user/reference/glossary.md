@@ -328,5 +328,5 @@ posts: @Post
 
 **Related:**
 - [Concepts](../concepts/) - Deep-dive explanations
-- [CLI Commands](cli-commands.md) - Command reference
+- [CLI Guide](../cli-guide.md) - Command reference
 - [Configuration](configuration.md) - Settings reference

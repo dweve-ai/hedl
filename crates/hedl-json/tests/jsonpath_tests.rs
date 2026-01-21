@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Integration tests for JSONPath query functionality
+//! Integration tests for `JSONPath` query functionality
 
 use hedl_core::parse;
 use hedl_json::jsonpath::{
@@ -52,9 +52,9 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
             }
             (header_lines.join("\n"), body_lines.join("\n"))
         };
-        format!("%VERSION: 1.0\n{}\n---\n{}", header, body)
+        format!("%VERSION: 1.0\n{header}\n---\n{body}")
     } else {
-        format!("%VERSION: 1.0\n---\n{}", input)
+        format!("%VERSION: 1.0\n---\n{input}")
     };
     parse(hedl.as_bytes()).unwrap()
 }
@@ -106,12 +106,12 @@ user:
 
 #[test]
 fn test_wildcard_query() {
-    let hedl = r#"
+    let hedl = r"
 a: 1
 b: 2
 c: 3
 d: 4
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let config = QueryConfig::default();
@@ -120,7 +120,10 @@ d: 4
     assert_eq!(results.len(), 4);
 
     // Sum all values
-    let sum: i64 = results.iter().filter_map(|v| v.as_i64()).sum();
+    let sum: i64 = results
+        .iter()
+        .filter_map(serde_json::value::Value::as_i64)
+        .sum();
     assert_eq!(sum, 10);
 }
 
@@ -493,7 +496,7 @@ fn test_large_document_query() {
     // Generate a document with many fields
     let mut hedl = String::new();
     for i in 0..100 {
-        hedl.push_str(&format!("field{}: {}\n", i, i));
+        hedl.push_str(&format!("field{i}: {i}\n"));
     }
 
     let doc = parse_hedl(&hedl);

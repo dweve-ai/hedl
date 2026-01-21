@@ -22,12 +22,31 @@
 //!
 //! # Test Modules
 //!
+//! ## Core Functionality (Phase 1-6)
 //! - `value_inference`: Tests for value type inference determinism
 //! - `references`: Tests for reference resolution consistency
 //! - `ditto`: Tests for ditto marker expansion correctness
+//! - `roundtrip`: Tests for parse/serialize preservation
+//! - `errors`: Tests for error handling consistency
+//! - `boundaries`: Tests for boundary conditions and limits
+//! - `nest`: Tests for NEST hierarchy semantics
+//! - `block_strings`: Tests for block string handling
+//! - `expressions`: Tests for expression and reference handling
 //!
 //! Each module runs 1000+ test cases per property to ensure comprehensive coverage.
+//!
+//! # Total Coverage
+//!
+//! - **100+ individual property tests** across all modules
+//! - **100,000+ test cases** generated per full test run
+//! - **Comprehensive invariant validation** for all core features
 
+pub mod block_strings;
+pub mod boundaries;
 pub mod ditto;
+pub mod errors;
+pub mod expressions;
+pub mod nest;
 pub mod references;
+pub mod roundtrip;
 pub mod value_inference;

@@ -34,6 +34,7 @@ use crate::datasets::generate_ditto_heavy;
 /// # Returns
 ///
 /// HEDL document string with tensor data.
+#[must_use]
 pub fn generate_tensor_data(dimensions: &[usize]) -> String {
     if dimensions.is_empty() {
         return "%VERSION: 1.0\n---\n".to_string();
@@ -65,7 +66,7 @@ pub fn generate_tensor_data(dimensions: &[usize]) -> String {
         // Create ID from coordinates (e.g., "0_5_3" for [0,5,3])
         let id = coords
             .iter()
-            .map(|c| c.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
             .join("_");
 
@@ -87,6 +88,7 @@ pub fn generate_tensor_data(dimensions: &[usize]) -> String {
 /// # Returns
 ///
 /// HEDL document string with row data.
+#[must_use]
 pub fn generate_row_data(row_count: usize, col_count: usize) -> String {
     if row_count == 0 || col_count == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -95,7 +97,7 @@ pub fn generate_row_data(row_count: usize, col_count: usize) -> String {
     let mut doc = String::from("%VERSION: 1.0\n");
 
     // Generate column headers
-    let headers: Vec<String> = (0..col_count).map(|i| format!("col{}", i)).collect();
+    let headers: Vec<String> = (0..col_count).map(|i| format!("col{i}")).collect();
 
     doc.push_str(&format!("%STRUCT: Row: [{}]\n", headers.join(",")));
     doc.push_str("---\n");
@@ -108,7 +110,7 @@ pub fn generate_row_data(row_count: usize, col_count: usize) -> String {
             if col > 0 {
                 doc.push(',');
             }
-            doc.push_str(&format!("r{}c{}", row, col));
+            doc.push_str(&format!("r{row}c{col}"));
         }
         doc.push('\n');
     }
@@ -118,7 +120,7 @@ pub fn generate_row_data(row_count: usize, col_count: usize) -> String {
 
 /// Generates CSV-like data for compatibility testing.
 ///
-/// Alias for generate_row_data with clearer naming for CSV contexts.
+/// Alias for `generate_row_data` with clearer naming for CSV contexts.
 ///
 /// # Arguments
 ///
@@ -128,6 +130,7 @@ pub fn generate_row_data(row_count: usize, col_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with CSV-like structure.
+#[must_use]
 pub fn generate_csv_like(rows: usize, cols: usize) -> String {
     generate_row_data(rows, cols)
 }
@@ -144,6 +147,7 @@ pub fn generate_csv_like(rows: usize, cols: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with ditto-heavy pattern.
+#[must_use]
 pub fn generate_ditto_data(entity_count: usize) -> String {
     generate_ditto_heavy(entity_count)
 }
@@ -161,6 +165,7 @@ pub fn generate_ditto_data(entity_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with wide rows.
+#[must_use]
 pub fn generate_wide_rows(row_count: usize, field_count: usize) -> String {
     generate_row_data(row_count, field_count)
 }
@@ -174,6 +179,7 @@ pub fn generate_wide_rows(row_count: usize, field_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with time-series data.
+#[must_use]
 pub fn generate_time_series(data_points: usize) -> String {
     if data_points == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -188,8 +194,7 @@ pub fn generate_time_series(data_points: usize) -> String {
         let timestamp = 1704067200 + (i * 60); // Starting from 2024-01-01
         let value = (i as f64 * 0.5).sin() * 100.0 + 100.0;
         doc.push_str(&format!(
-            "  |{},{:.2},[server:web1,env:prod]\n",
-            timestamp, value
+            "  |{timestamp},{value:.2},[server:web1,env:prod]\n"
         ));
     }
 
@@ -205,6 +210,7 @@ pub fn generate_time_series(data_points: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with key-value structure.
+#[must_use]
 pub fn generate_key_value(pair_count: usize) -> String {
     if pair_count == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -216,7 +222,7 @@ pub fn generate_key_value(pair_count: usize) -> String {
     doc.push_str("config: @Config\n");
 
     for i in 0..pair_count {
-        doc.push_str(&format!("  |config_key_{},config_value_{}\n", i, i));
+        doc.push_str(&format!("  |config_key_{i},config_value_{i}\n"));
     }
 
     doc
@@ -233,6 +239,7 @@ pub fn generate_key_value(pair_count: usize) -> String {
 /// # Returns
 ///
 /// HEDL document string with sparse matrix.
+#[must_use]
 pub fn generate_sparse_matrix(rows: usize, cols: usize, density: f32) -> String {
     if rows == 0 || cols == 0 {
         return "%VERSION: 1.0\n".to_string();
@@ -248,7 +255,7 @@ pub fn generate_sparse_matrix(rows: usize, cols: usize, density: f32) -> String 
         let row = i % rows;
         let col = (i / rows) % cols;
         let value = (i as f64 + 1.0) * 0.1;
-        doc.push_str(&format!("  |{},{},{:.2}\n", row, col, value));
+        doc.push_str(&format!("  |{row},{col},{value:.2}\n"));
     }
 
     doc

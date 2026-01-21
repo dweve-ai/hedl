@@ -17,16 +17,16 @@ Based on 6,068 lines of Rust across 7 modules:
 3. **Schema Caching**: Thread-safe LRU cache for high-performance repeated validation
 4. **Streaming Parser**: Process multi-gigabyte XML files with O(1) memory per element
 5. **Async I/O**: Tokio-based async operations for concurrent processing (feature-gated)
-6. **Security Limits**: DoS protection with recursion depth, list size, and string length limits
+6. **Security**: XXE prevention with entity policies, configurable recursion depth limits, and batch size controls
 
 ## Installation
 
 ```toml
 [dependencies]
-hedl-xml = "1.0"
+hedl-xml = "1.2"
 
 # For async I/O support:
-hedl-xml = { version = "1.0", features = ["async"] }
+hedl-xml = { version = "1.2", features = ["async"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -105,6 +105,7 @@ let config = FromXmlConfig {
     default_type_name: "Item".to_string(),  // Default for inferred lists
     version: (1, 0),                         // HEDL version
     infer_lists: true,                       // Auto-detect repeated elements
+    ..Default::default()                     // Use defaults for entity_policy, log_security_events
 };
 
 let hedl_doc = from_xml(xml, &config)?;
@@ -214,6 +215,7 @@ let config = StreamConfig {
     default_type_name: "Item".to_string(),
     version: (1, 0),
     infer_lists: true,
+    ..Default::default()             // Use defaults for entity_policy and log_security_events
 };
 
 let mut count = 0;
@@ -327,6 +329,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Recursion Depth Limit
 
 **Default**: 100 levels
+**Configurable**: Yes, via `StreamConfig::max_recursion_depth` (streaming API). Standard `from_xml()` uses fixed limit.
 **Protection**: Prevents stack overflow from deeply nested XML structures
 
 ```xml
@@ -336,31 +339,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Error: `XML recursion depth exceeded (max: 100, found: 101)`
 
-### List Size Limit
+### Batch Size Limit (Streaming)
 
-**Default**: 100,000 elements
-**Protection**: Prevents memory exhaustion from XML with millions of repeated elements
+**Default**: 1,000 elements per batch
+**Configurable**: Yes, via `StreamConfig::max_batch_size`
+**Protection**: Controls memory usage when processing repeated elements in streams
 
-```xml
-<root>
-  <item>...</item>  <!-- repeated 10,000,000 times -->
-</root>
+For the standard (non-streaming) `from_xml()` and `to_xml()` APIs, limits are hardcoded and cannot be adjusted. Use the streaming API if you need custom batch size limits.
+
+**Example with custom recursion limit**:
+
+```rust
+use hedl_xml::streaming::StreamConfig;
+
+let config = StreamConfig {
+    max_recursion_depth: 50,  // Stricter than default
+    max_batch_size: 500,      // Process smaller batches
+    ..Default::default()
+};
 ```
 
-Error: `List size exceeded maximum (max: 100000, found: 100001)`
-
-### String Length Limit
-
-**Default**: 1,000,000 characters
-**Protection**: Prevents memory exhaustion from gigabyte-sized text values
-
-```xml
-<text>AAAA... (1 GB of data) ...AAAA</text>
-```
-
-Error: `String length exceeded maximum (max: 1000000, found: 1000001)`
-
-**Configuration**: All limits are configurable via `FromXmlConfig` and `StreamConfig`. Adjust based on your trusted vs untrusted input sources.
+**Note on String and List Size Limits**: The error types support reporting string length and list size violations, but the actual limits are enforced at the underlying quick-xml parser level (no individual XML element can exceed XML parser limits). These are not currently user-configurable in hedl-xml.
 
 ## Format Mapping
 
@@ -415,7 +414,7 @@ Error: `String length exceeded maximum (max: 1000000, found: 1000001)`
 ## Dependencies
 
 - `quick-xml` 0.31 - High-performance XML parsing and serialization
-- `roxmltree` 0.19 - XSD schema parsing and validation
+- `roxmltree` 0.20 - XSD schema parsing and validation
 - `hedl-core` 1.0 - HEDL parsing and data model
 - `parking_lot` 0.12 - High-performance RwLock for schema cache
 - `tokio` 1.0 (optional) - Async I/O runtime (requires `async` feature)

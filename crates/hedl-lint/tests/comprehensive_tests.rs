@@ -71,12 +71,12 @@ fn test_good_id_no_hint() {
     list.add_row(Node::new(
         "User",
         "user_alice",
-        vec![Value::String("Alice".to_string())],
+        vec![Value::String("Alice".to_string().into())],
     ));
     list.add_row(Node::new(
         "User",
         "user_bob",
-        vec![Value::String("Bob".to_string())],
+        vec![Value::String("Bob".to_string().into())],
     ));
     doc.root.insert("users".to_string(), Item::List(list));
 
@@ -97,7 +97,7 @@ fn test_nested_child_ids_checked() {
 
     let mut parent = Node::new("Parent", "parent_1", vec![]);
     let child = Node::new("Child", "x", vec![]); // Short ID in child
-    parent.children.insert("Child".to_string(), vec![child]);
+    parent.add_child("Child", child);
 
     list.add_row(parent);
     doc.root.insert("parents".to_string(), Item::List(list));
@@ -157,7 +157,7 @@ fn test_used_schema_no_warning() {
     list.add_row(Node::new(
         "User",
         "user1",
-        vec![Value::String("Alice".to_string())],
+        vec![Value::String("Alice".to_string().into())],
     ));
     doc.root.insert("users".to_string(), Item::List(list));
 
@@ -203,6 +203,51 @@ fn test_no_schemas_no_warning() {
         .collect();
 
     assert!(unused_warnings.is_empty());
+}
+
+#[test]
+fn test_unused_schema_deep_nested_hierarchy() {
+    let mut doc = Document::new((1, 0));
+
+    // Define schemas including deeply nested ones
+    doc.structs
+        .insert("User".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("Post".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("Comment".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("Reply".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("ActuallyUnused".to_string(), vec!["id".to_string()]);
+
+    // Create deep hierarchy: User > Post > Comment > Reply
+    let mut user_list = MatrixList::new("User", vec!["id".to_string()]);
+    let mut user = Node::new("User", "alice", vec![]);
+
+    let mut post = Node::new("Post", "post1", vec![]);
+    let mut comment = Node::new("Comment", "comment1", vec![]);
+    let reply = Node::new("Reply", "reply1", vec![]);
+
+    // Build the hierarchy
+    comment.add_child("Reply", reply);
+    post.add_child("Comment", comment);
+    user.add_child("Post", post);
+    user_list.add_row(user);
+
+    doc.root.insert("users".to_string(), Item::List(user_list));
+
+    let diagnostics = lint(&doc);
+
+    let unused_warnings: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // Only ActuallyUnused should be reported
+    // User, Post, Comment, and Reply are all used even though Reply is 3 levels deep
+    assert_eq!(unused_warnings.len(), 1);
+    assert!(unused_warnings[0].message().contains("ActuallyUnused"));
 }
 
 // =============================================================================
@@ -360,6 +405,248 @@ fn test_multiple_unqualified_references() {
 }
 
 // =============================================================================
+// Deep Nesting and Reference Detection Tests
+// =============================================================================
+
+#[test]
+fn test_type_used_in_field_reference() {
+    let mut doc = Document::new((1, 0));
+
+    // Define schemas
+    doc.structs.insert(
+        "User".to_string(),
+        vec!["id".to_string(), "manager".to_string()],
+    );
+    doc.structs
+        .insert("Manager".to_string(), vec!["id".to_string()]);
+
+    // User references Manager in a field
+    let mut user_list = MatrixList::new("User", vec!["id".to_string(), "manager".to_string()]);
+    user_list.add_row(Node::new(
+        "User",
+        "alice",
+        vec![Value::Reference(Reference::qualified("Manager", "mgr1"))],
+    ));
+    doc.root.insert("users".to_string(), Item::List(user_list));
+
+    let diagnostics = lint(&doc);
+
+    let unused: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // Manager should NOT be reported as unused
+    assert!(
+        unused.is_empty(),
+        "Manager should be detected as used via reference in field"
+    );
+}
+
+#[test]
+fn test_type_used_in_deeply_nested_field_reference() {
+    let mut doc = Document::new((1, 0));
+
+    doc.structs
+        .insert("User".to_string(), vec!["id".to_string()]);
+    doc.structs.insert(
+        "Post".to_string(),
+        vec!["id".to_string(), "author".to_string()],
+    );
+    doc.structs.insert(
+        "Comment".to_string(),
+        vec!["id".to_string(), "author".to_string()],
+    );
+    doc.structs
+        .insert("Author".to_string(), vec!["id".to_string()]);
+
+    // Create hierarchy where Comment (nested 2 levels deep) references Author
+    let mut user_list = MatrixList::new("User", vec!["id".to_string()]);
+    let mut user = Node::new("User", "alice", vec![]);
+
+    let mut post = Node::new(
+        "Post",
+        "post1",
+        vec![Value::Reference(Reference::qualified("Author", "author1"))],
+    );
+    let comment = Node::new(
+        "Comment",
+        "comment1",
+        vec![Value::Reference(Reference::qualified("Author", "author2"))],
+    );
+
+    post.add_child("Comment", comment);
+    user.add_child("Post", post);
+    user_list.add_row(user);
+    doc.root.insert("users".to_string(), Item::List(user_list));
+
+    let diagnostics = lint(&doc);
+
+    let unused: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // All types should be detected as used
+    assert!(unused.is_empty(), "All types should be detected as used");
+}
+
+#[test]
+fn test_mixed_usage_child_and_reference() {
+    let mut doc = Document::new((1, 0));
+
+    doc.structs.insert(
+        "User".to_string(),
+        vec!["id".to_string(), "friend".to_string()],
+    );
+    doc.structs
+        .insert("Post".to_string(), vec!["id".to_string()]);
+
+    // User has Post children AND references another User
+    let mut user_list = MatrixList::new("User", vec!["id".to_string(), "friend".to_string()]);
+    let mut user1 = Node::new(
+        "User",
+        "alice",
+        vec![Value::Reference(Reference::qualified("User", "bob"))],
+    );
+
+    // Add Post as child
+    user1.add_child("Post", Node::new("Post", "post1", vec![]));
+    user_list.add_row(user1);
+
+    doc.root.insert("users".to_string(), Item::List(user_list));
+
+    let diagnostics = lint(&doc);
+
+    let unused: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // Both User and Post should be detected as used
+    assert!(
+        unused.is_empty(),
+        "Both User and Post should be detected as used"
+    );
+}
+
+#[test]
+fn test_four_level_deep_nesting() {
+    let mut doc = Document::new((1, 0));
+
+    doc.structs
+        .insert("Level1".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("Level2".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("Level3".to_string(), vec!["id".to_string()]);
+    doc.structs
+        .insert("Level4".to_string(), vec!["id".to_string()]);
+
+    // Create 4-level hierarchy
+    let mut list = MatrixList::new("Level1", vec!["id".to_string()]);
+    let mut l1 = Node::new("Level1", "l1", vec![]);
+    let mut l2 = Node::new("Level2", "l2", vec![]);
+    let mut l3 = Node::new("Level3", "l3", vec![]);
+    let l4 = Node::new("Level4", "l4", vec![]);
+
+    l3.add_child("Level4", l4);
+    l2.add_child("Level3", l3);
+    l1.add_child("Level2", l2);
+    list.add_row(l1);
+
+    doc.root.insert("root".to_string(), Item::List(list));
+
+    let diagnostics = lint(&doc);
+
+    let unused: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // All 4 levels should be detected as used
+    assert!(unused.is_empty(), "All 4 levels should be detected as used");
+}
+
+#[test]
+fn test_multiple_references_in_single_row() {
+    let mut doc = Document::new((1, 0));
+
+    doc.structs.insert(
+        "Task".to_string(),
+        vec![
+            "id".to_string(),
+            "assignee".to_string(),
+            "reviewer".to_string(),
+        ],
+    );
+    doc.structs
+        .insert("User".to_string(), vec!["id".to_string()]);
+
+    let mut task_list = MatrixList::new(
+        "Task",
+        vec![
+            "id".to_string(),
+            "assignee".to_string(),
+            "reviewer".to_string(),
+        ],
+    );
+    task_list.add_row(Node::new(
+        "Task",
+        "task1",
+        vec![
+            Value::Reference(Reference::qualified("User", "alice")),
+            Value::Reference(Reference::qualified("User", "bob")),
+        ],
+    ));
+
+    doc.root.insert("tasks".to_string(), Item::List(task_list));
+
+    let diagnostics = lint(&doc);
+
+    let unused: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // User should be detected as used (referenced multiple times)
+    assert!(unused.is_empty(), "User should be detected as used");
+}
+
+#[test]
+fn test_unqualified_references_not_counted_for_schema_usage() {
+    let mut doc = Document::new((1, 0));
+
+    doc.structs.insert(
+        "User".to_string(),
+        vec!["id".to_string(), "friend".to_string()],
+    );
+    doc.structs
+        .insert("UnusedType".to_string(), vec!["id".to_string()]);
+
+    // User list with unqualified reference (doesn't specify type)
+    let mut user_list = MatrixList::new("User", vec!["id".to_string(), "friend".to_string()]);
+    user_list.add_row(Node::new(
+        "User",
+        "alice",
+        vec![Value::Reference(Reference::local("someone"))], // Unqualified
+    ));
+
+    doc.root.insert("users".to_string(), Item::List(user_list));
+
+    let diagnostics = lint(&doc);
+
+    let unused: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| matches!(d.kind(), DiagnosticKind::UnusedSchema))
+        .collect();
+
+    // Only UnusedType should be reported (User is used as list type, unqualified ref doesn't count)
+    assert_eq!(unused.len(), 1);
+    assert!(unused[0].message().contains("UnusedType"));
+}
+
+// =============================================================================
 // Config Tests
 // =============================================================================
 
@@ -469,7 +756,7 @@ fn test_diagnostic_warning_creation() {
 #[test]
 fn test_diagnostic_error_creation() {
     let diag = Diagnostic::error(
-        DiagnosticKind::DuplicateKey,
+        DiagnosticKind::Custom("duplicate-key".to_string()),
         "Test error message",
         "test-rule",
     );
@@ -497,7 +784,7 @@ fn test_diagnostic_with_suggestion() {
 fn test_diagnostic_display() {
     let diag = Diagnostic::warning(DiagnosticKind::UnusedSchema, "Test message", "test-rule");
 
-    let display = format!("{}", diag);
+    let display = format!("{diag}");
     assert!(display.contains("warning"));
     assert!(display.contains("Test message"));
     assert!(display.contains("test-rule"));
@@ -505,10 +792,14 @@ fn test_diagnostic_display() {
 
 #[test]
 fn test_diagnostic_display_with_line() {
-    let diag = Diagnostic::error(DiagnosticKind::DuplicateKey, "Duplicate found", "dup-key")
-        .with_line(100);
+    let diag = Diagnostic::error(
+        DiagnosticKind::Custom("duplicate-key".to_string()),
+        "Duplicate found",
+        "dup-key",
+    )
+    .with_line(100);
 
-    let display = format!("{}", diag);
+    let display = format!("{diag}");
     assert!(display.contains("line 100"));
 }
 
@@ -537,12 +828,12 @@ fn test_well_formed_document_minimal_diagnostics() {
     list.add_row(Node::new(
         "User",
         "user_alice",
-        vec![Value::String("Alice".to_string())],
+        vec![Value::String("Alice".to_string().into())],
     ));
     list.add_row(Node::new(
         "User",
         "user_bob",
-        vec![Value::String("Bob".to_string())],
+        vec![Value::String("Bob".to_string().into())],
     ));
     doc.root.insert("users".to_string(), Item::List(list));
 

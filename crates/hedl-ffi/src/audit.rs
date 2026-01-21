@@ -89,6 +89,7 @@ thread_local! {
 /// Get the current audit context.
 ///
 /// Returns `None` if no FFI call is currently in progress on this thread.
+#[must_use]
 pub fn get_audit_context() -> Option<AuditContext> {
     AUDIT_CONTEXT.with(|ctx| ctx.borrow().clone())
 }
@@ -98,7 +99,17 @@ pub fn get_audit_context() -> Option<AuditContext> {
 /// This should be called at the start of each FFI function.
 fn set_audit_context(context: AuditContext) {
     AUDIT_CONTEXT.with(|ctx| {
-        *ctx.borrow_mut() = Some(context);
+        // Use try_borrow_mut to prevent RefCell panic
+        if let Ok(mut audit_ctx) = ctx.try_borrow_mut() {
+            *audit_ctx = Some(context);
+        } else {
+            // RefCell is already borrowed - log and abort
+            eprintln!(
+                "FATAL: RefCell panic in audit context - attempted to set context while already borrowed. \
+                 This indicates a reentrancy issue. Aborting to prevent undefined behavior."
+            );
+            std::process::abort();
+        }
     });
 }
 
@@ -107,7 +118,17 @@ fn set_audit_context(context: AuditContext) {
 /// This should be called at the end of each FFI function.
 fn clear_audit_context() {
     AUDIT_CONTEXT.with(|ctx| {
-        *ctx.borrow_mut() = None;
+        // Use try_borrow_mut to prevent RefCell panic
+        if let Ok(mut audit_ctx) = ctx.try_borrow_mut() {
+            *audit_ctx = None;
+        } else {
+            // RefCell is already borrowed - log and abort
+            eprintln!(
+                "FATAL: RefCell panic in audit context clearing - attempted to clear context while already borrowed. \
+                 This indicates a reentrancy issue. Aborting to prevent undefined behavior."
+            );
+            std::process::abort();
+        }
     });
 }
 
@@ -132,9 +153,10 @@ pub fn sanitize_pointer<T>(ptr: *const T) -> String {
 ///
 /// Limits the length of logged strings to prevent log flooding and
 /// potential information leakage.
+#[must_use]
 pub fn sanitize_string(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
-        format!("{:?}", s)
+        format!("{s:?}")
     } else {
         format!("{:?}... ({} bytes total)", &s[..max_len], s.len())
     }
@@ -148,6 +170,7 @@ pub fn sanitize_string(s: &str, max_len: usize) -> String {
 ///
 /// The caller must ensure that `ptr` is either null or points to a valid,
 /// null-terminated C string that remains valid for the duration of this call.
+#[must_use]
 pub unsafe fn sanitize_c_string(ptr: *const c_char, max_len: usize) -> String {
     if ptr.is_null() {
         "NULL".to_string()
@@ -162,11 +185,12 @@ pub unsafe fn sanitize_c_string(ptr: *const c_char, max_len: usize) -> String {
 /// Sanitize byte data for logging.
 ///
 /// Shows a hex preview of the first few bytes.
+#[must_use]
 pub fn sanitize_bytes(data: &[u8], preview_len: usize) -> String {
     if data.is_empty() {
         "[]".to_string()
     } else if data.len() <= preview_len {
-        format!("{:02x?}", data)
+        format!("{data:02x?}")
     } else {
         format!(
             "{:02x?}... ({} bytes total)",
@@ -203,7 +227,7 @@ pub fn sanitize_bytes(data: &[u8], preview_len: usize) -> String {
 /// ```
 pub fn audit_call_start(function: &'static str, params: &[(&str, &str)]) {
     let thread_id = std::thread::current().id();
-    let depth = get_audit_context().map(|ctx| ctx.depth + 1).unwrap_or(0);
+    let depth = get_audit_context().map_or(0, |ctx| ctx.depth + 1);
 
     let context = AuditContext {
         function,
@@ -414,6 +438,7 @@ pub struct PerformanceMetrics {
 
 impl PerformanceMetrics {
     /// Create a new performance metrics collector.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -436,19 +461,12 @@ impl PerformanceMetrics {
 
     /// Update min/max duration bounds.
     fn update_duration_bounds(&mut self, duration: Duration) {
-        self.min_duration = Some(
-            self.min_duration
-                .map(|min| min.min(duration))
-                .unwrap_or(duration),
-        );
-        self.max_duration = Some(
-            self.max_duration
-                .map(|max| max.max(duration))
-                .unwrap_or(duration),
-        );
+        self.min_duration = Some(self.min_duration.map_or(duration, |min| min.min(duration)));
+        self.max_duration = Some(self.max_duration.map_or(duration, |max| max.max(duration)));
     }
 
     /// Get the average call duration.
+    #[must_use]
     pub fn avg_duration(&self) -> Option<Duration> {
         if self.call_count > 0 {
             Some(self.total_duration / self.call_count as u32)
@@ -458,6 +476,7 @@ impl PerformanceMetrics {
     }
 
     /// Get the success rate as a percentage.
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.call_count > 0 {
             (self.success_count as f64 / self.call_count as f64) * 100.0
@@ -480,7 +499,7 @@ mod tests {
         assert_eq!(sanitize_pointer(std::ptr::null::<u8>()), "NULL");
 
         let value = 42;
-        let ptr = &value as *const i32;
+        let ptr = std::ptr::addr_of!(value);
         let sanitized = sanitize_pointer(ptr);
         assert!(sanitized.starts_with("PTR@"));
         assert_ne!(sanitized, format!("PTR@{:016x}", ptr as usize));

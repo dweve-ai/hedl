@@ -15,11 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Allow using deprecated legacy module items for testing backward compatibility
+#![allow(deprecated)]
+
 //! Negative tests for hedl-bench error handling and robustness.
 //!
 //! Tests error paths for:
 //! - Invalid HEDL parsing (malformed syntax, security limits)
-//! - Oversized datasets (MAX_DATASET_SIZE enforcement)
+//! - Oversized datasets (`MAX_DATASET_SIZE` enforcement)
 //! - Invalid format conversions (JSON, YAML, XML, CSV)
 //! - Normalization errors (unparseable values)
 //! - Token counting failures
@@ -44,12 +47,7 @@ use hedl_bench::{compare_formats, count_tokens, generate_users, generate_users_s
 fn test_invalid_hedl_syntax_returns_error() {
     let invalid = "not valid hedl at all!@#$ ∆∂∫∑";
     let result = hedl_core::parse(invalid.as_bytes());
-    assert!(
-        result.is_err(),
-        "Expected parse error for invalid syntax, got Ok"
-    );
-
-    let err = result.unwrap_err();
+    let err = result.expect_err("Expected parse error for invalid syntax");
     let err_msg = err.to_string();
     // Error messages can vary - check for common error indicators
     assert!(
@@ -59,19 +57,18 @@ fn test_invalid_hedl_syntax_returns_error() {
             || err_msg.contains("invalid")
             || err_msg.contains("expected")
             || err_msg.contains("Error"),
-        "Error message should mention parsing issue, got: {}",
-        err_msg
+        "Error message should mention parsing issue, got: {err_msg}"
     );
 }
 
 #[test]
 fn test_malformed_hedl_key_value() {
-    let malformed = r#"%VERSION: 1.0
+    let malformed = r"%VERSION: 1.0
 ---
 key without colon value
 another: valid
 broken again no colon
-"#;
+";
     let result = hedl_core::parse(malformed.as_bytes());
     assert!(
         result.is_err(),
@@ -81,10 +78,10 @@ broken again no colon
 
 #[test]
 fn test_invalid_version_header() {
-    let invalid_version = r#"%VERSION: 999.999
+    let invalid_version = r"%VERSION: 999.999
 ---
 data: value
-"#;
+";
     let _result = hedl_core::parse(invalid_version.as_bytes());
     // Should either parse with version warning or reject - either way, should not panic
     // Version errors are typically warnings, so this might succeed
@@ -105,12 +102,12 @@ fn test_incomplete_hedl_document() {
 
 #[test]
 fn test_invalid_struct_declaration() {
-    let invalid_struct = r#"%VERSION: 1.0
+    let invalid_struct = r"%VERSION: 1.0
 %STRUCT: User (not_a_number): [id,name]
 ---
 users: @User
   | u1, Alice
-"#;
+";
     let result = hedl_core::parse(invalid_struct.as_bytes());
     // Should handle malformed struct count gracefully
     assert!(
@@ -121,40 +118,39 @@ users: @User
 
 #[test]
 fn test_invalid_nest_declaration() {
-    let invalid_nest = r#"%VERSION: 1.0
+    let invalid_nest = r"%VERSION: 1.0
 %NEST: Parent >>> Child
 ---
 parent: @Parent
-"#;
+";
     let _result = hedl_core::parse(invalid_nest.as_bytes());
     // Invalid NEST syntax should be handled gracefully
 }
 
 #[test]
 fn test_circular_references() {
-    let circular = r#"%VERSION: 1.0
+    let circular = r"%VERSION: 1.0
 ---
 a: @b
 b: @a
-"#;
+";
     let _result = hedl_core::parse(circular.as_bytes());
     // Circular references should be detected or handled gracefully
 }
 
 #[test]
 fn test_unresolved_reference() {
-    let unresolved = r#"%VERSION: 1.0
+    let unresolved = r"%VERSION: 1.0
 ---
 user: @NonExistentType:xyz
-"#;
+";
     let result = hedl_core::parse(unresolved.as_bytes());
     // Unresolved references should produce clear error in strict mode
-    if result.is_err() {
-        let err_msg = result.unwrap_err().to_string();
+    if let Err(e) = result {
+        let err_msg = e.to_string();
         assert!(
             err_msg.contains("reference") || err_msg.contains("unresolved"),
-            "Error should mention unresolved reference, got: {}",
-            err_msg
+            "Error should mention unresolved reference, got: {err_msg}"
         );
     }
 }
@@ -206,23 +202,16 @@ fn test_dataset_size_way_over_limit() {
 #[test]
 fn test_generate_users_safe_rejects_oversized() {
     let result = generate_users_safe(MAX_DATASET_SIZE + 1);
-    assert!(
-        result.is_err(),
-        "generate_users_safe should reject oversized dataset"
-    );
-
-    let err = result.unwrap_err();
+    let err = result.expect_err("generate_users_safe should reject oversized dataset");
     assert!(
         matches!(err, BenchError::DatasetTooLarge { .. }),
-        "Expected DatasetTooLarge error, got: {:?}",
-        err
+        "Expected DatasetTooLarge error, got: {err:?}"
     );
 
     let err_msg = err.to_string();
     assert!(
         err_msg.contains("exceeds maximum"),
-        "Error message should be actionable: {}",
-        err_msg
+        "Error message should be actionable: {err_msg}"
     );
 }
 
@@ -242,7 +231,7 @@ fn test_generate_users_safe_boundary_sizes() {
     // Test boundary cases
     for size in [0, 1, 10, 100, 1_000, 10_000, MAX_DATASET_SIZE] {
         let result = generate_users_safe(size);
-        assert!(result.is_ok(), "Should handle size {} within limits", size);
+        assert!(result.is_ok(), "Should handle size {size} within limits");
 
         if size > 0 {
             let hedl = result.unwrap();
@@ -278,20 +267,14 @@ fn test_invalid_json_parsing() {
 
     for (i, invalid) in invalid_json_cases.iter().enumerate() {
         let result = from_json(invalid, &config);
-        assert!(
-            result.is_err(),
-            "Case {}: Should reject invalid JSON: {}",
-            i,
-            invalid
-        );
-
-        let err = result.unwrap_err();
+        let err = match result {
+            Err(e) => e,
+            Ok(_) => panic!("Case {i}: Should reject invalid JSON: {invalid}"),
+        };
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("parse") || err_msg.contains("JSON") || err_msg.contains("error"),
-            "Case {}: Error should mention JSON parsing, got: {}",
-            i,
-            err_msg
+            "Case {i}: Error should mention JSON parsing, got: {err_msg}"
         );
     }
 }
@@ -301,7 +284,7 @@ fn test_invalid_yaml_parsing() {
     use hedl_yaml::{from_yaml, FromYamlConfig};
 
     let config = FromYamlConfig::default();
-    let invalid_yaml_cases = vec![
+    let invalid_yaml_cases = [
         "key: : value",     // Double colon
         "  invalid indent", // No parent
         "key: [unclosed",   // Unclosed bracket
@@ -313,13 +296,11 @@ fn test_invalid_yaml_parsing() {
     for (i, invalid) in invalid_yaml_cases.iter().enumerate() {
         let result = from_yaml(invalid, &config);
         // YAML parser is more lenient, but should handle gracefully
-        if result.is_err() {
-            let err_msg = result.unwrap_err().to_string();
+        if let Err(e) = result {
+            let err_msg = e.clone();
             assert!(
                 err_msg.contains("parse") || err_msg.contains("YAML") || err_msg.contains("error"),
-                "Case {}: Error should mention YAML parsing, got: {}",
-                i,
-                err_msg
+                "Case {i}: Error should mention YAML parsing, got: {err_msg}"
             );
         }
     }
@@ -331,7 +312,7 @@ fn test_invalid_xml_parsing() {
 
     let config = FromXmlConfig::default();
     // XML parser may auto-close some tags, so use more clearly invalid cases
-    let invalid_xml_cases = vec![
+    let invalid_xml_cases = [
         "<tag></different>",  // Mismatched tags
         "< invalid tag>",     // Invalid tag syntax
         "not xml at all",     // No XML structure
@@ -342,17 +323,14 @@ fn test_invalid_xml_parsing() {
         let result = from_xml(invalid, &config);
         // XML parser might be lenient, so just ensure it doesn't panic
         // If it does error, check the message is reasonable
-        if result.is_err() {
-            let err = result.unwrap_err();
-            let err_msg = err.to_string();
+        if let Err(err) = result {
+            let err_msg = err.clone();
             assert!(
                 err_msg.contains("parse")
                     || err_msg.contains("XML")
                     || err_msg.contains("error")
                     || err_msg.contains("Error"),
-                "Case {}: Error should mention XML parsing, got: {}",
-                i,
-                err_msg
+                "Case {i}: Error should mention XML parsing, got: {err_msg}"
             );
         }
     }
@@ -362,7 +340,7 @@ fn test_invalid_xml_parsing() {
 fn test_invalid_csv_parsing() {
     use hedl_csv::from_csv;
 
-    let invalid_csv_cases = vec![
+    let invalid_csv_cases = [
         "header1,header2\nvalue1", // Mismatched columns
         "\"unclosed quote",
         "header1,header2\nvalue1,value2,value3", // Too many columns
@@ -372,12 +350,11 @@ fn test_invalid_csv_parsing() {
         // from_csv requires type_name and schema
         let result = from_csv(invalid, "Row", &["col1", "col2"]);
         // CSV parser might be lenient, but should handle gracefully
-        if result.is_err() {
-            let err_msg = result.unwrap_err().to_string();
+        if let Err(e) = result {
+            let err_msg = e.to_string();
             assert!(
                 !err_msg.is_empty(),
-                "Case {}: Error message should be non-empty",
-                i
+                "Case {i}: Error message should be non-empty"
             );
         }
     }
@@ -392,13 +369,12 @@ fn test_json_root_must_be_object() {
 
     for invalid in invalid_roots {
         let result = from_json(invalid, &config);
-        if result.is_err() {
-            let err_msg = result.unwrap_err().to_string();
+        if let Err(e) = result {
+            let err_msg = e.to_string();
             // Should mention that root must be an object
             assert!(
                 err_msg.contains("Root") || err_msg.contains("object") || err_msg.contains("must"),
-                "Error should mention root type requirement, got: {}",
-                err_msg
+                "Error should mention root type requirement, got: {err_msg}"
             );
         }
     }
@@ -444,16 +420,13 @@ fn test_normalize_integer_invalid_input() {
         let result = normalize(invalid, &AnswerType::Integer);
         assert!(
             result.is_err(),
-            "Should reject invalid integer: '{}'",
-            invalid
+            "Should reject invalid integer: '{invalid}'"
         );
 
         if let Err(err) = result {
             assert!(
                 matches!(err, BenchError::NormalizationFailed { .. }),
-                "Expected NormalizationFailed error for '{}', got: {:?}",
-                invalid,
-                err
+                "Expected NormalizationFailed error for '{invalid}', got: {err:?}"
             );
 
             let err_msg = err.to_string();
@@ -461,8 +434,7 @@ fn test_normalize_integer_invalid_input() {
                 err_msg.contains("normalize")
                     || err_msg.contains("parse")
                     || err_msg.contains("Cannot"),
-                "Error should be descriptive: {}",
-                err_msg
+                "Error should be descriptive: {err_msg}"
             );
         }
     }
@@ -484,17 +456,12 @@ fn test_normalize_number_invalid_input() {
 
     for invalid in invalid_numbers {
         let result = normalize(invalid, &AnswerType::Number { decimals: 2 });
-        assert!(
-            result.is_err(),
-            "Should reject invalid number: '{}'",
-            invalid
-        );
+        assert!(result.is_err(), "Should reject invalid number: '{invalid}'");
 
         if let Err(err) = result {
             assert!(
                 matches!(err, BenchError::NormalizationFailed { .. }),
-                "Expected NormalizationFailed for '{}'",
-                invalid
+                "Expected NormalizationFailed for '{invalid}'"
             );
         }
     }
@@ -518,16 +485,14 @@ fn test_normalize_boolean_invalid_input() {
         let result = normalize(invalid, &AnswerType::Boolean);
         assert!(
             result.is_err(),
-            "Should reject invalid boolean: '{}'",
-            invalid
+            "Should reject invalid boolean: '{invalid}'"
         );
 
         if let Err(err) = result {
             let err_msg = err.to_string();
             assert!(
                 err_msg.contains("boolean") || err_msg.contains("Cannot parse"),
-                "Error should mention boolean parsing: {}",
-                err_msg
+                "Error should mention boolean parsing: {err_msg}"
             );
         }
     }
@@ -548,19 +513,16 @@ fn test_normalize_date_invalid_format() {
 
     for invalid in invalid_dates {
         let result = normalize(invalid, &AnswerType::Date);
-        if result.is_err() {
-            let err = result.unwrap_err();
+        if let Err(err) = result {
             assert!(
                 matches!(err, BenchError::NormalizationFailed { .. }),
-                "Expected NormalizationFailed for date '{}'",
-                invalid
+                "Expected NormalizationFailed for date '{invalid}'"
             );
 
             let err_msg = err.to_string();
             assert!(
                 err_msg.contains("date") || err_msg.contains("parse"),
-                "Error should mention date parsing: {}",
-                err_msg
+                "Error should mention date parsing: {err_msg}"
             );
         }
     }
@@ -581,8 +543,7 @@ fn test_normalize_empty_strings() {
         // Should handle empty inputs gracefully (either Ok with empty result or Err)
         assert!(
             result.is_ok() || result.is_err(),
-            "Should handle empty input gracefully for {:?}",
-            answer_type
+            "Should handle empty input gracefully for {answer_type:?}"
         );
     }
 }
@@ -621,7 +582,7 @@ fn test_normalize_extreme_numbers() {
     for (input, answer_type) in extreme_cases {
         let result = normalize(input, answer_type);
         // Should handle extreme but valid numbers
-        assert!(result.is_ok(), "Should handle extreme number: '{}'", input);
+        assert!(result.is_ok(), "Should handle extreme number: '{input}'");
     }
 }
 
@@ -679,13 +640,10 @@ fn test_compare_formats_str_invalid_hedl() {
     let invalid = "not valid hedl!@#$";
     let result = compare_formats_str(invalid);
 
-    assert!(result.is_err(), "Should return error for invalid HEDL");
-
-    let err_msg = result.unwrap_err();
+    let err_msg = result.expect_err("Should return error for invalid HEDL");
     assert!(
         err_msg.contains("Parse") || err_msg.contains("parse") || err_msg.contains("error"),
-        "Error should mention parsing: {}",
-        err_msg
+        "Error should mention parsing: {err_msg}"
     );
 }
 
@@ -700,14 +658,13 @@ fn test_generate_users_boundary_counts() {
 
     for count in boundary_cases {
         let result = generate_users_safe(count);
-        assert!(result.is_ok(), "Should handle count {} successfully", count);
+        assert!(result.is_ok(), "Should handle count {count} successfully");
 
         let hedl = result.unwrap();
         let doc = hedl_core::parse(hedl.as_bytes());
         assert!(
             doc.is_ok(),
-            "Generated HEDL for count {} should parse successfully",
-            count
+            "Generated HEDL for count {count} should parse successfully"
         );
     }
 }
@@ -747,9 +704,9 @@ fn test_normalize_csv_list_edge_cases() {
 #[test]
 fn test_error_message_clarity() {
     // Verify error messages are actionable
-    let result = validate_dataset_size(MAX_DATASET_SIZE + 1);
-    let err = result.unwrap_err();
-    let msg = format!("{}", err);
+    let err = validate_dataset_size(MAX_DATASET_SIZE + 1)
+        .expect_err("Dataset size over maximum should fail");
+    let msg = format!("{err}");
 
     // Should contain: what failed, why, and limits
     assert!(msg.contains("exceeds"), "Should explain the violation");
@@ -791,7 +748,7 @@ fn test_normalization_failed_error() {
         reason: "Cannot parse as integer".to_string(),
     };
 
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(msg.contains("invalid"), "Should show the invalid value");
     assert!(msg.contains("Cannot parse"), "Should show the reason");
 }
@@ -802,7 +759,7 @@ fn test_comparison_failed_error() {
         reason: "Type mismatch".to_string(),
     };
 
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(
         msg.contains("Comparison failed"),
         "Should mention comparison failure"
@@ -890,7 +847,7 @@ fn test_normalization_with_comparison() {
     assert!(result.is_err(), "Should fail to compare invalid integer");
 
     if let Err(err) = result {
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(!msg.is_empty(), "Error message should be descriptive");
     }
 }
@@ -918,13 +875,11 @@ fn test_oversized_generation_safety() {
     let huge_size = MAX_DATASET_SIZE + 1_000_000;
     let result = generate_users_safe(huge_size);
 
-    assert!(result.is_err(), "Should reject huge dataset size");
-
-    match result.unwrap_err() {
+    match result.expect_err("Should reject huge dataset size") {
         BenchError::DatasetTooLarge { requested, max } => {
             assert_eq!(requested, huge_size);
             assert_eq!(max, MAX_DATASET_SIZE);
         }
-        other => panic!("Expected DatasetTooLarge, got: {:?}", other),
+        other => panic!("Expected DatasetTooLarge, got: {other:?}"),
     }
 }

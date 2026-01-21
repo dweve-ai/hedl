@@ -18,7 +18,7 @@
 //! Integration tests for hedl-neo4j against a real Neo4j instance.
 //!
 //! These tests require a running Neo4j instance at localhost:7687.
-//! Run with: cargo test -p hedl-neo4j --features integration-tests --test integration_tests
+//! Run with: cargo test -p hedl-neo4j --features integration-tests --test `integration_tests`
 
 #![cfg(feature = "integration-tests")]
 
@@ -30,6 +30,7 @@ use hedl_neo4j::{
 use hedl_test::fixtures;
 use neo4rs::{ConfigBuilder, Graph, Node as Neo4rsNode, Query};
 use serial_test::serial;
+use smallvec::SmallVec;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -220,13 +221,13 @@ async fn test_roundtrip_simple() {
             vec![Node {
                 type_name: "Item".to_string(),
                 id: "item1".to_string(),
-                fields: vec![
-                    Value::String("item1".to_string()),
-                    Value::String("First Item".to_string()),
+                fields: SmallVec::from_vec(vec![
+                    Value::String("item1".to_string().into()),
+                    Value::String("First Item".to_string().into()),
                     Value::Int(42),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                ]),
+                children: None,
+                child_count: 0,
             }],
         )),
     );
@@ -239,6 +240,7 @@ async fn test_roundtrip_simple() {
 
     let original = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
         nests: BTreeMap::new(),
@@ -318,16 +320,16 @@ async fn test_all_value_types() {
             vec![Node {
                 type_name: "Data".to_string(),
                 id: "d1".to_string(),
-                fields: vec![
-                    Value::String("d1".to_string()),
-                    Value::String("hello".to_string()),
+                fields: SmallVec::from_vec(vec![
+                    Value::String("d1".to_string().into()),
+                    Value::String("hello".to_string().into()),
                     Value::Int(42),
                     Value::Float(3.25),
                     Value::Bool(true),
                     Value::Null,
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                ]),
+                children: None,
+                child_count: 0,
             }],
         )),
     );
@@ -347,6 +349,7 @@ async fn test_all_value_types() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
         nests: BTreeMap::new(),
@@ -408,14 +411,16 @@ async fn test_special_characters() {
             vec![Node {
                 type_name: "Item".to_string(),
                 id: "special".to_string(),
-                fields: vec![
-                    Value::String("special".to_string()),
+                fields: SmallVec::from_vec(vec![
+                    Value::String("special".to_string().into()),
                     Value::String(
-                        "Hello 'World' with \"quotes\" and \\ backslash\nnewline\ttab".to_string(),
+                        "Hello 'World' with \"quotes\" and \\ backslash\nnewline\ttab"
+                            .to_string()
+                            .into(),
                     ),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                ]),
+                children: None,
+                child_count: 0,
             }],
         )),
     );
@@ -428,6 +433,7 @@ async fn test_special_characters() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
         nests: BTreeMap::new(),
@@ -565,6 +571,7 @@ async fn test_config_generic_relationship_naming() {
 async fn test_empty_document() {
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -601,18 +608,19 @@ async fn test_unicode_identifiers() {
             vec![Node {
                 type_name: "Item".to_string(),
                 id: "unicode_test".to_string(),
-                fields: vec![
-                    Value::String("unicode_test".to_string()),
-                    Value::String("Test with unicode".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("unicode_test".to_string().into()),
+                    Value::String("Test with unicode".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
         )),
     );
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -656,13 +664,13 @@ async fn test_large_batch() {
         rows.push(Node {
             type_name: "Item".to_string(),
             id: format!("item_{}", i),
-            fields: vec![
-                Value::String(format!("item_{}", i)),
-                Value::String(format!("Item number {}", i)),
+            fields: SmallVec::from_vec(vec![
+                Value::String(format!("item_{}", i).into()),
+                Value::String(format!("Item number {}", i).into()),
                 Value::Int(i),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -678,6 +686,7 @@ async fn test_large_batch() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -725,15 +734,16 @@ fn test_missing_schema_error() {
             vec![Node {
                 type_name: "UnknownType".to_string(),
                 id: "item1".to_string(),
-                fields: vec![Value::String("test".to_string())],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![Value::String("test".to_string().into())]),
+                children: None,
+                child_count: 0,
             }],
         )),
     );
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -765,22 +775,22 @@ async fn test_nest_relationships() {
             Node {
                 type_name: "Post".to_string(),
                 id: "p1".to_string(),
-                fields: vec![
-                    Value::String("p1".to_string()),
-                    Value::String("Alice's first post".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("p1".to_string().into()),
+                    Value::String("Alice's first post".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             },
             Node {
                 type_name: "Post".to_string(),
                 id: "p2".to_string(),
-                fields: vec![
-                    Value::String("p2".to_string()),
-                    Value::String("Alice's second post".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("p2".to_string().into()),
+                    Value::String("Alice's second post".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             },
         ],
     );
@@ -794,12 +804,12 @@ async fn test_nest_relationships() {
             vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-                children: alice_children,
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
+                    Value::String("Alice".to_string().into()),
+                ]),
+                children: Some(Box::new(alice_children)),
+                child_count: 2,
             }],
         )),
     );
@@ -809,6 +819,7 @@ async fn test_nest_relationships() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests,
@@ -1314,13 +1325,13 @@ async fn test_fixture_edge_cases() {
         list.rows.push(Node {
             type_name: "Edge".to_string(),
             id: "edge1".to_string(),
-            fields: vec![
-                Value::String("edge1".to_string()),
+            fields: SmallVec::from_vec(vec![
+                Value::String("edge1".to_string().into()),
                 Value::Int(*large),
                 Value::String(long_str.clone()),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -1328,6 +1339,7 @@ async fn test_fixture_edge_cases() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -1393,9 +1405,12 @@ async fn test_fixture_special_strings() {
             list.rows.push(Node {
                 type_name: "StringTest".to_string(),
                 id: id.to_string(),
-                fields: vec![Value::String(id.to_string()), Value::String(s.clone())],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String(id.to_string().into()),
+                    Value::String(s.clone()),
+                ]),
+                children: None,
+                child_count: 0,
             });
         }
     }
@@ -1404,6 +1419,7 @@ async fn test_fixture_special_strings() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -1473,9 +1489,12 @@ async fn test_fixture_tensors() {
         list.rows.push(Node {
             type_name: "TensorTest".to_string(),
             id: "t1d".to_string(),
-            fields: vec![Value::String("t1d".to_string()), Value::Tensor(t.clone())],
-            children: BTreeMap::new(),
-            child_count: None,
+            fields: SmallVec::from_vec(vec![
+                Value::String("t1d".to_string().into()),
+                Value::Tensor(t.clone()),
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -1483,9 +1502,12 @@ async fn test_fixture_tensors() {
         list.rows.push(Node {
             type_name: "TensorTest".to_string(),
             id: "t2d".to_string(),
-            fields: vec![Value::String("t2d".to_string()), Value::Tensor(t.clone())],
-            children: BTreeMap::new(),
-            child_count: None,
+            fields: SmallVec::from_vec(vec![
+                Value::String("t2d".to_string().into()),
+                Value::Tensor(t.clone()),
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -1493,6 +1515,7 @@ async fn test_fixture_tensors() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -1558,12 +1581,12 @@ async fn test_fixture_expressions() {
         list.rows.push(Node {
             type_name: "ExprTest".to_string(),
             id: "simple".to_string(),
-            fields: vec![
-                Value::String("simple".to_string()),
+            fields: SmallVec::from_vec(vec![
+                Value::String("simple".to_string().into()),
                 Value::Expression(e.clone()),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -1571,12 +1594,12 @@ async fn test_fixture_expressions() {
         list.rows.push(Node {
             type_name: "ExprTest".to_string(),
             id: "complex".to_string(),
-            fields: vec![
-                Value::String("complex".to_string()),
+            fields: SmallVec::from_vec(vec![
+                Value::String("complex".to_string().into()),
                 Value::Expression(e.clone()),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -1584,6 +1607,7 @@ async fn test_fixture_expressions() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),

@@ -28,14 +28,14 @@
 //!
 //! Run with: cargo bench --package hedl-bench --bench parallel
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
-    generate_blog, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
-    ExportConfig, Insight, PerfResult, TableCell,
+    generate_blog, generate_products, generate_users, BenchmarkReport, CustomTable, ExportConfig,
+    Insight, PerfResult, TableCell,
 };
 use rayon::prelude::*;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::hint::black_box;
 use std::sync::{Arc, Mutex, Once};
 use std::time::Instant;
 
@@ -46,7 +46,7 @@ use std::time::Instant;
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn ensure_init() {
@@ -100,7 +100,7 @@ fn bench_parallel_parsing_scaling(c: &mut Criterion) {
         // Generate test documents
         let documents: Vec<String> = (0..doc_count).map(|_| generate_users(doc_size)).collect();
 
-        group.throughput(Throughput::Elements(doc_count as u64));
+        group.throughput(Throughput::Elements(doc_count));
 
         group.bench_with_input(
             BenchmarkId::new("rayon_scaling", threads),
@@ -137,7 +137,7 @@ fn bench_parallel_parsing_scaling(c: &mut Criterion) {
 
         let total_bytes: u64 = documents.iter().map(|d| d.len() as u64).sum();
         record_perf(
-            &format!("parallel_parsing_{}threads", threads),
+            &format!("parallel_parsing_{threads}threads"),
             elapsed.as_nanos() as u64,
             doc_count,
             Some(total_bytes),
@@ -161,7 +161,7 @@ fn bench_workload_size_scaling(c: &mut Criterion) {
     for &size in &workload_sizes {
         let documents: Vec<String> = (0..size).map(|_| generate_users(50)).collect();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         group.bench_with_input(BenchmarkId::new("workload", size), &size, |b, _| {
             let pool = rayon::ThreadPoolBuilder::new()
@@ -194,7 +194,7 @@ fn bench_workload_size_scaling(c: &mut Criterion) {
 
         let total_bytes: u64 = documents.iter().map(|d| d.len() as u64).sum();
         record_perf(
-            &format!("workload_size_{}", size),
+            &format!("workload_size_{size}"),
             elapsed.as_nanos() as u64,
             size,
             Some(total_bytes),
@@ -531,7 +531,7 @@ fn bench_chunk_size_impact(c: &mut Criterion) {
         let elapsed = start.elapsed();
 
         record_perf(
-            &format!("chunk_size_{}", chunk_size),
+            &format!("chunk_size_{chunk_size}"),
             elapsed.as_nanos() as u64,
             doc_count,
             None,
@@ -614,7 +614,6 @@ struct WorkloadScalingResult {
 #[derive(Clone)]
 struct ComplexityResult {
     complexity: String,
-    time_ns: u64,
     time_per_doc_ns: u64,
     relative_to_simple: f64,
 }
@@ -657,11 +656,7 @@ fn collect_thread_scaling_results() -> Vec<ThreadScalingResult> {
                                 docs_per_sec,
                                 speedup_vs_single: speedup,
                                 efficiency_pct: efficiency,
-                                overhead_ns: if time_ns > baseline / threads as u64 {
-                                    time_ns - (baseline / threads as u64)
-                                } else {
-                                    0
-                                },
+                                overhead_ns: time_ns.saturating_sub(baseline / threads as u64),
                             });
                         }
                     }
@@ -749,7 +744,6 @@ fn collect_complexity_results() -> Vec<ComplexityResult> {
 
                     results.push(ComplexityResult {
                         complexity: complexity_name.to_string(),
-                        time_ns,
                         time_per_doc_ns: time_ns,
                         relative_to_simple: relative,
                     });
@@ -895,15 +889,10 @@ fn create_complexity_impact_table(results: &[ComplexityResult], report: &mut Ben
     let simple_time = results
         .iter()
         .find(|r| r.complexity.contains("Simple"))
-        .map(|r| r.time_per_doc_ns)
-        .unwrap_or(1);
+        .map_or(1, |r| r.time_per_doc_ns);
 
     for result in results {
-        let overhead = if result.time_per_doc_ns > simple_time {
-            result.time_per_doc_ns - simple_time
-        } else {
-            0
-        };
+        let overhead = result.time_per_doc_ns.saturating_sub(simple_time);
 
         let benefit = if result.relative_to_simple >= 2.0 {
             "High - Complex parsing benefits most"
@@ -1061,7 +1050,7 @@ fn create_chunk_size_optimization_table(report: &mut BenchmarkReport) {
 
         let cache = if size <= 10 { "Good" } else { "Excellent" };
 
-        let recommendation = if size >= 5 && size <= 10 {
+        let recommendation = if (5..=10).contains(&size) {
             "Optimal balance"
         } else if size < 5 {
             "Too small - overhead"
@@ -1329,16 +1318,16 @@ fn create_use_case_recommendations_table(
     table.rows.push(vec![
         TableCell::String("Batch file processing".to_string()),
         TableCell::String("100-1000 files".to_string()),
-        TableCell::Integer(best_absolute.map(|r| r.threads as i64).unwrap_or(8)),
-        TableCell::Float(best_absolute.map(|r| r.speedup_vs_single).unwrap_or(1.0)),
+        TableCell::Integer(best_absolute.map_or(8, |r| r.threads as i64)),
+        TableCell::Float(best_absolute.map_or(1.0, |r| r.speedup_vs_single)),
         TableCell::String("Max throughput".to_string()),
     ]);
 
     table.rows.push(vec![
         TableCell::String("Server request handling".to_string()),
         TableCell::String("Mixed sizes".to_string()),
-        TableCell::Integer(best_efficiency.map(|r| r.threads as i64).unwrap_or(4)),
-        TableCell::Float(best_efficiency.map(|r| r.speedup_vs_single).unwrap_or(1.0)),
+        TableCell::Integer(best_efficiency.map_or(4, |r| r.threads as i64)),
+        TableCell::Float(best_efficiency.map_or(1.0, |r| r.speedup_vs_single)),
         TableCell::String("Balance efficiency & latency".to_string()),
     ]);
 
@@ -1358,8 +1347,7 @@ fn create_use_case_recommendations_table(
             results
                 .iter()
                 .find(|r| r.threads == 4)
-                .map(|r| r.speedup_vs_single)
-                .unwrap_or(3.0),
+                .map_or(3.0, |r| r.speedup_vs_single),
         ),
         TableCell::String("Limited cores available".to_string()),
     ]);
@@ -1552,7 +1540,7 @@ fn generate_insights(
 
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!("Complex Documents {:.1}x Slower But Still Highly Parallelizable", slowdown),
+                title: format!("Complex Documents {slowdown:.1}x Slower But Still Highly Parallelizable"),
                 description: "Nested structures increase parsing time but maintain parallel efficiency".to_string(),
                 data_points: vec![
                     format!("Simple (flat): {:.1} μs/doc", s.time_per_doc_ns as f64 / 1000.0),
@@ -1714,7 +1702,7 @@ fn export_reports(c: &mut Criterion) {
         report.print();
 
         if let Err(e) = std::fs::create_dir_all("target") {
-            eprintln!("Failed to create target directory: {}", e);
+            eprintln!("Failed to create target directory: {e}");
             return;
         }
 
@@ -1725,7 +1713,7 @@ fn export_reports(c: &mut Criterion) {
                 report.custom_tables.len(),
                 report.insights.len()
             ),
-            Err(e) => eprintln!("Failed to export reports: {}", e),
+            Err(e) => eprintln!("Failed to export reports: {e}"),
         }
     }
 }

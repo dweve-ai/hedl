@@ -64,7 +64,8 @@ int main(void) {
     if (result != HEDL_OK) {
         const char* error = hedl_get_last_error();
         fprintf(stderr, "Parse error: %s\n", error ? error : "unknown");
-        hedl_free_string((char*)error);
+        // Note: Do NOT free error string from hedl_get_last_error()
+        // It returns thread-local storage that is managed internally.
         return 1;
     }
 

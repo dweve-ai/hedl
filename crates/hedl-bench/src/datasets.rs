@@ -24,8 +24,8 @@
 
 use crate::error::{validate_dataset_size, Result};
 
-use fake::faker::lorem::en::*;
-use fake::faker::name::en::*;
+use fake::faker::lorem::en::Sentence;
+use fake::faker::name::en::{FirstName, LastName};
 use fake::Fake;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -46,6 +46,8 @@ pub enum DatasetSize {
 }
 
 impl DatasetSize {
+    /// Returns the entity count for this dataset size.
+    #[must_use]
     pub fn count(&self) -> usize {
         match self {
             DatasetSize::Small => 10,
@@ -95,11 +97,12 @@ pub fn generate_users_safe(count: usize) -> Result<String> {
 /// # Safety
 ///
 /// This function does not validate the input size. For production use,
-/// prefer [`generate_users_safe`] which includes DoS protection.
+/// prefer [`generate_users_safe`] which includes `DoS` protection.
 ///
 /// # Panics
 ///
 /// May panic or cause OOM if count is extremely large.
+#[must_use]
 pub fn generate_users(count: usize) -> String {
     generate_users_unchecked(count)
 }
@@ -112,8 +115,7 @@ fn generate_users_unchecked(count: usize) -> String {
     // Flat table: use %STRUCT with count in header
     lines.push("%VERSION: 1.0".to_string());
     lines.push(format!(
-        "%STRUCT: User ({}): [id,name,email,role,created_at]",
-        count
+        "%STRUCT: User ({count}): [id,name,email,role,created_at]"
     ));
     lines.push("---".to_string());
     lines.push("users: @User".to_string());
@@ -124,22 +126,19 @@ fn generate_users_unchecked(count: usize) -> String {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
         let id = format!("user{}", i + 1);
-        let name = format!("{} {}", first, last);
+        let name = format!("{first} {last}");
         let email = format!(
             "{}.{}@example.com",
             first.to_lowercase(),
             last.to_lowercase()
         );
-        let role = roles[rng.gen_range(0..roles.len())];
-        let year = rng.gen_range(2020..2025);
-        let month = rng.gen_range(1..13);
-        let day = rng.gen_range(1..29);
-        let created_at = format!("{:04}-{:02}-{:02}T10:00:00Z", year, month, day);
+        let role = roles[rng.random_range(0..roles.len())];
+        let year = rng.random_range(2020..2025);
+        let month = rng.random_range(1..13);
+        let day = rng.random_range(1..29);
+        let created_at = format!("{year:04}-{month:02}-{day:02}T10:00:00Z");
 
-        lines.push(format!(
-            "  |{},{},{},{},{}",
-            id, name, email, role, created_at
-        ));
+        lines.push(format!("  |{id},{name},{email},{role},{created_at}"));
     }
 
     lines.join("\n")
@@ -149,14 +148,14 @@ fn generate_users_unchecked(count: usize) -> String {
 ///
 /// Uses compact HEDL format with inline schema (flat tabular data).
 /// Includes count hint to help LLMs understand dataset size.
+#[must_use]
 pub fn generate_products(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(54321);
     let mut lines = Vec::with_capacity(count + 10);
 
     lines.push("%VERSION: 1.0".to_string());
     lines.push(format!(
-        "%STRUCT: Product ({}): [id,name,price,category,stock,description]",
-        count
+        "%STRUCT: Product ({count}): [id,name,price,category,stock,description]"
     ));
     lines.push("---".to_string());
     lines.push("products: @Product".to_string());
@@ -173,20 +172,19 @@ pub fn generate_products(count: usize) -> String {
     let nouns = ["Widget", "Gadget", "Tool", "Device", "Kit", "Set", "Pack"];
 
     for i in 0..count {
-        let adj = adjectives[rng.gen_range(0..adjectives.len())];
-        let noun = nouns[rng.gen_range(0..nouns.len())];
+        let adj = adjectives[rng.random_range(0..adjectives.len())];
+        let noun = nouns[rng.random_range(0..nouns.len())];
         let id = format!("prod{}", i + 1);
         let name = format!("{} {} {}", adj, noun, i + 1);
-        let price = format!("{:.2}", rng.gen_range(9.99..999.99));
-        let category = categories[rng.gen_range(0..categories.len())];
-        let stock = rng.gen_range(0..1000);
+        let price = format!("{:.2}", rng.random_range(9.99..999.99));
+        let category = categories[rng.random_range(0..categories.len())];
+        let stock = rng.random_range(0..1000);
         let desc: String = Sentence(3..8).fake_with_rng(&mut rng);
 
         // Escape quotes in description
         let desc = desc.replace('"', "\"\"");
         lines.push(format!(
-            "  | {}, \"{}\",{},{},{}, \"{}\"",
-            id, name, price, category, stock, desc
+            "  | {id}, \"{name}\",{price},{category},{stock}, \"{desc}\""
         ));
     }
 
@@ -197,14 +195,14 @@ pub fn generate_products(count: usize) -> String {
 ///
 /// Uses compact HEDL format with inline schema (flat tabular data).
 /// Includes count hint to help LLMs understand dataset size.
+#[must_use]
 pub fn generate_events(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(98765);
     let mut lines = Vec::with_capacity(count + 10);
 
     lines.push("%VERSION: 1.0".to_string());
     lines.push(format!(
-        "%STRUCT: Event ({}): [id,timestamp,level,service,message]",
-        count
+        "%STRUCT: Event ({count}): [id,timestamp,level,service,message]"
     ));
     lines.push("---".to_string());
     lines.push("events: @Event".to_string());
@@ -224,18 +222,17 @@ pub fn generate_events(count: usize) -> String {
 
     for i in 0..count {
         let id = format!("evt{}", i + 1);
-        let hour = rng.gen_range(0..24);
-        let min = rng.gen_range(0..60);
-        let sec = rng.gen_range(0..60);
-        let ms = rng.gen_range(0..1000);
-        let timestamp = format!("2025-01-15T{:02}:{:02}:{:02}.{:03}Z", hour, min, sec, ms);
-        let level = levels[rng.gen_range(0..levels.len())];
-        let service = services[rng.gen_range(0..services.len())];
-        let message = messages[rng.gen_range(0..messages.len())];
+        let hour = rng.random_range(0..24);
+        let min = rng.random_range(0..60);
+        let sec = rng.random_range(0..60);
+        let ms = rng.random_range(0..1000);
+        let timestamp = format!("2025-01-15T{hour:02}:{min:02}:{sec:02}.{ms:03}Z");
+        let level = levels[rng.random_range(0..levels.len())];
+        let service = services[rng.random_range(0..services.len())];
+        let message = messages[rng.random_range(0..messages.len())];
 
         lines.push(format!(
-            "  |{},{},{},{},\"{}\"",
-            id, timestamp, level, service, message
+            "  |{id},{timestamp},{level},{service},\"{message}\""
         ));
     }
 
@@ -245,6 +242,7 @@ pub fn generate_events(count: usize) -> String {
 /// Generate a nested configuration structure.
 ///
 /// Creates hierarchical objects with the specified depth.
+#[must_use]
 pub fn generate_nested(depth: usize) -> String {
     let mut lines = Vec::new();
 
@@ -255,12 +253,12 @@ pub fn generate_nested(depth: usize) -> String {
     fn add_level(lines: &mut Vec<String>, current_depth: usize, max_depth: usize, indent: usize) {
         let prefix = "  ".repeat(indent);
 
-        lines.push(format!("{}name: level_{}", prefix, current_depth));
-        lines.push(format!("{}enabled: true", prefix));
+        lines.push(format!("{prefix}name: level_{current_depth}"));
+        lines.push(format!("{prefix}enabled: true"));
         lines.push(format!("{}value: {}", prefix, current_depth * 10));
 
         if current_depth < max_depth {
-            lines.push(format!("{}child:", prefix));
+            lines.push(format!("{prefix}child:"));
             add_level(lines, current_depth + 1, max_depth, indent + 1);
         }
     }
@@ -273,12 +271,13 @@ pub fn generate_nested(depth: usize) -> String {
 ///
 /// Creates nodes with references to other nodes.
 /// Uses compact HEDL format with inline schema.
+#[must_use]
 pub fn generate_graph(nodes: usize, edges_per_node: usize) -> String {
     let mut rng = StdRng::seed_from_u64(11111);
     let mut lines = Vec::with_capacity(nodes * 2 + 10);
 
     lines.push("%VERSION: 1.0".to_string());
-    lines.push(format!("%STRUCT: Node ({}): [id,label,connections]", nodes));
+    lines.push(format!("%STRUCT: Node ({nodes}): [id,label,connections]"));
     lines.push("---".to_string());
     lines.push("nodes: @Node".to_string());
 
@@ -289,7 +288,7 @@ pub fn generate_graph(nodes: usize, edges_per_node: usize) -> String {
         // Generate random connections to other nodes
         let mut connections = Vec::new();
         for _ in 0..edges_per_node.min(nodes - 1) {
-            let target = rng.gen_range(0..nodes);
+            let target = rng.random_range(0..nodes);
             if target != i {
                 connections.push(format!("@n{}", target + 1));
             }
@@ -301,7 +300,7 @@ pub fn generate_graph(nodes: usize, edges_per_node: usize) -> String {
             format!("[{}]", connections.join(","))
         };
 
-        lines.push(format!("  |{},{},{}", id, label, conn_str));
+        lines.push(format!("  |{id},{label},{conn_str}"));
     }
 
     lines.join("\n")
@@ -311,6 +310,7 @@ pub fn generate_graph(nodes: usize, edges_per_node: usize) -> String {
 ///
 /// Uses NEST for hierarchical relationships. Needs %STRUCT for %NEST.
 /// Uses compact row format.
+#[must_use]
 pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
     let mut rng = StdRng::seed_from_u64(22222);
     let author_count = (posts / 5).max(3);
@@ -333,9 +333,9 @@ pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
         let id = format!("author{}", i + 1);
-        let name = format!("{} {}", first, last);
+        let name = format!("{first} {last}");
         let email = format!("{}@blog.com", first.to_lowercase());
-        lines.push(format!("  |{},{},{}", id, name, email));
+        lines.push(format!("  |{id},{name},{email}"));
     }
 
     // Generate posts with nested comments
@@ -344,32 +344,30 @@ pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
         let id = format!("post{}", i + 1);
         let title: String = Sentence(4..10).fake_with_rng(&mut rng);
         let title = title.trim_end_matches('.').replace('"', "");
-        let author_id = format!("@Author:author{}", rng.gen_range(1..=author_count));
-        let month = rng.gen_range(1..13);
-        let day = rng.gen_range(1..29);
-        let published = format!("2025-{:02}-{:02}", month, day);
+        let author_id = format!("@Author:author{}", rng.random_range(1..=author_count));
+        let month = rng.random_range(1..13);
+        let day = rng.random_range(1..29);
+        let published = format!("2025-{month:02}-{day:02}");
 
         lines.push(format!(
-            "  |[{}] {},\"{}\",{},{}",
-            comments_per_post, id, title, author_id, published
+            "  |[{comments_per_post}] {id},\"{title}\",{author_id},{published}"
         ));
 
         // Add nested comments
         for j in 0..comments_per_post {
             let comment_id = format!("comment{}_{}", i + 1, j + 1);
-            let commenter_id = format!("@Author:author{}", rng.gen_range(1..=author_count));
+            let commenter_id = format!("@Author:author{}", rng.random_range(1..=author_count));
             let content: String = Sentence(5..15).fake_with_rng(&mut rng);
             let content = content.replace('"', "\"\"");
             let created = format!(
                 "2025-{:02}-{:02}T{:02}:00:00Z",
                 month,
                 day.min(28),
-                rng.gen_range(0..24)
+                rng.random_range(0..24)
             );
 
             lines.push(format!(
-                "    |{},{},\"{}\",{}",
-                comment_id, commenter_id, content, created
+                "    |{comment_id},{commenter_id},\"{content}\",{created}"
             ));
         }
     }
@@ -381,14 +379,14 @@ pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
 ///
 /// Uses compact HEDL format with inline schema (flat tabular data).
 /// Includes count hint to help LLMs understand dataset size.
+#[must_use]
 pub fn generate_analytics(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(33333);
     let mut lines = Vec::with_capacity(count + 10);
 
     lines.push("%VERSION: 1.0".to_string());
     lines.push(format!(
-        "%STRUCT: Metric ({}): [id,timestamp,name,value,tags]",
-        count
+        "%STRUCT: Metric ({count}): [id,timestamp,name,value,tags]"
     ));
     lines.push("---".to_string());
     lines.push("metrics: @Metric".to_string());
@@ -412,23 +410,21 @@ pub fn generate_analytics(count: usize) -> String {
         let id = format!("m{}", i + 1);
         let hour = (i / 60) % 24;
         let min = i % 60;
-        let timestamp = format!("2025-01-15T{:02}:{:02}:00Z", hour, min);
-        let name = metric_names[rng.gen_range(0..metric_names.len())];
-        let value = format!("{:.2}", rng.gen_range(0.0..100.0));
-        let host = hosts[rng.gen_range(0..hosts.len())];
-        let region = regions[rng.gen_range(0..regions.len())];
-        let tags = format!("host={} region={}", host, region);
+        let timestamp = format!("2025-01-15T{hour:02}:{min:02}:00Z");
+        let name = metric_names[rng.random_range(0..metric_names.len())];
+        let value = format!("{:.2}", rng.random_range(0.0..100.0));
+        let host = hosts[rng.random_range(0..hosts.len())];
+        let region = regions[rng.random_range(0..regions.len())];
+        let tags = format!("host={host} region={region}");
 
-        lines.push(format!(
-            "  |{},{},{},{},\"{}\"",
-            id, timestamp, name, value, tags
-        ));
+        lines.push(format!("  |{id},{timestamp},{name},{value},\"{tags}\""));
     }
 
     lines.join("\n")
 }
 
 /// Generate a configuration dataset with nested structures.
+#[must_use]
 pub fn generate_config(sections: usize) -> String {
     let mut rng = StdRng::seed_from_u64(44444);
     let mut lines = Vec::new();
@@ -450,20 +446,30 @@ pub fn generate_config(sections: usize) -> String {
     ];
 
     for section in section_names.iter().take(sections) {
-        lines.push(format!("{}:", section));
+        lines.push(format!("{section}:"));
 
         // Add section-specific settings
         lines.push("  enabled: true".to_string());
-        lines.push(format!("  timeout: {}", rng.gen_range(1000..30000)));
-        lines.push(format!("  retries: {}", rng.gen_range(1..10)));
+        lines.push(format!("  timeout: {}", rng.random_range(1000..30000)));
+        lines.push(format!("  retries: {}", rng.random_range(1..10)));
 
         // Add nested subsection
         lines.push("  options:".to_string());
-        lines.push(format!("    max_connections: {}", rng.gen_range(10..1000)));
-        lines.push(format!("    buffer_size: {}", rng.gen_range(1024..65536)));
+        lines.push(format!(
+            "    max_connections: {}",
+            rng.random_range(10..1000)
+        ));
+        lines.push(format!(
+            "    buffer_size: {}",
+            rng.random_range(1024..65536)
+        ));
         lines.push(format!(
             "    compression: {}",
-            if rng.gen_bool(0.5) { "true" } else { "false" }
+            if rng.random_bool(0.5) {
+                "true"
+            } else {
+                "false"
+            }
         ));
     }
 
@@ -474,6 +480,7 @@ pub fn generate_config(sections: usize) -> String {
 ///
 /// Structure: orders with nested customer object and items array.
 /// Uses compact row format. Needs %STRUCT for %NEST.
+#[must_use]
 pub fn generate_orders(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(55555);
     let customer_count = (count / 3).max(5);
@@ -496,7 +503,7 @@ pub fn generate_orders(count: usize) -> String {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
         let id = format!("cust{}", i + 1);
-        let name = format!("{} {}", first, last);
+        let name = format!("{first} {last}");
         let email = format!(
             "{}.{}@example.com",
             first.to_lowercase(),
@@ -504,10 +511,10 @@ pub fn generate_orders(count: usize) -> String {
         );
         let phone = format!(
             "+1-555-{:03}-{:04}",
-            rng.gen_range(100..1000),
-            rng.gen_range(0..10000)
+            rng.random_range(100..1000),
+            rng.random_range(0..10000)
         );
-        lines.push(format!("  |{},{},{},{}", id, name, email, phone));
+        lines.push(format!("  |{id},{name},{email},{phone}"));
     }
 
     // Generate orders with nested items
@@ -518,24 +525,23 @@ pub fn generate_orders(count: usize) -> String {
     let mut item_counter = 1; // Sequential counter for unique SKUs
     for i in 0..count {
         let order_id = format!("ord{}", i + 1);
-        let customer_ref = format!("@Customer:cust{}", rng.gen_range(1..=customer_count));
-        let status = statuses[rng.gen_range(0..statuses.len())];
-        let item_count = rng.gen_range(1..6);
+        let customer_ref = format!("@Customer:cust{}", rng.random_range(1..=customer_count));
+        let status = statuses[rng.random_range(0..statuses.len())];
+        let item_count = rng.random_range(1..6);
 
         lines.push(format!(
-            "  |[{}] {},{},{},0.00",
-            item_count, order_id, customer_ref, status
+            "  |[{item_count}] {order_id},{customer_ref},{status},0.00"
         ));
 
         // Add nested items with unique sequential SKUs
         for _j in 0..item_count {
-            let sku = format!("SKU-{:05}", item_counter);
+            let sku = format!("SKU-{item_counter:05}");
             item_counter += 1;
-            let product = products[rng.gen_range(0..products.len())];
-            let name = format!("{} {}", product, rng.gen_range(1..100));
-            let qty = rng.gen_range(1..10);
-            let price = rng.gen_range(9.99..199.99);
-            lines.push(format!("    |{},{},{},{:.2}", sku, name, qty, price));
+            let product = products[rng.random_range(0..products.len())];
+            let name = format!("{} {}", product, rng.random_range(1..100));
+            let qty = rng.random_range(1..10);
+            let price = rng.random_range(9.99..199.99);
+            lines.push(format!("    |{sku},{name},{qty},{price:.2}"));
         }
     }
 
@@ -545,8 +551,9 @@ pub fn generate_orders(count: usize) -> String {
 /// Generate structural validation datasets (control + 4 corruption patterns)
 pub mod validation {
     /// Control: valid data with 20 employees
+    #[must_use]
     pub fn control() -> String {
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Employee (20): [id, name, department, salary]
 ---
 employees: @Employee
@@ -570,13 +577,14 @@ employees: @Employee
   | emp18, Rose Lewis, Marketing, 74000
   | emp19, Sam Walker, Sales, 79000
   | emp20, Tina Hall, Engineering, 87000
-"#
+"
         .to_string()
     }
 
     /// Truncated: missing rows (declared 20, only has 15)
+    #[must_use]
     pub fn truncated() -> String {
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Employee (15): [id, name, department, salary]
 ---
 employees: @Employee
@@ -595,13 +603,14 @@ employees: @Employee
   | emp13, Mary Harris, Sales, 77000
   | emp14, Nick Martin, Engineering, 89000
   | emp15, Olivia Garcia, Marketing, 76000
-"#
+"
         .to_string()
     }
 
     /// Width mismatch: inconsistent field counts
+    #[must_use]
     pub fn width_mismatch() -> String {
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Employee (5): [id, name, department, salary]
 ---
 employees: @Employee
@@ -610,13 +619,14 @@ employees: @Employee
   | emp3, Carol White, Engineering, 92000, extra
   | emp4, Dave Brown, Sales, 68000
   | emp5, Eve Davis, Engineering
-"#
+"
         .to_string()
     }
 
     /// Missing fields: required fields are null
+    #[must_use]
     pub fn missing_fields() -> String {
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Employee (5): [id, name, department, salary]
 ---
 employees: @Employee
@@ -625,11 +635,12 @@ employees: @Employee
   | emp3, Carol White, ~, 92000
   | emp4, Dave Brown, Sales, ~
   | emp5, ~, ~, ~
-"#
+"
         .to_string()
     }
 
     /// Extra rows: more rows than expected
+    #[must_use]
     pub fn extra_rows() -> String {
         // This would need HEDL to support length declarations
         // For now, just return a valid dataset
@@ -642,6 +653,7 @@ employees: @Employee
 /// This showcases HEDL's token efficiency for data with many repeated values.
 /// Each employee shares company, department, location - using ^ ditto.
 /// Uses compact HEDL format with inline schema.
+#[must_use]
 pub fn generate_ditto_heavy(employee_count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(77777);
     let mut lines = vec![
@@ -668,28 +680,28 @@ pub fn generate_ditto_heavy(employee_count: usize) -> String {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
         let id = format!("emp{:03}", i + 1);
-        let name = format!("{} {}", first, last);
+        let name = format!("{first} {last}");
 
         // Change company every 20 employees, dept every 5, location every 10
         let company = if i % 20 == 0 {
-            companies[rng.gen_range(0..companies.len())]
+            companies[rng.random_range(0..companies.len())]
         } else {
             last_company
         };
         let dept = if i % 5 == 0 {
-            departments[rng.gen_range(0..departments.len())]
+            departments[rng.random_range(0..departments.len())]
         } else {
             last_dept
         };
         let location = if i % 10 == 0 {
-            locations[rng.gen_range(0..locations.len())]
+            locations[rng.random_range(0..locations.len())]
         } else {
             last_location
         };
 
-        let role = roles[rng.gen_range(0..roles.len())];
-        let salary = rng.gen_range(50000..200000);
-        let status = statuses[rng.gen_range(0..statuses.len())];
+        let role = roles[rng.random_range(0..roles.len())];
+        let salary = rng.random_range(50000..200000);
+        let status = statuses[rng.random_range(0..statuses.len())];
 
         // Use ditto for repeated values
         let company_str = if company == last_company {
@@ -705,8 +717,7 @@ pub fn generate_ditto_heavy(employee_count: usize) -> String {
         };
 
         lines.push(format!(
-            "  |{},{},{},{},{},{},{},{}",
-            id, name, company_str, dept_str, loc_str, role, salary, status
+            "  |{id},{name},{company_str},{dept_str},{loc_str},{role},{salary},{status}"
         ));
 
         last_company = company;
@@ -721,6 +732,7 @@ pub fn generate_ditto_heavy(employee_count: usize) -> String {
 ///
 /// This showcases HEDL's typed reference system (@Type:id) combined with %NEST.
 /// Structure: Project > Milestone > Task, with cross-project dependencies and assignee refs.
+#[must_use]
 pub fn generate_reference_heavy(project_count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(88888);
     let person_count = project_count * 2;
@@ -753,10 +765,10 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
         let id = format!("p{:03}", i + 1);
-        let name = format!("{} {}", first, last);
-        let role = roles[rng.gen_range(0..roles.len())];
-        let skills = skill_sets[rng.gen_range(0..skill_sets.len())];
-        lines.push(format!("  |{},{},{},{}", id, name, role, skills));
+        let name = format!("{first} {last}");
+        let role = roles[rng.random_range(0..roles.len())];
+        let skills = skill_sets[rng.random_range(0..skill_sets.len())];
+        lines.push(format!("  |{id},{name},{role},{skills}"));
     }
 
     // Generate projects with nested milestones and tasks
@@ -769,22 +781,21 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
         let proj_name = format!(
             "{} {}",
             ["Platform", "API", "Frontend", "Backend", "Mobile"][p % 5],
-            ["Redesign", "Migration", "Overhaul", "Integration", "Launch"][rng.gen_range(0..5)]
+            ["Redesign", "Migration", "Overhaul", "Integration", "Launch"][rng.random_range(0..5)]
         );
-        let owner = format!("@Person:p{:03}", rng.gen_range(1..=person_count));
-        let status = statuses[rng.gen_range(0..statuses.len())];
+        let owner = format!("@Person:p{:03}", rng.random_range(1..=person_count));
+        let status = statuses[rng.random_range(0..statuses.len())];
         // Cross-project dependencies (later projects depend on earlier ones)
-        let depends = if p > 0 && rng.gen_bool(0.6) {
-            format!("@Project:proj{:03}", rng.gen_range(1..=p))
+        let depends = if p > 0 && rng.random_bool(0.6) {
+            format!("@Project:proj{:03}", rng.random_range(1..=p))
         } else {
             "~".to_string()
         };
 
         // 2-3 milestones per project
-        let milestone_count = rng.gen_range(2..4);
+        let milestone_count = rng.random_range(2..4);
         lines.push(format!(
-            "  |[{}] {},{},{},{},{}",
-            milestone_count, proj_id, proj_name, owner, status, depends
+            "  |[{milestone_count}] {proj_id},{proj_name},{owner},{status},{depends}"
         ));
 
         for m in 0..milestone_count {
@@ -792,35 +803,34 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
             let ms_name = format!(
                 "{} {}",
                 ["Alpha", "Beta", "RC", "GA"][m % 4],
-                ["Release", "Milestone", "Phase"][rng.gen_range(0..3)]
+                ["Release", "Milestone", "Phase"][rng.random_range(0..3)]
             );
             let deadline = format!(
                 "2025-{:02}-{:02}",
-                rng.gen_range(1..13),
-                rng.gen_range(1..29)
+                rng.random_range(1..13),
+                rng.random_range(1..29)
             );
-            let ms_status = statuses[rng.gen_range(0..statuses.len())];
+            let ms_status = statuses[rng.random_range(0..statuses.len())];
 
             // 2-4 tasks per milestone
-            let task_count = rng.gen_range(2..5);
+            let task_count = rng.random_range(2..5);
             lines.push(format!(
-                "    |[{}] {},{},{},{}",
-                task_count, ms_id, ms_name, deadline, ms_status
+                "    |[{task_count}] {ms_id},{ms_name},{deadline},{ms_status}"
             ));
 
             for t in 0..task_count {
                 let task_id = format!("t{}_{}_{}", p + 1, m + 1, t + 1);
                 let task_name = format!(
                     "{} {}",
-                    ["Implement", "Design", "Test", "Review", "Deploy"][rng.gen_range(0..5)],
-                    ["feature", "module", "component", "service", "endpoint"][rng.gen_range(0..5)]
+                    ["Implement", "Design", "Test", "Review", "Deploy"][rng.random_range(0..5)],
+                    ["feature", "module", "component", "service", "endpoint"]
+                        [rng.random_range(0..5)]
                 );
-                let assignee = format!("@Person:p{:03}", rng.gen_range(1..=person_count));
-                let priority = priorities[rng.gen_range(0..priorities.len())];
-                let hours = rng.gen_range(2..40);
+                let assignee = format!("@Person:p{:03}", rng.random_range(1..=person_count));
+                let priority = priorities[rng.random_range(0..priorities.len())];
+                let hours = rng.random_range(2..40);
                 lines.push(format!(
-                    "      |{},{},{},{},{}",
-                    task_id, task_name, assignee, priority, hours
+                    "      |{task_id},{task_name},{assignee},{priority},{hours}"
                 ));
             }
         }
@@ -834,6 +844,7 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
 /// Company > Division > Department > Team > Employee
 /// 5 levels of nesting to test structure comprehension.
 /// Uses new count syntax in %STRUCT and |N| for parent rows.
+#[must_use]
 pub fn generate_deep_hierarchy(divisions: usize) -> String {
     let mut rng = StdRng::seed_from_u64(99999);
     let mut lines = vec![
@@ -867,9 +878,9 @@ pub fn generate_deep_hierarchy(divisions: usize) -> String {
             FirstName().fake_with_rng::<String, _>(&mut rng),
             LastName().fake_with_rng::<String, _>(&mut rng)
         );
-        let budget = rng.gen_range(1..10) * 1000000;
+        let budget = rng.random_range(1..10) * 1000000;
 
-        let dept_count = rng.gen_range(2..4);
+        let dept_count = rng.random_range(2..4);
         let mut dept_data = Vec::new();
 
         for dept in 0..dept_count {
@@ -880,22 +891,22 @@ pub fn generate_deep_hierarchy(divisions: usize) -> String {
                 FirstName().fake_with_rng::<String, _>(&mut rng),
                 LastName().fake_with_rng::<String, _>(&mut rng)
             );
-            let headcount = rng.gen_range(10..50);
+            let headcount = rng.random_range(10..50);
 
-            let team_count = rng.gen_range(1..3);
+            let team_count = rng.random_range(1..3);
             let mut team_data = Vec::new();
 
             for t in 0..team_count {
                 let team_id = format!("t{}_{}_{}", d + 1, dept + 1, t + 1);
-                let focus = focuses[rng.gen_range(0..focuses.len())];
-                let team_name = format!("{} Team", focus);
+                let focus = focuses[rng.random_range(0..focuses.len())];
+                let team_name = format!("{focus} Team");
                 let lead: String = format!(
                     "{} {}",
                     FirstName().fake_with_rng::<String, _>(&mut rng),
                     LastName().fake_with_rng::<String, _>(&mut rng)
                 );
 
-                let emp_count = rng.gen_range(2..5);
+                let emp_count = rng.random_range(2..5);
                 let mut emp_data = Vec::new();
 
                 for e in 0..emp_count {
@@ -905,8 +916,8 @@ pub fn generate_deep_hierarchy(divisions: usize) -> String {
                         FirstName().fake_with_rng::<String, _>(&mut rng),
                         LastName().fake_with_rng::<String, _>(&mut rng)
                     );
-                    let role = roles[rng.gen_range(0..roles.len())];
-                    let level = levels[rng.gen_range(0..levels.len())];
+                    let role = roles[rng.random_range(0..roles.len())];
+                    let level = levels[rng.random_range(0..levels.len())];
                     emp_data.push((emp_id, emp_name, role.to_string(), level.to_string()));
                 }
 
@@ -922,8 +933,7 @@ pub fn generate_deep_hierarchy(divisions: usize) -> String {
     // Generate with clear count syntax: |[N] data - brackets clearly separate count from data
     lines.push("companies: @Company".to_string());
     lines.push(format!(
-        "  |[{}] corp1, MegaCorp International, 1985, Technology",
-        divisions
+        "  |[{divisions}] corp1, MegaCorp International, 1985, Technology"
     ));
 
     for (div_id, div_name, head, budget, dept_data) in &division_data {
@@ -957,10 +967,7 @@ pub fn generate_deep_hierarchy(divisions: usize) -> String {
                 ));
 
                 for (emp_id, emp_name, role, level) in emp_data {
-                    lines.push(format!(
-                        "          |{},{},{},{}",
-                        emp_id, emp_name, role, level
-                    ));
+                    lines.push(format!("          |{emp_id},{emp_name},{role},{level}"));
                 }
             }
         }

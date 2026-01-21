@@ -10,7 +10,10 @@ Add criterion benchmarks to track performance and detect regressions.
 
 ```bash
 # Run existing benchmarks
-cargo bench -p hedl-bench
+cargo bench
+
+# Or run specific benchmark
+cargo bench --bench parsing
 
 # Add new benchmark file
 touch crates/hedl-bench/benches/my_feature.rs

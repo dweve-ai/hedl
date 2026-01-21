@@ -295,7 +295,7 @@ impl<T> HedlResultExt<T> for Result<T, std::io::Error> {
     }
 }
 
-/// Helper function to add context to an existing HedlError.
+/// Helper function to add context to an existing `HedlError`.
 ///
 /// If the error already has context, the new context is prepended with a separator.
 /// This allows building up a context chain through multiple layers of the call stack.
@@ -308,7 +308,7 @@ fn add_context_to_error(mut error: HedlError, new_context: String) -> HedlError 
         Some(existing) => {
             // Prepend new context with existing context
             // Format: "new context; existing context"
-            format!("{}; {}", new_context, existing)
+            format!("{new_context}; {existing}")
         }
         None => new_context,
     });
@@ -393,7 +393,7 @@ mod tests {
     fn test_context_with_format() {
         let user_id = "alice";
         let result: Result<(), HedlError> = Err(HedlError::collision("duplicate ID", 7));
-        let err = result.context(format!("for user {}", user_id)).unwrap_err();
+        let err = result.context(format!("for user {user_id}")).unwrap_err();
 
         assert_eq!(err.context, Some("for user alice".to_string()));
     }
@@ -492,7 +492,7 @@ mod tests {
         ));
 
         let hedl_result = io_result.map_err_to_hedl(|e: std::io::Error| {
-            HedlError::io(format!("Failed to read config: {}", e))
+            HedlError::io(format!("Failed to read config: {e}"))
         });
 
         let err = hedl_result.unwrap_err();
@@ -517,7 +517,7 @@ mod tests {
             serde_json::from_str("invalid json");
 
         let hedl_result = json_result.map_err_to_hedl(|e: serde_json::Error| {
-            HedlError::conversion(format!("JSON parse error: {}", e))
+            HedlError::conversion(format!("JSON parse error: {e}"))
         });
 
         let err = hedl_result.unwrap_err();
@@ -577,7 +577,7 @@ mod tests {
         use std::fs;
 
         let path = "/nonexistent/path";
-        let result = fs::read_to_string(path).with_context(|| format!("while reading {}", path));
+        let result = fs::read_to_string(path).with_context(|| format!("while reading {path}"));
 
         let err = result.unwrap_err();
         assert_eq!(err.kind, HedlErrorKind::IO);

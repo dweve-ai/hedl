@@ -15,6 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This module is deprecated - allow using deprecated items within it
+#![allow(deprecated)]
+
 //! Answer normalization for type-aware comparison.
 //!
 //! Normalizes LLM responses for deterministic grading without needing an LLM judge.
@@ -112,17 +115,13 @@ pub fn compare(expected: &str, actual: &str, answer_type: &AnswerType) -> Result
                 .parse()
                 .map_err(|e| BenchError::ComparisonFailed {
                     reason: format!(
-                        "Failed to parse expected value '{}' as number: {}",
-                        norm_expected, e
+                        "Failed to parse expected value '{norm_expected}' as number: {e}"
                     ),
                 })?;
             let act: f64 = norm_actual
                 .parse()
                 .map_err(|e| BenchError::ComparisonFailed {
-                    reason: format!(
-                        "Failed to parse actual value '{}' as number: {}",
-                        norm_actual, e
-                    ),
+                    reason: format!("Failed to parse actual value '{norm_actual}' as number: {e}"),
                 })?;
             Ok((exp - act).abs() < 1e-6)
         }
@@ -235,7 +234,7 @@ fn normalize_number(s: &str, decimals: usize) -> Result<String> {
         .parse()
         .map_err(|e| BenchError::NormalizationFailed {
             value: s.to_string(),
-            reason: format!("Cannot parse as number: {}", e),
+            reason: format!("Cannot parse as number: {e}"),
         })?;
 
     // Convert percentage to decimal (42% -> 0.42)
@@ -245,7 +244,7 @@ fn normalize_number(s: &str, decimals: usize) -> Result<String> {
     let factor = 10_f64.powi(decimals as i32);
     let rounded = (n * factor).round() / factor;
 
-    Ok(format!("{:.1$}", rounded, decimals))
+    Ok(format!("{rounded:.decimals$}"))
 }
 
 /// Normalize boolean values.
@@ -380,6 +379,8 @@ fn remove_formatting(s: &str) -> String {
         .collect()
 }
 
+// Tests for deprecated legacy module - allowed to use deprecated APIs
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
     use super::*;

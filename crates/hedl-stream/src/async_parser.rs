@@ -53,7 +53,7 @@
 //! use tokio::fs::File;
 //!
 //! let file = File::open("large-dataset.hedl").await?;
-//! let parser = AsyncStreamingParser::new(file).await?;
+//! let mut parser = AsyncStreamingParser::new(file).await?;
 //!
 //! while let Some(event) = parser.next_event().await? {
 //!     match event {
@@ -80,7 +80,7 @@
 //!
 //! async fn process_file(path: &str) -> Result<usize, Box<dyn std::error::Error>> {
 //!     let file = File::open(path).await?;
-//!     let parser = AsyncStreamingParser::new(file).await?;
+//!     let mut parser = AsyncStreamingParser::new(file).await?;
 //!
 //!     let mut count = 0;
 //!     while let Some(event) = parser.next_event().await? {
@@ -107,10 +107,13 @@ use crate::event::{HeaderInfo, NodeEvent, NodeInfo};
 use crate::parser::{strip_comment, StreamingParserConfig};
 use hedl_core::lex::{calculate_indent, is_valid_key_token, is_valid_type_name};
 use hedl_core::Value;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context as TaskContext, Poll};
 use std::time::Instant;
 use tokio::io::AsyncRead;
 
-/// Type alias for list context lookup result: (type_name, schema, optional last_node info)
+/// Type alias for list context lookup result: (`type_name`, schema, optional `last_node` info)
 type ListContextResult = (String, Vec<String>, Option<(String, String)>);
 
 /// Async streaming HEDL parser.
@@ -137,7 +140,7 @@ type ListContextResult = (String, Vec<String>, Option<(String, String)>);
 /// use tokio::fs::File;
 ///
 /// let file = File::open("data.hedl").await?;
-/// let parser = AsyncStreamingParser::new(file).await?;
+/// let mut parser = AsyncStreamingParser::new(file).await?;
 ///
 /// while let Some(event) = parser.next_event().await? {
 ///     if let NodeEvent::Node(node) = event {
@@ -162,7 +165,7 @@ type ListContextResult = (String, Vec<String>, Option<(String, String)>);
 ///     ..Default::default()
 /// };
 ///
-/// let parser = AsyncStreamingParser::with_config(
+/// let mut parser = AsyncStreamingParser::with_config(
 ///     Cursor::new("untrusted input"),
 ///     config
 /// ).await?;
@@ -179,6 +182,8 @@ pub struct AsyncStreamingParser<R: AsyncRead + Unpin> {
     header: Option<HeaderInfo>,
     state: ParserState,
     finished: bool,
+    errored: bool,              // Track if an error occurred to skip finalize
+    sent_end_of_document: bool, // Track if EndOfDocument has been returned
     start_time: Instant,
     operations_count: usize,
 }
@@ -309,6 +314,8 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
                 prev_row: None,
             },
             finished: false,
+            errored: false,
+            sent_end_of_document: false,
             start_time: Instant::now(),
             operations_count: 0,
         };
@@ -332,6 +339,17 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             }
         }
         Ok(())
+    }
+
+    /// Set the errored flag and return an error.
+    ///
+    /// This helper ensures that after any error is returned, subsequent calls
+    /// to `next_event` will return `Ok(None)` without attempting further parsing.
+    #[inline]
+    fn return_error<T>(&mut self, e: StreamError) -> StreamResult<T> {
+        self.finished = true;
+        self.errored = true;
+        Err(e)
     }
 
     /// Get the parsed header information.
@@ -392,7 +410,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
     ///   | alice, Alice
     /// "#;
     ///
-    /// let parser = AsyncStreamingParser::new(Cursor::new(input)).await?;
+    /// let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await?;
     ///
     /// while let Some(event) = parser.next_event().await? {
     ///     match event {
@@ -405,23 +423,31 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
     /// # }
     /// ```
     pub async fn next_event(&mut self) -> StreamResult<Option<NodeEvent>> {
-        if self.finished {
+        // If errored, stop immediately without finalize
+        if self.errored {
             return Ok(None);
+        }
+        // If finished, continue emitting remaining context ends until stack is empty
+        if self.finished {
+            return self.finalize();
         }
 
         loop {
             // Check timeout periodically (every 100 operations to minimize overhead)
             self.operations_count += 1;
-            if self.operations_count.is_multiple_of(100) {
-                self.check_timeout()?;
+            if self.operations_count % 100 == 0 {
+                if let Err(e) = self.check_timeout() {
+                    return self.return_error(e);
+                }
             }
 
-            let (line_num, line) = match self.reader.next_line().await? {
-                Some(l) => l,
-                None => {
+            let (line_num, line) = match self.reader.next_line().await {
+                Ok(Some(l)) => l,
+                Ok(None) => {
                     self.finished = true;
                     return self.finalize();
                 }
+                Err(e) => return self.return_error(e),
             };
 
             let trimmed = line.trim();
@@ -432,8 +458,10 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             }
 
             // Calculate indentation
-            let indent_info = calculate_indent(&line, line_num as u32)
-                .map_err(|e| StreamError::syntax(line_num, e.to_string()))?;
+            let indent_info = match calculate_indent(&line, line_num as u32) {
+                Ok(info) => info,
+                Err(e) => return self.return_error(StreamError::syntax(line_num, e.to_string())),
+            };
 
             let (indent, content) = match indent_info {
                 Some(info) => (info.level, &line[info.spaces..]),
@@ -441,14 +469,17 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             };
 
             if indent > self.config.max_indent_depth {
-                return Err(StreamError::syntax(
+                return self.return_error(StreamError::syntax(
                     line_num,
-                    format!("indent depth {} exceeds limit", indent),
+                    format!("indent depth {indent} exceeds limit"),
                 ));
             }
 
             // Pop contexts as needed based on indentation
-            let events = self.pop_contexts(indent)?;
+            let events = match self.pop_contexts(indent) {
+                Ok(e) => e,
+                Err(e) => return self.return_error(e),
+            };
             if let Some(event) = events {
                 // Push back the current line to process after emitting list end
                 self.reader.push_back(line_num, line);
@@ -456,7 +487,10 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             }
 
             // Parse line content
-            return self.parse_line(content, indent, line_num);
+            return match self.parse_line(content, indent, line_num) {
+                Ok(result) => Ok(result),
+                Err(e) => self.return_error(e),
+            };
         }
     }
 
@@ -515,12 +549,43 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         }
     }
 
+    /// Strip inline comments from a directive line.
+    ///
+    /// Handles `#` characters outside of quoted strings and brackets.
+    /// Returns the content before the first unquoted/unbracketed `#`.
+    fn strip_inline_comment(text: &str) -> &str {
+        let mut in_quotes = false;
+        let mut in_brackets = 0;
+        let mut quote_char = '"';
+
+        for (i, c) in text.char_indices() {
+            match c {
+                '"' | '\'' if !in_quotes => {
+                    in_quotes = true;
+                    quote_char = c;
+                }
+                c if in_quotes && c == quote_char => {
+                    in_quotes = false;
+                }
+                '[' if !in_quotes => in_brackets += 1,
+                ']' if !in_quotes && in_brackets > 0 => in_brackets -= 1,
+                '#' if !in_quotes && in_brackets == 0 => {
+                    return text[..i].trim_end();
+                }
+                _ => {}
+            }
+        }
+        text
+    }
+
     fn parse_version_directive(
         &self,
         line: &str,
         header: &mut HeaderInfo,
         found_version: &mut bool,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         let rest = line.strip_prefix("%VERSION").expect("prefix exists").trim();
         let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
         let parts: Vec<&str> = rest.split('.').collect();
@@ -547,6 +612,8 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         line_num: usize,
         header: &mut HeaderInfo,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         let rest = line.strip_prefix("%STRUCT").expect("prefix exists").trim();
         let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
 
@@ -566,7 +633,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         if !is_valid_type_name(type_name) {
             return Err(StreamError::syntax(
                 line_num,
-                format!("invalid type name: {}", type_name),
+                format!("invalid type name: {type_name}"),
             ));
         }
 
@@ -591,6 +658,8 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         line_num: usize,
         header: &mut HeaderInfo,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         let rest = line.strip_prefix("%ALIAS").expect("prefix exists").trim();
         let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
 
@@ -612,6 +681,8 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         line_num: usize,
         header: &mut HeaderInfo,
     ) -> StreamResult<()> {
+        // Strip inline comments first
+        let line = Self::strip_inline_comment(line);
         let rest = line.strip_prefix("%NEST").expect("prefix exists").trim();
         let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
 
@@ -640,18 +711,25 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
 
             if should_pop {
                 let ctx = self.state.stack.pop().expect("stack has elements");
-                if let Context::List {
-                    key,
-                    type_name,
-                    count,
-                    ..
-                } = ctx
-                {
-                    return Ok(Some(NodeEvent::ListEnd {
+                match ctx {
+                    Context::List {
                         key,
                         type_name,
                         count,
-                    }));
+                        ..
+                    } => {
+                        return Ok(Some(NodeEvent::ListEnd {
+                            key,
+                            type_name,
+                            count,
+                        }));
+                    }
+                    Context::Object { key, .. } => {
+                        return Ok(Some(NodeEvent::ObjectEnd { key }));
+                    }
+                    Context::Root => {
+                        // Root context should never be popped
+                    }
                 }
             } else {
                 break;
@@ -676,10 +754,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             let after_colon = &content[colon_pos + 1..];
 
             if !is_valid_key_token(key) {
-                return Err(StreamError::syntax(
-                    line_num,
-                    format!("invalid key: {}", key),
-                ));
+                return Err(StreamError::syntax(line_num, format!("invalid key: {key}")));
             }
 
             let after_colon_trimmed = after_colon.trim();
@@ -751,7 +826,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             if !is_valid_type_name(type_name) {
                 return Err(StreamError::syntax(
                     line_num,
-                    format!("invalid type name: {}", type_name),
+                    format!("invalid type name: {type_name}"),
                 ));
             }
 
@@ -772,7 +847,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             if !is_valid_type_name(type_name) {
                 return Err(StreamError::syntax(
                     line_num,
-                    format!("invalid type name: {}", type_name),
+                    format!("invalid type name: {type_name}"),
                 ));
             }
 
@@ -782,7 +857,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
                 .ok_or_else(|| StreamError::Header("header not parsed".to_string()))?;
 
             let schema = header.structs.get(type_name).ok_or_else(|| {
-                StreamError::schema(line_num, format!("undefined type: {}", type_name))
+                StreamError::schema(line_num, format!("undefined type: {type_name}"))
             })?;
 
             Ok((type_name.to_string(), schema.clone()))
@@ -800,7 +875,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         let (type_name, schema, parent_info) = self.find_list_context(indent, line_num)?;
 
         let fields = hedl_core::lex::parse_csv_row(content)
-            .map_err(|e| StreamError::syntax(line_num, format!("row parse error: {}", e)))?;
+            .map_err(|e| StreamError::syntax(line_num, format!("row parse error: {e}")))?;
 
         if fields.len() != schema.len() {
             return Err(StreamError::ShapeMismatch {
@@ -819,7 +894,7 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
                     .and_then(|prev| prev.get(col_idx).cloned())
                     .unwrap_or(Value::Null)
             } else if field.is_quoted {
-                Value::String(field.value.clone())
+                Value::String(field.value.clone().into())
             } else {
                 self.infer_value(&field.value, line_num)?
             };
@@ -834,7 +909,16 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
         self.update_list_context(&type_name, &id);
         self.state.prev_row = Some(values.clone());
 
-        let mut node = NodeInfo::new(type_name.clone(), id, values, indent, line_num);
+        // Calculate depth as number of list contexts minus 1 (0-indexed nesting level)
+        let depth = self
+            .state
+            .stack
+            .iter()
+            .filter(|ctx| matches!(ctx, Context::List { .. }))
+            .count()
+            .saturating_sub(1);
+
+        let mut node = NodeInfo::new(type_name.clone(), id.to_string(), values, depth, line_num);
 
         if let Some((parent_type, parent_id)) = parent_info {
             node = node.with_parent(parent_type, parent_id);
@@ -872,14 +956,14 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
                     let child_type = header.nests.get(type_name).ok_or_else(|| {
                         StreamError::orphan_row(
                             line_num,
-                            format!("no NEST rule for parent type '{}'", type_name),
+                            format!("no NEST rule for parent type '{type_name}'"),
                         )
                     })?;
 
                     let child_schema = header.structs.get(child_type).ok_or_else(|| {
                         StreamError::schema(
                             line_num,
-                            format!("child type '{}' not defined", child_type),
+                            format!("child type '{child_type}' not defined"),
                         )
                     })?;
 
@@ -941,24 +1025,23 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
                 let type_name = &ref_part[..colon_pos];
                 let id = &ref_part[colon_pos + 1..];
                 return Ok(Value::Reference(hedl_core::Reference {
-                    type_name: Some(type_name.to_string()),
-                    id: id.to_string(),
-                }));
-            } else {
-                return Ok(Value::Reference(hedl_core::Reference {
-                    type_name: None,
-                    id: ref_part.to_string(),
+                    type_name: Some(type_name.to_string().into()),
+                    id: id.to_string().into(),
                 }));
             }
+            return Ok(Value::Reference(hedl_core::Reference {
+                type_name: None,
+                id: ref_part.to_string().into(),
+            }));
         }
 
         if let Some(alias) = s.strip_prefix('$') {
             if let Some(header) = &self.header {
                 if let Some(value) = header.aliases.get(alias) {
-                    return Ok(Value::String(value.clone()));
+                    return Ok(Value::String(value.clone().into()));
                 }
             }
-            return Ok(Value::String(s.to_string()));
+            return Ok(Value::String(s.to_string().into()));
         }
 
         if let Ok(i) = s.parse::<i64>() {
@@ -968,28 +1051,175 @@ impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
             return Ok(Value::Float(f));
         }
 
-        Ok(Value::String(s.to_string()))
+        Ok(Value::String(s.to_string().into()))
     }
 
     fn finalize(&mut self) -> StreamResult<Option<NodeEvent>> {
+        // If we already sent EndOfDocument, return None to signal true end of stream
+        if self.sent_end_of_document {
+            return Ok(None);
+        }
+
         while self.state.stack.len() > 1 {
             let ctx = self.state.stack.pop().expect("stack has elements");
-            if let Context::List {
-                key,
-                type_name,
-                count,
-                ..
-            } = ctx
-            {
-                return Ok(Some(NodeEvent::ListEnd {
+            match ctx {
+                Context::List {
                     key,
                     type_name,
                     count,
-                }));
+                    ..
+                } => {
+                    return Ok(Some(NodeEvent::ListEnd {
+                        key,
+                        type_name,
+                        count,
+                    }));
+                }
+                Context::Object { key, .. } => {
+                    return Ok(Some(NodeEvent::ObjectEnd { key }));
+                }
+                Context::Root => {
+                    // Root context handled by the while condition
+                }
             }
         }
 
+        // Mark that we've sent EndOfDocument, so subsequent calls return None
+        self.sent_end_of_document = true;
         Ok(Some(NodeEvent::EndOfDocument))
+    }
+
+    /// Read up to `n` events in a single async operation.
+    ///
+    /// Reduces await overhead for high-throughput scenarios by batching event reads.
+    /// This can improve performance when processing many small events.
+    ///
+    /// # Parameters
+    ///
+    /// - `n`: Maximum number of events to read
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(Vec<NodeEvent>)`: Vector of events (may be fewer than `n` if EOF reached)
+    /// - `Err(e)`: Parsing error encountered
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hedl_stream::AsyncStreamingParser;
+    /// use tokio::fs::File;
+    ///
+    /// let file = File::open("data.hedl").await?;
+    /// let mut parser = AsyncStreamingParser::new(file).await?;
+    ///
+    /// // Read events in batches of 100
+    /// loop {
+    ///     let batch = parser.next_batch(100).await?;
+    ///     if batch.is_empty() {
+    ///         break;
+    ///     }
+    ///
+    ///     // Process batch
+    ///     for event in batch {
+    ///         // ...
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn next_batch(&mut self, n: usize) -> StreamResult<Vec<NodeEvent>> {
+        let mut batch = Vec::with_capacity(n.min(100)); // Cap initial allocation
+        for _ in 0..n {
+            match self.next_event().await? {
+                Some(NodeEvent::EndOfDocument) => break,
+                Some(event) => batch.push(event),
+                None => break,
+            }
+        }
+        Ok(batch)
+    }
+
+    /// Read events with cancellation support via tokio watch channel.
+    ///
+    /// Returns `Ok(None)` if cancelled, otherwise behaves like `next_event()`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hedl_stream::AsyncStreamingParser;
+    /// use tokio::sync::watch;
+    /// use std::io::Cursor;
+    ///
+    /// let input = r#"
+    /// %VERSION: 1.0
+    /// %STRUCT: User: [id, name]
+    /// ---
+    /// users: @User
+    ///   | alice, Alice
+    /// "#;
+    ///
+    /// let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await?;
+    /// let (cancel_tx, mut cancel_rx) = watch::channel(false);
+    ///
+    /// // Can cancel from another task
+    /// tokio::spawn(async move {
+    ///     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    ///     let _ = cancel_tx.send(true);
+    /// });
+    ///
+    /// while let Some(event) = parser.next_event_cancellable(&mut cancel_rx).await? {
+    ///     // Process event
+    ///     # break;
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "async")]
+    pub async fn next_event_cancellable(
+        &mut self,
+        cancel_rx: &mut tokio::sync::watch::Receiver<bool>,
+    ) -> StreamResult<Option<NodeEvent>> {
+        // Check if cancelled
+        if *cancel_rx.borrow() {
+            return Ok(None);
+        }
+
+        tokio::select! {
+            result = self.next_event() => result,
+            _ = cancel_rx.changed() => {
+                if *cancel_rx.borrow() {
+                    Ok(None)
+                } else {
+                    // False alarm, continue
+                    self.next_event().await
+                }
+            }
+        }
+    }
+}
+
+// Stream trait implementation for futures ecosystem integration
+#[cfg(feature = "async")]
+impl<R: AsyncRead + Unpin> futures_core::Stream for AsyncStreamingParser<R> {
+    type Item = StreamResult<NodeEvent>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        // Create a future from next_event and poll it
+        let fut = self.next_event();
+        tokio::pin!(fut);
+
+        match fut.poll(cx) {
+            Poll::Ready(Ok(Some(NodeEvent::EndOfDocument))) => Poll::Ready(None),
+            Poll::Ready(Ok(Some(event))) => Poll::Ready(Some(Ok(event))),
+            Poll::Ready(Ok(None)) => Poll::Ready(None),
+            // Note: errored flag is set inside next_event before returning errors
+            Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -1019,14 +1249,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_streaming_nodes() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice Smith
   | bob, Bob Jones
-"#;
+";
         let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let mut events = Vec::new();
@@ -1048,23 +1278,23 @@ users: @User
             ..Default::default()
         };
 
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 ---
-"#;
+";
         let parser = AsyncStreamingParser::with_config(Cursor::new(input), config).await;
         assert!(parser.is_ok()); // Header should parse within timeout
     }
 
     #[tokio::test]
     async fn test_inline_schema() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 ---
 items: @Item[id, name]
   | item1, First
   | item2, Second
-"#;
+";
         let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let mut nodes = Vec::new();
@@ -1080,11 +1310,11 @@ items: @Item[id, name]
 
     #[tokio::test]
     async fn test_error_handling() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 ---
 invalid line without colon
-"#;
+";
         let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let result = parser.next_event().await;
@@ -1094,14 +1324,14 @@ invalid line without colon
 
     #[tokio::test]
     async fn test_unicode() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | 用户1, 张三
   | пользователь, Иван
-"#;
+";
         let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
         let mut nodes = Vec::new();
@@ -1114,5 +1344,529 @@ users: @User
         assert_eq!(nodes.len(), 2);
         assert_eq!(nodes[0].id, "用户1");
         assert_eq!(nodes[1].id, "пользователь");
+    }
+
+    // ============ STREAM TRAIT TESTS ============
+
+    #[tokio::test]
+    async fn test_stream_trait_basic() {
+        use futures::StreamExt;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+";
+        let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let events: Vec<_> = parser.collect().await;
+        assert!(events.iter().all(std::result::Result::is_ok));
+
+        let nodes: Vec<_> = events
+            .iter()
+            .filter_map(|e| e.as_ref().ok())
+            .filter_map(|e| e.as_node())
+            .collect();
+
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].id, "alice");
+        assert_eq!(nodes[1].id, "bob");
+    }
+
+    #[tokio::test]
+    async fn test_stream_trait_filter_map() {
+        use futures::StreamExt;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name, active]
+---
+users: @User
+  | alice, Alice, true
+  | bob, Bob, false
+  | carol, Carol, true
+";
+        let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        // Only collect active users using stream combinators
+        let active_nodes: Vec<_> = parser
+            .filter_map(|result| async move {
+                result.ok().and_then(|event| {
+                    if let NodeEvent::Node(node) = event {
+                        Some(node)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .filter(|node| {
+                let is_active = matches!(node.get_field(2), Some(Value::Bool(true)));
+                async move { is_active }
+            })
+            .collect()
+            .await;
+
+        assert_eq!(active_nodes.len(), 2);
+        assert_eq!(active_nodes[0].id, "alice");
+        assert_eq!(active_nodes[1].id, "carol");
+    }
+
+    #[tokio::test]
+    async fn test_stream_trait_take() {
+        use futures::StreamExt;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+  | carol, Carol
+  | dave, Dave
+";
+        let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        // Take only first 2 node events
+        let nodes: Vec<_> = parser
+            .filter_map(|result| async move {
+                result.ok().and_then(|event| {
+                    if let NodeEvent::Node(node) = event {
+                        Some(node)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .take(2)
+            .collect()
+            .await;
+
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].id, "alice");
+        assert_eq!(nodes[1].id, "bob");
+    }
+
+    #[tokio::test]
+    async fn test_stream_trait_count() {
+        use futures::StreamExt;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+  | carol, Carol
+";
+        let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let total = parser.count().await;
+        // Should count all events: ListStart, 3 Nodes, ListEnd = 5 events
+        assert_eq!(total, 5);
+    }
+
+    // ============ BATCH READING TESTS ============
+
+    #[tokio::test]
+    async fn test_next_batch_basic() {
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+  | carol, Carol
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        // Read all events in one batch
+        let batch = parser.next_batch(10).await.unwrap();
+        assert_eq!(batch.len(), 5); // ListStart, 3 Nodes, ListEnd
+
+        // Next batch should be empty (EOF)
+        let batch = parser.next_batch(10).await.unwrap();
+        assert!(batch.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_next_batch_incremental() {
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+  | carol, Carol
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        // Read in small batches
+        let batch1 = parser.next_batch(2).await.unwrap();
+        assert_eq!(batch1.len(), 2); // ListStart, Node
+
+        let batch2 = parser.next_batch(2).await.unwrap();
+        assert_eq!(batch2.len(), 2); // Node, Node
+
+        let batch3 = parser.next_batch(2).await.unwrap();
+        assert_eq!(batch3.len(), 1); // ListEnd
+
+        let batch4 = parser.next_batch(2).await.unwrap();
+        assert!(batch4.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_next_batch_empty_file() {
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let batch = parser.next_batch(10).await.unwrap();
+        assert!(batch.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_next_batch_large() {
+        let mut input = String::from(
+            r"
+%VERSION: 1.0
+%STRUCT: Data: [id, value]
+---
+data: @Data
+",
+        );
+        for i in 0..500 {
+            input.push_str(&format!("  | row{i}, value{i}\n"));
+        }
+
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        // Read in large batches
+        let batch1 = parser.next_batch(100).await.unwrap();
+        assert_eq!(batch1.len(), 100); // ListStart + 99 Nodes
+
+        let batch2 = parser.next_batch(100).await.unwrap();
+        assert_eq!(batch2.len(), 100); // 100 Nodes
+
+        // Continue until we get all events
+        let mut total = batch1.len() + batch2.len();
+        loop {
+            let batch = parser.next_batch(100).await.unwrap();
+            if batch.is_empty() {
+                break;
+            }
+            total += batch.len();
+        }
+
+        // Total: ListStart + 500 Nodes + ListEnd = 502
+        assert_eq!(total, 502);
+    }
+
+    // ============ CANCELLATION TESTS ============
+
+    #[tokio::test]
+    async fn test_cancellation_basic() {
+        use tokio::sync::watch;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let (cancel_tx, mut cancel_rx) = watch::channel(false);
+
+        // Read first event normally
+        let event1 = parser.next_event_cancellable(&mut cancel_rx).await.unwrap();
+        assert!(event1.is_some());
+
+        // Cancel
+        cancel_tx.send(true).unwrap();
+
+        // Next read should return None (cancelled)
+        let event2 = parser.next_event_cancellable(&mut cancel_rx).await.unwrap();
+        assert!(event2.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_cancellation_not_cancelled() {
+        use tokio::sync::watch;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let (_cancel_tx, mut cancel_rx) = watch::channel(false);
+
+        // Read all events without cancellation
+        let mut count = 0;
+        while let Some(_event) = parser.next_event_cancellable(&mut cancel_rx).await.unwrap() {
+            count += 1;
+        }
+
+        // Should have read all events: ListStart, Node, ListEnd, EndOfDocument
+        assert_eq!(count, 4);
+    }
+
+    #[tokio::test]
+    async fn test_cancellation_during_processing() {
+        use tokio::sync::watch;
+
+        let mut input = String::from(
+            r"
+%VERSION: 1.0
+%STRUCT: Data: [id]
+---
+data: @Data
+",
+        );
+        for i in 0..1000 {
+            input.push_str(&format!("  | row{i}\n"));
+        }
+
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let (cancel_tx, mut cancel_rx) = watch::channel(false);
+
+        // Spawn a task that cancels after reading some events
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            cancel_tx.send(true).unwrap();
+        });
+
+        let mut count = 0;
+        while let Some(_event) = parser.next_event_cancellable(&mut cancel_rx).await.unwrap() {
+            count += 1;
+            // Small delay to allow cancellation to trigger
+            tokio::time::sleep(tokio::time::Duration::from_micros(10)).await;
+        }
+
+        // Should have read some events but not all 1002 (ListStart + 1000 Nodes + ListEnd)
+        assert!(count < 1002);
+        assert!(count > 0);
+    }
+
+    // ============ CONCURRENT PROCESSING TESTS ============
+
+    #[tokio::test]
+    async fn test_concurrent_file_processing() {
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+";
+
+        // Process multiple identical streams concurrently
+        let tasks: Vec<_> = (0..5)
+            .map(|_| {
+                let input_clone = input.to_string();
+                tokio::spawn(async move {
+                    let mut parser = AsyncStreamingParser::new(Cursor::new(input_clone))
+                        .await
+                        .unwrap();
+
+                    let mut count = 0;
+                    while let Some(_event) = parser.next_event().await.unwrap() {
+                        count += 1;
+                    }
+                    count
+                })
+            })
+            .collect();
+
+        let results = futures::future::join_all(tasks).await;
+
+        // All tasks should succeed and count the same number of events
+        for result in results {
+            assert_eq!(result.unwrap(), 5); // ListStart, 2 Nodes, ListEnd, EndOfDocument
+        }
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_with_stream_trait() {
+        use futures::StreamExt;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: Data: [id]
+---
+data: @Data
+  | row1
+  | row2
+  | row3
+";
+
+        // Process multiple streams concurrently using manual await
+        // Note: futures::Stream combinators create !Send futures, so we can't use tokio::spawn
+        let mut counts = Vec::new();
+
+        for _ in 0..10 {
+            let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+            // Count nodes using stream combinators
+            let count = parser
+                .filter_map(|result| async move {
+                    result.ok().and_then(|event| {
+                        if let NodeEvent::Node(_) = event {
+                            Some(())
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .count()
+                .await;
+
+            counts.push(count);
+        }
+
+        // All should count 3 nodes
+        for count in counts {
+            assert_eq!(count, 3);
+        }
+    }
+
+    // ============ EDGE CASE AND INTEGRATION TESTS ============
+
+    #[tokio::test]
+    async fn test_stream_trait_with_errors() {
+        use futures::StreamExt;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob
+  | carol, Carol
+";
+        let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let results: Vec<_> = parser.collect().await;
+
+        // Should have error for malformed row (bob with only 1 field)
+        let errors: Vec<_> = results.iter().filter(|r| r.is_err()).collect();
+        assert!(!errors.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_batch_with_mixed_events() {
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+%STRUCT: Product: [id, title]
+---
+users: @User
+  | alice, Alice
+products: @Product
+  | prod1, Widget
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let batch = parser.next_batch(10).await.unwrap();
+
+        // Should contain: ListStart(User), Node(alice), ListEnd(User), ListStart(Product), Node(prod1), ListEnd(Product)
+        assert_eq!(batch.len(), 6);
+
+        let list_starts: Vec<_> = batch
+            .iter()
+            .filter(|e| matches!(e, NodeEvent::ListStart { .. }))
+            .collect();
+        assert_eq!(list_starts.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_stream_empty_after_cancellation() {
+        use tokio::sync::watch;
+
+        let input = r"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | alice, Alice
+  | bob, Bob
+";
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let (cancel_tx, mut cancel_rx) = watch::channel(false);
+
+        // Read one event
+        let _event = parser.next_event_cancellable(&mut cancel_rx).await.unwrap();
+
+        // Cancel
+        cancel_tx.send(true).unwrap();
+
+        // Subsequent reads should return None
+        assert!(parser
+            .next_event_cancellable(&mut cancel_rx)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(parser
+            .next_event_cancellable(&mut cancel_rx)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_batch_reading_performance() {
+        // Create a large dataset
+        let mut input = String::from(
+            r"
+%VERSION: 1.0
+%STRUCT: Data: [id, value]
+---
+data: @Data
+",
+        );
+        for i in 0..1000 {
+            input.push_str(&format!("  | row{i}, value{i}\n"));
+        }
+
+        let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
+
+        let start = std::time::Instant::now();
+
+        // Read in batches
+        let mut total = 0;
+        loop {
+            let batch = parser.next_batch(100).await.unwrap();
+            if batch.is_empty() {
+                break;
+            }
+            total += batch.len();
+        }
+
+        let elapsed = start.elapsed();
+
+        // Should have read all events
+        assert_eq!(total, 1002); // ListStart + 1000 Nodes + ListEnd
+
+        // Should complete reasonably quickly (< 100ms for 1000 rows)
+        assert!(elapsed.as_millis() < 100);
     }
 }

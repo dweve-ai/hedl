@@ -115,6 +115,7 @@ pub struct HeaderInfo {
 
 impl HeaderInfo {
     /// Create a new empty header.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             version: (1, 0),
@@ -126,12 +127,14 @@ impl HeaderInfo {
 
     /// Get schema columns for a type.
     #[inline]
+    #[must_use]
     pub fn get_schema(&self, type_name: &str) -> Option<&Vec<String>> {
         self.structs.get(type_name)
     }
 
     /// Get child type for a parent type (from NEST).
     #[inline]
+    #[must_use]
     pub fn get_child_type(&self, parent_type: &str) -> Option<&String> {
         self.nests.get(parent_type)
     }
@@ -176,8 +179,8 @@ impl Default for HeaderInfo {
 /// for event in parser {
 ///     if let Ok(NodeEvent::Node(node)) = event {
 ///         // Access by index
-///         assert_eq!(node.get_field(0), Some(&Value::String("alice".to_string())));
-///         assert_eq!(node.get_field(1), Some(&Value::String("Alice Smith".to_string())));
+///         assert_eq!(node.get_field(0), Some(&Value::String("alice".to_string().into())));
+///         assert_eq!(node.get_field(1), Some(&Value::String("Alice Smith".to_string().into())));
 ///         assert_eq!(node.get_field(3), Some(&Value::Bool(true)));
 ///
 ///         // Or use the id field directly
@@ -235,10 +238,13 @@ pub struct NodeInfo {
     pub parent_type: Option<String>,
     /// Line number in source.
     pub line: usize,
+    /// Expected child count from `|[N]` syntax.
+    pub child_count: Option<usize>,
 }
 
 impl NodeInfo {
     /// Create a new node info.
+    #[must_use]
     pub fn new(
         type_name: String,
         id: String,
@@ -254,24 +260,35 @@ impl NodeInfo {
             parent_id: None,
             parent_type: None,
             line,
+            child_count: None,
         }
     }
 
     /// Set parent information.
+    #[must_use]
     pub fn with_parent(mut self, parent_type: String, parent_id: String) -> Self {
         self.parent_type = Some(parent_type);
         self.parent_id = Some(parent_id);
         self
     }
 
+    /// Set expected child count from `|[N]` syntax.
+    #[must_use]
+    pub fn with_child_count(mut self, count: usize) -> Self {
+        self.child_count = Some(count);
+        self
+    }
+
     /// Get a field value by column index.
     #[inline]
+    #[must_use]
     pub fn get_field(&self, index: usize) -> Option<&Value> {
         self.fields.get(index)
     }
 
     /// Check if this is a nested (child) node.
     #[inline]
+    #[must_use]
     pub fn is_nested(&self) -> bool {
         self.depth > 0 || self.parent_id.is_some()
     }
@@ -339,12 +356,14 @@ pub enum NodeEvent {
 impl NodeEvent {
     /// Check if this is a node event.
     #[inline]
+    #[must_use]
     pub fn is_node(&self) -> bool {
         matches!(self, Self::Node(_))
     }
 
     /// Get the node info if this is a node event.
     #[inline]
+    #[must_use]
     pub fn as_node(&self) -> Option<&NodeInfo> {
         match self {
             Self::Node(info) => Some(info),
@@ -354,6 +373,7 @@ impl NodeEvent {
 
     /// Get the line number for this event.
     #[inline]
+    #[must_use]
     pub fn line(&self) -> Option<usize> {
         match self {
             Self::Header(_) => Some(1),
@@ -479,7 +499,7 @@ mod tests {
     #[test]
     fn test_header_info_debug() {
         let header = HeaderInfo::new();
-        let debug = format!("{:?}", header);
+        let debug = format!("{header:?}");
         assert!(debug.contains("HeaderInfo"));
         assert!(debug.contains("version"));
     }
@@ -492,8 +512,8 @@ mod tests {
             "User".to_string(),
             "alice".to_string(),
             vec![
-                Value::String("alice".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("alice".to_string().into()),
+                Value::String("Alice".to_string().into()),
             ],
             0,
             10,
@@ -513,7 +533,7 @@ mod tests {
         let node = NodeInfo::new(
             "Order".to_string(),
             "order1".to_string(),
-            vec![Value::String("order1".to_string())],
+            vec![Value::String("order1".to_string().into())],
             1,
             15,
         )
@@ -529,7 +549,7 @@ mod tests {
             "Data".to_string(),
             "row1".to_string(),
             vec![
-                Value::String("row1".to_string()),
+                Value::String("row1".to_string().into()),
                 Value::Int(42),
                 Value::Bool(true),
             ],
@@ -537,7 +557,10 @@ mod tests {
             5,
         );
 
-        assert_eq!(node.get_field(0), Some(&Value::String("row1".to_string())));
+        assert_eq!(
+            node.get_field(0),
+            Some(&Value::String("row1".to_string().into()))
+        );
         assert_eq!(node.get_field(1), Some(&Value::Int(42)));
         assert_eq!(node.get_field(2), Some(&Value::Bool(true)));
         assert_eq!(node.get_field(3), None);
@@ -565,7 +588,7 @@ mod tests {
         let node = NodeInfo::new(
             "User".to_string(),
             "alice".to_string(),
-            vec![Value::String("alice".to_string())],
+            vec![Value::String("alice".to_string().into())],
             0,
             1,
         );
@@ -578,7 +601,7 @@ mod tests {
     #[test]
     fn test_node_info_debug() {
         let node = NodeInfo::new("User".to_string(), "alice".to_string(), vec![], 0, 1);
-        let debug = format!("{:?}", node);
+        let debug = format!("{node:?}");
         assert!(debug.contains("NodeInfo"));
         assert!(debug.contains("User"));
         assert!(debug.contains("alice"));
@@ -601,7 +624,7 @@ mod tests {
                 Value::Bool(true),
                 Value::Int(-42),
                 Value::Float(3.5),
-                Value::String("hello".to_string()),
+                Value::String("hello".to_string().into()),
             ],
             0,
             1,
@@ -611,7 +634,10 @@ mod tests {
         assert_eq!(node.get_field(1), Some(&Value::Bool(true)));
         assert_eq!(node.get_field(2), Some(&Value::Int(-42)));
         assert_eq!(node.get_field(3), Some(&Value::Float(3.5)));
-        assert_eq!(node.get_field(4), Some(&Value::String("hello".to_string())));
+        assert_eq!(
+            node.get_field(4),
+            Some(&Value::String("hello".to_string().into()))
+        );
     }
 
     // ==================== NodeEvent tests ====================
@@ -674,7 +700,7 @@ mod tests {
     fn test_node_event_line_scalar() {
         let event = NodeEvent::Scalar {
             key: "name".to_string(),
-            value: Value::String("test".to_string()),
+            value: Value::String("test".to_string().into()),
             line: 25,
         };
         assert_eq!(event.line(), Some(25));
@@ -734,7 +760,7 @@ mod tests {
     #[test]
     fn test_node_event_debug() {
         let event = NodeEvent::EndOfDocument;
-        let debug = format!("{:?}", event);
+        let debug = format!("{event:?}");
         assert!(debug.contains("EndOfDocument"));
     }
 
@@ -806,7 +832,7 @@ mod tests {
             },
             NodeEvent::Scalar {
                 key: "string".to_string(),
-                value: Value::String("text".to_string()),
+                value: Value::String("text".to_string().into()),
                 line: 5,
             },
         ];

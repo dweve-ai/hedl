@@ -36,6 +36,7 @@ use std::time::Duration;
 /// # Returns
 ///
 /// Performance analysis with bottlenecks identified.
+#[must_use]
 pub fn analyze_performance(results: &[BenchResult]) -> PerformanceAnalysis {
     let bottlenecks = identify_bottlenecks(results);
 
@@ -55,6 +56,7 @@ pub fn analyze_performance(results: &[BenchResult]) -> PerformanceAnalysis {
 /// # Returns
 ///
 /// Vector of identified bottlenecks.
+#[must_use]
 pub fn identify_bottlenecks(results: &[BenchResult]) -> Vec<Bottleneck> {
     if results.is_empty() {
         return Vec::new();
@@ -80,7 +82,7 @@ pub fn identify_bottlenecks(results: &[BenchResult]) -> Vec<Bottleneck> {
                 location: result.name.clone(),
                 category: infer_category(&result.name),
                 severity,
-                description: format!("Takes {:.1}% of total execution time", pct),
+                description: format!("Takes {pct:.1}% of total execution time"),
                 impact_pct: pct,
             });
         }
@@ -105,7 +107,7 @@ fn find_scaling_issues(results: &[BenchResult]) -> Vec<Bottleneck> {
         if let Some(size) = result.size {
             let base_name = result
                 .name
-                .strip_suffix(&format!("_{}", size))
+                .strip_suffix(&format!("_{size}"))
                 .unwrap_or(&result.name);
             groups
                 .entry(base_name.to_string())
@@ -159,6 +161,7 @@ fn find_scaling_issues(results: &[BenchResult]) -> Vec<Bottleneck> {
 /// # Returns
 ///
 /// Vector of recommendations (minimum 3).
+#[must_use]
 pub fn generate_recommendations(analysis: &PerformanceAnalysis) -> Vec<Recommendation> {
     let mut recommendations = Vec::new();
 
@@ -184,7 +187,7 @@ pub fn generate_recommendations(analysis: &PerformanceAnalysis) -> Vec<Recommend
                 regression.status.percentage()
             ),
             impact: EstimatedImpact {
-                improvement_pct: regression.status.percentage() as f64,
+                improvement_pct: f64::from(regression.status.percentage()),
                 effort_hours: 4.0,
                 confidence: 0.9,
             },
@@ -293,7 +296,7 @@ fn generate_general_recommendation(index: usize) -> Recommendation {
     Recommendation {
         severity: Severity::Medium,
         category: *category,
-        message: message.to_string(),
+        message: (*message).to_string(),
         impact: *impact,
     }
 }
@@ -320,7 +323,8 @@ mod tests {
     use crate::core::Measurement;
 
     fn create_result(name: &str, millis: u64, size: Option<usize>) -> BenchResult {
-        let mut result = BenchResult::new(name, 1, Measurement::new(Duration::from_millis(millis)));
+        let mut result =
+            BenchResult::new(name, 1, Measurement::new(Duration::from_millis(millis))).unwrap();
         if let Some(s) = size {
             result = result.with_size(s);
         }

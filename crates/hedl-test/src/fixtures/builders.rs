@@ -33,7 +33,7 @@ use std::collections::BTreeMap;
 ///
 /// let doc = DocumentBuilder::new()
 ///     .version(1, 0)
-///     .scalar("name", Value::String("Alice".to_string()))
+///     .scalar("name", Value::String("Alice".to_string().into()))
 ///     .scalar("age", Value::Int(30))
 ///     .build();
 ///
@@ -56,7 +56,8 @@ impl Default for DocumentBuilder {
 }
 
 impl DocumentBuilder {
-    /// Creates a new DocumentBuilder with default settings.
+    /// Creates a new `DocumentBuilder` with default settings.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             version: (1, 0),
@@ -68,6 +69,7 @@ impl DocumentBuilder {
     }
 
     /// Sets the document version.
+    #[must_use]
     pub fn version(mut self, major: u32, minor: u32) -> Self {
         self.version = (major, minor);
         self
@@ -110,9 +112,11 @@ impl DocumentBuilder {
     }
 
     /// Builds the Document.
+    #[must_use]
     pub fn build(self) -> Document {
         Document {
             version: self.version,
+            schema_versions: std::collections::BTreeMap::new(),
             aliases: self.aliases,
             structs: self.structs,
             nests: self.nests,
@@ -121,7 +125,7 @@ impl DocumentBuilder {
     }
 }
 
-/// Builder for creating customizable MatrixList fixtures.
+/// Builder for creating customizable `MatrixList` fixtures.
 ///
 /// # Examples
 ///
@@ -132,8 +136,8 @@ impl DocumentBuilder {
 /// let list = MatrixListBuilder::new("User")
 ///     .schema(vec!["id".to_string(), "name".to_string()])
 ///     .row(Node::new("User", "alice", vec![
-///         Value::String("alice".to_string()),
-///         Value::String("Alice".to_string()),
+///         Value::String("alice".to_string().into()),
+///         Value::String("Alice".to_string().into()),
 ///     ]))
 ///     .build();
 ///
@@ -149,7 +153,7 @@ pub struct MatrixListBuilder {
 }
 
 impl MatrixListBuilder {
-    /// Creates a new MatrixListBuilder with the given type name.
+    /// Creates a new `MatrixListBuilder` with the given type name.
     pub fn new(type_name: impl Into<String>) -> Self {
         Self {
             type_name: type_name.into(),
@@ -160,6 +164,7 @@ impl MatrixListBuilder {
     }
 
     /// Sets the schema (field names).
+    #[must_use]
     pub fn schema(mut self, schema: Vec<String>) -> Self {
         self.schema = schema;
         self
@@ -172,24 +177,28 @@ impl MatrixListBuilder {
     }
 
     /// Adds a row (node).
+    #[must_use]
     pub fn row(mut self, node: Node) -> Self {
         self.rows.push(node);
         self
     }
 
     /// Adds multiple rows.
+    #[must_use]
     pub fn rows(mut self, nodes: Vec<Node>) -> Self {
         self.rows.extend(nodes);
         self
     }
 
     /// Sets the count hint.
+    #[must_use]
     pub fn count_hint(mut self, count: usize) -> Self {
         self.count_hint = Some(count);
         self
     }
 
-    /// Builds the MatrixList.
+    /// Builds the `MatrixList`.
+    #[must_use]
     pub fn build(self) -> MatrixList {
         MatrixList {
             type_name: self.type_name,
@@ -209,8 +218,8 @@ impl MatrixListBuilder {
 /// use hedl_core::Value;
 ///
 /// let node = NodeBuilder::new("User", "alice")
-///     .field(Value::String("alice".to_string()))
-///     .field(Value::String("Alice Smith".to_string()))
+///     .field(Value::String("alice".to_string().into()))
+///     .field(Value::String("Alice Smith".to_string().into()))
 ///     .field(Value::Int(30))
 ///     .build();
 ///
@@ -227,7 +236,7 @@ pub struct NodeBuilder {
 }
 
 impl NodeBuilder {
-    /// Creates a new NodeBuilder with the given type and ID.
+    /// Creates a new `NodeBuilder` with the given type and ID.
     pub fn new(type_name: impl Into<String>, id: impl Into<String>) -> Self {
         Self {
             type_name: type_name.into(),
@@ -239,12 +248,14 @@ impl NodeBuilder {
     }
 
     /// Adds a field value.
+    #[must_use]
     pub fn field(mut self, value: Value) -> Self {
         self.fields.push(value);
         self
     }
 
     /// Adds multiple field values.
+    #[must_use]
     pub fn fields(mut self, values: Vec<Value>) -> Self {
         self.fields.extend(values);
         self
@@ -263,19 +274,25 @@ impl NodeBuilder {
     }
 
     /// Sets the child count hint.
+    #[must_use]
     pub fn child_count(mut self, count: usize) -> Self {
         self.child_count = Some(count);
         self
     }
 
     /// Builds the Node.
+    #[must_use]
     pub fn build(self) -> Node {
         Node {
             type_name: self.type_name,
             id: self.id,
-            fields: self.fields,
-            children: self.children,
-            child_count: self.child_count,
+            fields: self.fields.into(),
+            children: if self.children.is_empty() {
+                None
+            } else {
+                Some(Box::new(self.children))
+            },
+            child_count: self.child_count.unwrap_or(0).min(u16::MAX as usize) as u16,
         }
     }
 }
@@ -296,35 +313,39 @@ pub struct ValueBuilder;
 
 impl ValueBuilder {
     /// Creates a null value.
+    #[must_use]
     pub fn null() -> Value {
         Value::Null
     }
 
     /// Creates a boolean value.
+    #[must_use]
     pub fn bool_val(value: bool) -> Value {
         Value::Bool(value)
     }
 
     /// Creates an integer value.
+    #[must_use]
     pub fn int(value: i64) -> Value {
         Value::Int(value)
     }
 
     /// Creates a float value.
+    #[must_use]
     pub fn float(value: f64) -> Value {
         Value::Float(value)
     }
 
     /// Creates a string value.
     pub fn string(value: impl Into<String>) -> Value {
-        Value::String(value.into())
+        Value::String(value.into().into())
     }
 
     /// Creates a reference value.
     pub fn reference(type_name: impl Into<String>, id: impl Into<String>) -> Value {
         Value::Reference(Reference {
-            type_name: Some(type_name.into()),
-            id: id.into(),
+            type_name: Some(type_name.into().into()),
+            id: id.into().into(),
         })
     }
 
@@ -332,30 +353,31 @@ impl ValueBuilder {
     pub fn local_ref(id: impl Into<String>) -> Value {
         Value::Reference(Reference {
             type_name: None,
-            id: id.into(),
+            id: id.into().into(),
         })
     }
 
     /// Creates a 1D tensor.
     pub fn tensor_1d(values: Vec<f64>) -> Value {
-        Value::Tensor(Tensor::Array(
+        Value::Tensor(Box::new(Tensor::Array(
             values.into_iter().map(Tensor::Scalar).collect(),
-        ))
+        )))
     }
 
     /// Creates a 2D tensor.
+    #[must_use]
     pub fn tensor_2d(rows: Vec<Vec<f64>>) -> Value {
-        Value::Tensor(Tensor::Array(
+        Value::Tensor(Box::new(Tensor::Array(
             rows.into_iter()
                 .map(|row| Tensor::Array(row.into_iter().map(Tensor::Scalar).collect()))
                 .collect(),
-        ))
+        )))
     }
 }
 
 /// Quick builder functions for common patterns.
 pub mod quick {
-    use super::*;
+    use super::{Document, DocumentBuilder, MatrixListBuilder, NodeBuilder, Value, ValueBuilder};
 
     /// Creates a simple document with scalar values.
     ///
@@ -369,11 +391,12 @@ pub mod quick {
     ///     ("city", "NYC"),
     /// ]);
     /// ```
+    #[must_use]
     pub fn simple_scalars(fields: Vec<(&str, &str)>) -> Document {
         let mut builder = DocumentBuilder::new();
 
         for (name, value) in fields {
-            builder = builder.scalar(name, Value::String(value.to_string()));
+            builder = builder.scalar(name, Value::String(value.to_string().into()));
         }
 
         builder.build()
@@ -391,6 +414,7 @@ pub mod quick {
     ///     ("bob", "Bob Jones", "bob@example.com"),
     /// ]);
     /// ```
+    #[must_use]
     pub fn simple_user_list(users: Vec<(&str, &str, &str)>) -> Document {
         let mut list = MatrixListBuilder::new("User").schema(vec![
             "id".to_string(),
@@ -400,9 +424,9 @@ pub mod quick {
 
         for (id, name, email) in users {
             let node = NodeBuilder::new("User", id)
-                .field(Value::String(id.to_string()))
-                .field(Value::String(name.to_string()))
-                .field(Value::String(email.to_string()))
+                .field(Value::String(id.to_string().into()))
+                .field(Value::String(name.to_string().into()))
+                .field(Value::String(email.to_string().into()))
                 .build();
 
             list = list.row(node);
@@ -429,6 +453,7 @@ pub mod quick {
     ///     vec![("post1", "Title", "alice")],
     /// );
     /// ```
+    #[must_use]
     pub fn with_references(
         users: Vec<(&str, &str)>,
         posts: Vec<(&str, &str, &str)>, // (id, title, author_id)
@@ -438,8 +463,8 @@ pub mod quick {
 
         for (id, name) in users {
             let node = NodeBuilder::new("User", id)
-                .field(Value::String(id.to_string()))
-                .field(Value::String(name.to_string()))
+                .field(Value::String(id.to_string().into()))
+                .field(Value::String(name.to_string().into()))
                 .build();
 
             users_list = users_list.row(node);
@@ -453,8 +478,8 @@ pub mod quick {
 
         for (id, title, author_id) in posts {
             let node = NodeBuilder::new("Post", id)
-                .field(Value::String(id.to_string()))
-                .field(Value::String(title.to_string()))
+                .field(Value::String(id.to_string().into()))
+                .field(Value::String(title.to_string().into()))
                 .field(ValueBuilder::reference("User", author_id))
                 .build();
 
@@ -481,7 +506,7 @@ mod tests {
     fn test_document_builder() {
         let doc = DocumentBuilder::new()
             .version(1, 0)
-            .scalar("name", Value::String("test".to_string()))
+            .scalar("name", Value::String("test".to_string().into()))
             .scalar("age", Value::Int(42))
             .build();
 
@@ -499,8 +524,8 @@ mod tests {
                 "User",
                 "alice",
                 vec![
-                    Value::String("alice".to_string()),
-                    Value::String("Alice".to_string()),
+                    Value::String("alice".to_string().into()),
+                    Value::String("Alice".to_string().into()),
                 ],
             ))
             .build();
@@ -513,8 +538,8 @@ mod tests {
     #[test]
     fn test_node_builder() {
         let node = NodeBuilder::new("User", "alice")
-            .field(Value::String("alice".to_string()))
-            .field(Value::String("Alice".to_string()))
+            .field(Value::String("alice".to_string().into()))
+            .field(Value::String("Alice".to_string().into()))
             .field(Value::Int(30))
             .build();
 
@@ -531,7 +556,7 @@ mod tests {
         assert!(matches!(ValueBuilder::float(3.5), Value::Float(_)));
         assert!(matches!(
             ValueBuilder::string("test"),
-            Value::String(ref s) if s == "test"
+            Value::String(ref s) if s.as_ref() == "test"
         ));
         assert!(matches!(
             ValueBuilder::reference("User", "alice"),
@@ -579,7 +604,7 @@ mod tests {
             // Check that the post has a reference
             let post = &list.rows[0];
             if let Value::Reference(r) = &post.fields[2] {
-                assert_eq!(r.id, "alice");
+                assert_eq!(r.id.as_ref(), "alice");
             } else {
                 panic!("Expected reference in post author field");
             }

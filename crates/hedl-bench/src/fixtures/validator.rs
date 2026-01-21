@@ -66,6 +66,7 @@ pub fn validate_fixture(content: &str) -> Result<()> {
 /// # Returns
 ///
 /// Result with vector of validation errors (empty if all valid).
+#[must_use]
 pub fn validate_all_fixtures(
     fixtures: &std::collections::HashMap<String, String>,
 ) -> Vec<(String, String)> {
@@ -90,6 +91,7 @@ pub fn validate_all_fixtures(
 /// # Returns
 ///
 /// true if fixture meets minimum size.
+#[must_use]
 pub fn meets_min_size(content: &str, min_bytes: usize) -> bool {
     content.len() >= min_bytes
 }
@@ -104,6 +106,7 @@ pub fn meets_min_size(content: &str, min_bytes: usize) -> bool {
 /// # Returns
 ///
 /// true if fixture is within size limit.
+#[must_use]
 pub fn within_max_size(content: &str, max_bytes: usize) -> bool {
     content.len() <= max_bytes
 }
@@ -119,6 +122,7 @@ pub fn within_max_size(content: &str, max_bytes: usize) -> bool {
 /// # Returns
 ///
 /// true if entity count is within tolerance.
+#[must_use]
 pub fn has_expected_entity_count(content: &str, expected_count: usize, tolerance: f32) -> bool {
     let entity_count = content
         .lines()

@@ -23,7 +23,7 @@ Based on 6,333 lines of Rust across 7 modules:
 
 ```toml
 [dependencies]
-hedl-json = "1.0"
+hedl-json = "1.2"
 ```
 
 ## Bidirectional Conversion
@@ -48,6 +48,7 @@ let config = ToJsonConfig {
     include_metadata: false,  // Don't add __type__, __schema__ fields
     flatten_lists: false,      // Keep matrix structure as object arrays
     include_children: true,    // Include nested entities
+    ascii_safe: false,         // UTF-8 output (set true for ASCII-only)
 };
 
 // Convert to JSON string (for API responses)
@@ -87,21 +88,24 @@ let doc = from_json_value_owned(value, &config)?;
 `FromJsonConfig` enforces resource limits to prevent denial-of-service attacks from malicious JSON. Defaults are intentionally **high** for legitimate ML and data processing workloads:
 
 ```rust
-use hedl_json::FromJsonConfig;
+use hedl_json::{from_json, FromJsonConfig};
 
 // Default configuration (for trusted internal data)
 let default = FromJsonConfig::default();
-// max_depth: 10,000 levels (deep hierarchies, nested JSON)
-// max_array_size: 10,000,000 elements (large datasets, batch processing)
-// max_string_length: 100 MB (embeddings, base64-encoded data)
-// max_object_size: 100,000 keys (rich metadata, complex objects)
+// max_depth: Some(10,000) levels (deep hierarchies, nested JSON)
+// max_array_size: Some(10,000,000) elements (large datasets, batch processing)
+// max_string_length: Some(100 MB) (embeddings, base64-encoded data)
+// max_object_size: Some(100,000) keys (rich metadata, complex objects)
 
-let doc = from_json(trusted_json, &default)?;
+let json = r#"{"name": "Alice", "age": 30}"#;
+let doc = from_json(json, &default)?;
 ```
 
 For untrusted input (user uploads, external APIs, public endpoints), use stricter limits:
 
 ```rust
+use hedl_json::{from_json, FromJsonConfig};
+
 // Strict configuration (for untrusted external sources)
 let strict = FromJsonConfig::builder()
     .max_depth(100)                        // 100 levels
@@ -110,10 +114,11 @@ let strict = FromJsonConfig::builder()
     .max_object_size(1_000)                // 1K keys
     .build();
 
-let doc = from_json(untrusted_json, &strict)?;
+let json = r#"{"name": "Bob", "age": 25}"#;
+let doc = from_json(json, &strict)?;
 ```
 
-Exceeding limits returns errors: `DepthLimitExceeded`, `ArraySizeLimitExceeded`, `StringLengthLimitExceeded`, `ObjectSizeLimitExceeded`.
+Exceeding limits returns `JsonConversionError` variants: `MaxDepthExceeded`, `MaxArraySizeExceeded`, `MaxStringLengthExceeded`, `MaxObjectSizeExceeded`.
 
 ## Schema Caching: 30-50% Speedup
 
@@ -182,7 +187,7 @@ let count = query_count(&doc, "$.users[*]", &config)?;
 ### QueryConfig Options
 
 ```rust
-use hedl_json::jsonpath::QueryConfig;
+use hedl_json::jsonpath::{QueryConfig, QueryConfigBuilder};
 
 let config = QueryConfig {
     include_metadata: false,   // Don't add __type__ fields in results
@@ -361,21 +366,26 @@ writer.flush()?;  // Ensure all data written
 
 ```rust
 use hedl_json::streaming::StreamConfig;
+use hedl_json::FromJsonConfig;
 
 let config = StreamConfig {
     buffer_size: 64 * 1024,                 // 64 KB buffer (default)
     max_object_bytes: Some(10 * 1024 * 1024), // 10 MB per object (default)
     from_json: FromJsonConfig::default(),   // Security limits per object
+    use_size_estimation: true,              // Efficient size checks (default)
+    true_streaming: true,                   // Constant memory for arrays (default)
 };
 
 // Or use builder
 let config = StreamConfig::builder()
-    .buffer_size(128 * 1024)                // 128 KB buffer
-    .max_object_bytes(50 * 1024 * 1024)     // 50 MB per object
-    .unlimited_object_size()                // Disable limit (use with caution)
+    .buffer_size(128 * 1024)                    // 128 KB buffer
+    .max_object_bytes(50 * 1024 * 1024)         // 50 MB per object
+    .unlimited_object_size()                    // Disable limit (use with caution)
     .from_json_config(FromJsonConfig::builder()
         .max_depth(100)
         .build())
+    .use_size_estimation(true)                  // Efficient size checks
+    .true_streaming(true)                       // Constant memory mode
     .build();
 ```
 

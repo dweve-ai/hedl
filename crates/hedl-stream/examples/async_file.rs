@@ -19,7 +19,7 @@
 //!
 //! Demonstrates reading HEDL files asynchronously from disk.
 //!
-//! Run with: cargo run --example async_file --features async
+//! Run with: cargo run --example `async_file` --features async
 
 #[cfg(feature = "async")]
 use hedl_stream::{AsyncStreamingParser, NodeEvent};
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     println!("=== Async File Processing Example ===\n");
 
-    let content = r#"
+    let content = r"
 %VERSION: 1.0
 %STRUCT: Employee: [id, name, department, salary]
 ---
@@ -41,7 +41,7 @@ employees: @Employee
   | emp3, Carol White, Engineering, 105000
   | emp4, David Brown, Marketing, 80000
   | emp5, Eve Davis, Engineering, 98000
-"#;
+";
 
     println!("Parsing data asynchronously...\n");
 
@@ -80,7 +80,7 @@ employees: @Employee
     });
 
     for (id, name, dept, salary) in employees {
-        println!("{}: {} - {} (${:?})", id, name, dept, salary);
+        println!("{id}: {name} - {dept} (${salary:?})");
     }
 
     println!("\n✓ File processed successfully");

@@ -1,0 +1,21 @@
+# WASM-specific build configuration for hedl-wasm
+# These flags optimize for minimal binary size
+
+[target.wasm32-unknown-unknown]
+rustflags = [
+    # Size optimization flags
+    "-C", "link-arg=--strip-debug",      # Strip DWARF debug info
+    "-C", "link-arg=--gc-sections",      # Garbage collect unused sections
+    "-C", "link-arg=-zstack-size=65536", # Reduce stack size (64KB sufficient)
+    "-C", "embed-bitcode=yes",           # Enable LTO
+]
+
+# Build-specific settings
+[build]
+# Use single-threaded builds for consistency
+jobs = 1
+
+# Environment variables for wasm-pack
+[env]
+# Ensure wasm-opt runs during wasm-pack builds
+WASM_PACK_PROFILE = "release"

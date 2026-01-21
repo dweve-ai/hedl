@@ -39,7 +39,7 @@ fn test_simple_key_value() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("test".to_string())),
+        Item::Scalar(Value::String("test".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -130,7 +130,7 @@ fn test_expression_formatting() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "expr".to_string(),
-        Item::Scalar(Value::Expression(Expression::Call {
+        Item::Scalar(Value::Expression(Box::new(Expression::Call {
             name: "add".to_string(),
             args: vec![
                 Expression::Identifier {
@@ -143,7 +143,7 @@ fn test_expression_formatting() {
                 },
             ],
             span: Default::default(),
-        })),
+        }))),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -159,7 +159,7 @@ fn test_simple_string_no_quote() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("hello".to_string())),
+        Item::Scalar(Value::String("hello".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -171,7 +171,7 @@ fn test_string_with_hash_quoted() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("test#comment".to_string())),
+        Item::Scalar(Value::String("test#comment".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -183,7 +183,7 @@ fn test_string_with_whitespace_quoted() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("  spaces  ".to_string())),
+        Item::Scalar(Value::String("  spaces  ".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -195,7 +195,7 @@ fn test_string_with_embedded_quote_escaped() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "value".to_string(),
-        Item::Scalar(Value::String("say \"hi\"".to_string())),
+        Item::Scalar(Value::String("say \"hi\"".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -207,7 +207,7 @@ fn test_numeric_string_quoted() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "code".to_string(),
-        Item::Scalar(Value::String("123".to_string())),
+        Item::Scalar(Value::String("123".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -220,7 +220,7 @@ fn test_boolean_string_quoted() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "label".to_string(),
-        Item::Scalar(Value::String("true".to_string())),
+        Item::Scalar(Value::String("true".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -275,7 +275,7 @@ fn test_nested_object() {
     let mut inner = std::collections::BTreeMap::new();
     inner.insert(
         "key".to_string(),
-        Item::Scalar(Value::String("value".to_string())),
+        Item::Scalar(Value::String("value".to_string().into())),
     );
     doc.root.insert("outer".to_string(), Item::Object(inner));
 
@@ -322,16 +322,16 @@ fn test_matrix_list_output() {
         "User",
         "u1",
         vec![
-            Value::String("u1".to_string()),
-            Value::String("Alice".to_string()),
+            Value::String("u1".to_string().into()),
+            Value::String("Alice".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "User",
         "u2",
         vec![
-            Value::String("u2".to_string()),
-            Value::String("Bob".to_string()),
+            Value::String("u2".to_string().into()),
+            Value::String("Bob".to_string().into()),
         ],
     ));
 
@@ -350,7 +350,7 @@ fn test_matrix_list_inline_schema() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(1)],
+        vec![Value::String("i1".to_string().into()), Value::Int(1)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -372,16 +372,16 @@ fn test_ditto_optimization() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("fruit".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("fruit".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("fruit".to_string()),
+            Value::String("i2".to_string().into()),
+            Value::String("fruit".to_string().into()),
         ],
     ));
 
@@ -403,12 +403,12 @@ fn test_no_ditto_in_id_column() {
     list.add_row(Node::new(
         "Item",
         "same",
-        vec![Value::String("same".to_string()), Value::Int(1)],
+        vec![Value::String("same".to_string().into()), Value::Int(1)],
     ));
     list.add_row(Node::new(
         "Item",
         "same2",
-        vec![Value::String("same2".to_string()), Value::Int(1)],
+        vec![Value::String("same2".to_string().into()), Value::Int(1)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -430,7 +430,7 @@ fn test_no_ditto_first_row() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(42)],
+        vec![Value::String("i1".to_string().into()), Value::Int(42)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -442,7 +442,7 @@ fn test_no_ditto_first_row() {
 
     // First row never has ditto
     assert!(output.contains("|i1,42"));
-    assert!(!output.contains("^"));
+    assert!(!output.contains('^'));
 }
 
 #[test]
@@ -452,12 +452,12 @@ fn test_ditto_deep_equality() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Bool(true)],
+        vec![Value::String("i1".to_string().into()), Value::Bool(true)],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
-        vec![Value::String("i2".to_string()), Value::Bool(true)],
+        vec![Value::String("i2".to_string().into()), Value::Bool(true)],
     ));
 
     doc.root.insert("items".to_string(), Item::List(list));
@@ -479,16 +479,16 @@ fn test_ditto_disabled() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("same".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String("same".to_string().into()),
         ],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("same".to_string()),
+            Value::String("i2".to_string().into()),
+            Value::String("same".to_string().into()),
         ],
     ));
 
@@ -500,7 +500,7 @@ fn test_ditto_disabled() {
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
     // No ditto when disabled
-    assert!(!output.contains("^"));
+    assert!(!output.contains('^'));
     assert!(output.contains("|i2,same"));
 }
 
@@ -510,11 +510,11 @@ fn test_ditto_disabled() {
 
 #[test]
 fn test_round_trip_simple() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 name: test
 count: 42
-"#;
+";
     let doc = parse(input.as_bytes()).unwrap();
     let output = canonicalize(&doc).unwrap();
     let doc2 = parse(output.as_bytes()).unwrap();
@@ -531,13 +531,13 @@ count: 42
 
 #[test]
 fn test_round_trip_matrix_list() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: User: [id,name]
 ---
 users: @User
   | u1, Alice
   | u2, Bob
-"#;
+";
     let doc = parse(input.as_bytes()).unwrap();
     let output = canonicalize(&doc).unwrap();
     let doc2 = parse(output.as_bytes()).unwrap();
@@ -563,8 +563,10 @@ fn test_tensor_formatting() {
         Tensor::Scalar(2.0),
         Tensor::Scalar(3.0),
     ]);
-    doc.root
-        .insert("data".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "data".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let output = canonicalize(&doc).unwrap();
     assert!(output.contains("data: [1.0, 2.0, 3.0]"));
@@ -579,8 +581,10 @@ fn test_nested_tensor_formatting() {
         Tensor::Array(vec![Tensor::Scalar(1.0), Tensor::Scalar(2.0)]),
         Tensor::Array(vec![Tensor::Scalar(3.0), Tensor::Scalar(4.0)]),
     ]);
-    doc.root
-        .insert("matrix".to_string(), Item::Scalar(Value::Tensor(tensor)));
+    doc.root.insert(
+        "matrix".to_string(),
+        Item::Scalar(Value::Tensor(Box::new(tensor))),
+    );
 
     let output = canonicalize(&doc).unwrap();
     assert!(output.contains("[[1.0, 2.0], [3.0, 4.0]]"));
@@ -595,7 +599,7 @@ fn test_empty_string_value() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "empty".to_string(),
-        Item::Scalar(Value::String("".to_string())),
+        Item::Scalar(Value::String(String::new().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -608,7 +612,7 @@ fn test_at_sign_in_middle_not_quoted() {
     let mut doc = Document::new((1, 0));
     doc.root.insert(
         "email".to_string(),
-        Item::Scalar(Value::String("user@example.com".to_string())),
+        Item::Scalar(Value::String("user@example.com".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -622,7 +626,7 @@ fn test_at_sign_at_start_quoted() {
     // String that starts with @ should be quoted to prevent reference interpretation
     doc.root.insert(
         "label".to_string(),
-        Item::Scalar(Value::String("@handle".to_string())),
+        Item::Scalar(Value::String("@handle".to_string().into())),
     );
 
     let output = canonicalize(&doc).unwrap();
@@ -644,9 +648,9 @@ fn test_empty_middle_column() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("".to_string()), // Empty middle column
-            Value::String("value".to_string()),
+            Value::String("i1".to_string().into()),
+            Value::String(String::new().into()), // Empty middle column
+            Value::String("value".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -669,9 +673,9 @@ fn test_empty_last_column() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("data".to_string()),
-            Value::String("".to_string()), // Empty last column
+            Value::String("i1".to_string().into()),
+            Value::String("data".to_string().into()),
+            Value::String(String::new().into()), // Empty last column
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -692,8 +696,8 @@ fn test_empty_last_column_only_two_columns() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("".to_string()), // Empty last column (second column)
+            Value::String("i1".to_string().into()),
+            Value::String(String::new().into()), // Empty last column (second column)
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -721,10 +725,10 @@ fn test_multiple_empty_columns() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("".to_string()), // Empty middle
-            Value::String("".to_string()), // Empty middle
-            Value::String("".to_string()), // Empty last
+            Value::String("i1".to_string().into()),
+            Value::String(String::new().into()), // Empty middle
+            Value::String(String::new().into()), // Empty middle
+            Value::String(String::new().into()), // Empty last
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -747,18 +751,18 @@ fn test_empty_last_column_with_ditto() {
         "Item",
         "i1",
         vec![
-            Value::String("i1".to_string()),
-            Value::String("data".to_string()),
-            Value::String("".to_string()), // Empty last column
+            Value::String("i1".to_string().into()),
+            Value::String("data".to_string().into()),
+            Value::String(String::new().into()), // Empty last column
         ],
     ));
     list.add_row(Node::new(
         "Item",
         "i2",
         vec![
-            Value::String("i2".to_string()),
-            Value::String("data".to_string()),
-            Value::String("".to_string()), // Empty last column (same as previous)
+            Value::String("i2".to_string().into()),
+            Value::String("data".to_string().into()),
+            Value::String(String::new().into()), // Empty last column (same as previous)
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -826,8 +830,7 @@ items: @TestItem
         for j in 0..list1.rows[i].fields.len() {
             assert_eq!(
                 list1.rows[i].fields[j], list2.rows[i].fields[j],
-                "Mismatch at row {} column {}",
-                i, j
+                "Mismatch at row {i} column {j}"
             );
         }
     }

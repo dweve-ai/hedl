@@ -24,53 +24,55 @@ use std::collections::BTreeMap;
 /// Document with expression values.
 ///
 /// Tests: simple expressions, expressions with variables.
+#[must_use]
 pub fn expressions() -> Document {
     let mut root = BTreeMap::new();
 
     // Simple function call: $(now())
     root.insert(
         "simple_expr".to_string(),
-        Item::Scalar(Value::Expression(Expression::Call {
+        Item::Scalar(Value::Expression(Box::new(Expression::Call {
             name: "now".to_string(),
             args: vec![],
-            span: Span::default(),
-        })),
+            span: Span::synthetic(),
+        }))),
     );
 
     // Field access: $(user.name)
     root.insert(
         "var_expr".to_string(),
-        Item::Scalar(Value::Expression(Expression::Access {
+        Item::Scalar(Value::Expression(Box::new(Expression::Access {
             target: Box::new(Expression::Identifier {
                 name: "user".to_string(),
-                span: Span::default(),
+                span: Span::synthetic(),
             }),
             field: "name".to_string(),
-            span: Span::default(),
-        })),
+            span: Span::synthetic(),
+        }))),
     );
 
     // Function call with arguments: $(concat("hello", "world"))
     root.insert(
         "complex_expr".to_string(),
-        Item::Scalar(Value::Expression(Expression::Call {
+        Item::Scalar(Value::Expression(Box::new(Expression::Call {
             name: "concat".to_string(),
             args: vec![
                 Expression::Literal {
                     value: ExprLiteral::String("hello".to_string()),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 },
                 Expression::Literal {
                     value: ExprLiteral::String("world".to_string()),
-                    span: Span::default(),
+                    span: Span::synthetic(),
                 },
             ],
-            span: Span::default(),
-        })),
+            span: Span::synthetic(),
+        }))),
     );
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),

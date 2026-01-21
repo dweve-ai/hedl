@@ -113,7 +113,7 @@ proptest! {
 
         // Insert documents
         for i in 0..num_docs {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
         }
 
@@ -203,7 +203,7 @@ proptest! {
 
         // Number of definitions should match entities
         let total_entities: usize = analysis.entities.values()
-            .map(|m| m.len())
+            .map(std::collections::HashMap::len)
             .sum();
         assert_eq!(def_count, total_entities, "Definition count should match entities");
     }
@@ -265,7 +265,7 @@ proptest! {
 
         // Insert documents sequentially
         for i in 0..num_docs {
-            let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+            let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
             manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
         }
 
@@ -416,7 +416,7 @@ proptest! {
 proptest! {
     #[test]
     fn prop_unicode_robustness(text in "\\PC*") {
-        let content = format!("%VERSION: 1.0\n---\nEntity: e1: \"{}\"", text);
+        let content = format!("%VERSION: 1.0\n---\nEntity: e1: \"{text}\"");
         let _ = AnalyzedDocument::analyze(&content);
         // Should not panic on any Unicode
     }
@@ -434,14 +434,13 @@ proptest! {
         id in "[a-z][a-z0-9]*"
     ) {
         let content = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id]\n---\n{}: {}: \"test\"\nOther: o1: @{}:{}",
-            type_name, type_name, id, type_name, id
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\n{type_name}: {id}: \"test\"\nOther: o1: @{type_name}:{id}"
         );
         let analysis = AnalyzedDocument::analyze(&content);
 
         // Should not panic - may or may not find entities based on what parser extracts
         let _def = analysis.reference_index_v2.find_definition(&type_name, &id);
-        let ref_str = format!("@{}:{}", type_name, id);
+        let ref_str = format!("@{type_name}:{id}");
         let _refs = analysis.reference_index_v2.find_references(&ref_str);
     }
 }

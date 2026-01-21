@@ -23,7 +23,7 @@
 //! - Tensor literals
 //! - Nested structures
 //!
-//! Run with: cargo run --example advanced_features
+//! Run with: cargo run --example `advanced_features`
 
 use hedl::{parse, to_json};
 
@@ -72,7 +72,7 @@ ml_config:
 "#;
 
     println!("Input HEDL document with advanced features:");
-    println!("{}", hedl_text);
+    println!("{hedl_text}");
     println!();
 
     // Parse the document
@@ -89,7 +89,7 @@ ml_config:
     // Convert to JSON to see the resolved structure
     let json = to_json(&doc)?;
     println!("--- JSON Output ---");
-    println!("{}", json);
+    println!("{json}");
     println!();
 
     println!("✓ All advanced features working correctly!");

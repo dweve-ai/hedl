@@ -63,7 +63,7 @@ cargo test --package hedl-core conformance 2>&1 | grep -E "test result: ok"
 - B.6: Edge Cases & Truncation (11 tests)
 - B.7: Full Test Document (1 test)
 
-**Total**: 64 conformance tests
+**Total**: 82 conformance tests (run `cargo test --package hedl-core --test conformance_tests` to verify)
 
 ---
 
@@ -330,7 +330,7 @@ cargo test --package hedl-core conformance
 # test conformance_tests::test_odd_indentation_error ... ok
 # test conformance_tests::test_tab_indentation_error ... ok
 # ...
-# test result: ok. 64 passed; 0 failed
+# test result: ok. 82 passed; 0 failed
 ```
 
 ### 2. Verifying SPEC Compliance
@@ -369,7 +369,7 @@ To certify SPEC compliance:
 
 1. **Implement parser** following SPEC.md
 2. **Run conformance suite** against implementation
-3. **Pass all 64 tests**
+3. **Pass all conformance tests**
 4. **Report results** with:
    - Implementation name and version
    - Test results (JSON format)
@@ -385,15 +385,9 @@ Implementation: hedl-rs v1.0.0
 SPEC Version: 1.0
 
 Results:
-- Syntax Validation: 18/18 passed
-- Schema Validation: 5/5 passed
-- Data Validation: 12/12 passed
-- Reference Validation: 7/7 passed
-- Parsing Correctness: 10/10 passed
-- Edge Cases: 11/11 passed
-- Full Document: 1/1 passed
+Run `cargo test --package hedl-core --test conformance_tests` for current counts.
 
-Total: 64/64 passed (100%)
+Total: All conformance tests passed
 ```
 
 ---
@@ -445,19 +439,6 @@ If SPEC section lacks test:
 2. **Create test case**: Minimal input demonstrating behavior
 3. **Verify both paths**: Test success and failure cases
 4. **Document**: Reference SPEC section in comment
-
----
-
-## Performance
-
-**Benchmark Results** (AMD Ryzen 9 5900X):
-
-```
-Conformance Suite: 64 tests
-Duration: 147ms
-Average: 2.3ms per test
-Throughput: ~435 tests/sec
-```
 
 ---
 

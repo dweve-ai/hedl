@@ -15,6 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Allow deprecated usage in tests - the legacy module tests test deprecated functionality
+#![cfg_attr(not(test), warn(missing_docs))]
+#![cfg_attr(test, allow(deprecated))]
+
 //! HEDL Benchmark Framework
 //!
 //! Comprehensive benchmarking and performance testing for HEDL.
@@ -99,17 +103,20 @@ pub mod sizes {
 }
 
 /// Load a fixture file as a string
-pub fn load_fixture(name: &str) -> String {
+pub fn load_fixture(name: &str) -> Result<String> {
+    use core::name_validation::validate_benchmark_name;
+
+    validate_benchmark_name(name)?;
     let path = format!("{}/fixtures/{}.hedl", env!("CARGO_MANIFEST_DIR"), name);
-    std::fs::read_to_string(&path).unwrap_or_else(|_| {
+    std::fs::read_to_string(&path).or_else(|_| {
         // Fallback to generated fixture
-        match name {
+        Ok(match name {
             "small" => generate_users(sizes::SMALL),
             "medium" => generate_users(sizes::MEDIUM),
             "large" => generate_users(sizes::LARGE),
             "stress" => generate_users(sizes::STRESS),
-            _ => panic!("Unknown fixture: {}", name),
-        }
+            _ => return Err(BenchError::IoError(format!("Unknown fixture: {name}"))),
+        })
     })
 }
 

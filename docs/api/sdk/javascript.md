@@ -33,7 +33,7 @@ age: 30
 `;
 
 const doc = parse(hedlText);
-const json = doc.toJsonString();  // Use doc.toJsonString()
+const json = doc.toJsonString();
 console.log(json);
 ```
 
@@ -46,7 +46,7 @@ await init();
 
 try {
     const doc = parse(hedlText);
-    const json: string = doc.toJsonString();  // Use doc.toJsonString()
+    const json: string = doc.toJsonString();
     console.log(json);
 } catch (error) {
     console.error(`Parse error: ${error}`);
@@ -76,58 +76,84 @@ Parse HEDL document and return a document object.
 ### Serialization
 
 ```typescript
+// Parse to document then convert
+function parse(input: string): HedlDocument
+// Or use module-level functions
 function toJson(hedl: string, pretty?: boolean): string
 function format(hedl: string, useDitto?: boolean): string
 ```
 
-- `toJson()`: Convert HEDL string to JSON
+- `parse()`: Parse HEDL to document, then use `doc.toJsonString()` to convert to JSON
+- `toJson()`: Convert HEDL string directly to JSON
 - `format()`: Format/canonicalize HEDL
 
 ### Validation
 
 ```typescript
-interface ValidationResult {
-    valid: boolean;
-    errors: Array<{
-        line: number;
-        message: string;
-    }>;
+interface ValidationError {
+    line: number;
+    message: string;
+    type: string;
 }
 
-function validate(input: string): ValidationResult
-```
+interface ValidationWarning {
+    line: number;
+    message: string;
+    rule: string;
+}
 
-### Linting
-
-```typescript
 interface ValidationResult {
     valid: boolean;
     errors: ValidationError[];
-    warnings: ValidationWarning[];
+    warnings: ValidationWarning[];  // Populated when runLint=true
 }
 
+// Basic validation (syntax only)
+function validate(hedl: string): ValidationResult
+
+// Validation with optional linting
 function validate(hedl: string, runLint?: boolean): ValidationResult
 ```
 
 ### Conversion
 
 ```typescript
+// JSON conversion
 function fromJson(json: string, useDitto?: boolean): string
+
+// YAML conversion (requires yaml feature)
+function toYaml(hedl: string): string
+function fromYaml(yaml: string, useDitto?: boolean): string
+
+// XML conversion (requires xml feature)
+function toXml(hedl: string): string
+function fromXml(xml: string, useDitto?: boolean): string
+
+// CSV conversion (requires csv feature)
+function toCsv(hedl: string): string
+function fromCsv(csv: string, typeName?: string, useDitto?: boolean): string
+
+// TOON conversion (requires toon feature)
+function toToon(hedl: string): string
+function fromToon(toon: string, useDitto?: boolean): string
 ```
 
-Convert JSON to HEDL string.
+Convert between HEDL and various data formats.
 
 ### Statistics
 
 ```typescript
 interface TokenStats {
+    hedlBytes: number;
     hedlTokens: number;
+    hedlLines: number;
+    jsonBytes: number;
     jsonTokens: number;
     savingsPercent: number;
-    compressionRatio: number;
+    tokensSaved: number;
 }
 
-function getStats(input: string): TokenStats
+function getStats(hedl: string): TokenStats
 ```
 
 ### Configuration
@@ -140,22 +166,40 @@ function getMaxInputSize(): number
 ## TypeScript Definitions
 
 ```typescript
-// Errors are thrown as standard JavaScript Error objects
+// Validation types
 export interface ValidationError {
     line: number;
     message: string;
-    type: string;
+    type: string;  // Error type, e.g., "SyntaxError"
 }
 
 export interface ValidationWarning {
     line: number;
     message: string;
-    rule: string;
+    rule: string;  // Lint rule ID that generated the warning
 }
 
+export interface ValidationResult {
+    valid: boolean;
+    errors: ValidationError[];
+    warnings: ValidationWarning[];
+}
+
+// JSON value types
 export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 export interface JsonObject { [key: string]: JsonValue; }
 export interface JsonArray extends Array<JsonValue> {}
+
+// Token statistics
+export interface TokenStats {
+    hedlBytes: number;
+    hedlTokens: number;
+    hedlLines: number;
+    jsonBytes: number;
+    jsonTokens: number;
+    savingsPercent: number;
+    tokensSaved: number;
+}
 ```
 
 ## Browser Integration
@@ -285,24 +329,33 @@ async function processHedlFile(path: string) {
 
 ## Error Handling
 
+All HEDL WASM functions throw standard JavaScript `Error` objects on failure. The error message contains details about the failure, including line numbers for parse errors.
+
 ```typescript
 function safeParseHedl(input: string) {
     try {
         const doc = parse(input);
         return { success: true, doc };
     } catch (error) {
-        if (error instanceof HedlError) {
+        // Errors are standard JavaScript Error objects
+        if (error instanceof Error) {
             return {
                 success: false,
                 error: {
-                    kind: error.kind,
                     message: error.message,
-                    line: error.line,
+                    // Parse errors include line info in message, e.g.:
+                    // "Parse error at line 5: unexpected token"
                 }
             };
         }
         throw error;
     }
+}
+
+// Extract line number from parse error messages
+function extractLineFromError(error: Error): number | null {
+    const match = error.message.match(/line (\d+)/i);
+    return match ? parseInt(match[1], 10) : null;
 }
 ```
 

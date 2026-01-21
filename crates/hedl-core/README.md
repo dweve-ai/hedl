@@ -24,7 +24,7 @@ When you're processing 100GB datasets for ML training, or serving thousands of A
 
 ```toml
 [dependencies]
-hedl-core = "1.0"
+hedl-core = "1.2"
 ```
 
 ## Usage
@@ -47,9 +47,9 @@ let doc = parse(hedl.as_bytes())?;
 
 // The data model preserves structure
 if let Some(users) = doc.get("users") {
-    if let Some(matrix) = users.as_matrix_list() {
-        println!("Schema: {:?}", matrix.schema());
-        println!("Rows: {}", matrix.rows().len());
+    if let Some(matrix) = users.as_list() {
+        println!("Schema: {:?}", matrix.schema);
+        println!("Rows: {}", matrix.rows.len());
     }
 }
 ```
@@ -90,7 +90,7 @@ metrics: @Metric[id, values, percentiles]
 
 let doc = parse(hedl.as_bytes())?;
 
-// Tensor literals are native Value::Array types
+// Tensor literals are native Value::Tensor types
 // No string parsing needed
 ```
 
@@ -99,8 +99,9 @@ let doc = parse(hedl.as_bytes())?;
 The parsed document exposes a clean, typed API:
 
 - **`Document`** - Root container with version header and content map
-- **`Node`** - Key-value entries in objects (like JSON object properties)
-- **`Value`** - Tagged enum: Scalar (string/number/bool/null), Object (nested), Array (tensor), Reference, MatrixList
+- **`Item`** - Body entries: Scalar (Value), Object (nested map), or List (MatrixList)
+- **`Node`** - A row in a matrix list with typed fields and optional children
+- **`Value`** - Tagged enum for scalar values: Null, Bool, Int, Float, String, Tensor, Reference, Expression
 - **`MatrixList`** - Schema-defined tabular data with typed columns
 - **`Reference`** - Typed entity pointers (`@Type:id` syntax)
 
@@ -142,6 +143,57 @@ Most developers use higher-level crates (`hedl` facade crate, `hedl-cli` tool, `
 - **Performance-critical paths**: When you need zero-abstraction parsing
 
 If you're just converting formats or validating files, use `hedl-cli`. If you need autocomplete in your editor, use `hedl-lsp`. If you're building the next HEDL tool, start here.
+
+## Safety and Security
+
+### Memory Safety
+
+hedl-core uses minimal unsafe code only in performance-critical paths (string interning and arena allocation). The parser provides:
+- Type safety through Rust's enum system (no stringly-typed polymorphism)
+- Bounds checking on all array/vector access
+- Guaranteed memory safety for the public API
+- No panics in library code (returns Result instead)
+
+### Unsafe Code
+
+Unsafe blocks appear only in two places, both extensively audited:
+
+1. **String interning arena** (`lex/arena/interner.rs`): Uses unsafe to create interned string references with manual lifetime management
+2. **Arena vector** (`lex/arena/vec.rs`): Uses unsafe to create slice views over arena-allocated memory
+
+These are local to the arena module, not exposed in the public API. The safe public API wraps all arena operations.
+
+### Error Handling
+
+Parse errors never panic. Invalid input returns `Result<Document, HedlError>` with detailed diagnostic information:
+
+```rust
+use hedl_core::{parse, HedlError, HedlErrorKind};
+
+match parse(data) {
+    Ok(doc) => { /* process doc */ },
+    Err(e) => {
+        println!("Parse error at line {}: {}", e.line, e.message);
+        // Error kinds: Syntax, Version, Schema, Alias, Shape, Semantic,
+        // OrphanRow, Collision, Reference, Security, Conversion, IO
+        match e.kind {
+            HedlErrorKind::Reference => { /* handle unresolved reference */ },
+            HedlErrorKind::Schema => { /* handle schema mismatch */ },
+            _ => { /* other errors */ }
+        }
+    }
+}
+```
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please email [security contact] with:
+- Description of the issue
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+
+We take security seriously and will respond within 48 hours.
 
 ## License
 

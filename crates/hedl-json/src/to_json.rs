@@ -31,6 +31,20 @@ pub struct ToJsonConfig {
     pub flatten_lists: bool,
     /// Include children as nested arrays (default: true)
     pub include_children: bool,
+    /// Escape all non-ASCII characters as `\uXXXX`
+    ///
+    /// When enabled, outputs JSON with only ASCII characters, escaping all
+    /// Unicode code points >= 128 using `\uXXXX` notation. Characters outside
+    /// the Basic Multilingual Plane (emoji, etc.) are encoded as UTF-16
+    /// surrogate pairs.
+    ///
+    /// Use cases:
+    /// - Legacy systems requiring 7-bit ASCII
+    /// - Email transport with ASCII-only requirements
+    /// - Maximum interoperability with older JSON parsers
+    ///
+    /// Default: false (output UTF-8 directly)
+    pub ascii_safe: bool,
 }
 
 impl Default for ToJsonConfig {
@@ -39,6 +53,7 @@ impl Default for ToJsonConfig {
             include_metadata: false,
             flatten_lists: false,
             include_children: true, // Children should be included by default
+            ascii_safe: false,
         }
     }
 }
@@ -57,10 +72,69 @@ impl hedl_core::convert::ExportConfig for ToJsonConfig {
 /// Convert Document to JSON string
 pub fn to_json(doc: &Document, config: &ToJsonConfig) -> Result<String, String> {
     let value = to_json_value(doc, config)?;
-    serde_json::to_string_pretty(&value).map_err(|e| format!("JSON serialization error: {}", e))
+
+    if config.ascii_safe {
+        // Use custom ASCII-safe serialization
+        let json = serde_json::to_string_pretty(&value)
+            .map_err(|e| format!("JSON serialization error: {e}"))?;
+        Ok(escape_non_ascii(&json))
+    } else {
+        serde_json::to_string_pretty(&value).map_err(|e| format!("JSON serialization error: {e}"))
+    }
 }
 
-/// Convert Document to serde_json::Value
+/// Escape all non-ASCII characters in a JSON string as `\uXXXX`
+///
+/// This post-processes a JSON string to escape all non-ASCII characters.
+/// Characters outside the BMP are encoded as UTF-16 surrogate pairs.
+fn escape_non_ascii(json: &str) -> String {
+    let mut result = String::with_capacity(json.len());
+    let mut in_string = false;
+    let mut escape_next = false;
+
+    for ch in json.chars() {
+        if escape_next {
+            // Previous char was a backslash, this is an escaped char
+            result.push(ch);
+            escape_next = false;
+            continue;
+        }
+
+        if ch == '\\' && in_string {
+            result.push(ch);
+            escape_next = true;
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = !in_string;
+            result.push(ch);
+            continue;
+        }
+
+        if in_string && !ch.is_ascii() {
+            // Escape non-ASCII character
+            let code_point = ch as u32;
+
+            if code_point <= 0xFFFF {
+                // BMP character - single \uXXXX escape
+                result.push_str(&format!("\\u{code_point:04x}"));
+            } else {
+                // Non-BMP character - encode as UTF-16 surrogate pair
+                let adjusted = code_point - 0x10000;
+                let high = 0xD800 | ((adjusted >> 10) & 0x3FF);
+                let low = 0xDC00 | (adjusted & 0x3FF);
+                result.push_str(&format!("\\u{high:04x}\\u{low:04x}"));
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
+/// Convert Document to `serde_json::Value`
 pub fn to_json_value(doc: &Document, config: &ToJsonConfig) -> Result<JsonValue, String> {
     root_to_json(&doc.root, doc, config)
 }
@@ -110,10 +184,8 @@ fn value_to_json(value: &Value) -> JsonValue {
         Value::Null => JsonValue::Null,
         Value::Bool(b) => JsonValue::Bool(*b),
         Value::Int(n) => JsonValue::Number(Number::from(*n)),
-        Value::Float(f) => Number::from_f64(*f)
-            .map(JsonValue::Number)
-            .unwrap_or(JsonValue::Null),
-        Value::String(s) => JsonValue::String(s.clone()),
+        Value::Float(f) => Number::from_f64(*f).map_or(JsonValue::Null, JsonValue::Number),
+        Value::String(s) => JsonValue::String(s.to_string()),
         Value::Tensor(t) => tensor_to_json(t),
         Value::Reference(r) => {
             // Represent references as objects with special key
@@ -121,7 +193,7 @@ fn value_to_json(value: &Value) -> JsonValue {
         }
         Value::Expression(e) => {
             // Represent expressions as strings with $() wrapper
-            JsonValue::String(format!("$({})", e))
+            JsonValue::String(format!("$({e})"))
         }
     }
 }
@@ -129,9 +201,7 @@ fn value_to_json(value: &Value) -> JsonValue {
 fn tensor_to_json(tensor: &Tensor) -> JsonValue {
     // Convert tensor to nested arrays recursively
     match tensor {
-        Tensor::Scalar(n) => Number::from_f64(*n)
-            .map(JsonValue::Number)
-            .unwrap_or(JsonValue::Null),
+        Tensor::Scalar(n) => Number::from_f64(*n).map_or(JsonValue::Null, JsonValue::Number),
         Tensor::Array(items) => {
             // OPTIMIZATION: Pre-allocate array with exact capacity
             // Reduces reallocations during recursive tensor serialization
@@ -174,10 +244,12 @@ fn matrix_list_to_json(
         }
 
         // Add children if configured and present
-        if config.include_children && !row.children.is_empty() {
-            for (child_type, child_nodes) in &row.children {
-                let child_json = nodes_to_json(child_type, child_nodes, doc, config)?;
-                row_obj.insert(child_type.clone(), child_json);
+        if config.include_children {
+            if let Some(ref children) = row.children {
+                for (child_type, child_nodes) in children.as_ref() {
+                    let child_json = nodes_to_json(child_type, child_nodes, doc, config)?;
+                    row_obj.insert(child_type.clone(), child_json);
+                }
             }
         }
 
@@ -224,9 +296,13 @@ fn nodes_to_json(
     for node in nodes {
         // OPTIMIZATION: Pre-allocate map capacity based on schema size + metadata + children
         let capacity = if let Some(field_names) = schema {
-            field_names.len() + if config.include_metadata { 1 } else { 0 } + node.children.len()
+            field_names.len()
+                + usize::from(config.include_metadata)
+                + node.children.as_ref().map_or(0, |c| c.len())
         } else {
-            node.fields.len() + if config.include_metadata { 1 } else { 0 } + node.children.len()
+            node.fields.len()
+                + usize::from(config.include_metadata)
+                + node.children.as_ref().map_or(0, |c| c.len())
         };
         let mut obj = Map::with_capacity(capacity);
 
@@ -241,7 +317,7 @@ fn nodes_to_json(
             // Fallback: use id + field_N naming when schema not available
             obj.insert("id".to_string(), JsonValue::String(node.id.clone()));
             for (i, value) in node.fields.iter().enumerate() {
-                obj.insert(format!("field_{}", i), value_to_json(value));
+                obj.insert(format!("field_{i}"), value_to_json(value));
             }
         }
 
@@ -254,10 +330,12 @@ fn nodes_to_json(
         }
 
         // Add children if configured
-        if config.include_children && !node.children.is_empty() {
-            for (child_type, child_nodes) in &node.children {
-                let child_json = nodes_to_json(child_type, child_nodes, doc, config)?;
-                obj.insert(child_type.clone(), child_json);
+        if config.include_children {
+            if let Some(ref children) = node.children {
+                for (child_type, child_nodes) in children.as_ref() {
+                    let child_json = nodes_to_json(child_type, child_nodes, doc, config)?;
+                    obj.insert(child_type.clone(), child_json);
+                }
             }
         }
 
@@ -285,7 +363,7 @@ mod tests {
     #[test]
     fn test_to_json_config_debug() {
         let config = ToJsonConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("ToJsonConfig"));
         assert!(debug.contains("include_metadata"));
         assert!(debug.contains("flatten_lists"));
@@ -298,11 +376,13 @@ mod tests {
             include_metadata: true,
             flatten_lists: true,
             include_children: false,
+            ascii_safe: true,
         };
         let cloned = config.clone();
         assert!(cloned.include_metadata);
         assert!(cloned.flatten_lists);
         assert!(!cloned.include_children);
+        assert!(cloned.ascii_safe);
     }
 
     // ==================== value_to_json tests ====================
@@ -399,9 +479,9 @@ mod tests {
         use hedl_core::lex::Span;
         let expr = Expression::Identifier {
             name: "foo".to_string(),
-            span: Span::default(),
+            span: Span::synthetic(),
         };
-        let json = value_to_json(&Value::Expression(expr));
+        let json = value_to_json(&Value::Expression(Box::new(expr)));
         assert_eq!(json, json!("$(foo)"));
     }
 
@@ -527,6 +607,7 @@ mod tests {
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
             root: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
         };
         let config = ToJsonConfig::default();
         let result = to_json(&doc, &config).unwrap();
@@ -547,6 +628,7 @@ mod tests {
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
             root,
+            schema_versions: BTreeMap::new(),
         };
         let config = ToJsonConfig::default();
         let result = to_json(&doc, &config).unwrap();
@@ -567,6 +649,7 @@ mod tests {
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
             root,
+            schema_versions: BTreeMap::new(),
         };
         let config = ToJsonConfig::default();
         let result = to_json_value(&doc, &config).unwrap();
@@ -585,9 +668,9 @@ mod tests {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "1".to_string(),
-                fields: vec![Value::String("1".into()), Value::String("Alice".into())],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: vec![Value::String("1".into()), Value::String("Alice".into())].into(),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         };
@@ -602,6 +685,7 @@ mod tests {
             include_metadata: true,
             flatten_lists: false,
             include_children: true,
+            ascii_safe: false,
         };
         let list = MatrixList {
             type_name: "User".to_string(),
@@ -609,9 +693,9 @@ mod tests {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "1".to_string(),
-                fields: vec![Value::String("1".into())],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: vec![Value::String("1".into())].into(),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         };
@@ -641,6 +725,7 @@ mod tests {
             include_metadata: true,
             flatten_lists: false,
             include_children: true,
+            ascii_safe: false,
         };
         let list = MatrixList {
             type_name: "Team".to_string(),
@@ -648,9 +733,9 @@ mod tests {
             rows: vec![Node {
                 type_name: "Team".to_string(),
                 id: "1".to_string(),
-                fields: vec![Value::String("1".into()), Value::String("Alpha".into())],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: vec![Value::String("1".into()), Value::String("Alpha".into())].into(),
+                children: None,
+                child_count: 0,
             }],
             count_hint: Some(5),
         };

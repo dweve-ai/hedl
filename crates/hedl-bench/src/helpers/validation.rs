@@ -50,6 +50,7 @@ pub fn validate_strict(doc: &Document) -> Result<Vec<hedl_lint::Diagnostic>> {
 /// # Returns
 ///
 /// true if documents are structurally equivalent.
+#[must_use]
 pub fn validate_roundtrip(original: &str, converted: &str) -> bool {
     let doc1 = match hedl_core::parse(original.as_bytes()) {
         Ok(d) => d,
@@ -74,6 +75,7 @@ pub fn validate_roundtrip(original: &str, converted: &str) -> bool {
 /// # Returns
 ///
 /// true if parsing succeeds.
+#[must_use]
 pub fn is_valid_hedl(hedl: &str) -> bool {
     hedl_core::parse(hedl.as_bytes()).is_ok()
 }
@@ -94,7 +96,7 @@ pub fn validate_json_roundtrip(hedl: &str) -> Result<bool> {
         .map_err(|e| crate::BenchError::ParseError(e.to_string()))?;
 
     let json = hedl_json::to_json(&doc, &hedl_json::ToJsonConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))?;
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))?;
 
     let doc2 = hedl_json::from_json(&json, &hedl_json::FromJsonConfig::default())
         .map_err(|e| crate::BenchError::ConversionError(e.to_string()))?;
@@ -118,10 +120,10 @@ pub fn validate_yaml_roundtrip(hedl: &str) -> Result<bool> {
         .map_err(|e| crate::BenchError::ParseError(e.to_string()))?;
 
     let yaml = hedl_yaml::to_yaml(&doc, &hedl_yaml::ToYamlConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))?;
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))?;
 
     let doc2 = hedl_yaml::from_yaml(&yaml, &hedl_yaml::FromYamlConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))?;
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))?;
 
     Ok(doc.root.len() == doc2.root.len())
 }
@@ -156,6 +158,7 @@ pub fn validate_canonical(doc: &Document) -> Result<bool> {
 /// # Returns
 ///
 /// Number of diagnostics found.
+#[must_use]
 pub fn count_lint_issues(doc: &Document) -> usize {
     hedl_lint::lint(doc).len()
 }
@@ -171,6 +174,7 @@ pub fn count_lint_issues(doc: &Document) -> usize {
 /// # Returns
 ///
 /// true if size is within range.
+#[must_use]
 pub fn validate_size_range(hedl: &str, min_bytes: usize, max_bytes: usize) -> bool {
     let size = hedl.len();
     size >= min_bytes && size <= max_bytes

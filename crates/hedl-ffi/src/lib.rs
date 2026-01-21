@@ -111,7 +111,7 @@
 //!
 //! # Error Handling
 //!
-//! - All functions return error codes (HEDL_OK on success)
+//! - All functions return error codes (`HEDL_OK` on success)
 //! - Use `hedl_get_last_error` to get the error message for the current thread
 //!
 //! # Security
@@ -197,6 +197,8 @@
 // Module Declarations
 // =============================================================================
 
+#![cfg_attr(not(test), warn(missing_docs))]
+pub mod async_ops;
 pub mod audit;
 mod conversions;
 mod diagnostics;
@@ -204,6 +206,7 @@ mod error;
 mod memory;
 mod operations;
 mod parsing;
+pub mod reentrancy;
 mod types;
 mod utils;
 
@@ -213,9 +216,10 @@ mod utils;
 
 // Types and error codes
 pub use types::{
-    HedlDiagnostics, HedlDocument, HEDL_ERR_ALLOC, HEDL_ERR_CANONICALIZE, HEDL_ERR_CSV,
-    HEDL_ERR_INVALID_UTF8, HEDL_ERR_JSON, HEDL_ERR_LINT, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR,
-    HEDL_ERR_PARQUET, HEDL_ERR_PARSE, HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
+    HedlDiagnostics, HedlDocument, HEDL_ERR_ALLOC, HEDL_ERR_CANCELLED, HEDL_ERR_CANONICALIZE,
+    HEDL_ERR_CSV, HEDL_ERR_INVALID_HANDLE, HEDL_ERR_INVALID_UTF8, HEDL_ERR_JSON, HEDL_ERR_LINT,
+    HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET, HEDL_ERR_PARSE, HEDL_ERR_QUEUE_FULL,
+    HEDL_ERR_REENTRANT_CALL, HEDL_ERR_TOON, HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
 };
 
 // Error handling
@@ -255,6 +259,9 @@ pub use conversions::to_formats::hedl_to_parquet;
 #[cfg(feature = "neo4j")]
 pub use conversions::to_formats::hedl_to_neo4j_cypher;
 
+#[cfg(feature = "toon")]
+pub use conversions::to_formats::hedl_to_toon;
+
 // Zero-copy callback functions (to_*_callback)
 pub use conversions::to_formats_callback::HedlOutputCallback;
 
@@ -288,6 +295,33 @@ pub use conversions::from_formats::hedl_from_xml;
 #[cfg(feature = "parquet")]
 pub use conversions::from_formats::hedl_from_parquet;
 
+#[cfg(feature = "toon")]
+pub use conversions::from_formats::hedl_from_toon;
+
+// Async operations
+pub use async_ops::{
+    hedl_async_cancel, hedl_async_free, hedl_canonicalize_async, hedl_lint_async, hedl_parse_async,
+    HedlAsyncOp, HedlCompletionCallback, HedlCompletionCallbackFn,
+};
+
+#[cfg(feature = "json")]
+pub use async_ops::hedl_to_json_async;
+
+#[cfg(feature = "yaml")]
+pub use async_ops::hedl_to_yaml_async;
+
+#[cfg(feature = "xml")]
+pub use async_ops::hedl_to_xml_async;
+
+#[cfg(feature = "csv")]
+pub use async_ops::hedl_to_csv_async;
+
+#[cfg(feature = "neo4j")]
+pub use async_ops::hedl_to_neo4j_cypher_async;
+
+#[cfg(feature = "toon")]
+pub use async_ops::hedl_to_toon_async;
+
 // =============================================================================
 // Tests
 // =============================================================================
@@ -306,7 +340,7 @@ mod tests {
     fn test_parse_and_free() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            let result = hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 1, &mut doc);
+            let result = hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 1, &mut doc);
 
             assert_eq!(result, HEDL_OK);
             assert!(!doc.is_null());
@@ -319,7 +353,7 @@ mod tests {
     fn test_validate_valid() {
         unsafe {
             assert_eq!(
-                hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 1),
+                hedl_validate(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 1),
                 HEDL_OK
             );
         }
@@ -329,7 +363,7 @@ mod tests {
     fn test_validate_invalid() {
         unsafe {
             assert_ne!(
-                hedl_validate(INVALID_HEDL.as_ptr() as *const c_char, -1, 1),
+                hedl_validate(INVALID_HEDL.as_ptr().cast::<c_char>(), -1, 1),
                 HEDL_OK
             );
         }
@@ -347,7 +381,7 @@ mod tests {
     fn test_get_version() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut major: i32 = 0;
             let mut minor: i32 = 0;
@@ -365,7 +399,7 @@ mod tests {
     fn test_canonicalize() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut out_str: *mut c_char = ptr::null_mut();
             let result = hedl_canonicalize(doc, &mut out_str);
@@ -383,7 +417,7 @@ mod tests {
     fn test_to_json() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut out_str: *mut c_char = ptr::null_mut();
             let result = hedl_to_json(doc, 0, &mut out_str);
@@ -404,7 +438,7 @@ mod tests {
     fn test_to_yaml() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut out_str: *mut c_char = ptr::null_mut();
             let result = hedl_to_yaml(doc, 0, &mut out_str);
@@ -425,7 +459,7 @@ mod tests {
     fn test_to_xml() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut out_str: *mut c_char = ptr::null_mut();
             let result = hedl_to_xml(doc, &mut out_str);
@@ -445,7 +479,7 @@ mod tests {
     fn test_lint() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut diag: *mut HedlDiagnostics = ptr::null_mut();
             let result = hedl_lint(doc, &mut diag);
@@ -467,7 +501,7 @@ mod tests {
         unsafe {
             // Parse original HEDL
             let mut doc1: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc1);
 
             // Convert to JSON
             let mut json_str: *mut c_char = ptr::null_mut();
@@ -491,7 +525,7 @@ mod tests {
     fn test_to_neo4j_cypher() {
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let mut out_str: *mut c_char = ptr::null_mut();
             let result = hedl_to_neo4j_cypher(doc, 1, &mut out_str);

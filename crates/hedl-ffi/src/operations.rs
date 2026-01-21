@@ -35,14 +35,14 @@ use std::time::Instant;
 /// Canonicalize a HEDL document.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
-/// * `out_str` - Pointer to store canonical output (must be freed with hedl_free_string)
+/// * `doc` - Document handle from `hedl_parse`
+/// * `out_str` - Pointer to store canonical output (must be freed with `hedl_free_string`)
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
-/// All pointers must be valid. Returns HEDL_ERR_NULL_PTR if doc is NULL or poisoned.
+/// All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if doc is NULL or poisoned.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_canonicalize(
     doc: *const HedlDocument,
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn hedl_canonicalize(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("Canonicalization error: {}", e);
+            let msg = format!("Canonicalization error: {e}");
             set_error(&msg);
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_canonicalize", HEDL_ERR_CANONICALIZE, &msg, duration);
@@ -104,14 +104,14 @@ pub unsafe extern "C" fn hedl_canonicalize(
 /// Lint a HEDL document.
 ///
 /// # Arguments
-/// * `doc` - Document handle from hedl_parse
+/// * `doc` - Document handle from `hedl_parse`
 /// * `out_diag` - Pointer to store diagnostics handle
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
-/// All pointers must be valid. Returns HEDL_ERR_NULL_PTR if doc is NULL or poisoned.
+/// All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if doc is NULL or poisoned.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_lint(
     doc: *const HedlDocument,

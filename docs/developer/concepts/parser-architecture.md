@@ -275,7 +275,7 @@ pub fn parse(input: &[u8]) -> HedlResult<Document> {
 /// Parse with lenient reference validation
 pub fn parse_lenient(input: &[u8]) -> HedlResult<Document> {
     let options = ParseOptions::builder()
-        .strict(false)
+        .reference_mode(ReferenceMode::Lenient)
         .build();
     parse_with_limits(input, options)
 }
@@ -323,9 +323,11 @@ if indent_info.level > limits.max_indent_depth {
 | Algorithm | Recursive descent | State machine | Event-based |
 | Passes | 2 (parse + resolve) | 1 | 1 |
 | Memory | O(n) | O(n) | O(n) |
-| Speed | ~100 MB/s | ~500 MB/s | ~50 MB/s |
+| Speed | ~33-49 MiB/s | faster (simpler format) | slower (complex format) |
 | Error recovery | Limited | None | Limited |
 | Streaming | Optional | Yes (via serde) | Yes |
+
+Note: Speed comparison is approximate. Run `cargo bench` for current measurements.
 
 ## Future Optimizations
 

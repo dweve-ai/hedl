@@ -26,18 +26,23 @@
 //!
 //! Run with: cargo bench --package hedl-bench --bench ffi
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_products, generate_users, sizes, BenchmarkReport, ExportConfig, PerfResult,
 };
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
+use std::hint::black_box;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::sync::Once;
 
 // Import FFI functions
-use hedl_ffi::*;
+use hedl_ffi::{
+    hedl_alias_count, hedl_canonicalize, hedl_free_diagnostics, hedl_free_document,
+    hedl_free_string, hedl_get_version, hedl_lint, hedl_parse, hedl_schema_count, hedl_to_json,
+    HedlDiagnostics, HedlDocument, HEDL_OK,
+};
 
 // ============================================================================
 // Report Infrastructure
@@ -46,7 +51,7 @@ use hedl_ffi::*;
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn ensure_init() {
@@ -97,7 +102,7 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
         // Native Rust parsing
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("native", size), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())).unwrap())
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())).unwrap());
         });
 
         // FFI parsing
@@ -109,7 +114,7 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
                 let result = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
                 assert_eq!(result, HEDL_OK);
                 hedl_free_document(doc);
-            })
+            });
         });
 
         // Measure overhead
@@ -122,7 +127,7 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
             native_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_native_{}", size),
+            &format!("parse_native_{size}"),
             native_ns,
             iterations,
             Some(bytes),
@@ -140,7 +145,7 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
             ffi_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_ffi_{}", size),
+            &format!("parse_ffi_{size}"),
             ffi_ns,
             iterations,
             Some(bytes),
@@ -150,9 +155,8 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
         let overhead_pct = ((ffi_ns as f64 - native_ns as f64) / native_ns as f64) * 100.0;
         REPORT.with(|r| {
             if let Some(ref mut report) = *r.borrow_mut() {
-                report.add_note(&format!(
-                    "Parse overhead ({}): {:.2}% slower via FFI",
-                    size, overhead_pct
+                report.add_note(format!(
+                    "Parse overhead ({size}): {overhead_pct:.2}% slower via FFI"
                 ));
             }
         });
@@ -165,7 +169,7 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
 // 2. Format Conversion: FFI Overhead
 // ============================================================================
 
-/// Benchmark to_json through FFI vs native
+/// Benchmark `to_json` through FFI vs native
 fn bench_ffi_to_json(c: &mut Criterion) {
     let mut group = c.benchmark_group("ffi_to_json");
 
@@ -177,7 +181,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("native", size), &doc, |b, doc| {
             b.iter(|| {
                 hedl_json::to_json(black_box(doc), &hedl_json::ToJsonConfig::default()).unwrap()
-            })
+            });
         });
 
         // FFI conversion
@@ -193,7 +197,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
                 let result = hedl_to_json(ffi_doc, 0, &mut json_str);
                 assert_eq!(result, HEDL_OK);
                 hedl_free_string(json_str);
-            })
+            });
         });
 
         unsafe {
@@ -209,7 +213,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
             native_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("to_json_native_{}", size),
+            &format!("to_json_native_{size}"),
             native_ns,
             iterations,
             None,
@@ -230,7 +234,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
             }
             ffi_ns += start.elapsed().as_nanos() as u64;
         }
-        record_perf(&format!("to_json_ffi_{}", size), ffi_ns, iterations, None);
+        record_perf(&format!("to_json_ffi_{size}"), ffi_ns, iterations, None);
 
         unsafe {
             hedl_free_document(ffi_doc);
@@ -255,14 +259,14 @@ fn bench_ffi_string_marshalling(c: &mut Criterion) {
         // Rust -> CString
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("to_cstring", size), &hedl, |b, input| {
-            b.iter(|| CString::new(black_box(input.as_str())).unwrap())
+            b.iter(|| CString::new(black_box(input.as_str())).unwrap());
         });
 
         // CString -> Rust
         let c_str = CString::new(hedl.as_str()).unwrap();
         group.throughput(Throughput::Bytes(bytes));
         group.bench_function(BenchmarkId::new("from_cstring", size), |b| {
-            b.iter(|| unsafe { CStr::from_ptr(c_str.as_ptr()).to_str().unwrap() })
+            b.iter(|| unsafe { CStr::from_ptr(c_str.as_ptr()).to_str().unwrap() });
         });
 
         // Metrics
@@ -275,7 +279,7 @@ fn bench_ffi_string_marshalling(c: &mut Criterion) {
             to_cstring_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("marshal_to_cstring_{}", size),
+            &format!("marshal_to_cstring_{size}"),
             to_cstring_ns,
             iterations,
             Some(bytes),
@@ -290,7 +294,7 @@ fn bench_ffi_string_marshalling(c: &mut Criterion) {
             from_cstring_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("marshal_from_cstring_{}", size),
+            &format!("marshal_from_cstring_{size}"),
             from_cstring_ns,
             iterations,
             Some(bytes),
@@ -317,7 +321,7 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
             hedl_free_document(black_box(doc));
-        })
+        });
     });
 
     // String alloc/free
@@ -331,7 +335,7 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
             let mut out_str: *mut c_char = ptr::null_mut();
             hedl_canonicalize(doc, &mut out_str);
             hedl_free_string(black_box(out_str));
-        })
+        });
     });
 
     unsafe {
@@ -398,15 +402,15 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
             let mut major = 0;
             let mut minor = 0;
             hedl_get_version(black_box(doc), &mut major, &mut minor)
-        })
+        });
     });
 
     group.bench_function("schema_count", |b| {
-        b.iter(|| unsafe { hedl_schema_count(black_box(doc)) })
+        b.iter(|| unsafe { hedl_schema_count(black_box(doc)) });
     });
 
     group.bench_function("alias_count", |b| {
-        b.iter(|| unsafe { hedl_alias_count(black_box(doc)) })
+        b.iter(|| unsafe { hedl_alias_count(black_box(doc)) });
     });
 
     unsafe {
@@ -478,7 +482,7 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
             let _canonical = hedl_c14n::canonicalize(&doc).unwrap();
             let _diagnostics = hedl_lint::lint(&doc);
             black_box(doc)
-        })
+        });
     });
 
     // FFI full workflow
@@ -498,7 +502,7 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
             hedl_free_diagnostics(diag);
 
             hedl_free_document(doc);
-        })
+        });
     });
 
     // Metrics
@@ -536,9 +540,8 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
     let overhead_pct = ((ffi_ns as f64 - native_ns as f64) / native_ns as f64) * 100.0;
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            report.add_note(&format!(
-                "Full workflow overhead: {:.2}% slower via FFI",
-                overhead_pct
+            report.add_note(format!(
+                "Full workflow overhead: {overhead_pct:.2}% slower via FFI"
             ));
         }
     });
@@ -563,7 +566,7 @@ fn bench_ffi_callbacks(c: &mut Criterion) {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
             hedl_free_document(black_box(doc));
-        })
+        });
     });
 
     // Function pointer indirection
@@ -574,7 +577,7 @@ fn bench_ffi_callbacks(c: &mut Criterion) {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             parse_fn(c_str.as_ptr(), -1, 0, &mut doc);
             hedl_free_document(black_box(doc));
-        })
+        });
     });
 
     group.finish();
@@ -624,7 +627,7 @@ fn bench_ffi_threading(c: &mut Criterion) {
                 hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
                 hedl_free_document(black_box(doc));
             }
-        })
+        });
     });
 
     group.finish();
@@ -669,7 +672,7 @@ fn bench_ffi_large_buffers(c: &mut Criterion) {
                     hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
                     hedl_free_document(black_box(doc));
                 }
-            })
+            });
         });
 
         // Metrics
@@ -686,7 +689,7 @@ fn bench_ffi_large_buffers(c: &mut Criterion) {
             copy_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("buffer_copy_{}", size),
+            &format!("buffer_copy_{size}"),
             copy_ns,
             iterations,
             Some(bytes),
@@ -715,7 +718,7 @@ fn bench_ffi_struct_marshaling(c: &mut Criterion) {
             let mut minor = 0;
             hedl_get_version(black_box(doc), &mut major, &mut minor);
             black_box((major, minor));
-        })
+        });
     });
 
     unsafe {
@@ -765,7 +768,7 @@ fn bench_ffi_error_handling(c: &mut Criterion) {
                 assert_eq!(result, HEDL_OK);
                 hedl_free_document(black_box(doc));
             }
-        })
+        });
     });
 
     // Error path
@@ -777,7 +780,7 @@ fn bench_ffi_error_handling(c: &mut Criterion) {
                 let result = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
                 black_box(result);
             }
-        })
+        });
     });
 
     group.finish();
@@ -862,7 +865,7 @@ fn collect_ffi_results() -> Vec<FFICallResult> {
             for perf in &report.perf_results {
                 match perf.name.as_str() {
                     n if n.starts_with("parse_native_") => {
-                        let size = n.split('_').last().unwrap_or("");
+                        let size = n.split('_').next_back().unwrap_or("");
                         match size {
                             "10" => native_parse_small.push(
                                 perf.avg_time_ns
@@ -880,7 +883,7 @@ fn collect_ffi_results() -> Vec<FFICallResult> {
                         }
                     }
                     n if n.starts_with("parse_ffi_") => {
-                        let size = n.split('_').last().unwrap_or("");
+                        let size = n.split('_').next_back().unwrap_or("");
                         match size {
                             "10" => ffi_parse_small.push(
                                 perf.avg_time_ns
@@ -1491,7 +1494,7 @@ fn create_large_data_transfer_table(report: &mut BenchmarkReport) {
             };
 
             table.rows.push(vec![
-                TableCell::String(format!("{}KB", size_kb)),
+                TableCell::String(format!("{size_kb}KB")),
                 TableCell::Float(copy_us),
                 TableCell::Float(throughput_mbs),
             ]);
@@ -1709,7 +1712,7 @@ fn create_safety_vs_performance_table(report: &mut BenchmarkReport) {
         TableCell::String("Yes (Send+Sync)".to_string()),
         TableCell::String("Yes (no null ptrs)".to_string()),
         TableCell::String("Full validation".to_string()),
-        TableCell::String(format!("{} ({:.1}%)", impact, parse_overhead)),
+        TableCell::String(format!("{impact} ({parse_overhead:.1}%)")),
     ]);
 
     if workflow_overhead > 0.0 {
@@ -1727,7 +1730,7 @@ fn create_safety_vs_performance_table(report: &mut BenchmarkReport) {
             TableCell::String("Yes".to_string()),
             TableCell::String("Yes".to_string()),
             TableCell::String("Full + error paths".to_string()),
-            TableCell::String(format!("{} ({:.1}%)", workflow_impact, workflow_overhead)),
+            TableCell::String(format!("{workflow_impact} ({workflow_overhead:.1}%)")),
         ]);
     }
 
@@ -1772,7 +1775,7 @@ fn create_use_cases_table(report: &mut BenchmarkReport) {
     }
 
     let avg_overhead = if count > 0 {
-        total_overhead / count as f64
+        total_overhead / f64::from(count)
     } else {
         0.0
     };
@@ -1786,7 +1789,7 @@ fn create_use_cases_table(report: &mut BenchmarkReport) {
     table.rows.push(vec![
         TableCell::String("FFI Overhead".to_string()),
         TableCell::String("<10%".to_string()),
-        TableCell::String(format!("{:.1}%", avg_overhead)),
+        TableCell::String(format!("{avg_overhead:.1}%")),
         TableCell::String(status.to_string()),
         TableCell::String(
             if avg_overhead < 10.0 {
@@ -1868,7 +1871,7 @@ fn create_ffi_breakdown_table(report: &mut BenchmarkReport) {
             TableCell::Float(native_us),
             TableCell::Float(ffi_us),
             TableCell::Float(marshal_us),
-            TableCell::String(format!("{:.1}%", overhead_pct)),
+            TableCell::String(format!("{overhead_pct:.1}%")),
             TableCell::String("Yes (validation)".to_string()),
             TableCell::String("Yes (bounds)".to_string()),
             TableCell::String("Native".to_string()),
@@ -1907,16 +1910,13 @@ fn generate_insights(results: &[FFICallResult], report: &mut BenchmarkReport) {
     if let Some((best_lang, best_overhead)) = lang_overheads.first() {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "{} Binding Has Lowest Overhead: {:.1}%",
-                best_lang, best_overhead
-            ),
+            title: format!("{best_lang} Binding Has Lowest Overhead: {best_overhead:.1}%"),
             description:
                 "Optimal language binding identified for performance-critical applications"
                     .to_string(),
             data_points: lang_overheads
                 .iter()
-                .map(|(lang, overhead)| format!("{}: {:.1}% overhead", lang, overhead))
+                .map(|(lang, overhead)| format!("{lang}: {overhead:.1}% overhead"))
                 .collect(),
         });
     }
@@ -1937,8 +1937,7 @@ fn generate_insights(results: &[FFICallResult], report: &mut BenchmarkReport) {
         report.add_insight(Insight {
             category: "recommendation".to_string(),
             title: format!(
-                "{} Operations Could Use Zero-Copy (Save {}KB)",
-                zero_copy_possible, potential_savings_kb
+                "{zero_copy_possible} Operations Could Use Zero-Copy (Save {potential_savings_kb}KB)"
             ),
             description: "Eliminate memory copies by implementing zero-copy paths".to_string(),
             data_points: vec![
@@ -1979,7 +1978,7 @@ fn generate_insights(results: &[FFICallResult], report: &mut BenchmarkReport) {
 
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!("String Marshaling Overhead: {:.1}%", avg_overhead),
+            title: format!("String Marshaling Overhead: {avg_overhead:.1}%"),
             description: "String conversions (CString ↔ &str) dominate FFI overhead".to_string(),
             data_points: vec![
                 format!("Average overhead: {:.1}%", avg_overhead),
@@ -2057,7 +2056,7 @@ fn export_reports(c: &mut Criterion) {
         report.print();
 
         if let Err(e) = std::fs::create_dir_all("target") {
-            eprintln!("Failed to create target directory: {}", e);
+            eprintln!("Failed to create target directory: {e}");
             return;
         }
 
@@ -2068,7 +2067,7 @@ fn export_reports(c: &mut Criterion) {
                 report.custom_tables.len(),
                 report.insights.len()
             ),
-            Err(e) => eprintln!("Failed to export reports: {}", e),
+            Err(e) => eprintln!("Failed to export reports: {e}"),
         }
     }
 }

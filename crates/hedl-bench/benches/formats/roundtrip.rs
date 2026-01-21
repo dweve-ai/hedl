@@ -24,10 +24,8 @@
 //! - CSV roundtrip (where applicable)
 //! - Parquet roundtrip (planned)
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use hedl_bench::helpers::measure_throughput_ns;
 use hedl_bench::{
     generate_blog, generate_orders, generate_products, generate_users, sizes, BenchmarkReport,
     CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -41,7 +39,7 @@ use std::time::Instant;
 
 static INIT: Once = Once::new();
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -67,7 +65,7 @@ fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option
                 throughput_bytes,
                 avg_time_ns: Some(total_ns / iterations),
                 throughput_mbs: throughput_bytes
-                    .map(|b| formats::measure_throughput_ns(b as usize, total_ns)),
+                    .map(|b| measure_throughput_ns(b as usize, total_ns)),
             });
         }
     });
@@ -97,7 +95,7 @@ fn bench_roundtrip_json_users(c: &mut Criterion) {
         b.iter(|| {
             let json = to_json(&doc, &ToJsonConfig::default()).unwrap();
             let _doc2 = from_json(&json, &FromJsonConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 100;
@@ -126,7 +124,7 @@ fn bench_roundtrip_json_nested(c: &mut Criterion) {
         b.iter(|| {
             let json = to_json(&doc, &ToJsonConfig::default()).unwrap();
             let _doc2 = from_json(&json, &FromJsonConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 50;
@@ -159,7 +157,7 @@ fn bench_roundtrip_yaml_users(c: &mut Criterion) {
         b.iter(|| {
             let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
             let _doc2 = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 100;
@@ -188,7 +186,7 @@ fn bench_roundtrip_yaml_nested(c: &mut Criterion) {
         b.iter(|| {
             let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
             let _doc2 = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 50;
@@ -221,7 +219,7 @@ fn bench_roundtrip_xml_users(c: &mut Criterion) {
         b.iter(|| {
             let xml = to_xml(&doc, &ToXmlConfig::default()).unwrap();
             let _doc2 = from_xml(&xml, &FromXmlConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 100;
@@ -250,7 +248,7 @@ fn bench_roundtrip_xml_nested(c: &mut Criterion) {
         b.iter(|| {
             let xml = to_xml(&doc, &ToXmlConfig::default()).unwrap();
             let _doc2 = from_xml(&xml, &FromXmlConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 50;
@@ -292,7 +290,7 @@ fn bench_chained_roundtrip(c: &mut Criterion) {
             // HEDL → XML → HEDL
             let xml = to_xml(&doc3, &ToXmlConfig::default()).unwrap();
             let _doc4 = from_xml(&xml, &FromXmlConfig::default()).unwrap();
-        })
+        });
     });
 
     let iterations = 20;
@@ -413,15 +411,15 @@ fn bench_export(c: &mut Criterion) {
             let yaml_perfs: Vec<_> = perf_metrics.iter().filter(|p| p.name.contains("yaml")).collect();
             let xml_perfs: Vec<_> = perf_metrics.iter().filter(|p| p.name.contains("xml")).collect();
 
-            let json_avg = if !json_perfs.is_empty() {
+            let json_avg = if json_perfs.is_empty() { 0 } else {
                 json_perfs.iter().map(|p| p.total_time_ns / p.iterations).sum::<u64>() / json_perfs.len() as u64
-            } else { 0 };
-            let yaml_avg = if !yaml_perfs.is_empty() {
+            };
+            let yaml_avg = if yaml_perfs.is_empty() { 0 } else {
                 yaml_perfs.iter().map(|p| p.total_time_ns / p.iterations).sum::<u64>() / yaml_perfs.len() as u64
-            } else { 0 };
-            let xml_avg = if !xml_perfs.is_empty() {
+            };
+            let xml_avg = if xml_perfs.is_empty() { 0 } else {
                 xml_perfs.iter().map(|p| p.total_time_ns / p.iterations).sum::<u64>() / xml_perfs.len() as u64
-            } else { 0 };
+            };
 
             let fastest = json_avg.min(yaml_avg).min(xml_avg);
 
@@ -628,15 +626,15 @@ fn bench_export(c: &mut Criterion) {
             let yaml_count = yaml_perfs.len();
             let xml_count = xml_perfs.len();
 
-            let json_throughput = if !json_perfs.is_empty() {
+            let json_throughput = if json_perfs.is_empty() { 0.0 } else {
                 json_perfs.iter().filter_map(|p| p.throughput_mbs).sum::<f64>() / json_perfs.len() as f64
-            } else { 0.0 };
-            let yaml_throughput = if !yaml_perfs.is_empty() {
+            };
+            let yaml_throughput = if yaml_perfs.is_empty() { 0.0 } else {
                 yaml_perfs.iter().filter_map(|p| p.throughput_mbs).sum::<f64>() / yaml_perfs.len() as f64
-            } else { 0.0 };
-            let xml_throughput = if !xml_perfs.is_empty() {
+            };
+            let xml_throughput = if xml_perfs.is_empty() { 0.0 } else {
                 xml_perfs.iter().filter_map(|p| p.throughput_mbs).sum::<f64>() / xml_perfs.len() as f64
-            } else { 0.0 };
+            };
 
             format_summary_table.rows.push(vec![
                 TableCell::String("JSON".to_string()),
@@ -1042,7 +1040,7 @@ fn bench_export(c: &mut Criterion) {
                 report.insights.push(Insight {
                     category: "weakness".to_string(),
                     title: "YAML Conversion Overhead".to_string(),
-                    description: format!("YAML roundtrip is {:.1}% slower than JSON due to more complex parsing.", yaml_overhead_pct),
+                    description: format!("YAML roundtrip is {yaml_overhead_pct:.1}% slower than JSON due to more complex parsing."),
                     data_points: vec![
                         format!("JSON avg: {}μs per roundtrip", json_avg / 1000),
                         format!("YAML avg: {}μs per roundtrip", yaml_avg / 1000),
@@ -1123,7 +1121,7 @@ fn bench_export(c: &mut Criterion) {
 
             let config = ExportConfig::all();
             if let Err(e) = report.save_all("target/roundtrip_report", &config) {
-                eprintln!("Warning: Failed to export: {}", e);
+                eprintln!("Warning: Failed to export: {e}");
             } else {
                 println!("\nExported to target/roundtrip_report.*");
             }

@@ -48,6 +48,7 @@ extern "C" {
 #define HEDL_ERR_CSV         -9
 #define HEDL_ERR_PARQUET     -10
 #define HEDL_ERR_LINT        -11
+#define HEDL_ERR_NEO4J       -12
 
 /* ==========================================================================
  * Opaque Types

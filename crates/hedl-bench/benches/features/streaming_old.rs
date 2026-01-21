@@ -34,7 +34,8 @@
 //! - Buffer size optimization
 //! - Nested structure streaming
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use hedl_bench::core::measurement::measure_with_throughput;
 use hedl_bench::datasets::{generate_blog, generate_users};
 use hedl_bench::report::BenchmarkReport;

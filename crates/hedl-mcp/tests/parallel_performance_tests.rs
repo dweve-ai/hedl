@@ -50,7 +50,7 @@ fn create_test_files(n: usize) -> TempDir {
             i, i, i * 10,
             i + 1000, i + 1000, (i + 1000) * 10
         );
-        fs::write(temp_dir.path().join(format!("file{:03}.hedl", i)), content).unwrap();
+        fs::write(temp_dir.path().join(format!("file{i:03}.hedl")), content).unwrap();
     }
 
     temp_dir
@@ -83,12 +83,9 @@ fn test_parallel_performance_100_files() {
 
     let speedup = sequential_time.as_secs_f64() / parallel_time.as_secs_f64();
 
-    println!("Sequential time (100 files): {:?}", sequential_time);
-    println!("Parallel time (100 files): {:?}", parallel_time);
-    println!(
-        "Speedup: {:.2}x (debug mode - see benchmarks for release mode)",
-        speedup
-    );
+    println!("Sequential time (100 files): {sequential_time:?}");
+    println!("Parallel time (100 files): {parallel_time:?}");
+    println!("Speedup: {speedup:.2}x (debug mode - see benchmarks for release mode)");
 
     // Just verify both modes complete successfully
     // Actual speedup verification is done in release mode benchmarks
@@ -159,7 +156,7 @@ fn test_thread_count_measurement() {
         }
         let elapsed = start.elapsed();
 
-        println!("  {} thread(s): {:?}", threads, elapsed);
+        println!("  {threads} thread(s): {elapsed:?}");
     }
 
     println!("Note: Run benchmarks in release mode for accurate speedup measurements");
@@ -211,16 +208,14 @@ fn test_parallel_correctness() {
     for result in results_seq {
         assert!(
             result.get("error").is_none(),
-            "Sequential read had error: {:?}",
-            result
+            "Sequential read had error: {result:?}"
         );
     }
 
     for result in results_par {
         assert!(
             result.get("error").is_none(),
-            "Parallel read had error: {:?}",
-            result
+            "Parallel read had error: {result:?}"
         );
     }
 }

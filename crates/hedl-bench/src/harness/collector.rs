@@ -63,6 +63,7 @@ pub struct MetricCollector {
 
 impl MetricCollector {
     /// Creates a new metric collector.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             perf_metrics: HashMap::new(),
@@ -97,16 +98,19 @@ impl MetricCollector {
     }
 
     /// Gets performance metrics for a benchmark.
+    #[must_use]
     pub fn get_perf_metrics(&self, name: &str) -> Option<&Vec<PerfMetrics>> {
         self.perf_metrics.get(name)
     }
 
     /// Gets memory metrics for a benchmark.
+    #[must_use]
     pub fn get_mem_metrics(&self, name: &str) -> Option<&Vec<MemMetrics>> {
         self.mem_metrics.get(name)
     }
 
     /// Gets throughput metrics for a benchmark.
+    #[must_use]
     pub fn get_throughput_metrics(&self, name: &str) -> Option<&Vec<ThroughputMetrics>> {
         self.throughput_metrics.get(name)
     }
@@ -119,6 +123,7 @@ impl Default for MetricCollector {
 }
 
 /// Collects performance metrics from a measurement.
+#[must_use]
 pub fn collect_performance(measurement: &Measurement) -> PerfMetrics {
     let total_ns = measurement.as_nanos();
     let ops_per_sec = if total_ns > 0 {
@@ -135,6 +140,7 @@ pub fn collect_performance(measurement: &Measurement) -> PerfMetrics {
 }
 
 /// Collects memory metrics from a measurement.
+#[must_use]
 pub fn collect_memory(measurement: &Measurement) -> MemMetrics {
     let bytes = measurement.memory.unwrap_or(0);
     MemMetrics {
@@ -145,6 +151,7 @@ pub fn collect_memory(measurement: &Measurement) -> MemMetrics {
 }
 
 /// Collects throughput metrics from a measurement.
+#[must_use]
 pub fn collect_throughput(measurement: &Measurement) -> ThroughputMetrics {
     let bytes_per_sec = measurement.throughput.unwrap_or(0);
     ThroughputMetrics {
@@ -190,7 +197,7 @@ mod tests {
     fn test_metric_collector() {
         let mut collector = MetricCollector::new();
         let measurement = Measurement::new(Duration::from_millis(100));
-        let result = BenchResult::new("test", 10, measurement);
+        let result = BenchResult::new("test", 10, measurement).unwrap();
 
         collector.collect(&result);
 

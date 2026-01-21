@@ -21,9 +21,8 @@
 //! such as shell completion generation.
 
 use crate::commands;
-use clap::CommandFactory;
 use clap::Subcommand;
-use clap_complete::shells::*;
+use clap_complete::shells::{Bash, Elvish, Fish, PowerShell, Zsh};
 
 /// Utility commands.
 ///
@@ -60,7 +59,7 @@ impl UtilityCommands {
     /// Returns `Err` if:
     /// - Unsupported shell is specified
     /// - Completion generation fails
-    pub fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), crate::error::CliError> {
         match self {
             UtilityCommands::Completion { shell, install } => {
                 if install {
@@ -76,8 +75,8 @@ impl UtilityCommands {
 
 /// Generate shell completion for the specified shell.
 ///
-/// This is a helper function that creates a temporary command instance
-/// for completion generation. It needs access to the full CLI structure.
+/// This is a helper function that uses the shared CLI command factory
+/// for completion generation, ensuring consistency with the actual CLI.
 ///
 /// # Arguments
 ///
@@ -90,30 +89,15 @@ impl UtilityCommands {
 /// # Errors
 ///
 /// Returns `Err` if the shell is not supported.
-fn generate_completion(shell: &str) -> Result<(), String> {
-    // We need to create a temporary CLI structure for completion generation.
-    // This is a bit awkward since we're in a submodule, but we can use
-    // a trait-based approach to avoid circular dependencies.
+fn generate_completion(shell: &str) -> Result<(), crate::error::CliError> {
+    // Use the shared CLI command factory to ensure consistency with the actual CLI.
+    // This eliminates duplication and ensures generated completions always match
+    // the current command structure.
 
-    // For now, we'll use a temporary command that matches the main CLI.
-    // This should be replaced with a better solution that uses the actual
-    // CLI command from main.rs.
+    use crate::create_cli_command;
+    use crate::error::CliError;
 
-    use clap::Parser;
-
-    #[derive(Parser)]
-    #[command(name = "hedl")]
-    #[command(
-        author,
-        version,
-        about = "HEDL - Hierarchical Entity Data Language toolkit"
-    )]
-    struct TempCli {
-        #[command(subcommand)]
-        command: super::Commands,
-    }
-
-    let mut cmd = TempCli::command();
+    let mut cmd = create_cli_command();
 
     match shell.to_lowercase().as_str() {
         "bash" => commands::generate_completion_for_command(Bash, &mut cmd),
@@ -121,9 +105,8 @@ fn generate_completion(shell: &str) -> Result<(), String> {
         "fish" => commands::generate_completion_for_command(Fish, &mut cmd),
         "powershell" | "pwsh" => commands::generate_completion_for_command(PowerShell, &mut cmd),
         "elvish" => commands::generate_completion_for_command(Elvish, &mut cmd),
-        _ => Err(format!(
-            "Unsupported shell: '{}'. Supported shells: bash, zsh, fish, powershell, elvish",
-            shell
-        )),
+        _ => Err(CliError::invalid_input(format!(
+            "Unsupported shell: '{shell}'. Supported shells: bash, zsh, fish, powershell, elvish"
+        ))),
     }
 }

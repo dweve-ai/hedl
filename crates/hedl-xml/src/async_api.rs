@@ -106,7 +106,7 @@
 //! }
 //! ```
 
-use crate::streaming::{StreamConfig, StreamItem};
+use crate::streaming::{StreamConfig, StreamItem, StreamPosition};
 use crate::{from_xml, to_xml, FromXmlConfig, ToXmlConfig};
 use hedl_core::Document;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -317,24 +317,26 @@ pub async fn from_xml_stream_async<R: AsyncRead + Unpin + Send + 'static>(
 ///
 /// This stream yields `Result<StreamItem, String>` as items are parsed.
 /// It uses Tokio's async I/O for non-blocking operations.
+///
+/// # Implementation Note
+///
+/// This implementation reads all data into memory first, then parses it
+/// synchronously and yields items one at a time. For true streaming with
+/// backpressure, a more sophisticated implementation using quick-xml's
+/// async features would be needed.
 pub struct AsyncXmlStream<R: AsyncRead + Unpin> {
     reader: R,
     config: StreamConfig,
     buffer: Vec<u8>,
-    #[allow(dead_code)]
-    position: usize,
+    /// Byte position in the stream
+    byte_position: usize,
     chunk_size: usize,
-    parser_state: ParserState,
-}
-
-#[derive(Debug)]
-enum ParserState {
-    FindingRoot,
-    #[allow(dead_code)]
-    ParsingRoot {
-        root_name: String,
-    },
-    Exhausted,
+    /// Parsed items ready to be yielded
+    parsed_items: std::collections::VecDeque<Result<StreamItem, String>>,
+    /// Whether we've read and parsed all data
+    fully_parsed: bool,
+    /// Stream position tracking for progress reporting
+    stream_position: StreamPosition,
 }
 
 impl<R: AsyncRead + Unpin> AsyncXmlStream<R> {
@@ -345,10 +347,24 @@ impl<R: AsyncRead + Unpin> AsyncXmlStream<R> {
             reader,
             config,
             buffer: Vec::new(),
-            position: 0,
+            byte_position: 0,
             chunk_size,
-            parser_state: ParserState::FindingRoot,
+            parsed_items: std::collections::VecDeque::new(),
+            fully_parsed: false,
+            stream_position: StreamPosition::default(),
         })
+    }
+
+    /// Get the current stream position for progress tracking
+    ///
+    /// Returns information about bytes processed and items parsed.
+    /// Useful for progress bars and error reporting.
+    #[inline]
+    pub fn position(&self) -> StreamPosition {
+        StreamPosition {
+            byte_offset: self.byte_position as u64,
+            items_parsed: self.stream_position.items_parsed,
+        }
     }
 
     /// Read the next chunk of data
@@ -362,53 +378,67 @@ impl<R: AsyncRead + Unpin> AsyncXmlStream<R> {
 
         if n > 0 {
             self.buffer.extend_from_slice(&chunk[..n]);
+            self.byte_position += n;
         }
 
         Ok(n)
     }
 
-    /// Async version of next() - yields the next parsed item
-    pub async fn next(&mut self) -> Option<Result<StreamItem, String>> {
-        // This is a simplified implementation that reads entire content into memory
-        // A full implementation would use incremental parsing with quick-xml's async support
+    /// Read all data and parse into items
+    async fn ensure_parsed(&mut self) -> Result<(), String> {
+        if self.fully_parsed {
+            return Ok(());
+        }
 
-        // For now, we read all data and delegate to sync parser
+        // Read all remaining data
         loop {
             match self.read_chunk().await {
                 Ok(0) => break, // EOF
                 Ok(_) => continue,
-                Err(e) => return Some(Err(e)),
+                Err(e) => return Err(e),
             }
         }
 
         // Parse complete buffer using sync streaming parser
-        if self.buffer.is_empty() {
-            return None;
-        }
+        if !self.buffer.is_empty() {
+            use crate::streaming::from_xml_stream;
+            use std::io::Cursor;
 
-        match &self.parser_state {
-            ParserState::Exhausted => None,
-            _ => {
-                // Convert to streaming parser
-                use crate::streaming::from_xml_stream;
-                use std::io::Cursor;
-
-                let cursor = Cursor::new(&self.buffer);
-                match from_xml_stream(cursor, &self.config) {
-                    Ok(mut parser) => {
-                        let result = parser.next().map(|r| r.map_err(|e| e.to_string()));
-                        if result.is_none() {
-                            self.parser_state = ParserState::Exhausted;
-                        }
-                        result
+            let cursor = Cursor::new(&self.buffer);
+            match from_xml_stream(cursor, &self.config) {
+                Ok(parser) => {
+                    // Collect all items from the parser
+                    for result in parser {
+                        self.parsed_items
+                            .push_back(result.map_err(|e| e.to_string()));
                     }
-                    Err(e) => {
-                        self.parser_state = ParserState::Exhausted;
-                        Some(Err(e))
-                    }
+                }
+                Err(e) => {
+                    self.parsed_items.push_back(Err(e));
                 }
             }
         }
+
+        self.fully_parsed = true;
+        Ok(())
+    }
+
+    /// Async version of next() - yields the next parsed item
+    pub async fn next(&mut self) -> Option<Result<StreamItem, String>> {
+        // Ensure we've read and parsed all data
+        if let Err(e) = self.ensure_parsed().await {
+            return Some(Err(e));
+        }
+
+        // Yield the next item from our queue
+        let result = self.parsed_items.pop_front();
+
+        // Update items_parsed counter on successful item
+        if result.as_ref().is_some_and(|r| r.is_ok()) {
+            self.stream_position.items_parsed += 1;
+        }
+
+        result
     }
 }
 
@@ -521,45 +551,59 @@ where
 {
     use tokio::task::JoinSet;
 
-    let mut set = JoinSet::new();
-    let mut results = Vec::new();
+    let mut set: JoinSet<(usize, Result<Document, String>)> = JoinSet::new();
+    let config = config.clone();
+    let paths_vec: Vec<_> = paths.into_iter().collect();
+    let total = paths_vec.len();
+
+    // Pre-allocate results with placeholders
+    let mut results: Vec<Option<Result<Document, String>>> = vec![None; total];
+    let mut paths_iter = paths_vec.into_iter().enumerate();
     let mut pending = 0;
 
-    let config = config.clone();
-    let mut paths_iter = paths.into_iter();
-
-    // Fill initial batch
+    // Fill initial batch up to concurrency limit
     for _ in 0..concurrency {
-        if let Some(path) = paths_iter.next() {
+        if let Some((idx, path)) = paths_iter.next() {
             let path = path.as_ref().to_path_buf();
             let config = config.clone();
-            set.spawn(async move { from_xml_file_async(&path, &config).await });
+            set.spawn(async move { (idx, from_xml_file_async(&path, &config).await) });
             pending += 1;
         } else {
             break;
         }
     }
 
-    // Process remaining items
+    // Process remaining items, maintaining concurrency level
     while pending > 0 {
-        if let Some(result) = set.join_next().await {
-            match result {
-                Ok(doc_result) => results.push(doc_result),
-                Err(e) => results.push(Err(format!("Task error: {}", e))),
+        if let Some(join_result) = set.join_next().await {
+            match join_result {
+                Ok((idx, doc_result)) => {
+                    results[idx] = Some(doc_result);
+                }
+                Err(e) => {
+                    // Task panicked - find first None slot and fill it
+                    if let Some(slot) = results.iter_mut().find(|r| r.is_none()) {
+                        *slot = Some(Err(format!("Task error: {}", e)));
+                    }
+                }
             }
             pending -= 1;
 
             // Add next item if available
-            if let Some(path) = paths_iter.next() {
+            if let Some((idx, path)) = paths_iter.next() {
                 let path = path.as_ref().to_path_buf();
                 let config = config.clone();
-                set.spawn(async move { from_xml_file_async(&path, &config).await });
+                set.spawn(async move { (idx, from_xml_file_async(&path, &config).await) });
                 pending += 1;
             }
         }
     }
 
+    // Convert to final results, unwrapping Options (all should be Some now)
     results
+        .into_iter()
+        .map(|opt| opt.unwrap_or_else(|| Err("Missing result".to_string())))
+        .collect()
 }
 
 /// Write multiple documents to XML files concurrently
@@ -606,47 +650,61 @@ where
 {
     use tokio::task::JoinSet;
 
-    let mut set = JoinSet::new();
-    let mut results = Vec::new();
+    let mut set: JoinSet<(usize, Result<(), String>)> = JoinSet::new();
+    let config = config.clone();
+    let docs_and_paths_vec: Vec<_> = docs_and_paths.into_iter().collect();
+    let total = docs_and_paths_vec.len();
+
+    // Pre-allocate results with placeholders
+    let mut results: Vec<Option<Result<(), String>>> = vec![None; total];
+    let mut iter = docs_and_paths_vec.into_iter().enumerate();
     let mut pending = 0;
 
-    let config = config.clone();
-    let mut iter = docs_and_paths.into_iter();
-
-    // Fill initial batch
+    // Fill initial batch up to concurrency limit
     for _ in 0..concurrency {
-        if let Some((doc, path)) = iter.next() {
+        if let Some((idx, (doc, path))) = iter.next() {
             let doc = doc.clone();
             let path = path.as_ref().to_path_buf();
             let config = config.clone();
-            set.spawn(async move { to_xml_file_async(&doc, &path, &config).await });
+            set.spawn(async move { (idx, to_xml_file_async(&doc, &path, &config).await) });
             pending += 1;
         } else {
             break;
         }
     }
 
-    // Process remaining items
+    // Process remaining items, maintaining concurrency level
     while pending > 0 {
-        if let Some(result) = set.join_next().await {
-            match result {
-                Ok(write_result) => results.push(write_result),
-                Err(e) => results.push(Err(format!("Task error: {}", e))),
+        if let Some(join_result) = set.join_next().await {
+            match join_result {
+                Ok((idx, write_result)) => {
+                    results[idx] = Some(write_result);
+                }
+                Err(e) => {
+                    // Task panicked - find first None slot and fill it
+                    if let Some(slot) = results.iter_mut().find(|r| r.is_none()) {
+                        *slot = Some(Err(format!("Task error: {}", e)));
+                    }
+                }
             }
             pending -= 1;
 
             // Add next item if available
-            if let Some((doc, path)) = iter.next() {
+            if let Some((idx, (doc, path))) = iter.next() {
                 let doc = doc.clone();
                 let path = path.as_ref().to_path_buf();
                 let config = config.clone();
-                set.spawn(async move { to_xml_file_async(&doc, &path, &config).await });
+                set.spawn(async move { (idx, to_xml_file_async(&doc, &path, &config).await) });
                 pending += 1;
             }
         }
     }
 
+    // Convert to final results, unwrapping Options (all should be Some now)
     results
+        .into_iter()
+        .map(|opt| opt.unwrap_or_else(|| Err("Missing result".to_string())))
+        .collect()
 }
 
 #[cfg(test)]
@@ -740,7 +798,7 @@ mod tests {
         let doc = from_xml_async(xml, &config).await.unwrap();
         assert_eq!(
             doc.root.get("name").and_then(|i| i.as_scalar()),
-            Some(&Value::String("test".to_string()))
+            Some(&Value::String("test".to_string().into()))
         );
     }
 
@@ -806,7 +864,7 @@ mod tests {
         let doc = from_xml_reader_async(cursor, &config).await.unwrap();
         assert_eq!(
             doc.root.get("name").and_then(|i| i.as_scalar()),
-            Some(&Value::String("héllo 世界".to_string()))
+            Some(&Value::String("héllo 世界".to_string().into()))
         );
     }
 
@@ -823,7 +881,7 @@ mod tests {
         let doc = from_xml_reader_async(cursor, &config).await.unwrap();
         assert_eq!(
             doc.root.get("val").and_then(|i| i.as_scalar()),
-            Some(&Value::String(large_string))
+            Some(&Value::String(large_string.into()))
         );
     }
 
@@ -836,7 +894,7 @@ mod tests {
             .insert("int_val".to_string(), Item::Scalar(Value::Int(42)));
         doc.root.insert(
             "string_val".to_string(),
-            Item::Scalar(Value::String("hello".to_string())),
+            Item::Scalar(Value::String("hello".to_string().into())),
         );
 
         let config_to = ToXmlConfig::default();
@@ -855,7 +913,7 @@ mod tests {
         );
         assert_eq!(
             doc2.root.get("string_val").and_then(|i| i.as_scalar()),
-            Some(&Value::String("hello".to_string()))
+            Some(&Value::String("hello".to_string().into()))
         );
     }
 

@@ -24,23 +24,27 @@
 //! - Comparative analysis vs other graph formats
 //! - Production readiness evaluation
 
-#[path = "../formats/mod.rs"]
-mod formats;
-
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use hedl_bench::helpers::measure_throughput_ns;
 use hedl_bench::{
     count_tokens, generate_graph, generate_reference_heavy, BenchmarkReport, CustomTable,
     ExportConfig, Insight, PerfResult, TableCell,
 };
-use hedl_neo4j::{to_cypher, to_cypher_statements, ToCypherConfig};
+use hedl_neo4j::{
+    batch_statements,
+    from_neo4j::{from_neo4j_records, from_records_iter, Neo4jRecord},
+    mapping::Neo4jNode,
+    to_cypher, to_cypher_statements, FromNeo4jConfig, ToCypherConfig, TransactionStrategy,
+};
 use std::cell::RefCell;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -60,8 +64,8 @@ fn init_report() {
 fn add_perf(name: &str, iterations: u64, total_ns: u64, throughput_bytes: Option<u64>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes
-                .map(|bytes| formats::measure_throughput_ns(bytes as usize, total_ns));
+            let throughput_mbs =
+                throughput_bytes.map(|bytes| measure_throughput_ns(bytes as usize, total_ns));
 
             report.add_perf(PerfResult {
                 name: name.to_string(),
@@ -102,7 +106,7 @@ fn bench_hedl_to_cypher_graph_scaling(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("graph", nodes), &doc, |b, doc| {
-            b.iter(|| to_cypher(black_box(doc), &ToCypherConfig::default()))
+            b.iter(|| to_cypher(black_box(doc), &ToCypherConfig::default()));
         });
 
         let iterations = if nodes >= 500 {
@@ -116,7 +120,7 @@ fn bench_hedl_to_cypher_graph_scaling(c: &mut Criterion) {
             let _ = to_cypher(&doc, &ToCypherConfig::default());
         });
         add_perf(
-            &format!("cypher_graph_{}_nodes", nodes),
+            &format!("cypher_graph_{nodes}_nodes"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -150,7 +154,7 @@ fn bench_hedl_to_cypher_density(c: &mut Criterion) {
             let _ = to_cypher(&doc, &ToCypherConfig::default());
         });
         add_perf(
-            &format!("cypher_density_{}_edges", edges_per_node),
+            &format!("cypher_density_{edges_per_node}_edges"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -173,7 +177,7 @@ fn bench_hedl_to_cypher_references(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("references", count), &doc, |b, doc| {
-            b.iter(|| to_cypher(black_box(doc), &ToCypherConfig::default()))
+            b.iter(|| to_cypher(black_box(doc), &ToCypherConfig::default()));
         });
 
         let iterations = if count >= 50 { 50 } else { 100 };
@@ -181,7 +185,7 @@ fn bench_hedl_to_cypher_references(c: &mut Criterion) {
             let _ = to_cypher(&doc, &ToCypherConfig::default());
         });
         add_perf(
-            &format!("cypher_refs_{}", count),
+            &format!("cypher_refs_{count}"),
             iterations,
             total_ns,
             Some(hedl.len() as u64),
@@ -203,19 +207,19 @@ fn bench_hedl_to_cypher_configs(c: &mut Criterion) {
 
     // Default config (MERGE with constraints)
     group.bench_function("default_merge", |b| {
-        b.iter(|| to_cypher(black_box(&doc), &ToCypherConfig::default()))
+        b.iter(|| to_cypher(black_box(&doc), &ToCypherConfig::default()));
     });
 
     // CREATE without constraints
     let config_create = ToCypherConfig::new().with_create().without_constraints();
     group.bench_function("create_no_constraints", |b| {
-        b.iter(|| to_cypher(black_box(&doc), &config_create))
+        b.iter(|| to_cypher(black_box(&doc), &config_create));
     });
 
     // Custom batch size
     let config_batch = ToCypherConfig::builder().batch_size(500).build();
     group.bench_function("large_batch", |b| {
-        b.iter(|| to_cypher(black_box(&doc), &config_batch))
+        b.iter(|| to_cypher(black_box(&doc), &config_batch));
     });
 
     group.finish();
@@ -277,7 +281,6 @@ struct GraphConversionResult {
 struct FormatComparisonResult {
     format: String,
     nodes: usize,
-    edges: usize,
     representation_bytes: usize,
     representation_tokens: usize,
     parse_time_ns: u64,
@@ -303,7 +306,7 @@ fn collect_graph_conversion_results() -> Vec<GraphConversionResult> {
         let cypher_text = to_cypher(&doc, &ToCypherConfig::default()).unwrap();
 
         results.push(GraphConversionResult {
-            name: format!("graph_{}_nodes", nodes),
+            name: format!("graph_{nodes}_nodes"),
             nodes,
             edges: nodes * edges_per_node,
             hedl_bytes: hedl.len(),
@@ -330,7 +333,7 @@ fn collect_graph_conversion_results() -> Vec<GraphConversionResult> {
         let cypher_text = to_cypher(&doc, &ToCypherConfig::default()).unwrap();
 
         results.push(GraphConversionResult {
-            name: format!("density_{}_edges", edges_per_node),
+            name: format!("density_{edges_per_node}_edges"),
             nodes,
             edges: nodes * edges_per_node,
             hedl_bytes: hedl.len(),
@@ -362,7 +365,6 @@ fn collect_format_comparison_results() -> Vec<FormatComparisonResult> {
         results.push(FormatComparisonResult {
             format: "HEDL".to_string(),
             nodes,
-            edges: nodes * edges_per_node,
             representation_bytes: hedl.len(),
             representation_tokens: count_tokens(&hedl),
             parse_time_ns: hedl_parse_time,
@@ -377,7 +379,6 @@ fn collect_format_comparison_results() -> Vec<FormatComparisonResult> {
         results.push(FormatComparisonResult {
             format: "JSON Graph".to_string(),
             nodes,
-            edges: nodes * edges_per_node,
             representation_bytes: json_graph.len(),
             representation_tokens: count_tokens(&json_graph),
             parse_time_ns: json_parse_time,
@@ -388,7 +389,6 @@ fn collect_format_comparison_results() -> Vec<FormatComparisonResult> {
         results.push(FormatComparisonResult {
             format: "GraphQL".to_string(),
             nodes,
-            edges: nodes * edges_per_node,
             representation_bytes: graphql.len(),
             representation_tokens: count_tokens(&graphql),
             parse_time_ns: 0, // Not parsed in this benchmark
@@ -399,7 +399,6 @@ fn collect_format_comparison_results() -> Vec<FormatComparisonResult> {
         results.push(FormatComparisonResult {
             format: "RDF/Turtle".to_string(),
             nodes,
-            edges: nodes * edges_per_node,
             representation_bytes: rdf.len(),
             representation_tokens: count_tokens(&rdf),
             parse_time_ns: 0, // Not parsed in this benchmark
@@ -419,7 +418,7 @@ fn generate_json_graph(nodes: usize, edges_per_node: usize) -> String {
         if i > 0 {
             json.push(',');
         }
-        json.push_str(&format!("{{\"id\":{},\"name\":\"node_{}\"}}", i, i));
+        json.push_str(&format!("{{\"id\":{i},\"name\":\"node_{i}\"}}"));
     }
     json.push_str("],\"edges\":[");
     let mut edge_count = 0;
@@ -430,7 +429,7 @@ fn generate_json_graph(nodes: usize, edges_per_node: usize) -> String {
                 if edge_count > 0 {
                     json.push(',');
                 }
-                json.push_str(&format!("{{\"from\":{},\"to\":{}}}", i, target));
+                json.push_str(&format!("{{\"from\":{i},\"to\":{target}}}"));
                 edge_count += 1;
             }
         }
@@ -441,20 +440,19 @@ fn generate_json_graph(nodes: usize, edges_per_node: usize) -> String {
 
 fn generate_graphql_schema(nodes: usize, _edges_per_node: usize) -> String {
     format!(
-        "type Node {{\n  id: ID!\n  name: String!\n  edges: [Node!]!\n}}\n\ntype Query {{\n  nodes: [Node!]!\n  node(id: ID!): Node\n}}\n\n# Generated for {} nodes\n",
-        nodes
+        "type Node {{\n  id: ID!\n  name: String!\n  edges: [Node!]!\n}}\n\ntype Query {{\n  nodes: [Node!]!\n  node(id: ID!): Node\n}}\n\n# Generated for {nodes} nodes\n"
     )
 }
 
 fn generate_rdf_turtle(nodes: usize, edges_per_node: usize) -> String {
     let mut rdf = String::from("@prefix : <http://example.org/> .\n\n");
     for i in 0..nodes {
-        rdf.push_str(&format!(":node_{} a :Node ;\n", i));
-        rdf.push_str(&format!("  :name \"node_{}\" ;\n", i));
+        rdf.push_str(&format!(":node_{i} a :Node ;\n"));
+        rdf.push_str(&format!("  :name \"node_{i}\" ;\n"));
         for j in 1..=edges_per_node {
             let target = (i + j) % nodes;
             if target != i {
-                rdf.push_str(&format!("  :connected_to :node_{} ;\n", target));
+                rdf.push_str(&format!("  :connected_to :node_{target} ;\n"));
             }
         }
         rdf.push_str(" .\n\n");
@@ -886,8 +884,8 @@ fn generate_custom_tables(
 
         table11.rows.push(vec![
             TableCell::String(format!("{}→{}", prev.nodes, curr.nodes)),
-            TableCell::String(format!("{:.2}x", time_mult)),
-            TableCell::String(format!("{:.2}x", mem_mult)),
+            TableCell::String(format!("{time_mult:.2}x")),
+            TableCell::String(format!("{mem_mult:.2}x")),
             TableCell::String(scaling_class.to_string()),
             TableCell::String(bottleneck.to_string()),
         ]);
@@ -1284,7 +1282,7 @@ fn generate_insights(
 
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("HEDL's Natural Graph Fit: {:.1}% more compact than JSON", byte_savings),
+                title: format!("HEDL's Natural Graph Fit: {byte_savings:.1}% more compact than JSON"),
                 description: "HEDL's reference system (@Type:id) maps directly to graph relationships, providing cleaner and more compact representation than JSON adjacency lists".to_string(),
                 data_points: vec![
                     format!("Token savings: {:.1}% ({} vs {} tokens)", token_savings, hedl.representation_tokens, json.representation_tokens),
@@ -1318,10 +1316,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Excellent Scaling: {} performance up to 1000 nodes",
-                scaling_quality
-            ),
+            title: format!("Excellent Scaling: {scaling_quality} performance up to 1000 nodes"),
             description:
                 "Conversion time scales linearly with graph size, suitable for production workloads"
                     .to_string(),
@@ -1359,10 +1354,7 @@ fn generate_insights(
     if avg_us_per_ref < 2.0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Fast Reference Resolution: {:.3}μs per reference",
-                avg_us_per_ref
-            ),
+            title: format!("Fast Reference Resolution: {avg_us_per_ref:.3}μs per reference"),
             description: "HEDL references are resolved to Cypher relationships efficiently"
                 .to_string(),
             data_points: vec![
@@ -1379,7 +1371,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!("Cypher Expansion: {:.1}x larger than HEDL", expansion_ratio),
+            title: format!("Cypher Expansion: {expansion_ratio:.1}x larger than HEDL"),
             description: "Generated Cypher statements are significantly larger than source HEDL due to verbosity of Cypher syntax and constraint generation".to_string(),
             data_points: vec![
                 format!("Expansion ratio: {:.1}x ({} bytes → {} bytes)", expansion_ratio, result_100.hedl_bytes, result_100.cypher_bytes),
@@ -1404,10 +1396,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!(
-                "Density Impact: {:.2}x time for {:.0}x edges",
-                time_mult, edge_mult
-            ),
+            title: format!("Density Impact: {time_mult:.2}x time for {edge_mult:.0}x edges"),
             description: "Relationship density affects conversion time roughly linearly"
                 .to_string(),
             data_points: vec![
@@ -1433,7 +1422,7 @@ fn generate_insights(
         if combined_kb < 200.0 {
             report.add_insight(Insight {
                 category: "strength".to_string(),
-                title: format!("Compact Output: {:.1} KB combined for 1000 nodes", combined_kb),
+                title: format!("Compact Output: {combined_kb:.1} KB combined for 1000 nodes"),
                 description: "Conversion produces compact output suitable for resource-constrained environments".to_string(),
                 data_points: vec![
                     format!("Input: {:.1} KB", result_1000.hedl_bytes as f64 / 1024.0),
@@ -1525,7 +1514,7 @@ fn generate_insights(
 
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!("HEDL {:.0}% More Compact Than RDF/Turtle", size_advantage),
+                title: format!("HEDL {size_advantage:.0}% More Compact Than RDF/Turtle"),
                 description: "HEDL provides similar graph expressiveness with significantly less verbosity than RDF".to_string(),
                 data_points: vec![
                     format!("HEDL: {} bytes vs RDF: {} bytes", hedl.representation_bytes, rdf.representation_bytes),
@@ -1543,7 +1532,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Relationship Statements Dominate: {:.0}% of Cypher Output", rel_pct),
+            title: format!("Relationship Statements Dominate: {rel_pct:.0}% of Cypher Output"),
             description: "In typical graphs (3 edges/node), relationship creation statements comprise the majority of generated Cypher".to_string(),
             data_points: vec![
                 format!("100 nodes: {} CREATE nodes, {} CREATE relationships", result_100.nodes, result_100.edges),
@@ -1595,10 +1584,7 @@ fn generate_insights(
 
     report.add_insight(Insight {
         category: "finding".to_string(),
-        title: format!(
-            "Efficient Cypher: {:.1} Tokens per Statement Average",
-            avg_tokens_per_stmt
-        ),
+        title: format!("Efficient Cypher: {avg_tokens_per_stmt:.1} Tokens per Statement Average"),
         description:
             "Generated Cypher statements are compact and token-efficient for LLM processing"
                 .to_string(),
@@ -1620,7 +1606,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Cypher Generation: {:.1}ms for 1000 nodes", gen_ms),
+            title: format!("Cypher Generation: {gen_ms:.1}ms for 1000 nodes"),
             description: "Cypher generation is fast; actual Neo4j import time depends on database configuration".to_string(),
             data_points: vec![
                 format!("1000 nodes generated in {:.1}ms", gen_ms),
@@ -1640,10 +1626,7 @@ fn generate_insights(
     if avg_line_len < 120.0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!(
-                "Readable Cypher: {:.0} character average statement length",
-                avg_line_len
-            ),
+            title: format!("Readable Cypher: {avg_line_len:.0} character average statement length"),
             description:
                 "Generated Cypher is well-formatted, human-readable, and suitable for debugging"
                     .to_string(),
@@ -1661,7 +1644,7 @@ fn generate_insights(
     } else {
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Cypher Statement Length: {:.0} characters average", avg_line_len),
+            title: format!("Cypher Statement Length: {avg_line_len:.0} characters average"),
             description: "Generated Cypher statements are longer than typical code lines but remain manageable".to_string(),
             data_points: vec![
                 format!("Avg statement length: {:.0} chars", avg_line_len),
@@ -1671,6 +1654,534 @@ fn generate_insights(
             ],
         });
     }
+}
+
+// ============================================================================
+// Streaming API Performance (Task 79-80)
+// ============================================================================
+
+/// Generate Neo4j records for streaming benchmarks
+fn generate_neo4j_records(count: usize) -> Vec<Neo4jRecord> {
+    (0..count)
+        .map(|i| {
+            Neo4jRecord::new(
+                Neo4jNode::new("User", format!("user_{i}"))
+                    .with_property("name", format!("User {i}"))
+                    .with_property("email", format!("user{i}@example.com"))
+                    .with_property("age", (i % 50 + 18) as i64),
+            )
+        })
+        .collect()
+}
+
+fn bench_streaming_vs_buffered(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("streaming_api");
+
+    // Test various record counts
+    for &count in &[100, 500, 1000, 5000] {
+        let records = generate_neo4j_records(count);
+        let config = FromNeo4jConfig::default();
+
+        // Buffered API
+        group.throughput(Throughput::Elements(count as u64));
+        group.bench_with_input(
+            BenchmarkId::new("buffered", count),
+            &records,
+            |b, records| b.iter(|| from_neo4j_records(black_box(records), &config)),
+        );
+
+        // Streaming API (default batch size)
+        let records_clone = records.clone();
+        group.bench_with_input(
+            BenchmarkId::new("streaming_batch_1000", count),
+            &records_clone,
+            |b, records| {
+                b.iter(|| from_records_iter(black_box(records.clone().into_iter()), &config));
+            },
+        );
+
+        // Streaming with small batch size (memory-optimized)
+        let small_batch_config = FromNeo4jConfig::new().with_batch_size(100);
+        let records_clone2 = records.clone();
+        group.bench_with_input(
+            BenchmarkId::new("streaming_batch_100", count),
+            &records_clone2,
+            |b, records| {
+                b.iter(|| {
+                    from_records_iter(black_box(records.clone().into_iter()), &small_batch_config)
+                });
+            },
+        );
+
+        // Collect perf metrics
+        let iterations = if count >= 1000 { 20 } else { 50 };
+
+        let buffered_ns = measure(iterations, || {
+            let _ = from_neo4j_records(&records, &config);
+        });
+        add_perf(
+            &format!("streaming_buffered_{count}_records"),
+            iterations,
+            buffered_ns,
+            Some(count as u64 * 100), // Approximate bytes per record
+        );
+
+        let streaming_ns = measure(iterations, || {
+            let _ = from_records_iter(records.clone().into_iter(), &config);
+        });
+        add_perf(
+            &format!("streaming_iter_{count}_records"),
+            iterations,
+            streaming_ns,
+            Some(count as u64 * 100),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_streaming_batch_sizes(c: &mut Criterion) {
+    let mut group = c.benchmark_group("streaming_batch_sizes");
+
+    // Use 2000 records to show batch size impact
+    let records = generate_neo4j_records(2000);
+
+    for &batch_size in &[50, 100, 250, 500, 1000, 2000] {
+        let config = FromNeo4jConfig::new().with_batch_size(batch_size);
+
+        group.throughput(Throughput::Elements(2000));
+        let records_clone = records.clone();
+        group.bench_with_input(
+            BenchmarkId::new("batch_size", batch_size),
+            &records_clone,
+            |b, records| {
+                b.iter(|| from_records_iter(black_box(records.clone().into_iter()), &config));
+            },
+        );
+
+        let iterations = 30;
+        let total_ns = measure(iterations, || {
+            let _ = from_records_iter(records.clone().into_iter(), &config);
+        });
+        add_perf(
+            &format!("batch_size_{batch_size}"),
+            iterations,
+            total_ns,
+            Some(2000 * 100),
+        );
+    }
+
+    group.finish();
+}
+
+// ============================================================================
+// Index Hints Configuration (Task 79-80)
+// ============================================================================
+
+fn bench_index_hints(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("index_hints");
+
+    // Generate graph with relationships (to trigger index hint generation)
+    let hedl = generate_graph(100, 5);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    // Without index hints
+    let config_no_hints = ToCypherConfig::default().with_index_hints(false);
+    group.throughput(Throughput::Bytes(hedl.len() as u64));
+    group.bench_with_input(BenchmarkId::new("hints", "disabled"), &doc, |b, doc| {
+        b.iter(|| to_cypher(black_box(doc), &config_no_hints));
+    });
+
+    // With index hints (default)
+    let config_with_hints = ToCypherConfig::default().with_index_hints(true);
+    group.bench_with_input(BenchmarkId::new("hints", "enabled"), &doc, |b, doc| {
+        b.iter(|| to_cypher(black_box(doc), &config_with_hints));
+    });
+
+    // Collect perf metrics
+    let iterations = 50;
+
+    let no_hints_ns = measure(iterations, || {
+        let _ = to_cypher(&doc, &config_no_hints);
+    });
+    add_perf(
+        "index_hints_disabled",
+        iterations,
+        no_hints_ns,
+        Some(hedl.len() as u64),
+    );
+
+    let with_hints_ns = measure(iterations, || {
+        let _ = to_cypher(&doc, &config_with_hints);
+    });
+    add_perf(
+        "index_hints_enabled",
+        iterations,
+        with_hints_ns,
+        Some(hedl.len() as u64),
+    );
+
+    // Also measure output size difference
+    let cypher_no_hints = to_cypher(&doc, &config_no_hints).unwrap();
+    let cypher_with_hints = to_cypher(&doc, &config_with_hints).unwrap();
+
+    // Log size difference for report
+    let _size_diff = cypher_with_hints.len() as i64 - cypher_no_hints.len() as i64;
+
+    group.finish();
+}
+
+fn bench_template_caching(c: &mut Criterion) {
+    let mut group = c.benchmark_group("template_caching");
+
+    let hedl = generate_graph(200, 3);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    // With template caching (default)
+    let config_cached = ToCypherConfig::default().with_template_caching(true);
+    group.throughput(Throughput::Bytes(hedl.len() as u64));
+    group.bench_with_input(BenchmarkId::new("caching", "enabled"), &doc, |b, doc| {
+        b.iter(|| to_cypher(black_box(doc), &config_cached));
+    });
+
+    // Without template caching
+    let config_uncached = ToCypherConfig::default().with_template_caching(false);
+    group.bench_with_input(BenchmarkId::new("caching", "disabled"), &doc, |b, doc| {
+        b.iter(|| to_cypher(black_box(doc), &config_uncached));
+    });
+
+    // Collect perf metrics
+    let iterations = 50;
+
+    let cached_ns = measure(iterations, || {
+        let _ = to_cypher(&doc, &config_cached);
+    });
+    add_perf(
+        "template_caching_enabled",
+        iterations,
+        cached_ns,
+        Some(hedl.len() as u64),
+    );
+
+    let uncached_ns = measure(iterations, || {
+        let _ = to_cypher(&doc, &config_uncached);
+    });
+    add_perf(
+        "template_caching_disabled",
+        iterations,
+        uncached_ns,
+        Some(hedl.len() as u64),
+    );
+
+    group.finish();
+}
+
+// ============================================================================
+// Transaction Batching (Task 86)
+// ============================================================================
+
+fn bench_transaction_batching(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("transaction_batching");
+
+    // Generate a graph with enough statements to test batching
+    let hedl = generate_graph(200, 5);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    // Get statements for batching tests
+    let config = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_batch_size(50);
+    let statements = to_cypher_statements(&doc, &config).unwrap();
+
+    group.throughput(Throughput::Elements(statements.len() as u64));
+
+    // Test batching disabled (baseline)
+    let config_disabled = ToCypherConfig::new().with_transaction_batching(false);
+    group.bench_with_input(
+        BenchmarkId::new("strategy", "disabled"),
+        &statements,
+        |b, stmts| b.iter(|| batch_statements(black_box(stmts), &config_disabled)),
+    );
+
+    // Test statement count batching
+    let config_stmt_count = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_strategy(TransactionStrategy::StatementCount)
+        .with_transaction_batch_size(50);
+    group.bench_with_input(
+        BenchmarkId::new("strategy", "statement_count"),
+        &statements,
+        |b, stmts| b.iter(|| batch_statements(black_box(stmts), &config_stmt_count)),
+    );
+
+    // Test row count batching
+    let config_row_count = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_strategy(TransactionStrategy::RowCount)
+        .with_transaction_row_limit(500)
+        .with_transaction_batch_size(100);
+    group.bench_with_input(
+        BenchmarkId::new("strategy", "row_count"),
+        &statements,
+        |b, stmts| b.iter(|| batch_statements(black_box(stmts), &config_row_count)),
+    );
+
+    // Test statement type batching
+    let config_stmt_type = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_strategy(TransactionStrategy::StatementType)
+        .with_transaction_batch_size(100);
+    group.bench_with_input(
+        BenchmarkId::new("strategy", "statement_type"),
+        &statements,
+        |b, stmts| b.iter(|| batch_statements(black_box(stmts), &config_stmt_type)),
+    );
+
+    // Test adaptive batching
+    let config_adaptive = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_strategy(TransactionStrategy::Adaptive)
+        .with_transaction_row_limit(500)
+        .with_transaction_batch_size(100);
+    group.bench_with_input(
+        BenchmarkId::new("strategy", "adaptive"),
+        &statements,
+        |b, stmts| b.iter(|| batch_statements(black_box(stmts), &config_adaptive)),
+    );
+
+    // Collect perf metrics
+    let iterations = 100;
+
+    let disabled_ns = measure(iterations, || {
+        let _ = batch_statements(&statements, &config_disabled);
+    });
+    add_perf(
+        "tx_batch_disabled",
+        iterations,
+        disabled_ns,
+        Some(statements.len() as u64),
+    );
+
+    let stmt_count_ns = measure(iterations, || {
+        let _ = batch_statements(&statements, &config_stmt_count);
+    });
+    add_perf(
+        "tx_batch_stmt_count",
+        iterations,
+        stmt_count_ns,
+        Some(statements.len() as u64),
+    );
+
+    let row_count_ns = measure(iterations, || {
+        let _ = batch_statements(&statements, &config_row_count);
+    });
+    add_perf(
+        "tx_batch_row_count",
+        iterations,
+        row_count_ns,
+        Some(statements.len() as u64),
+    );
+
+    let stmt_type_ns = measure(iterations, || {
+        let _ = batch_statements(&statements, &config_stmt_type);
+    });
+    add_perf(
+        "tx_batch_stmt_type",
+        iterations,
+        stmt_type_ns,
+        Some(statements.len() as u64),
+    );
+
+    let adaptive_ns = measure(iterations, || {
+        let _ = batch_statements(&statements, &config_adaptive);
+    });
+    add_perf(
+        "tx_batch_adaptive",
+        iterations,
+        adaptive_ns,
+        Some(statements.len() as u64),
+    );
+
+    group.finish();
+}
+
+fn bench_transaction_batch_sizes(c: &mut Criterion) {
+    let mut group = c.benchmark_group("transaction_batch_sizes");
+
+    // Generate graph with many statements
+    let hedl = generate_graph(500, 3);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    let base_config = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_strategy(TransactionStrategy::StatementCount);
+    let statements = to_cypher_statements(&doc, &base_config).unwrap();
+
+    group.throughput(Throughput::Elements(statements.len() as u64));
+
+    // Test various batch sizes
+    for &batch_size in &[10, 25, 50, 100, 200, 500] {
+        let config = ToCypherConfig::new()
+            .with_transaction_batching(true)
+            .with_transaction_strategy(TransactionStrategy::StatementCount)
+            .with_transaction_batch_size(batch_size);
+
+        group.bench_with_input(
+            BenchmarkId::new("batch_size", batch_size),
+            &statements,
+            |b, stmts| b.iter(|| batch_statements(black_box(stmts), &config)),
+        );
+
+        let iterations = 50;
+        let total_ns = measure(iterations, || {
+            let _ = batch_statements(&statements, &config);
+        });
+        add_perf(
+            &format!("tx_batch_size_{batch_size}"),
+            iterations,
+            total_ns,
+            Some(statements.len() as u64),
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_transaction_rendering(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("transaction_rendering");
+
+    // Generate statements and batch them
+    let hedl = generate_graph(200, 3);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    let config = ToCypherConfig::new()
+        .with_transaction_batching(true)
+        .with_transaction_batch_size(50);
+    let statements = to_cypher_statements(&doc, &config).unwrap();
+    let batches = batch_statements(&statements, &config);
+
+    group.throughput(Throughput::Elements(batches.len() as u64));
+
+    // Test rendering with comments
+    group.bench_function("render_with_comments", |b| {
+        b.iter(|| {
+            for batch in &batches {
+                black_box(batch.render(true));
+            }
+        });
+    });
+
+    // Test rendering without comments
+    group.bench_function("render_no_comments", |b| {
+        b.iter(|| {
+            for batch in &batches {
+                black_box(batch.render(false));
+            }
+        });
+    });
+
+    // Test rendering statements only (no transaction markers)
+    group.bench_function("render_statements_only", |b| {
+        b.iter(|| {
+            for batch in &batches {
+                black_box(batch.render_statements(true));
+            }
+        });
+    });
+
+    // Collect perf metrics
+    let iterations = 50;
+
+    let with_comments_ns = measure(iterations, || {
+        for batch in &batches {
+            let _ = batch.render(true);
+        }
+    });
+    add_perf(
+        "tx_render_with_comments",
+        iterations,
+        with_comments_ns,
+        Some(batches.len() as u64),
+    );
+
+    let no_comments_ns = measure(iterations, || {
+        for batch in &batches {
+            let _ = batch.render(false);
+        }
+    });
+    add_perf(
+        "tx_render_no_comments",
+        iterations,
+        no_comments_ns,
+        Some(batches.len() as u64),
+    );
+
+    group.finish();
+}
+
+fn bench_high_throughput_config(c: &mut Criterion) {
+    let mut group = c.benchmark_group("high_throughput_config");
+
+    // Generate large graph for production-like testing
+    let hedl = generate_graph(500, 5);
+    let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
+
+    group.throughput(Throughput::Bytes(hedl.len() as u64));
+
+    // Default config (baseline)
+    let config_default = ToCypherConfig::default();
+    group.bench_with_input(BenchmarkId::new("config", "default"), &doc, |b, doc| {
+        b.iter(|| to_cypher_statements(black_box(doc), &config_default));
+    });
+
+    // High throughput config
+    let config_high_throughput = ToCypherConfig::for_high_throughput();
+    group.bench_with_input(
+        BenchmarkId::new("config", "high_throughput"),
+        &doc,
+        |b, doc| b.iter(|| to_cypher_statements(black_box(doc), &config_high_throughput)),
+    );
+
+    // Bulk import config
+    let config_bulk = ToCypherConfig::for_bulk_import();
+    group.bench_with_input(BenchmarkId::new("config", "bulk_import"), &doc, |b, doc| {
+        b.iter(|| to_cypher_statements(black_box(doc), &config_bulk));
+    });
+
+    // Production config
+    let config_production = ToCypherConfig::for_production();
+    group.bench_with_input(BenchmarkId::new("config", "production"), &doc, |b, doc| {
+        b.iter(|| to_cypher_statements(black_box(doc), &config_production));
+    });
+
+    // Collect perf metrics
+    let iterations = 30;
+
+    let default_ns = measure(iterations, || {
+        let _ = to_cypher_statements(&doc, &config_default);
+    });
+    add_perf(
+        "config_default_500nodes",
+        iterations,
+        default_ns,
+        Some(hedl.len() as u64),
+    );
+
+    let high_throughput_ns = measure(iterations, || {
+        let _ = to_cypher_statements(&doc, &config_high_throughput);
+    });
+    add_perf(
+        "config_high_throughput_500nodes",
+        iterations,
+        high_throughput_ns,
+        Some(hedl.len() as u64),
+    );
+
+    group.finish();
 }
 
 // ============================================================================
@@ -1711,7 +2222,7 @@ fn export_reports() {
         // Export to files
         let config = ExportConfig::all();
         if let Err(e) = report.save_all("target/neo4j_cypher_report", &config) {
-            eprintln!("Warning: Failed to export: {}", e);
+            eprintln!("Warning: Failed to export: {e}");
         } else {
             println!("\n✅ Reports exported to target/neo4j_cypher_report.*");
         }
@@ -1730,6 +2241,14 @@ criterion_group!(
     bench_hedl_to_cypher_density,
     bench_hedl_to_cypher_references,
     bench_hedl_to_cypher_configs,
+    bench_streaming_vs_buffered,
+    bench_streaming_batch_sizes,
+    bench_index_hints,
+    bench_template_caching,
+    bench_transaction_batching,
+    bench_transaction_batch_sizes,
+    bench_transaction_rendering,
+    bench_high_throughput_config,
     bench_export
 );
 criterion_main!(benches);

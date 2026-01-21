@@ -20,20 +20,21 @@
 //! Measures parse performance across various document sizes and structures using
 //! the new infrastructure from src/core/, src/harness/, and src/reporters/.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
     ExportConfig, Insight, PerfResult, TableCell,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::Instant;
 
 // Thread-local report storage
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static PARSE_RESULTS: RefCell<Vec<ComprehensiveParseResult>> = RefCell::new(Vec::new());
-    static COMPETITOR_RESULTS: RefCell<Vec<CompetitorResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static PARSE_RESULTS: RefCell<Vec<ComprehensiveParseResult>> = const { RefCell::new(Vec::new()) };
+    static COMPETITOR_RESULTS: RefCell<Vec<CompetitorResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: std::sync::Once = std::sync::Once::new();
@@ -46,7 +47,6 @@ struct ComprehensiveParseResult {
     records: usize,
     parse_times_ns: Vec<u64>,
     complexity: &'static str,
-    features: Vec<String>,
     cold_parse_ns: u64,
     warm_parse_ns: u64,
     // Memory profiling
@@ -65,14 +65,9 @@ struct ComprehensiveParseResult {
 struct CompetitorResult {
     format: String,
     parser: String,
-    dataset_name: String,
     size_bytes: usize,
     records: usize,
     parse_times_ns: Vec<u64>,
-    supports_streaming: bool,
-    supports_incremental: bool,
-    supports_error_recovery: bool,
-    memory_bytes: usize,
 }
 
 impl ComprehensiveParseResult {
@@ -227,13 +222,7 @@ fn record_competitor_result(result: CompetitorResult) {
     });
 }
 
-fn collect_parse_metrics(
-    name: &str,
-    hedl: &str,
-    records: usize,
-    complexity: &'static str,
-    features: Vec<String>,
-) {
+fn collect_parse_metrics(name: &str, hedl: &str, records: usize, complexity: &'static str) {
     let iterations = if records <= 100 {
         100
     } else if records <= 1000 {
@@ -269,10 +258,10 @@ fn collect_parse_metrics(
     }
     allocation_count /= iterations;
 
-    let warm_parse_ns = if !parse_times.is_empty() {
-        parse_times.iter().sum::<u64>() / parse_times.len() as u64
-    } else {
+    let warm_parse_ns = if parse_times.is_empty() {
         0
+    } else {
+        parse_times.iter().sum::<u64>() / parse_times.len() as u64
     };
 
     // Simulate cache hits (schema parsing reuses structures)
@@ -289,7 +278,6 @@ fn collect_parse_metrics(
         records,
         parse_times_ns: parse_times,
         complexity,
-        features,
         cold_parse_ns,
         warm_parse_ns,
         peak_memory_bytes: peak_memory,
@@ -319,17 +307,11 @@ fn bench_parse_flat_structures(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(size), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
 
         // Collect comprehensive metrics
-        collect_parse_metrics(
-            &format!("flat_users_{}", size),
-            &hedl,
-            size,
-            "Flat",
-            vec!["basic".to_string()],
-        );
+        collect_parse_metrics(&format!("flat_users_{size}"), &hedl, size, "Flat");
 
         // Record legacy perf result
         let iterations = if size <= 100 { 1000 } else { 100 };
@@ -340,7 +322,7 @@ fn bench_parse_flat_structures(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_flat_{}", size),
+            &format!("parse_flat_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -361,21 +343,15 @@ fn bench_parse_nested_structures(c: &mut Criterion) {
     for &(posts, comments) in &[(5, 2), (10, 5), (20, 10), (50, 20)] {
         let hedl = generate_blog(posts, comments);
         let bytes = hedl.len() as u64;
-        let param = format!("{}p_{}c", posts, comments);
+        let param = format!("{posts}p_{comments}c");
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("blog", &param), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
 
         // Collect comprehensive metrics
-        collect_parse_metrics(
-            &format!("nested_blog_{}", param),
-            &hedl,
-            posts,
-            "Nested",
-            vec!["nesting".to_string(), "arrays".to_string()],
-        );
+        collect_parse_metrics(&format!("nested_blog_{param}"), &hedl, posts, "Nested");
 
         // Collect metrics
         let iterations = if posts <= 10 { 500 } else { 100 };
@@ -386,7 +362,7 @@ fn bench_parse_nested_structures(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_nested_{}", param),
+            &format!("parse_nested_{param}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -413,17 +389,11 @@ fn bench_parse_scaling(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(size), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
 
         // Collect comprehensive metrics
-        collect_parse_metrics(
-            &format!("scaling_users_{}", size),
-            &hedl,
-            size,
-            "Flat",
-            vec!["basic".to_string()],
-        );
+        collect_parse_metrics(&format!("scaling_users_{size}"), &hedl, size, "Flat");
 
         // Collect metrics
         let iterations = match size {
@@ -439,7 +409,7 @@ fn bench_parse_scaling(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_scaling_{}", size),
+            &format!("parse_scaling_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -460,24 +430,19 @@ fn bench_parse_hierarchical(c: &mut Criterion) {
     for &(posts, comments) in &[(10, 3), (50, 5), (100, 10)] {
         let hedl = generate_blog(posts, comments);
         let bytes = hedl.len() as u64;
-        let param = format!("{}p_{}c", posts, comments);
+        let param = format!("{posts}p_{comments}c");
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("blog", &param), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
 
         // Collect comprehensive metrics
         collect_parse_metrics(
-            &format!("hierarchical_blog_{}", param),
+            &format!("hierarchical_blog_{param}"),
             &hedl,
             posts,
             "DeepHierarchy",
-            vec![
-                "nesting".to_string(),
-                "arrays".to_string(),
-                "hierarchy".to_string(),
-            ],
         );
 
         // Collect metrics
@@ -489,7 +454,7 @@ fn bench_parse_hierarchical(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_hierarchical_blog_{}", param),
+            &format!("parse_hierarchical_blog_{param}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -512,17 +477,11 @@ fn bench_parse_products(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::from_parameter(size), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
 
         // Collect comprehensive metrics
-        collect_parse_metrics(
-            &format!("products_{}", size),
-            &hedl,
-            size,
-            "Shallow",
-            vec!["basic".to_string(), "mixed_types".to_string()],
-        );
+        collect_parse_metrics(&format!("products_{size}"), &hedl, size, "Shallow");
 
         // Collect metrics
         let iterations = match size {
@@ -538,7 +497,7 @@ fn bench_parse_products(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         record_perf(
-            &format!("parse_products_{}", size),
+            &format!("parse_products_{size}"),
             iterations,
             total_ns,
             Some(bytes),
@@ -580,22 +539,17 @@ fn bench_comparative_json(c: &mut Criterion) {
         record_competitor_result(CompetitorResult {
             format: "JSON".to_string(),
             parser: "serde_json".to_string(),
-            dataset_name: format!("users_{}", size),
             size_bytes: json.len(),
             records: size,
             parse_times_ns: json_times,
-            supports_streaming: false,
-            supports_incremental: false,
-            supports_error_recovery: false,
-            memory_bytes: 0, // not measured
         });
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("hedl", size), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
         group.bench_with_input(BenchmarkId::new("json", size), &json, |b, input| {
-            b.iter(|| serde_json::from_str::<serde_json::Value>(black_box(input)))
+            b.iter(|| serde_json::from_str::<serde_json::Value>(black_box(input)));
         });
     }
 
@@ -620,19 +574,14 @@ fn bench_comparative_yaml(c: &mut Criterion) {
         record_competitor_result(CompetitorResult {
             format: "YAML".to_string(),
             parser: "serde_yaml".to_string(),
-            dataset_name: format!("users_{}", size),
             size_bytes: yaml.len(),
             records: size,
             parse_times_ns: yaml_times,
-            supports_streaming: false,
-            supports_incremental: false,
-            supports_error_recovery: true,
-            memory_bytes: 0, // not measured
         });
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
         group.bench_with_input(BenchmarkId::new("yaml", size), &yaml, |b, input| {
-            b.iter(|| serde_yaml::from_str::<serde_yaml::Value>(black_box(input)))
+            b.iter(|| serde_yaml::from_str::<serde_yaml::Value>(black_box(input)));
         });
     }
 
@@ -658,14 +607,9 @@ fn bench_comparative_csv(c: &mut Criterion) {
         record_competitor_result(CompetitorResult {
             format: "CSV".to_string(),
             parser: "csv".to_string(),
-            dataset_name: format!("users_{}", size),
             size_bytes: csv_data.len(),
             records: size,
             parse_times_ns: csv_times,
-            supports_streaming: true,
-            supports_incremental: false,
-            supports_error_recovery: true,
-            memory_bytes: 0, // not measured
         });
 
         group.throughput(Throughput::Bytes(hedl.len() as u64));
@@ -673,7 +617,7 @@ fn bench_comparative_csv(c: &mut Criterion) {
             b.iter(|| {
                 let mut rdr = csv::Reader::from_reader(black_box(input.as_bytes()));
                 for _ in rdr.records() {}
-            })
+            });
         });
     }
 
@@ -773,7 +717,7 @@ fn bench_error_handling(c: &mut Criterion) {
         });
 
         group.bench_function(name, |b| {
-            b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(hedl.as_bytes())));
         });
     }
 
@@ -816,8 +760,8 @@ fn bench_thread_scaling(c: &mut Criterion) {
                     datasets.par_iter().for_each(|hedl| {
                         let _ = hedl_core::parse(black_box(hedl.as_bytes()));
                     });
-                })
-            })
+                });
+            });
         });
     }
 
@@ -923,7 +867,7 @@ fn create_error_handling_table(results: &[ComprehensiveParseResult]) -> CustomTa
     };
 
     let baseline = results.iter().find(|r| r.error_count == 0);
-    let baseline_time = baseline.map(|r| r.avg_time_ns()).unwrap_or(0);
+    let baseline_time = baseline.map_or(0, ComprehensiveParseResult::avg_time_ns);
 
     for result in results.iter().filter(|r| r.error_handling_ns > 0).take(5) {
         let overhead = if baseline_time > 0 {
@@ -1061,10 +1005,9 @@ fn create_complexity_table(results: &[ComprehensiveParseResult]) -> CustomTable 
     let baseline = by_complexity
         .get("Flat")
         .and_then(|v| v.first())
-        .map(|r| r.avg_time_ns())
-        .unwrap_or(1);
+        .map_or(1, |r| r.avg_time_ns());
 
-    for (complexity, group) in by_complexity.iter() {
+    for (complexity, group) in &by_complexity {
         if let Some(example) = group.first() {
             let avg_time = example.avg_time_ns();
             let records_per_sec = if avg_time > 0 {
@@ -1075,7 +1018,7 @@ fn create_complexity_table(results: &[ComprehensiveParseResult]) -> CustomTable 
             let factor = avg_time as f64 / baseline as f64;
 
             table.rows.push(vec![
-                TableCell::String(complexity.to_string()),
+                TableCell::String((*complexity).to_string()),
                 TableCell::String(example.dataset_name.clone()),
                 TableCell::Float(avg_time as f64 / 1000.0),
                 TableCell::Float(records_per_sec),
@@ -1152,28 +1095,19 @@ fn create_format_comparison_table(
     let hedl_medium = hedl_results.iter().find(|r| r.records == sizes::MEDIUM);
     let hedl_large = hedl_results.iter().find(|r| r.records == sizes::LARGE);
 
-    let hedl_avg_throughput = hedl_results.iter().map(|r| r.throughput_mbs()).sum::<f64>()
+    let hedl_avg_throughput = hedl_results
+        .iter()
+        .map(ComprehensiveParseResult::throughput_mbs)
+        .sum::<f64>()
         / hedl_results.len().max(1) as f64;
 
     // HEDL row
     table.rows.push(vec![
         TableCell::String("HEDL".to_string()),
         TableCell::String("hedl_core".to_string()),
-        TableCell::Float(
-            hedl_small
-                .map(|r| r.avg_time_ns() as f64 / 1000.0)
-                .unwrap_or(0.0),
-        ),
-        TableCell::Float(
-            hedl_medium
-                .map(|r| r.avg_time_ns() as f64 / 1000.0)
-                .unwrap_or(0.0),
-        ),
-        TableCell::Float(
-            hedl_large
-                .map(|r| r.avg_time_ns() as f64 / 1000.0)
-                .unwrap_or(0.0),
-        ),
+        TableCell::Float(hedl_small.map_or(0.0, |r| r.avg_time_ns() as f64 / 1000.0)),
+        TableCell::Float(hedl_medium.map_or(0.0, |r| r.avg_time_ns() as f64 / 1000.0)),
+        TableCell::Float(hedl_large.map_or(0.0, |r| r.avg_time_ns() as f64 / 1000.0)),
         TableCell::Float(hedl_avg_throughput),
         TableCell::String("baseline".to_string()),
     ]);
@@ -1201,29 +1135,14 @@ fn create_format_comparison_table(
             0.0
         };
 
-        let parser_name = results
-            .first()
-            .map(|r| r.parser.as_str())
-            .unwrap_or("unknown");
+        let parser_name = results.first().map_or("unknown", |r| r.parser.as_str());
 
         table.rows.push(vec![
             TableCell::String(format),
             TableCell::String(parser_name.to_string()),
-            TableCell::Float(
-                small
-                    .map(|r| r.avg_time_ns() as f64 / 1000.0)
-                    .unwrap_or(0.0),
-            ),
-            TableCell::Float(
-                medium
-                    .map(|r| r.avg_time_ns() as f64 / 1000.0)
-                    .unwrap_or(0.0),
-            ),
-            TableCell::Float(
-                large
-                    .map(|r| r.avg_time_ns() as f64 / 1000.0)
-                    .unwrap_or(0.0),
-            ),
+            TableCell::Float(small.map_or(0.0, |r| r.avg_time_ns() as f64 / 1000.0)),
+            TableCell::Float(medium.map_or(0.0, |r| r.avg_time_ns() as f64 / 1000.0)),
+            TableCell::Float(large.map_or(0.0, |r| r.avg_time_ns() as f64 / 1000.0)),
             TableCell::Float(avg_throughput),
             TableCell::Float(vs_hedl),
         ]);
@@ -1392,8 +1311,11 @@ fn generate_insights(
     // Find extremes
     let fastest = results.iter().min_by_key(|r| r.avg_time_ns()).unwrap();
     let slowest = results.iter().max_by_key(|r| r.avg_time_ns()).unwrap();
-    let avg_throughput: f64 =
-        results.iter().map(|r| r.throughput_mbs()).sum::<f64>() / results.len() as f64;
+    let avg_throughput: f64 = results
+        .iter()
+        .map(ComprehensiveParseResult::throughput_mbs)
+        .sum::<f64>()
+        / results.len() as f64;
 
     // STRENGTH 1: Best performance
     insights.push(Insight {
@@ -1422,7 +1344,7 @@ fn generate_insights(
     insights.push(Insight {
         category: "strength".to_string(),
         title: "High Throughput Across All Sizes".to_string(),
-        description: format!("Average throughput: {:.2} MB/s", avg_throughput),
+        description: format!("Average throughput: {avg_throughput:.2} MB/s"),
         data_points: vec![
             "Efficient parsing for large datasets".to_string(),
             format!("Consistent performance across {} test cases", results.len()),
@@ -1430,7 +1352,7 @@ fn generate_insights(
                 "Peak throughput: {:.2} MB/s",
                 results
                     .iter()
-                    .map(|r| r.throughput_mbs())
+                    .map(ComprehensiveParseResult::throughput_mbs)
                     .fold(0.0, f64::max)
             ),
         ],
@@ -1448,15 +1370,14 @@ fn generate_insights(
         category: "strength".to_string(),
         title: "Effective Schema Caching".to_string(),
         description: format!(
-            "Warm parses are {:.2}x faster than cold parses on average",
-            avg_cold_warm_speedup
+            "Warm parses are {avg_cold_warm_speedup:.2}x faster than cold parses on average"
         ),
         data_points: vec![
             format!(
                 "Cold parse overhead averages {:.1}μs",
                 results
                     .iter()
-                    .map(|r| (r.cold_parse_ns - r.warm_parse_ns) as f64 / 1000.0)
+                    .map(|r| r.cold_parse_ns.saturating_sub(r.warm_parse_ns) as f64 / 1000.0)
                     .sum::<f64>()
                     / results.len().max(1) as f64
             ),
@@ -1468,7 +1389,7 @@ fn generate_insights(
     let flat_avg = results
         .iter()
         .filter(|r| r.complexity == "Flat")
-        .map(|r| r.avg_time_ns())
+        .map(ComprehensiveParseResult::avg_time_ns)
         .sum::<u64>()
         / results
             .iter()
@@ -1479,7 +1400,7 @@ fn generate_insights(
     let nested_avg = results
         .iter()
         .filter(|r| r.complexity == "Nested" || r.complexity == "DeepHierarchy")
-        .map(|r| r.avg_time_ns())
+        .map(ComprehensiveParseResult::avg_time_ns)
         .sum::<u64>()
         / results
             .iter()
@@ -1493,8 +1414,7 @@ fn generate_insights(
             category: "weakness".to_string(),
             title: "Nested Structure Overhead".to_string(),
             description: format!(
-                "Nested/hierarchical structures incur {:.1}% overhead vs flat structures",
-                overhead
+                "Nested/hierarchical structures incur {overhead:.1}% overhead vs flat structures"
             ),
             data_points: vec![
                 format!("Flat structure avg: {:.1}μs", flat_avg as f64 / 1000.0),
@@ -1549,7 +1469,7 @@ fn generate_insights(
             let hedl_comparable = results
                 .iter()
                 .filter(|r| json_results.iter().any(|j| j.records == r.records))
-                .map(|r| r.avg_time_ns())
+                .map(ComprehensiveParseResult::avg_time_ns)
                 .sum::<u64>()
                 / results
                     .iter()
@@ -1601,14 +1521,14 @@ fn generate_insights(
     // FINDING 1: Consistency analysis
     let avg_cv = results
         .iter()
-        .map(|r| r.coefficient_of_variation())
+        .map(ComprehensiveParseResult::coefficient_of_variation)
         .sum::<f64>()
         / results.len().max(1) as f64;
 
     insights.push(Insight {
         category: "finding".to_string(),
         title: "Highly Consistent Performance".to_string(),
-        description: format!("Average coefficient of variation: {:.1}%", avg_cv),
+        description: format!("Average coefficient of variation: {avg_cv:.1}%"),
         data_points: vec![
             "Low variability indicates predictable performance".to_string(),
             "Suitable for latency-sensitive applications".to_string(),
@@ -1620,14 +1540,14 @@ fn generate_insights(
     let small_throughput = results
         .iter()
         .filter(|r| r.records <= 100)
-        .map(|r| r.throughput_mbs())
+        .map(ComprehensiveParseResult::throughput_mbs)
         .sum::<f64>()
         / results.iter().filter(|r| r.records <= 100).count().max(1) as f64;
 
     let large_throughput = results
         .iter()
         .filter(|r| r.records >= 1000)
-        .map(|r| r.throughput_mbs())
+        .map(ComprehensiveParseResult::throughput_mbs)
         .sum::<f64>()
         / results.iter().filter(|r| r.records >= 1000).count().max(1) as f64;
 
@@ -1663,10 +1583,7 @@ fn generate_insights(
     insights.push(Insight {
         category: "finding".to_string(),
         title: "Schema Caching Highly Effective".to_string(),
-        description: format!(
-            "Average cache benefit: {:.1}μs per parse",
-            cache_benefit_avg
-        ),
+        description: format!("Average cache benefit: {cache_benefit_avg:.1}μs per parse"),
         data_points: vec![
             format!(
                 "Total time saved across {} parses: {:.1}ms",
@@ -1682,7 +1599,7 @@ fn generate_insights(
     let small_us_per_kb = results
         .iter()
         .filter(|r| r.size_bytes <= 10_000)
-        .map(|r| r.us_per_kb())
+        .map(ComprehensiveParseResult::us_per_kb)
         .sum::<f64>()
         / results
             .iter()
@@ -1693,7 +1610,7 @@ fn generate_insights(
     let large_us_per_kb = results
         .iter()
         .filter(|r| r.size_bytes >= 50_000)
-        .map(|r| r.us_per_kb())
+        .map(ComprehensiveParseResult::us_per_kb)
         .sum::<f64>()
         / results
             .iter()
@@ -1713,8 +1630,7 @@ fn generate_insights(
         category: "finding".to_string(),
         title: "Parse Efficiency by File Size".to_string(),
         description: format!(
-            "Efficiency {} with file size: {:.2}μs/KB (small) vs {:.2}μs/KB (large)",
-            efficiency_trend, small_us_per_kb, large_us_per_kb
+            "Efficiency {efficiency_trend} with file size: {small_us_per_kb:.2}μs/KB (small) vs {large_us_per_kb:.2}μs/KB (large)"
         ),
         data_points: vec![
             format!("Small files (<10KB): {:.2}μs/KB average", small_us_per_kb),
@@ -1763,8 +1679,7 @@ fn generate_insights(
         category: "recommendation".to_string(),
         title: "Memory Allocation Pattern Analysis".to_string(),
         description: format!(
-            "Average {:.1} allocations per record, allocation size variance: {}B - {}B",
-            allocations_per_record, min_alloc_size, max_alloc_size
+            "Average {allocations_per_record:.1} allocations per record, allocation size variance: {min_alloc_size}B - {max_alloc_size}B"
         ),
         data_points: vec![
             format!(
@@ -1811,7 +1726,7 @@ fn export_reports(c: &mut Criterion) {
     // Clone data out of thread-local storage to avoid borrow checker issues
     let results = PARSE_RESULTS.with(|r| r.borrow().clone());
     let competitor_results = COMPETITOR_RESULTS.with(|r| r.borrow().clone());
-    let base_report = REPORT.with(|r| r.borrow().as_ref().map(|rep| rep.clone()));
+    let base_report = REPORT.with(|r| r.borrow().as_ref().map(std::clone::Clone::clone));
 
     if let Some(mut new_report) = base_report {
         println!("\n{}", "=".repeat(80));
@@ -1894,21 +1809,21 @@ fn export_reports(c: &mut Criterion) {
             .iter()
             .filter(|i| i.category == "finding")
             .count();
-        println!("  - Strengths: {}", strength_count);
-        println!("  - Weaknesses: {}", weakness_count);
-        println!("  - Recommendations: {}", recommendation_count);
-        println!("  - Findings: {}", finding_count);
+        println!("  - Strengths: {strength_count}");
+        println!("  - Weaknesses: {weakness_count}");
+        println!("  - Recommendations: {recommendation_count}");
+        println!("  - Findings: {finding_count}");
 
         // Create target directory
         if let Err(e) = std::fs::create_dir_all("target") {
-            eprintln!("✗ Failed to create target directory: {}", e);
+            eprintln!("✗ Failed to create target directory: {e}");
             return;
         }
 
         // Export all formats
         let config = ExportConfig::all();
         match new_report.save_all("target/parsing_report", &config) {
-            Ok(_) => {
+            Ok(()) => {
                 println!("\n✓ Exported comprehensive report:");
                 println!(
                     "  - target/parsing_report.json ({} tables)",
@@ -1920,7 +1835,7 @@ fn export_reports(c: &mut Criterion) {
                 );
                 println!("  - target/parsing_report.html (full visualization)");
             }
-            Err(e) => eprintln!("✗ Export failed: {}", e),
+            Err(e) => eprintln!("✗ Export failed: {e}"),
         }
 
         println!("\n{}", "=".repeat(80));

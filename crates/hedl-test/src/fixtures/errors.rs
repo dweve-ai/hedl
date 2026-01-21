@@ -25,7 +25,8 @@ use std::collections::BTreeMap;
 
 /// Invalid HEDL text samples for parser error testing.
 ///
-/// Each tuple contains (name, hedl_text, expected_error_kind).
+/// Each tuple contains (name, `hedl_text`, `expected_error_kind`).
+#[must_use]
 pub fn invalid_hedl_samples() -> Vec<(&'static str, &'static str)> {
     vec![
         ("empty", ""),
@@ -48,7 +49,8 @@ pub fn invalid_hedl_samples() -> Vec<(&'static str, &'static str)> {
 
 /// Invalid expression strings for expression parser testing.
 ///
-/// Returns a list of (description, expression_string) tuples.
+/// Returns a list of (description, `expression_string`) tuples.
+#[must_use]
 pub fn invalid_expression_samples() -> Vec<(&'static str, &'static str)> {
     vec![
         ("empty", ""),
@@ -72,6 +74,7 @@ pub fn invalid_expression_samples() -> Vec<(&'static str, &'static str)> {
 /// Documents that are structurally valid but semantically invalid.
 ///
 /// Useful for testing validation logic.
+#[must_use]
 pub fn semantically_invalid_docs() -> Vec<(&'static str, Document)> {
     vec![
         ("undefined_struct", undefined_struct()),
@@ -87,7 +90,7 @@ pub fn semantically_invalid_docs() -> Vec<(&'static str, Document)> {
 
 /// Document with undefined struct reference.
 ///
-/// Has a MatrixList with a type_name not defined in structs.
+/// Has a `MatrixList` with a `type_name` not defined in structs.
 fn undefined_struct() -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -152,10 +155,10 @@ fn dangling_reference() -> Document {
         "Item",
         "item1",
         vec![
-            Value::String("item1".to_string()),
+            Value::String("item1".to_string().into()),
             Value::Reference(hedl_core::Reference {
-                type_name: Some("Item".to_string()),
-                id: "nonexistent".to_string(), // Dangling reference
+                type_name: Some("Item".to_string().into()),
+                id: "nonexistent".to_string().into(), // Dangling reference
             }),
         ],
     ));
@@ -171,7 +174,7 @@ fn dangling_reference() -> Document {
 
 /// Document with mismatched schema.
 ///
-/// MatrixList schema doesn't match the defined struct.
+/// `MatrixList` schema doesn't match the defined struct.
 fn mismatched_schema() -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -196,7 +199,7 @@ fn mismatched_schema() -> Document {
 
 /// Document with empty type name.
 ///
-/// MatrixList has an empty string as type_name.
+/// `MatrixList` has an empty string as `type_name`.
 fn empty_type_name() -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -225,8 +228,8 @@ fn duplicate_ids() -> Document {
         "Item",
         "duplicate",
         vec![
-            Value::String("duplicate".to_string()),
-            Value::String("First".to_string()),
+            Value::String("duplicate".to_string().into()),
+            Value::String("First".to_string().into()),
         ],
     ));
 
@@ -234,8 +237,8 @@ fn duplicate_ids() -> Document {
         "Item",
         "duplicate", // Duplicate ID
         vec![
-            Value::String("duplicate".to_string()),
-            Value::String("Second".to_string()),
+            Value::String("duplicate".to_string().into()),
+            Value::String("Second".to_string().into()),
         ],
     ));
 
@@ -264,6 +267,7 @@ fn invalid_alias() -> Document {
 /// Edge case: Document with extremely deep nesting.
 ///
 /// Tests stack overflow and recursion limits.
+#[must_use]
 pub fn deeply_nested_document(depth: usize) -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -274,10 +278,18 @@ pub fn deeply_nested_document(depth: usize) -> Document {
     for i in (0..depth).rev() {
         let node = Node {
             type_name: "Level".to_string(),
-            id: format!("node_{}", i),
-            fields: vec![Value::String(format!("node_{}", i)), Value::Int(i as i64)],
-            children: current_children.clone(),
-            child_count: None,
+            id: format!("node_{i}"),
+            fields: vec![
+                Value::String(format!("node_{i}").into()),
+                Value::Int(i as i64),
+            ]
+            .into(),
+            children: if current_children.is_empty() {
+                None
+            } else {
+                Some(Box::new(current_children.clone()))
+            },
+            child_count: 0,
         };
 
         current_children = BTreeMap::new();
@@ -306,6 +318,7 @@ pub fn deeply_nested_document(depth: usize) -> Document {
 /// Edge case: Document with extremely wide structure.
 ///
 /// Tests memory and performance limits.
+#[must_use]
 pub fn wide_document(width: usize) -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -314,8 +327,11 @@ pub fn wide_document(width: usize) -> Document {
     for i in 0..width {
         list.add_row(Node::new(
             "Item",
-            format!("item_{}", i),
-            vec![Value::String(format!("item_{}", i)), Value::Int(i as i64)],
+            format!("item_{i}"),
+            vec![
+                Value::String(format!("item_{i}").into()),
+                Value::Int(i as i64),
+            ],
         ));
     }
 
@@ -331,6 +347,7 @@ pub fn wide_document(width: usize) -> Document {
 /// Edge case: Document with very long strings.
 ///
 /// Tests string handling and buffer limits.
+#[must_use]
 pub fn long_string_document(length: usize) -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -338,7 +355,7 @@ pub fn long_string_document(length: usize) -> Document {
 
     doc.root.insert(
         "long_text".to_string(),
-        Item::Scalar(Value::String(long_string)),
+        Item::Scalar(Value::String(long_string.into())),
     );
 
     doc
@@ -347,6 +364,7 @@ pub fn long_string_document(length: usize) -> Document {
 /// Edge case: Document with many references.
 ///
 /// Tests reference resolution performance.
+#[must_use]
 pub fn many_references_document(count: usize) -> Document {
     let mut doc = Document::new((1, 0));
 
@@ -356,10 +374,10 @@ pub fn many_references_document(count: usize) -> Document {
     for i in 0..count {
         targets.add_row(Node::new(
             "Target",
-            format!("target_{}", i),
+            format!("target_{i}"),
             vec![
-                Value::String(format!("target_{}", i)),
-                Value::String(format!("Target {}", i)),
+                Value::String(format!("target_{i}").into()),
+                Value::String(format!("Target {i}").into()),
             ],
         ));
     }
@@ -370,12 +388,12 @@ pub fn many_references_document(count: usize) -> Document {
     for i in 0..count {
         refs.add_row(Node::new(
             "Ref",
-            format!("ref_{}", i),
+            format!("ref_{i}"),
             vec![
-                Value::String(format!("ref_{}", i)),
+                Value::String(format!("ref_{i}").into()),
                 Value::Reference(hedl_core::Reference {
-                    type_name: Some("Target".to_string()),
-                    id: format!("target_{}", i % count),
+                    type_name: Some("Target".to_string().into()),
+                    id: format!("target_{}", i % count).into(),
                 }),
             ],
         ));

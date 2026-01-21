@@ -53,7 +53,7 @@ fn test_context_with_format_macro() {
     let line = 20;
     let result: Result<(), HedlError> = Err(HedlError::collision("duplicate ID", line));
     let err = result
-        .context(format!("for user {} at line {}", user, line))
+        .context(format!("for user {user} at line {line}"))
         .unwrap_err();
 
     let ctx = err.context.as_ref().unwrap();
@@ -164,12 +164,7 @@ fn test_with_context_captures_environment() {
 
     let result: Result<(), HedlError> = Err(HedlError::shape("wrong column count", line_number));
     let err = result
-        .with_context(|| {
-            format!(
-                "in file {}, section {}, line {}",
-                filename, section, line_number
-            )
-        })
+        .with_context(|| format!("in file {filename}, section {section}, line {line_number}"))
         .unwrap_err();
 
     let ctx = err.context.unwrap();
@@ -185,7 +180,7 @@ fn test_with_context_expensive_computation() {
         format!(
             "data length: {}, checksum: {}",
             data.len(),
-            data.iter().map(|&b| b as u32).sum::<u32>()
+            data.iter().map(|&b| u32::from(b)).sum::<u32>()
         )
     }
 
@@ -227,7 +222,7 @@ fn test_map_err_to_hedl_io_error() {
 
     let result = fs::read_to_string("/path/that/does/not/exist");
     let hedl_result =
-        result.map_err_to_hedl(|e| HedlError::io(format!("Failed to read configuration: {}", e)));
+        result.map_err_to_hedl(|e| HedlError::io(format!("Failed to read configuration: {e}")));
 
     let err = hedl_result.unwrap_err();
     assert_eq!(err.kind, HedlErrorKind::IO);
@@ -240,7 +235,7 @@ fn test_map_err_to_hedl_with_context() {
 
     let path = "/nonexistent/config.hedl";
     let result = fs::read_to_string(path)
-        .map_err_to_hedl(|e| HedlError::io(format!("Cannot read {}: {}", path, e)))
+        .map_err_to_hedl(|e| HedlError::io(format!("Cannot read {path}: {e}")))
         .context("while loading user configuration");
 
     let err = result.unwrap_err();
@@ -295,7 +290,7 @@ fn test_parse_with_lazy_context() {
     let config_name = "production.hedl";
 
     let err = parse(invalid_hedl)
-        .with_context(|| format!("while loading config file: {}", config_name))
+        .with_context(|| format!("while loading config file: {config_name}"))
         .unwrap_err();
 
     assert!(err.context.unwrap().contains("production.hedl"));
@@ -304,12 +299,11 @@ fn test_parse_with_lazy_context() {
 #[test]
 fn test_nested_parse_operations() {
     fn parse_section(hedl: &str, section_name: &str) -> Result<hedl::Document, HedlError> {
-        parse(hedl).with_context(|| format!("in section '{}'", section_name))
+        parse(hedl).with_context(|| format!("in section '{section_name}'"))
     }
 
     fn parse_document(hedl: &str, doc_name: &str) -> Result<hedl::Document, HedlError> {
-        parse_section(hedl, "users")
-            .with_context(|| format!("while parsing document '{}'", doc_name))
+        parse_section(hedl, "users").with_context(|| format!("while parsing document '{doc_name}'"))
     }
 
     let invalid = "invalid hedl";
@@ -326,10 +320,10 @@ fn test_file_io_with_parse() {
 
     fn load_and_parse(path: &str) -> Result<hedl::Document, HedlError> {
         let content = fs::read_to_string(path)
-            .map_err_to_hedl(|e| HedlError::io(format!("Cannot read {}: {}", path, e)))
-            .with_context(|| format!("accessing file {}", path))?;
+            .map_err_to_hedl(|e| HedlError::io(format!("Cannot read {path}: {e}")))
+            .with_context(|| format!("accessing file {path}"))?;
 
-        parse(&content).with_context(|| format!("parsing content of {}", path))
+        parse(&content).with_context(|| format!("parsing content of {path}"))
     }
 
     let err = load_and_parse("/this/does/not/exist.hedl").unwrap_err();
@@ -376,9 +370,9 @@ fn test_context_with_special_characters() {
     let err = result.context("special chars: \n\t\r\\\"'").unwrap_err();
 
     let ctx = err.context.unwrap();
-    assert!(ctx.contains("\\"));
-    assert!(ctx.contains("\""));
-    assert!(ctx.contains("'"));
+    assert!(ctx.contains('\\'));
+    assert!(ctx.contains('"'));
+    assert!(ctx.contains('\''));
 }
 
 #[test]
@@ -596,7 +590,7 @@ fn test_deep_context_chain() {
     let mut result: Result<(), HedlError> = Err(HedlError::syntax("root error", 1));
 
     for i in 0..100 {
-        result = result.context(format!("layer {}", i));
+        result = result.context(format!("layer {i}"));
     }
 
     let err = result.unwrap_err();

@@ -30,7 +30,7 @@ fn main() {
     // Add some scalar values
     doc.root.insert(
         "name".to_string(),
-        Item::Scalar(Value::String("HEDL XML Example".to_string())),
+        Item::Scalar(Value::String("HEDL XML Example".to_string().into())),
     );
     doc.root
         .insert("version".to_string(), Item::Scalar(Value::Int(1)));
@@ -53,8 +53,8 @@ fn main() {
         "User",
         "user1",
         vec![
-            Value::String("Alice".to_string()),
-            Value::String("alice@example.com".to_string()),
+            Value::String("Alice".to_string().into()),
+            Value::String("alice@example.com".to_string().into()),
         ],
     ));
 
@@ -62,8 +62,8 @@ fn main() {
         "User",
         "user2",
         vec![
-            Value::String("Bob".to_string()),
-            Value::String("bob@example.com".to_string()),
+            Value::String("Bob".to_string().into()),
+            Value::String("bob@example.com".to_string().into()),
         ],
     ));
 
@@ -72,7 +72,7 @@ fn main() {
     // Convert to XML
     println!("=== HEDL to XML ===\n");
     let xml = hedl_to_xml(&doc).expect("Failed to convert to XML");
-    println!("{}\n", xml);
+    println!("{xml}\n");
 
     // Convert back to HEDL
     println!("=== XML to HEDL (round trip) ===\n");
@@ -81,7 +81,7 @@ fn main() {
     // Verify the round-trip
     assert_eq!(
         doc2.root.get("name").and_then(|i| i.as_scalar()),
-        Some(&Value::String("HEDL XML Example".to_string()))
+        Some(&Value::String("HEDL XML Example".to_string().into()))
     );
     assert_eq!(
         doc2.root.get("version").and_then(|i| i.as_scalar()),
@@ -102,7 +102,7 @@ fn main() {
     };
     let xml_compact =
         hedl_xml::to_xml(&doc, &config_compact).expect("Failed to convert to compact XML");
-    println!("{}\n", xml_compact);
+    println!("{xml_compact}\n");
 
     // With metadata
     println!("=== XML with metadata ===\n");
@@ -112,7 +112,7 @@ fn main() {
     };
     let xml_meta =
         hedl_xml::to_xml(&doc, &config_meta).expect("Failed to convert to XML with metadata");
-    println!("{}\n", xml_meta);
+    println!("{xml_meta}\n");
 
     // Custom root element
     println!("=== Custom root element ===\n");
@@ -122,7 +122,7 @@ fn main() {
     };
     let xml_custom =
         hedl_xml::to_xml(&doc, &config_custom).expect("Failed to convert to XML with custom root");
-    println!("{}\n", xml_custom);
+    println!("{xml_custom}\n");
 
     println!("All examples completed successfully!");
 }

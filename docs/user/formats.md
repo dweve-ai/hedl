@@ -10,10 +10,10 @@ HEDL supports bidirectional conversion with multiple data formats. This guide co
 4. [XML](#xml)
 5. [CSV](#csv)
 6. [Parquet](#parquet)
-7. [Neo4j Cypher](#neo4j-cypher)
-8. [TOON](#toon)
-9. [Format Comparison](#format-comparison)
-10. [Best Practices](#best-practices)
+7. [TOON](#toon)
+8. [Format Comparison](#format-comparison)
+9. [Best Practices](#best-practices)
+10. [Advanced: Neo4j Integration (Library)](#advanced-neo4j-integration-library)
 
 ## Overview
 
@@ -24,7 +24,7 @@ HEDL acts as a universal interchange format, allowing you to:
 - Optimize for token efficiency
 - Validate data during conversion
 
-### Supported Formats
+### Supported Formats (CLI)
 
 | Format | Read | Write | Use Case |
 |--------|------|-------|----------|
@@ -33,8 +33,9 @@ HEDL acts as a universal interchange format, allowing you to:
 | XML | ✓ | ✓ | Legacy systems, SOAP APIs |
 | CSV | ✓ | ✓ | Spreadsheets, tabular data |
 | Parquet | ✓ | ✓ | Analytics, big data, columnar storage |
-| Neo4j | ✓ | ✓ | Graph databases, relationships |
-| TOON | - | ✓ | Optimized for LLMs |
+| TOON | ✓ | ✓ | Optimized for LLMs |
+
+**Note**: Neo4j integration is available as a library (`hedl-neo4j` crate) for programmatic use, not through the CLI. See [Advanced: Neo4j Integration (Library)](#advanced-neo4j-integration-library) for details.
 
 ## JSON
 
@@ -91,11 +92,11 @@ users: @User
 **Output (JSON, --metadata):**
 ```json
 {
-  "version": "1.0",
   "users": {
-    "_type": "User",
-    "_count": 2,
-    "data": [
+    "__type__": "User",
+    "__schema__": ["id", "name", "age"],
+    "__count_hint__": 2,
+    "items": [
       {
         "id": "u1",
         "name": "Alice",
@@ -267,7 +268,7 @@ hedl from-xml data.xml -o data.hedl
 
 ### XML Attributes
 
-XML attributes are converted to HEDL fields with an `_attr_` prefix:
+XML attributes are converted to regular HEDL fields (no prefix):
 
 **Input (XML):**
 ```xml
@@ -281,8 +282,8 @@ XML attributes are converted to HEDL fields with an `_attr_` prefix:
 %VERSION: 1.0
 ---
 book:
-  _attr_id: b1
-  _attr_format: hardcover
+  id: b1
+  format: hardcover
   title: Example
 ```
 
@@ -332,12 +333,17 @@ p3,Doohickey,9.99,200
 ### CSV to HEDL
 
 ```bash
-# Convert from CSV (first row is treated as header by default)
+# Convert from CSV (first row is header, first column is ID by default)
 hedl from-csv data.csv -t Product
 
 # Save to file
 hedl from-csv data.csv -t Product -o data.hedl
+
+# With custom type name
+hedl from-csv users.csv -t User -o users.hedl
 ```
+
+**Important**: The CSV file must have an ID column as the first column. The ID is extracted automatically and used as the node identifier. Only the remaining columns are included in the HEDL struct.
 
 #### Example Conversion
 
@@ -351,22 +357,24 @@ id,name,email
 **Output (HEDL):**
 ```hedl
 %VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%STRUCT: User: [name, email]
 ---
 users: @User
   | 1, Alice, alice@example.com
   | 2, Bob, bob@example.com
 ```
 
+Note: The `id` column becomes the node ID (first field in each row after `@User`), while `name` and `email` are the struct fields.
+
 ### Schema Inference
 
-HEDL automatically infers data types from CSV:
+HEDL automatically infers data types from CSV columns (excluding the ID column):
 
 **Input (CSV):**
 ```csv
-name,age,active,score
-Alice,30,true,95.5
-Bob,25,false,87.3
+id,name,age,active,score
+1,Alice,30,true,95.5
+2,Bob,25,false,87.3
 ```
 
 **Output (HEDL):**
@@ -375,12 +383,12 @@ Bob,25,false,87.3
 %STRUCT: Record: [name, age, active, score]
 ---
 records: @Record
-  | Alice, 30, true, 95.5
-  | Bob, 25, false, 87.3
+  | 1, Alice, 30, true, 95.5
+  | 2, Bob, 25, false, 87.3
 ```
 
 Types detected:
-- `name`: String (quoted)
+- `name`: String
 - `age`: Integer
 - `active`: Boolean
 - `score`: Float
@@ -455,75 +463,6 @@ HEDL preserves Parquet schema information:
 - **Query Speed**: 10-100x faster for analytical queries
 - **Write Speed**: Slower than CSV but optimized for read-heavy workloads
 
-### Neo4j Cypher
-
-Generate Cypher statements for graph database import.
-
-**Note:** Cypher export is currently available via the `hedl-neo4j` library or MCP server.
-
-```rust
-// Using the Rust library
-use hedl_neo4j::{to_cypher, ToCypherConfig};
-
-let cypher = to_cypher(&doc, &ToCypherConfig::default())?;
-```
-
-#### Example Conversion
-
-**Input (HEDL):**
-```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Friendship: [from, to]
----
-users: @User
-  | u1, Alice
-  | u2, Bob
-
-friendships: @Friendship
-  | @User:u1, @User:u2
-```
-
-**Output (Cypher):**
-```cypher
-CREATE (u1:User {id: 'u1', name: 'Alice'})
-CREATE (u2:User {id: 'u2', name: 'Bob'})
-CREATE (u1)-[:FRIENDSHIP]->(u2)
-```
-
-### Relationship Mapping
-
-HEDL references (`@Type:id`) are converted to Neo4j relationships:
-
-**Input (HEDL):**
-```hedl
-%VERSION: 1.0
-%STRUCT: Person: [id, name]
-%STRUCT: WorksAt: [person, company]
----
-people: @Person
-  | p1, Alice
-  | p2, Bob
-
-works_at: @WorksAt
-  | @Person:p1, @Company:c1
-```
-
-**Output (Cypher):**
-```cypher
-CREATE (p1:Person {id: 'p1', name: 'Alice'})
-CREATE (p2:Person {id: 'p2', name: 'Bob'})
-MATCH (person:Person {id: 'p1'}), (company:Company {id: 'c1'})
-CREATE (person)-[:WORKS_AT]->(company)
-```
-
-### Use Cases
-
-- Graph database migrations
-- Social network data import
-- Knowledge graph construction
-- Relationship mapping
-- Neo4j data pipelines
 
 ## TOON
 
@@ -556,6 +495,16 @@ users: @User
 users[2]{id,name}:
   u1,Alice
   u2,Bob
+```
+
+### TOON to HEDL
+
+```bash
+# Convert TOON to HEDL
+hedl from-toon data.toon
+
+# Save to file
+hedl from-toon data.toon -o data.hedl
 ```
 
 ### Characteristics
@@ -631,11 +580,21 @@ For a typical dataset of 1000 user records:
 - Long-term archival
 - Columnar queries
 
+**TOON**
+- LLM context windows
+- Token efficiency (75% smaller than JSON)
+- Compact serialization
+
 **HEDL**
 - AI/ML workflows
-- Token-efficient storage
 - Type-safe data
 - Multi-format conversion hub
+- Local data transformation (use TOON for LLM context)
+
+**Neo4j (Library)**
+- Graph databases and knowledge graphs
+- Relationship queries and pattern matching
+- Recommend using the `hedl-neo4j` crate for Rust projects
 
 ## Best Practices
 
@@ -660,7 +619,7 @@ Most conversions are lossless. However, be aware of:
 
 **Metadata Loss**:
 - HEDL types → JSON (use `--metadata` to preserve)
-- XML attributes → HEDL (use `_attr_` prefix)
+- XML attributes → HEDL (become regular fields)
 
 **Structure Changes**:
 - Flat CSV → Nested HEDL (manual restructuring needed)
@@ -675,12 +634,14 @@ Most conversions are lossless. However, be aware of:
 
 2. **Validate After Conversion**: Always validate converted data
    ```bash
-   hedl from-csv data.csv -t Record | hedl validate -
+   hedl from-csv data.csv -t Record -o temp.hedl
+   hedl validate temp.hedl
    ```
 
 3. **Format for Readability**: Format HEDL for human review
    ```bash
-   hedl from-json data.json | hedl format - -o clean.hedl
+   hedl from-json data.json -o temp.hedl
+   hedl format temp.hedl -o clean.hedl
    ```
 
 4. **Batch Convert**: Use parallel processing for multiple files
@@ -690,17 +651,20 @@ Most conversions are lossless. However, be aware of:
 
 ### Pipeline Processing
 
-Chain conversions efficiently:
+Chain conversions using intermediate files:
 
 ```bash
-# CSV → HEDL → Parquet (using intermediate file as parquet requires file output)
+# CSV → HEDL → Parquet
 hedl from-csv data.csv -t Record -o temp.hedl && hedl to-parquet temp.hedl -o data.parquet
 
 # JSON → HEDL → YAML
-hedl from-json api.json | hedl to-yaml - -o config.yaml
+hedl from-json api.json -o temp.hedl && hedl to-yaml temp.hedl -o config.yaml
 
-# Multiple JSON → Single HEDL
-cat *.json | jq -s '.' | hedl from-json - -o combined.hedl
+# Multiple format exports from one HEDL
+hedl from-csv data.csv -t Data -o data.hedl
+hedl to-json data.hedl -o data.json
+hedl to-yaml data.hedl -o data.yaml
+hedl to-parquet data.hedl -o data.parquet
 ```
 
 ### Error Handling
@@ -734,6 +698,57 @@ fi
 - Parquet: Most memory-efficient
 - Streaming: Use for large files
 - CSV: Low memory overhead
+
+---
+
+## Advanced: Neo4j Integration (Library)
+
+**Neo4j support is available only as a library crate (`hedl-neo4j`), not through the CLI.**
+
+The `hedl-neo4j` crate provides bidirectional conversion between HEDL documents and Neo4j:
+
+- **HEDL to Cypher**: Export HEDL documents as Neo4j CREATE/MERGE statements with automatic relationship detection
+- **Neo4j to HEDL**: Import Neo4j query results back to HEDL with schema preservation
+- **Batch Processing**: UNWIND-based bulk operations for high-throughput imports
+- **Streaming API**: Process large documents without full memory buffering
+- **Security**: Unicode normalization, zero-width filtering, string length limits
+
+### Usage (Rust/Cargo)
+
+Add to `Cargo.toml`:
+```toml
+[dependencies]
+hedl-neo4j = "1.2"
+```
+
+### Basic Example
+
+```rust
+use hedl_core::parse;
+use hedl_neo4j::{to_cypher, ToCypherConfig};
+
+let doc = parse(br#"
+%VERSION: 1.0
+%STRUCT: User: [id, name]
+---
+users: @User
+  | u1, Alice
+  | u2, Bob
+"#)?;
+
+let config = ToCypherConfig::default();
+let cypher = to_cypher(&doc, &config)?;
+println!("{}", cypher);
+```
+
+### Use Cases
+
+- Knowledge graphs and graph database migrations
+- Social network data import
+- Relationship mapping and analysis
+- Integration with Neo4j-based ML workflows
+
+For complete documentation on Neo4j integration, see the [`hedl-neo4j` README](https://github.com/dweve-ai/hedl/tree/master/crates/hedl-neo4j).
 
 ---
 

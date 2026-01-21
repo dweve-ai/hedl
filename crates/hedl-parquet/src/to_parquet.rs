@@ -40,12 +40,12 @@
 //!
 //! // Rows are added in order
 //! list.add_row(Node::new("User", "alice", vec![
-//!     Value::String("alice".to_string()),
-//!     Value::String("Alice".to_string()),
+//!     Value::String("alice".to_string().into()),
+//!     Value::String("Alice".to_string().into()),
 //! ]));
 //! list.add_row(Node::new("User", "bob", vec![
-//!     Value::String("bob".to_string()),
-//!     Value::String("Bob".to_string()),
+//!     Value::String("bob".to_string().into()),
+//!     Value::String("Bob".to_string().into()),
 //! ]));
 //!
 //! doc.root.insert("users".to_string(), Item::List(list));
@@ -67,9 +67,9 @@
 //!
 //! for (i, data) in vec!["first", "second", "third"].iter().enumerate() {
 //!     list.add_row(Node::new("Item", format!("item{}", i), vec![
-//!         Value::String(format!("item{}", i)),
+//!         Value::String(format!("item{}", i).into()),
 //!         Value::Int(i as i64),  // Explicit position
-//!         Value::String(data.to_string()),
+//!         Value::String(data.to_string().into()),
 //!     ]));
 //! }
 //! ```
@@ -83,10 +83,72 @@ use arrow::array::{ArrayRef, BooleanArray, Float64Array, Int64Array, StringBuild
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use parquet::arrow::ArrowWriter;
-use parquet::basic::{Compression, Encoding};
-use parquet::file::properties::{WriterProperties, WriterVersion};
+use parquet::basic::Compression;
+use parquet::file::properties::{EnabledStatistics, WriterProperties, WriterVersion};
 
 use hedl_core::{Document, HedlError, HedlErrorKind, Item, MatrixList, Node, Value};
+
+/// Statistics level for Parquet columns.
+///
+/// Controls what column statistics are written to the Parquet file.
+/// Statistics enable predicate pushdown for efficient filtering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StatisticsLevel {
+    /// No statistics (smallest file size).
+    None,
+    /// Row group level statistics (`min/max/null_count` per column chunk).
+    /// This is the default and recommended setting.
+    #[default]
+    Chunk,
+    /// Page level statistics (most detailed, largest overhead).
+    Page,
+}
+
+impl From<StatisticsLevel> for EnabledStatistics {
+    fn from(level: StatisticsLevel) -> Self {
+        match level {
+            StatisticsLevel::None => EnabledStatistics::None,
+            StatisticsLevel::Chunk => EnabledStatistics::Chunk,
+            StatisticsLevel::Page => EnabledStatistics::Page,
+        }
+    }
+}
+
+impl From<EnabledStatistics> for StatisticsLevel {
+    fn from(stats: EnabledStatistics) -> Self {
+        match stats {
+            EnabledStatistics::None => StatisticsLevel::None,
+            EnabledStatistics::Chunk => StatisticsLevel::Chunk,
+            EnabledStatistics::Page => StatisticsLevel::Page,
+        }
+    }
+}
+
+/// Compression strategy for Parquet files.
+///
+/// Defines how compression is applied to the Parquet output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompressionStrategy {
+    /// Apply the same compression globally to all columns.
+    Global(Compression),
+    /// No compression.
+    Uncompressed,
+}
+
+impl Default for CompressionStrategy {
+    fn default() -> Self {
+        Self::Global(Compression::SNAPPY)
+    }
+}
+
+impl From<CompressionStrategy> for Compression {
+    fn from(strategy: CompressionStrategy) -> Self {
+        match strategy {
+            CompressionStrategy::Global(compression) => compression,
+            CompressionStrategy::Uncompressed => Compression::UNCOMPRESSED,
+        }
+    }
+}
 
 /// Configuration for Parquet writing.
 #[derive(Debug, Clone)]
@@ -95,8 +157,44 @@ pub struct ToParquetConfig {
     pub compression: Compression,
     /// Writer version.
     pub writer_version: WriterVersion,
-    /// Encoding for string columns.
-    pub string_encoding: Encoding,
+    /// Enable dictionary encoding for string columns (default: true).
+    ///
+    /// When enabled, the writer will use dictionary encoding for string
+    /// columns with high repetition, significantly improving compression.
+    /// Dictionary encoding stores each unique value once in a dictionary page,
+    /// then references values by integer index in data pages. This significantly
+    /// reduces file size for columns with low cardinality (many repeated values).
+    ///
+    /// The Parquet writer automatically decides when to use dictionary encoding
+    /// based on column cardinality. This flag enables/disables that feature entirely.
+    pub enable_dictionary: bool,
+    /// Statistics level for Parquet columns (default: Chunk).
+    ///
+    /// Controls what column statistics are written to the Parquet file:
+    /// - `None`: No statistics (smallest file size)
+    /// - `Chunk`: Row group level statistics (`min/max/null_count` per column chunk)
+    /// - `Page`: Page level statistics (most detailed, largest overhead)
+    ///
+    /// Statistics enable predicate pushdown for efficient filtering.
+    pub statistics: EnabledStatistics,
+    /// Type coercion behavior (default: false).
+    ///
+    /// Controls how type mismatches are handled when converting values to Parquet:
+    /// - `false` (default): Type mismatches write null (safe, preserves data integrity)
+    /// - `true`: Type mismatches coerce to default values (0, false, "")
+    ///
+    /// Examples with `coerce_types = false` (recommended):
+    /// - String "foo" in Int64 column → null
+    /// - Int 42 in Boolean column → null
+    /// - Bool true in Float64 column → null
+    ///
+    /// Examples with `coerce_types = true` (legacy behavior):
+    /// - String "foo" in Int64 column → 0
+    /// - Int 42 in Boolean column → false
+    /// - Bool true in Float64 column → 0.0
+    ///
+    /// Setting to `false` is recommended for data integrity.
+    pub coerce_types: bool,
 }
 
 impl Default for ToParquetConfig {
@@ -104,8 +202,84 @@ impl Default for ToParquetConfig {
         Self {
             compression: Compression::SNAPPY,
             writer_version: WriterVersion::PARQUET_2_0,
-            string_encoding: Encoding::PLAIN,
+            enable_dictionary: true,
+            statistics: EnabledStatistics::Chunk,
+            coerce_types: false,
         }
+    }
+}
+
+impl ToParquetConfig {
+    /// Create a config with statistics disabled.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hedl_parquet::ToParquetConfig;
+    ///
+    /// let config = ToParquetConfig::without_statistics();
+    /// ```
+    #[must_use]
+    pub fn without_statistics() -> Self {
+        Self {
+            statistics: EnabledStatistics::None,
+            ..Self::default()
+        }
+    }
+
+    /// Set the statistics level.
+    #[must_use]
+    pub fn with_statistics(mut self, level: EnabledStatistics) -> Self {
+        self.statistics = level;
+        self
+    }
+
+    /// Enable type coercion (convert mismatched types to default values).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hedl_parquet::ToParquetConfig;
+    ///
+    /// let config = ToParquetConfig::default().with_type_coercion(true);
+    /// ```
+    #[must_use]
+    pub fn with_type_coercion(mut self, enable: bool) -> Self {
+        self.coerce_types = enable;
+        self
+    }
+
+    /// Set the compression strategy.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hedl_parquet::{ToParquetConfig, CompressionStrategy};
+    /// use parquet::basic::Compression;
+    ///
+    /// let config = ToParquetConfig::default()
+    ///     .with_compression_strategy(CompressionStrategy::Global(Compression::ZSTD(Default::default())));
+    /// ```
+    #[must_use]
+    pub fn with_compression_strategy(mut self, strategy: CompressionStrategy) -> Self {
+        self.compression = strategy.into();
+        self
+    }
+
+    /// Set the statistics level using the wrapper enum.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hedl_parquet::{ToParquetConfig, StatisticsLevel};
+    ///
+    /// let config = ToParquetConfig::default()
+    ///     .with_statistics_level(StatisticsLevel::Page);
+    /// ```
+    #[must_use]
+    pub fn with_statistics_level(mut self, level: StatisticsLevel) -> Self {
+        self.statistics = level.into();
+        self
     }
 }
 
@@ -146,7 +320,7 @@ pub fn to_parquet_with_config(
     let bytes = to_parquet_bytes_with_config(doc, config)?;
 
     std::fs::write(path, bytes)
-        .map_err(|e| HedlError::io(format!("Failed to write Parquet file: {}", e)))
+        .map_err(|e| HedlError::io(format!("Failed to write Parquet file: {e}")))
 }
 
 /// Convert a HEDL document to Parquet bytes.
@@ -173,18 +347,35 @@ pub fn to_parquet_bytes_with_config(
     // Parquet header/footer + metadata typically requires 8-16 KB minimum
     let mut buffer = Vec::with_capacity(16 * 1024);
 
-    // Convert the first matrix list found (Parquet supports one table per file)
+    // Count matrix lists in the document
+    let matrix_lists: Vec<_> = doc
+        .root
+        .iter()
+        .filter(|(_, item)| matches!(item, Item::List(_)))
+        .collect();
+
+    // Parquet supports only one table per file
+    // If multiple matrix lists exist, write only the first one
+    // This matches standard Parquet behavior where one file = one table
+    if matrix_lists.len() > 1 {
+        let list_keys: Vec<_> = matrix_lists.iter().map(|(k, _)| k.as_str()).collect();
+        eprintln!(
+            "WARNING: Document contains {} matrix lists ({}), but Parquet supports only one table per file. Writing only '{}'. Consider splitting into separate files.",
+            matrix_lists.len(),
+            list_keys.join(", "),
+            list_keys[0]
+        );
+    }
+
+    // Convert the first matrix list if found
     // Store the HEDL key in metadata for round-trip preservation
-    for (key, item) in &doc.root {
-        if let Item::List(matrix_list) = item {
-            write_matrix_list_to_buffer(matrix_list, key, &mut buffer, config)?;
-            return Ok(buffer);
-        }
+    if let Some((key, Item::List(matrix_list))) = matrix_lists.first() {
+        write_matrix_list_to_buffer(matrix_list, key, &mut buffer, config)?;
+        return Ok(buffer);
     }
 
     // If we have only key-value pairs (no matrix lists), create a metadata table
-    let has_lists = doc.root.values().any(|item| matches!(item, Item::List(_)));
-    if !has_lists && !doc.root.is_empty() {
+    if !doc.root.is_empty() {
         write_metadata_to_buffer(&doc.root, &mut buffer, config)?;
     }
 
@@ -203,15 +394,17 @@ fn write_matrix_list_to_buffer(
     }
 
     // Build Arrow schema from HEDL schema with metadata
-    let schema = build_schema_from_matrix_list(matrix_list, hedl_key)?;
+    let schema = build_schema_from_matrix_list(matrix_list, hedl_key, config)?;
 
     // Convert nodes to record batch
-    let record_batch = build_record_batch_from_nodes(&matrix_list.rows, &schema)?;
+    let record_batch = build_record_batch_from_nodes(&matrix_list.rows, &schema, config)?;
 
     // Configure writer properties with metadata
     let mut props_builder = WriterProperties::builder()
         .set_compression(config.compression)
-        .set_writer_version(config.writer_version);
+        .set_writer_version(config.writer_version)
+        .set_dictionary_enabled(config.enable_dictionary)
+        .set_statistics_enabled(config.statistics);
 
     // Add metadata as key-value pairs
     props_builder = props_builder.set_key_value_metadata(Some(vec![
@@ -226,23 +419,24 @@ fn write_matrix_list_to_buffer(
 
     // Write to buffer
     let mut writer = ArrowWriter::try_new(buffer, Arc::clone(&schema), Some(props))
-        .map_err(|e| HedlError::io(format!("Failed to create Parquet writer: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to create Parquet writer: {e}")))?;
 
     writer
         .write(&record_batch)
-        .map_err(|e| HedlError::io(format!("Failed to write record batch: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to write record batch: {e}")))?;
 
     writer
         .close()
-        .map_err(|e| HedlError::io(format!("Failed to close Parquet writer: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to close Parquet writer: {e}")))?;
 
     Ok(())
 }
 
 /// Build Arrow schema from a matrix list.
-fn build_schema_from_matrix_list(
+pub(crate) fn build_schema_from_matrix_list(
     matrix_list: &MatrixList,
     hedl_key: &str,
+    _config: &ToParquetConfig,
 ) -> Result<Arc<Schema>, HedlError> {
     // Pre-allocate fields vector with exact capacity (one field per column)
     let mut fields = Vec::with_capacity(matrix_list.schema.len());
@@ -288,7 +482,7 @@ fn infer_arrow_type(value: &Value) -> DataType {
     }
 }
 
-/// Build a RecordBatch from nodes.
+/// Build a `RecordBatch` from nodes.
 ///
 /// # Position Preservation
 ///
@@ -298,9 +492,10 @@ fn infer_arrow_type(value: &Value) -> DataType {
 /// - No reordering or sorting occurs
 ///
 /// This guarantees that row position is maintained from HEDL to Parquet.
-fn build_record_batch_from_nodes(
+pub(crate) fn build_record_batch_from_nodes(
     nodes: &[Node],
     schema: &Arc<Schema>,
+    config: &ToParquetConfig,
 ) -> Result<RecordBatch, HedlError> {
     // Pre-allocate columns vector with exact capacity (one column per field)
     let mut columns: Vec<ArrayRef> = Vec::with_capacity(schema.fields().len());
@@ -308,14 +503,14 @@ fn build_record_batch_from_nodes(
     // Per SPEC.md: Node.fields contains ALL values including ID (first column)
     // Process fields in order to preserve row position
     for (field_idx, field) in schema.fields().iter().enumerate() {
-        let array: ArrayRef = build_array_for_field(nodes, field_idx, field.data_type())?;
+        let array: ArrayRef = build_array_for_field(nodes, field_idx, field.data_type(), config)?;
         columns.push(array);
     }
 
     RecordBatch::try_new(Arc::clone(schema), columns).map_err(|e| {
         HedlError::new(
             HedlErrorKind::Syntax,
-            format!("Failed to create record batch: {}", e),
+            format!("Failed to create record batch: {e}"),
             0,
         )
     })
@@ -331,10 +526,17 @@ fn build_record_batch_from_nodes(
 /// - Builds columnar array preserving node order
 ///
 /// This ensures that array value at index `i` corresponds to `nodes[i]`.
+///
+/// # Type Handling
+///
+/// Type mismatches are handled based on `config.coerce_types`:
+/// - If `false` (default): Type mismatches write null (preserves data integrity)
+/// - If `true`: Type mismatches coerce to default values (legacy behavior)
 fn build_array_for_field(
     nodes: &[Node],
     field_idx: usize,
     data_type: &DataType,
+    config: &ToParquetConfig,
 ) -> Result<ArrayRef, HedlError> {
     match data_type {
         DataType::Boolean => {
@@ -344,7 +546,13 @@ fn build_array_for_field(
                     node.fields.get(field_idx).and_then(|v| match v {
                         Value::Bool(b) => Some(*b),
                         Value::Null => None,
-                        _ => Some(false),
+                        _ => {
+                            if config.coerce_types {
+                                Some(false)
+                            } else {
+                                None
+                            }
+                        }
                     })
                 })
                 .collect();
@@ -357,7 +565,13 @@ fn build_array_for_field(
                     node.fields.get(field_idx).and_then(|v| match v {
                         Value::Int(n) => Some(*n),
                         Value::Null => None,
-                        _ => Some(0),
+                        _ => {
+                            if config.coerce_types {
+                                Some(0)
+                            } else {
+                                None
+                            }
+                        }
                     })
                 })
                 .collect();
@@ -371,7 +585,13 @@ fn build_array_for_field(
                         Value::Float(f) => Some(*f),
                         Value::Int(n) => Some(*n as f64),
                         Value::Null => None,
-                        _ => Some(0.0),
+                        _ => {
+                            if config.coerce_types {
+                                Some(0.0)
+                            } else {
+                                None
+                            }
+                        }
                     })
                 })
                 .collect();
@@ -387,10 +607,10 @@ fn build_array_for_field(
                         Value::Null => builder.append_null(),
                         Value::String(s) => builder.append_value(s),
                         Value::Reference(r) => builder.append_value(r.to_ref_string()),
-                        Value::Expression(e) => builder.append_value(format!("$({})", e)),
+                        Value::Expression(e) => builder.append_value(format!("$({e})")),
                         Value::Tensor(t) => {
                             // Serialize tensor as JSON-like string
-                            builder.append_value(format!("{:?}", t.flatten()))
+                            builder.append_value(format!("{:?}", t.flatten()));
                         }
                         other => builder.append_value(other.to_string()),
                     }
@@ -402,14 +622,14 @@ fn build_array_for_field(
         }
         _ => Err(HedlError::new(
             HedlErrorKind::Syntax,
-            format!("Unsupported Arrow data type: {:?}", data_type),
+            format!("Unsupported Arrow data type: {data_type:?}"),
             0,
         )),
     }
 }
 
 /// Write key-value metadata to buffer as a single-row table.
-fn write_metadata_to_buffer(
+pub(crate) fn write_metadata_to_buffer(
     root: &std::collections::BTreeMap<String, Item>,
     buffer: &mut Vec<u8>,
     config: &ToParquetConfig,
@@ -443,7 +663,7 @@ fn write_metadata_to_buffer(
         .map_err(|e| {
             HedlError::new(
                 HedlErrorKind::Syntax,
-                format!("Failed to create metadata record batch: {}", e),
+                format!("Failed to create metadata record batch: {e}"),
                 0,
             )
         })?;
@@ -456,15 +676,15 @@ fn write_metadata_to_buffer(
 
     // Write to buffer
     let mut writer = ArrowWriter::try_new(buffer, Arc::clone(&schema), Some(props))
-        .map_err(|e| HedlError::io(format!("Failed to create metadata Parquet writer: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to create metadata Parquet writer: {e}")))?;
 
     writer
         .write(&record_batch)
-        .map_err(|e| HedlError::io(format!("Failed to write metadata record batch: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to write metadata record batch: {e}")))?;
 
     writer
         .close()
-        .map_err(|e| HedlError::io(format!("Failed to close metadata Parquet writer: {}", e)))?;
+        .map_err(|e| HedlError::io(format!("Failed to close metadata Parquet writer: {e}")))?;
 
     Ok(())
 }
@@ -494,8 +714,8 @@ mod tests {
             "User",
             "alice",
             vec![
-                Value::String("alice".to_string()),
-                Value::String("Alice".to_string()),
+                Value::String("alice".to_string().into()),
+                Value::String("Alice".to_string().into()),
                 Value::Int(30),
             ],
         );
@@ -503,8 +723,8 @@ mod tests {
             "User",
             "bob",
             vec![
-                Value::String("bob".to_string()),
-                Value::String("Bob".to_string()),
+                Value::String("bob".to_string().into()),
+                Value::String("Bob".to_string().into()),
                 Value::Int(25),
             ],
         );
@@ -524,7 +744,7 @@ mod tests {
         let mut doc = Document::new((1, 0));
         doc.root.insert(
             "version".to_string(),
-            Item::Scalar(Value::String("1.0".to_string())),
+            Item::Scalar(Value::String("1.0".to_string().into())),
         );
         doc.root
             .insert("count".to_string(), Item::Scalar(Value::Int(42)));

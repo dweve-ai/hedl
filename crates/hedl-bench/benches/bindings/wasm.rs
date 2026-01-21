@@ -28,20 +28,21 @@
 //! cd crates/hedl-wasm && wasm-pack build --release --target web
 //! ```
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult,
     TableCell,
 };
 use std::cell::RefCell;
+use std::hint::black_box;
 use std::path::PathBuf;
 use std::time::Instant;
 
 #[cfg(feature = "wasm-runtime")]
-use wasmtime::*;
+use wasmtime::{Engine, Instance, Memory, Module, Result, Store, TypedFunc};
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
 }
 
 fn init_report() {
@@ -163,7 +164,7 @@ fn bench_native_parse(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(bytes as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &hedl, |b, input| {
-            b.iter(|| hedl_core::parse(black_box(input.as_bytes())))
+            b.iter(|| hedl_core::parse(black_box(input.as_bytes())));
         });
 
         // Collect metrics
@@ -175,7 +176,7 @@ fn bench_native_parse(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         add_perf_result(
-            &format!("native_parse_{}", size),
+            &format!("native_parse_{size}"),
             total_ns,
             iterations,
             Some(bytes as u64),
@@ -191,20 +192,19 @@ fn bench_native_parse(c: &mut Criterion) {
 
 #[cfg(feature = "wasm-runtime")]
 fn bench_wasm_parse(c: &mut Criterion) {
-    let wasm_path = match find_wasm_module() {
-        Some(path) => path,
-        None => {
-            eprintln!("WASM module not found. Build it first:");
-            eprintln!("  cd crates/hedl-wasm && wasm-pack build --release --target web");
-            // Don't record a result with 0 iterations - it would cause divide by zero in avg_time_ns()
-            return;
-        }
+    let wasm_path = if let Some(path) = find_wasm_module() {
+        path
+    } else {
+        eprintln!("WASM module not found. Build it first:");
+        eprintln!("  cd crates/hedl-wasm && wasm-pack build --release --target web");
+        // Don't record a result with 0 iterations - it would cause divide by zero in avg_time_ns()
+        return;
     };
 
     let wasm_bytes = match std::fs::read(&wasm_path) {
         Ok(bytes) => bytes,
         Err(e) => {
-            eprintln!("Failed to read WASM module: {}", e);
+            eprintln!("Failed to read WASM module: {e}");
             return;
         }
     };
@@ -213,7 +213,7 @@ fn bench_wasm_parse(c: &mut Criterion) {
     let wasm_size = wasm_bytes.len();
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            report.add_note(&format!(
+            report.add_note(format!(
                 "WASM binary size: {} bytes ({:.1} KB)",
                 wasm_size,
                 wasm_size as f64 / 1024.0
@@ -231,14 +231,14 @@ fn bench_wasm_parse(c: &mut Criterion) {
         let mut ctx = match WasmBenchContext::new(&wasm_bytes) {
             Ok(ctx) => ctx,
             Err(e) => {
-                eprintln!("Failed to create WASM context: {}", e);
+                eprintln!("Failed to create WASM context: {e}");
                 continue;
             }
         };
 
         group.throughput(Throughput::Bytes(bytes as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &hedl, |b, input| {
-            b.iter(|| ctx.parse_hedl(black_box(input)))
+            b.iter(|| ctx.parse_hedl(black_box(input)));
         });
 
         // Collect metrics
@@ -250,7 +250,7 @@ fn bench_wasm_parse(c: &mut Criterion) {
             total_ns += start.elapsed().as_nanos() as u64;
         }
         add_perf_result(
-            &format!("wasm_parse_{}", size),
+            &format!("wasm_parse_{size}"),
             total_ns,
             iterations,
             Some(bytes as u64),
@@ -287,7 +287,7 @@ fn bench_wasm_instantiation(c: &mut Criterion) {
     // Benchmark module compilation
     group.bench_function("compile", |b| {
         let engine = Engine::default();
-        b.iter(|| Module::new(&engine, black_box(&wasm_bytes)))
+        b.iter(|| Module::new(&engine, black_box(&wasm_bytes)));
     });
 
     // Collect compilation metrics
@@ -312,7 +312,7 @@ fn bench_wasm_instantiation(c: &mut Criterion) {
         b.iter(|| {
             let mut store = Store::new(&engine, ());
             Instance::new(&mut store, black_box(&module), &[])
-        })
+        });
     });
 
     // Collect instantiation metrics
@@ -353,8 +353,8 @@ fn create_comparison_table(report: &mut BenchmarkReport) {
     };
 
     for size in [sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
-        let native_name = format!("native_parse_{}", size);
-        let wasm_name = format!("wasm_parse_{}", size);
+        let native_name = format!("native_parse_{size}");
+        let wasm_name = format!("wasm_parse_{size}");
 
         let native = results.iter().find(|r| r.name == native_name);
         let wasm = results.iter().find(|r| r.name == wasm_name);
@@ -411,7 +411,7 @@ fn create_instantiation_table(report: &mut BenchmarkReport) {
         table.rows.push(vec![
             TableCell::String("Compilation".to_string()),
             TableCell::Float(ms),
-            TableCell::String(format!("Module size: {:.1} KB", size_kb)),
+            TableCell::String(format!("Module size: {size_kb:.1} KB")),
         ]);
     }
 
@@ -435,10 +435,10 @@ fn generate_insights(report: &mut BenchmarkReport) {
     for size in [sizes::SMALL, sizes::MEDIUM, sizes::LARGE] {
         let native = results
             .iter()
-            .find(|r| r.name == format!("native_parse_{}", size));
+            .find(|r| r.name == format!("native_parse_{size}"));
         let wasm = results
             .iter()
-            .find(|r| r.name == format!("wasm_parse_{}", size));
+            .find(|r| r.name == format!("wasm_parse_{size}"));
 
         if let (Some(n), Some(w)) = (native, wasm) {
             let native_ns = n.avg_time_ns.unwrap_or(1);
@@ -449,19 +449,29 @@ fn generate_insights(report: &mut BenchmarkReport) {
         }
     }
 
-    if !slowdowns.is_empty() {
+    if slowdowns.is_empty() {
+        report.add_insight(Insight {
+            category: "warning".to_string(),
+            title: "WASM benchmark data not available".to_string(),
+            description: "Build WASM module to enable real WASM benchmarks".to_string(),
+            data_points: vec![
+                "Run: cd crates/hedl-wasm && wasm-pack build --release".to_string(),
+                "Then re-run benchmarks".to_string(),
+            ],
+        });
+    } else {
         let avg_slowdown = slowdowns.iter().sum::<f64>() / slowdowns.len() as f64;
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("WASM is {:.2}x slower than native on average", avg_slowdown),
+            title: format!("WASM is {avg_slowdown:.2}x slower than native on average"),
             description: "Measured slowdown factor from real WASM execution".to_string(),
             data_points: slowdowns
                 .iter()
                 .enumerate()
                 .map(|(i, s)| {
                     let size = [sizes::SMALL, sizes::MEDIUM, sizes::LARGE][i];
-                    format!("Size {}: {:.2}x slowdown", size, s)
+                    format!("Size {size}: {s:.2}x slowdown")
                 })
                 .collect(),
         });
@@ -477,20 +487,10 @@ fn generate_insights(report: &mut BenchmarkReport) {
         report.add_insight(Insight {
             category: "recommendation".to_string(),
             title: recommendation.to_string(),
-            description: format!("Based on {:.2}x average slowdown", avg_slowdown),
+            description: format!("Based on {avg_slowdown:.2}x average slowdown"),
             data_points: vec![
                 "Use WASM for browser/sandboxed execution".to_string(),
                 "Use native for server-side batch processing".to_string(),
-            ],
-        });
-    } else {
-        report.add_insight(Insight {
-            category: "warning".to_string(),
-            title: "WASM benchmark data not available".to_string(),
-            description: "Build WASM module to enable real WASM benchmarks".to_string(),
-            data_points: vec![
-                "Run: cd crates/hedl-wasm && wasm-pack build --release".to_string(),
-                "Then re-run benchmarks".to_string(),
             ],
         });
     }
@@ -514,7 +514,7 @@ fn export_reports(c: &mut Criterion) {
         report.print();
 
         if let Err(e) = std::fs::create_dir_all("target") {
-            eprintln!("Failed to create target directory: {}", e);
+            eprintln!("Failed to create target directory: {e}");
             return;
         }
 
@@ -525,7 +525,7 @@ fn export_reports(c: &mut Criterion) {
                 report.custom_tables.len(),
                 report.insights.len()
             ),
-            Err(e) => eprintln!("Failed to export reports: {}", e),
+            Err(e) => eprintln!("Failed to export reports: {e}"),
         }
     }
 }

@@ -79,10 +79,10 @@ json_str = hedl.to_json(doc)
 ### Rust
 ```toml
 [dependencies]
-hedl = "1.0"
+hedl = "1.2"
 
 # With optional features
-hedl = { version = "1.0", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
+hedl = { version = "1.2", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
 ```
 
 ### JavaScript/TypeScript

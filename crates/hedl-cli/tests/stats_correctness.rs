@@ -51,13 +51,12 @@ fn run_stats(file: &PathBuf, with_tokens: bool) -> String {
 
     let output = cmd.output().expect("Failed to execute hedl stats");
 
-    if !output.status.success() {
-        panic!(
-            "Stats command failed:\nstdout: {}\nstderr: {}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
+    assert!(
+        output.status.success(),
+        "Stats command failed:\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     String::from_utf8(output.stdout).unwrap()
 }
@@ -229,14 +228,14 @@ fn test_matrix_list() {
     let file = create_test_file(
         &dir,
         "matrix.hedl",
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id,name,score]
 ---
 items: @Data
   |d1,Alice,95.5
   |d2,Bob,87.3
   |d3,Carol,92.1
-"#,
+",
     );
 
     // Verify matrix list handling in parallel processing

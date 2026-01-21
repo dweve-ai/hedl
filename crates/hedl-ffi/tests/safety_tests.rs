@@ -62,7 +62,7 @@ fn test_hedl_parse_null_input() {
 #[test]
 fn test_hedl_parse_null_out_doc() {
     unsafe {
-        let result = hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, ptr::null_mut());
+        let result = hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, ptr::null_mut());
         assert_eq!(result, HEDL_ERR_NULL_PTR);
 
         let err = hedl_get_last_error();
@@ -92,7 +92,7 @@ fn test_hedl_get_version_null_doc() {
 fn test_hedl_get_version_null_major() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert!(!doc.is_null());
 
         let mut minor: c_int = 0;
@@ -107,7 +107,7 @@ fn test_hedl_get_version_null_major() {
 fn test_hedl_get_version_null_minor() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert!(!doc.is_null());
 
         let mut major: c_int = 0;
@@ -132,7 +132,7 @@ fn test_hedl_canonicalize_null_doc() {
 fn test_hedl_canonicalize_null_out_str() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let result = hedl_canonicalize(doc, ptr::null_mut());
         assert_eq!(result, HEDL_ERR_NULL_PTR);
@@ -155,7 +155,7 @@ fn test_hedl_lint_null_doc() {
 fn test_hedl_lint_null_out_diag() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let result = hedl_lint(doc, ptr::null_mut());
         assert_eq!(result, HEDL_ERR_NULL_PTR);
@@ -185,7 +185,7 @@ fn test_hedl_diagnostics_get_null_diag() {
 fn test_hedl_diagnostics_get_null_out_str() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         hedl_lint(doc, &mut diag);
@@ -240,7 +240,7 @@ fn test_hedl_parse_invalid_utf8() {
         let invalid_utf8: &[u8] = &[0xFF, 0xFE, 0xFD, 0x00]; // Invalid UTF-8 sequence
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(
-            invalid_utf8.as_ptr() as *const c_char,
+            invalid_utf8.as_ptr().cast::<c_char>(),
             invalid_utf8.len() as c_int - 1, // -1 to exclude null terminator
             0,
             &mut doc,
@@ -261,7 +261,7 @@ fn test_hedl_validate_invalid_utf8() {
     unsafe {
         let invalid_utf8: &[u8] = &[0xFF, 0xFE, 0xFD, 0x00];
         let result = hedl_validate(
-            invalid_utf8.as_ptr() as *const c_char,
+            invalid_utf8.as_ptr().cast::<c_char>(),
             invalid_utf8.len() as c_int - 1,
             0,
         );
@@ -403,7 +403,7 @@ fn test_free_poison_diagnostics_ptr_safe() {
 fn test_double_free_prevention_documentation() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert!(!doc.is_null());
 
         // Free the document
@@ -427,7 +427,7 @@ fn test_double_free_prevention_documentation() {
 fn test_diagnostics_double_free_prevention() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         hedl_lint(doc, &mut diag);
@@ -559,7 +559,7 @@ fn test_hedl_parse_error_cleanup() {
     unsafe {
         // When parse fails, the out_doc should be NULL
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let result = hedl_parse(INVALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        let result = hedl_parse(INVALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         assert_ne!(result, HEDL_OK);
         assert!(doc.is_null()); // Should not leak memory
@@ -570,7 +570,7 @@ fn test_hedl_parse_error_cleanup() {
 fn test_hedl_canonicalize_error_cleanup() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         // Try to canonicalize with NULL out_str
         let result = hedl_canonicalize(doc, ptr::null_mut());
@@ -589,7 +589,7 @@ fn test_hedl_canonicalize_error_cleanup() {
 fn test_hedl_multiple_operations_same_doc() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert!(!doc.is_null());
 
         // Multiple operations on same doc
@@ -619,7 +619,7 @@ fn test_hedl_get_last_error_null_when_no_error() {
     unsafe {
         // Parse successfully
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         // Error should be cleared after successful operation
         let err = hedl_get_last_error();
@@ -633,7 +633,7 @@ fn test_hedl_get_last_error_null_when_no_error() {
 fn test_hedl_get_last_error_persists() {
     unsafe {
         // Trigger an error
-        let result = hedl_validate(INVALID_HEDL.as_ptr() as *const c_char, -1, 0);
+        let result = hedl_validate(INVALID_HEDL.as_ptr().cast::<c_char>(), -1, 0);
         assert_ne!(result, HEDL_OK);
 
         // Error should be retrievable
@@ -653,12 +653,12 @@ fn test_hedl_get_last_error_persists() {
 fn test_hedl_error_cleared_on_success() {
     unsafe {
         // Trigger an error first
-        hedl_validate(INVALID_HEDL.as_ptr() as *const c_char, -1, 0);
+        hedl_validate(INVALID_HEDL.as_ptr().cast::<c_char>(), -1, 0);
         assert!(!hedl_get_last_error().is_null());
 
         // Successful operation should clear error
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let err = hedl_get_last_error();
         assert!(err.is_null());
@@ -680,7 +680,7 @@ fn test_hedl_thread_local_errors_in_threads() {
 
         let invalid_clone = invalid.clone();
         let handle1 = thread::spawn(move || {
-            let result = hedl_validate(invalid_clone.as_ptr() as *const c_char, -1, 0);
+            let result = hedl_validate(invalid_clone.as_ptr().cast::<c_char>(), -1, 0);
             assert_ne!(result, HEDL_OK);
 
             let err = hedl_get_last_error();
@@ -692,7 +692,7 @@ fn test_hedl_thread_local_errors_in_threads() {
         let valid_clone = valid.clone();
         let handle2 = thread::spawn(move || {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(valid_clone.as_ptr() as *const c_char, -1, 0, &mut doc);
+            hedl_parse(valid_clone.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
             let err = hedl_get_last_error();
             let has_error = !err.is_null();
@@ -723,12 +723,12 @@ fn test_hedl_parse_large_input() {
 
         // Add many key-value pairs
         for i in 0..10000 {
-            large_doc.extend_from_slice(format!("key{}: value{}\n", i, i).as_bytes());
+            large_doc.extend_from_slice(format!("key{i}: value{i}\n").as_bytes());
         }
         large_doc.push(0); // Null terminator
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let result = hedl_parse(large_doc.as_ptr() as *const c_char, -1, 0, &mut doc);
+        let result = hedl_parse(large_doc.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         // Should succeed
         assert_eq!(result, HEDL_OK);
@@ -745,7 +745,7 @@ fn test_hedl_parse_exact_length_input() {
         let input = b"%VERSION: 1.0\n---\nkey: value";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(
-            input.as_ptr() as *const c_char,
+            input.as_ptr().cast::<c_char>(),
             input.len() as c_int,
             0,
             &mut doc,
@@ -766,7 +766,7 @@ fn test_hedl_parse_extremely_large_input() {
         let small_buf = b"test\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        let result = hedl_parse(small_buf.as_ptr() as *const c_char, huge_size, 0, &mut doc);
+        let result = hedl_parse(small_buf.as_ptr().cast::<c_char>(), huge_size, 0, &mut doc);
 
         // Should be rejected
         assert_eq!(result, HEDL_ERR_INVALID_UTF8);
@@ -805,7 +805,7 @@ fn test_all_error_codes_defined() {
     for (i, &code1) in codes.iter().enumerate() {
         for (j, &code2) in codes.iter().enumerate() {
             if i != j {
-                assert_ne!(code1, code2, "Error codes {} and {} are equal", i, j);
+                assert_ne!(code1, code2, "Error codes {i} and {j} are equal");
             }
         }
     }
@@ -815,7 +815,7 @@ fn test_all_error_codes_defined() {
 
     // Verify all errors are negative
     for &code in &codes[1..] {
-        assert!(code < 0, "Error code {} should be negative", code);
+        assert!(code < 0, "Error code {code} should be negative");
     }
 }
 
@@ -831,7 +831,7 @@ fn test_hedl_parse_returns_correct_error() {
         // Invalid UTF-8 error
         let invalid_utf8: &[u8] = &[0xFF, 0xFE, 0x00];
         let result = hedl_parse(
-            invalid_utf8.as_ptr() as *const c_char,
+            invalid_utf8.as_ptr().cast::<c_char>(),
             invalid_utf8.len() as c_int - 1,
             0,
             &mut doc,
@@ -839,7 +839,7 @@ fn test_hedl_parse_returns_correct_error() {
         assert_eq!(result, HEDL_ERR_INVALID_UTF8);
 
         // Parse error
-        let result = hedl_parse(INVALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        let result = hedl_parse(INVALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert_eq!(result, HEDL_ERR_PARSE);
     }
 }
@@ -853,7 +853,7 @@ fn test_hedl_parse_returns_correct_error() {
 fn test_hedl_to_json_null_checks() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut out_str: *mut c_char = ptr::null_mut();
 
@@ -881,7 +881,7 @@ fn test_hedl_from_json_null_checks() {
         assert_eq!(result, HEDL_ERR_NULL_PTR);
 
         // NULL out_doc
-        let result = hedl_from_json(json.as_ptr() as *const c_char, -1, ptr::null_mut());
+        let result = hedl_from_json(json.as_ptr().cast::<c_char>(), -1, ptr::null_mut());
         assert_eq!(result, HEDL_ERR_NULL_PTR);
     }
 }
@@ -891,7 +891,7 @@ fn test_hedl_from_json_null_checks() {
 fn test_hedl_to_yaml_null_checks() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut out_str: *mut c_char = ptr::null_mut();
 
@@ -919,7 +919,7 @@ fn test_hedl_from_yaml_null_checks() {
         assert_eq!(result, HEDL_ERR_NULL_PTR);
 
         // NULL out_doc
-        let result = hedl_from_yaml(yaml.as_ptr() as *const c_char, -1, ptr::null_mut());
+        let result = hedl_from_yaml(yaml.as_ptr().cast::<c_char>(), -1, ptr::null_mut());
         assert_eq!(result, HEDL_ERR_NULL_PTR);
     }
 }
@@ -929,7 +929,7 @@ fn test_hedl_from_yaml_null_checks() {
 fn test_hedl_to_xml_null_checks() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut out_str: *mut c_char = ptr::null_mut();
 
@@ -957,7 +957,7 @@ fn test_hedl_from_xml_null_checks() {
         assert_eq!(result, HEDL_ERR_NULL_PTR);
 
         // NULL out_doc
-        let result = hedl_from_xml(xml.as_ptr() as *const c_char, -1, ptr::null_mut());
+        let result = hedl_from_xml(xml.as_ptr().cast::<c_char>(), -1, ptr::null_mut());
         assert_eq!(result, HEDL_ERR_NULL_PTR);
     }
 }
@@ -967,7 +967,7 @@ fn test_hedl_from_xml_null_checks() {
 fn test_hedl_to_csv_null_checks() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut out_str: *mut c_char = ptr::null_mut();
 
@@ -988,7 +988,7 @@ fn test_hedl_to_csv_null_checks() {
 fn test_hedl_to_parquet_null_checks() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut out_data: *mut u8 = ptr::null_mut();
         let mut out_len: usize = 0;
@@ -1031,7 +1031,7 @@ fn test_hedl_from_parquet_null_checks() {
 fn test_hedl_to_neo4j_cypher_null_checks() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut out_str: *mut c_char = ptr::null_mut();
 
@@ -1058,7 +1058,7 @@ fn test_json_roundtrip() {
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
         assert_eq!(
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1),
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc1),
             HEDL_OK
         );
 
@@ -1097,7 +1097,7 @@ fn test_yaml_roundtrip() {
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
         assert_eq!(
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1),
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc1),
             HEDL_OK
         );
 
@@ -1136,7 +1136,7 @@ fn test_xml_roundtrip() {
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
         assert_eq!(
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc1),
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc1),
             HEDL_OK
         );
 
@@ -1177,7 +1177,7 @@ fn test_hedl_schema_count() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(
-            VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char,
+            VALID_HEDL_WITH_SCHEMA.as_ptr().cast::<c_char>(),
             -1,
             0,
             &mut doc,
@@ -1197,7 +1197,7 @@ fn test_hedl_root_item_count() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(
-            VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char,
+            VALID_HEDL_WITH_SCHEMA.as_ptr().cast::<c_char>(),
             -1,
             0,
             &mut doc,
@@ -1220,7 +1220,7 @@ fn test_hedl_root_item_count() {
 fn test_hedl_diagnostics_index_out_of_range() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         hedl_lint(doc, &mut diag);
@@ -1246,7 +1246,7 @@ fn test_hedl_diagnostics_index_out_of_range() {
 fn test_hedl_diagnostics_severity_out_of_range() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         hedl_lint(doc, &mut diag);
@@ -1270,7 +1270,7 @@ fn test_hedl_diagnostics_severity_out_of_range() {
 fn test_hedl_diagnostics_all_severities() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         hedl_lint(doc, &mut diag);
@@ -1304,7 +1304,7 @@ fn test_hedl_diagnostics_all_severities() {
 fn test_hedl_canonicalize_deterministic() {
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
-        hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc);
+        hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
         // Canonicalize multiple times
         let mut canon1: *mut c_char = ptr::null_mut();
@@ -1336,7 +1336,7 @@ fn test_hedl_parse_strict_mode() {
 
         // Non-strict
         assert_eq!(
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 0, &mut doc),
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc),
             HEDL_OK
         );
         hedl_free_document(doc);
@@ -1344,7 +1344,7 @@ fn test_hedl_parse_strict_mode() {
         // Strict
         doc = ptr::null_mut();
         assert_eq!(
-            hedl_parse(VALID_HEDL.as_ptr() as *const c_char, -1, 1, &mut doc),
+            hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 1, &mut doc),
             HEDL_OK
         );
         hedl_free_document(doc);
@@ -1356,11 +1356,11 @@ fn test_hedl_validate_strict_mode() {
     unsafe {
         // Valid document should validate in both modes
         assert_eq!(
-            hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 0),
+            hedl_validate(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0),
             HEDL_OK
         );
         assert_eq!(
-            hedl_validate(VALID_HEDL.as_ptr() as *const c_char, -1, 1),
+            hedl_validate(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 1),
             HEDL_OK
         );
     }
@@ -1377,7 +1377,7 @@ fn test_full_workflow() {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         assert_eq!(
             hedl_parse(
-                VALID_HEDL_WITH_SCHEMA.as_ptr() as *const c_char,
+                VALID_HEDL_WITH_SCHEMA.as_ptr().cast::<c_char>(),
                 -1,
                 0,
                 &mut doc

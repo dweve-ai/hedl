@@ -23,7 +23,7 @@
 //! 3. Basic validation
 //! 4. Canonicalization
 //!
-//! Run with: cargo run --example quick_start
+//! Run with: cargo run --example `quick_start`
 
 use hedl::{canonicalize, parse, to_json, validate};
 
@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== HEDL Quick Start Example ===\n");
 
     // 1. Define a simple HEDL document
-    let hedl_text = r#"%VERSION: 1.0
+    let hedl_text = r"%VERSION: 1.0
 %STRUCT: Product: [id, name, price, category]
 ---
 # Product catalog
@@ -43,10 +43,10 @@ products: @Product
 # Simple key-value pairs
 store_name: Tech Paradise
 location: San Francisco
-"#;
+";
 
     println!("Input HEDL document:");
-    println!("{}", hedl_text);
+    println!("{hedl_text}");
     println!();
 
     // 2. Parse the document
@@ -68,14 +68,14 @@ location: San Francisco
     println!("--- JSON Conversion ---");
     let json = to_json(&doc)?;
     println!("JSON output:");
-    println!("{}", json);
+    println!("{json}");
     println!();
 
     // 5. Canonicalize (deterministic formatting)
     println!("--- Canonicalization ---");
     let canonical = canonicalize(&doc)?;
     println!("Canonical HEDL (sorted, deterministic):");
-    println!("{}", canonical);
+    println!("{canonical}");
 
     Ok(())
 }

@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use hedl_core::{Item, Value};
-use hedl_xml::streaming::{from_xml_stream, StreamConfig};
+use hedl_xml::streaming::{from_xml_stream, EntityPolicy, StreamConfig};
 use std::io::Cursor;
 
 #[test]
@@ -42,7 +42,7 @@ fn test_streaming_single_scalar() {
     assert_eq!(items[0].key, "name");
     assert_eq!(
         items[0].value.as_scalar(),
-        Some(&Value::String("test".to_string()))
+        Some(&Value::String("test".to_string().into()))
     );
 }
 
@@ -68,7 +68,7 @@ fn test_streaming_multiple_scalars() {
     assert_eq!(id_item.value.as_scalar(), Some(&Value::Int(123)));
     assert_eq!(
         name_item.value.as_scalar(),
-        Some(&Value::String("Alice".to_string()))
+        Some(&Value::String("Alice".to_string().into()))
     );
     assert_eq!(active_item.value.as_scalar(), Some(&Value::Bool(true)));
 }
@@ -227,7 +227,7 @@ fn test_streaming_unicode_content() {
     assert_eq!(items.len(), 1);
     assert_eq!(
         items[0].value.as_scalar(),
-        Some(&Value::String("héllo 世界".to_string()))
+        Some(&Value::String("héllo 世界".to_string().into()))
     );
 }
 
@@ -245,7 +245,7 @@ fn test_streaming_whitespace_handling() {
     assert_eq!(items.len(), 1);
     assert_eq!(
         items[0].value.as_scalar(),
-        Some(&Value::String("hello world".to_string()))
+        Some(&Value::String("hello world".to_string().into()))
     );
 }
 
@@ -312,10 +312,7 @@ fn test_streaming_large_document_simulation() {
     // Create a large-ish XML document with 100 repeated elements
     let mut xml = String::from(r#"<?xml version="1.0"?><hedl>"#);
     for i in 0..100 {
-        xml.push_str(&format!(
-            r#"<item id="{}"><name>Item{}</name></item>"#,
-            i, i
-        ));
+        xml.push_str(&format!(r#"<item id="{i}"><name>Item{i}</name></item>"#));
     }
     xml.push_str("</hedl>");
 
@@ -333,7 +330,7 @@ fn test_streaming_large_document_simulation() {
         // Each should have name matching the index
         if let Item::Object(obj) = &item.value {
             if let Some(Item::Scalar(Value::String(name))) = obj.get("name") {
-                assert_eq!(name, &format!("Item{}", idx));
+                assert_eq!(name.as_ref(), &format!("Item{idx}"));
             }
         }
     }
@@ -359,6 +356,8 @@ fn test_streaming_custom_config_values() {
         default_type_name: "CustomType".to_string(),
         version: (2, 1),
         infer_lists: false,
+        entity_policy: EntityPolicy::default(),
+        log_security_events: false,
     };
     assert_eq!(config.buffer_size, 131072);
     assert_eq!(config.max_recursion_depth, 50);
@@ -407,6 +406,6 @@ fn test_streaming_special_characters_escaping() {
     assert_eq!(items.len(), 1);
     assert_eq!(
         items[0].value.as_scalar(),
-        Some(&Value::String("hello & goodbye <tag>".to_string()))
+        Some(&Value::String("hello & goodbye <tag>".to_string().into()))
     );
 }

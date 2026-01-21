@@ -15,13 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::field_reassign_with_default)]
+
 //! Zero-copy string handling benchmarks.
 //!
 //! Measures HEDL's zero-copy string optimizations for JSON conversion.
 //! Compares performance between copying and zero-copy approaches.
 //! Includes comparative benchmarks against serde zero-copy, flatbuffers, and cap'n proto.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::measure_with_throughput;
 use hedl_bench::datasets::{generate_products, generate_users};
 use hedl_bench::report::BenchmarkReport;
@@ -31,6 +33,7 @@ use serde_json::{json, Value as JsonValue};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
+use std::hint::black_box;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -40,7 +43,7 @@ const STANDARD_SIZES: [usize; 3] = [10, 100, 1_000];
 // Comprehensive Result Structure
 // ============================================================================
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct ZeroCopyResult {
     operation: String,
     size: usize,
@@ -58,27 +61,6 @@ struct ZeroCopyResult {
     serialization_ns: Vec<u64>,
 }
 
-impl Default for ZeroCopyResult {
-    fn default() -> Self {
-        Self {
-            operation: String::new(),
-            size: 0,
-            with_copy_ns: Vec::new(),
-            zero_copy_ns: Vec::new(),
-            allocations_with_copy: 0,
-            allocations_zero_copy: 0,
-            peak_memory_with_copy_kb: 0,
-            peak_memory_zero_copy_kb: 0,
-            cache_misses_with_copy: 0,
-            cache_misses_zero_copy: 0,
-            input_bytes: 0,
-            string_count: 0,
-            escaped_string_count: 0,
-            serialization_ns: Vec::new(),
-        }
-    }
-}
-
 // ============================================================================
 // Comparative Benchmark Results
 // ============================================================================
@@ -91,7 +73,6 @@ struct ComparativeResult {
     parse_time_ns: Vec<u64>,
     memory_kb: usize,
     allocations: usize,
-    input_bytes: usize,
 }
 
 // ============================================================================
@@ -99,9 +80,9 @@ struct ComparativeResult {
 // ============================================================================
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static RESULTS: RefCell<Vec<ZeroCopyResult>> = RefCell::new(Vec::new());
-    static COMPARATIVE_RESULTS: RefCell<Vec<ComparativeResult>> = RefCell::new(Vec::new());
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static RESULTS: RefCell<Vec<ZeroCopyResult>> = const { RefCell::new(Vec::new()) };
+    static COMPARATIVE_RESULTS: RefCell<Vec<ComparativeResult>> = const { RefCell::new(Vec::new()) };
 }
 
 static INIT: Once = Once::new();
@@ -250,7 +231,7 @@ fn bench_simple_strings(c: &mut Criterion) {
             b.iter(|| {
                 let doc = from_json(black_box(input), &FromJsonConfig::default()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -259,7 +240,7 @@ fn bench_simple_strings(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("simple_strings_{}", size);
+        let name = format!("simple_strings_{size}");
         record_perf(
             &name,
             iterations,
@@ -316,7 +297,7 @@ fn bench_escaped_strings(c: &mut Criterion) {
             b.iter(|| {
                 let doc = from_json(black_box(input), &FromJsonConfig::default()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -325,7 +306,7 @@ fn bench_escaped_strings(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("escaped_strings_{}", size);
+        let name = format!("escaped_strings_{size}");
         record_perf(
             &name,
             iterations,
@@ -392,7 +373,7 @@ fn bench_owned_transfer(c: &mut Criterion) {
                         black_box(doc)
                     },
                     criterion::BatchSize::SmallInput,
-                )
+                );
             },
         );
 
@@ -430,7 +411,7 @@ fn bench_simple_vs_escaped(c: &mut Criterion) {
         b.iter(|| {
             let doc = from_json(black_box(&simple_json), &FromJsonConfig::default()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     let escaped_json = generate_escaped_strings(size);
@@ -438,7 +419,7 @@ fn bench_simple_vs_escaped(c: &mut Criterion) {
         b.iter(|| {
             let doc = from_json(black_box(&escaped_json), &FromJsonConfig::default()).unwrap();
             black_box(doc)
-        })
+        });
     });
 
     group.finish();
@@ -458,7 +439,7 @@ fn bench_roundtrip(c: &mut Criterion) {
                 let json = to_json(black_box(doc), &ToJsonConfig::default()).unwrap();
                 let doc2 = from_json(&json, &FromJsonConfig::default()).unwrap();
                 black_box(doc2)
-            })
+            });
         });
 
         let measurement =
@@ -468,7 +449,7 @@ fn bench_roundtrip(c: &mut Criterion) {
                 black_box(doc2);
             });
 
-        let name = format!("roundtrip_{}", size);
+        let name = format!("roundtrip_{size}");
         record_perf(
             &name,
             iterations,
@@ -520,7 +501,7 @@ fn bench_realistic_workloads(c: &mut Criterion) {
             b.iter(|| {
                 let doc = from_json(black_box(input), &FromJsonConfig::default()).unwrap();
                 black_box(doc)
-            })
+            });
         });
 
         let measurement =
@@ -529,7 +510,7 @@ fn bench_realistic_workloads(c: &mut Criterion) {
                 black_box(doc);
             });
 
-        let name = format!("realistic_{}", size);
+        let name = format!("realistic_{size}");
         record_perf(
             &name,
             iterations,
@@ -575,7 +556,7 @@ fn bench_serde_zero_copy(c: &mut Criterion) {
             b.iter(|| {
                 let value: JsonValue = serde_json::from_str(black_box(input)).unwrap();
                 black_box(value)
-            })
+            });
         });
 
         // Collect comparative data
@@ -594,7 +575,6 @@ fn bench_serde_zero_copy(c: &mut Criterion) {
             parse_time_ns: times,
             memory_kb: estimate_peak_memory(&json),
             allocations: count_allocations(&json, true), // serde always allocates
-            input_bytes: json.len(),
         };
         record_comparative(result);
     }
@@ -611,7 +591,7 @@ fn bench_serde_zero_copy(c: &mut Criterion) {
 fn bench_comparative_formats_stub(c: &mut Criterion) {
     ensure_init();
 
-    let mut group = c.benchmark_group("comparative_binary_formats");
+    let group = c.benchmark_group("comparative_binary_formats");
 
     // TODO: Implement actual flatbuffers benchmarks
     // group.bench_function("flatbuffers", |b| { ... });
@@ -755,25 +735,21 @@ fn create_parse_performance_table(results: &[ZeroCopyResult], report: &mut Bench
     }
 
     for (size, (simple, escaped)) in by_size {
-        let simple_avg = simple
-            .map(|r| {
-                if r.zero_copy_ns.is_empty() {
-                    0.0
-                } else {
-                    r.zero_copy_ns.iter().sum::<u64>() as f64 / r.zero_copy_ns.len() as f64 / 1000.0
-                }
-            })
-            .unwrap_or(0.0);
+        let simple_avg = simple.map_or(0.0, |r| {
+            if r.zero_copy_ns.is_empty() {
+                0.0
+            } else {
+                r.zero_copy_ns.iter().sum::<u64>() as f64 / r.zero_copy_ns.len() as f64 / 1000.0
+            }
+        });
 
-        let escaped_avg = escaped
-            .map(|r| {
-                if r.zero_copy_ns.is_empty() {
-                    0.0
-                } else {
-                    r.zero_copy_ns.iter().sum::<u64>() as f64 / r.zero_copy_ns.len() as f64 / 1000.0
-                }
-            })
-            .unwrap_or(0.0);
+        let escaped_avg = escaped.map_or(0.0, |r| {
+            if r.zero_copy_ns.is_empty() {
+                0.0
+            } else {
+                r.zero_copy_ns.iter().sum::<u64>() as f64 / r.zero_copy_ns.len() as f64 / 1000.0
+            }
+        });
 
         let overhead = if simple_avg > 0.0 {
             ((escaped_avg - simple_avg) / simple_avg) * 100.0
@@ -781,25 +757,21 @@ fn create_parse_performance_table(results: &[ZeroCopyResult], report: &mut Bench
             0.0
         };
 
-        let throughput_simple = simple
-            .map(|r| {
-                if simple_avg > 0.0 {
-                    (r.input_bytes as f64 / 1_000_000.0) / (simple_avg / 1_000_000.0)
-                } else {
-                    0.0
-                }
-            })
-            .unwrap_or(0.0);
+        let throughput_simple = simple.map_or(0.0, |r| {
+            if simple_avg > 0.0 {
+                (r.input_bytes as f64 / 1_000_000.0) / (simple_avg / 1_000_000.0)
+            } else {
+                0.0
+            }
+        });
 
-        let throughput_escaped = escaped
-            .map(|r| {
-                if escaped_avg > 0.0 {
-                    (r.input_bytes as f64 / 1_000_000.0) / (escaped_avg / 1_000_000.0)
-                } else {
-                    0.0
-                }
-            })
-            .unwrap_or(0.0);
+        let throughput_escaped = escaped.map_or(0.0, |r| {
+            if escaped_avg > 0.0 {
+                (r.input_bytes as f64 / 1_000_000.0) / (escaped_avg / 1_000_000.0)
+            } else {
+                0.0
+            }
+        });
 
         table.rows.push(vec![
             TableCell::Integer(size as i64),
@@ -943,12 +915,12 @@ fn create_serialization_performance_table(
             / 1000.0;
 
         // Use actual serialization measurement if available
-        let serialize_avg = if !result.serialization_ns.is_empty() {
+        let serialize_avg = if result.serialization_ns.is_empty() {
+            0.0
+        } else {
             result.serialization_ns.iter().sum::<u64>() as f64
                 / result.serialization_ns.len() as f64
                 / 1000.0
-        } else {
-            0.0
         };
 
         let roundtrip = parse_avg + serialize_avg;
@@ -1216,7 +1188,7 @@ fn generate_insights(
     if total_allocs_saved > 0 {
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("{} Allocations Saved via Zero-Copy", total_allocs_saved),
+            title: format!("{total_allocs_saved} Allocations Saved via Zero-Copy"),
             description: "Zero-copy parsing significantly reduces memory allocations".to_string(),
             data_points: vec![
                 format!(
@@ -1247,16 +1219,16 @@ fn generate_insights(
         let avg_speedup = speedups.iter().sum::<f64>() / speedups.len() as f64;
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Average Speedup: {:.2}x with Zero-Copy", avg_speedup),
+            title: format!("Average Speedup: {avg_speedup:.2}x with Zero-Copy"),
             description: "Zero-copy mode provides consistent performance improvement".to_string(),
             data_points: vec![
                 format!(
                     "Max speedup: {:.2}x",
-                    speedups.iter().cloned().fold(0.0, f64::max)
+                    speedups.iter().copied().fold(0.0, f64::max)
                 ),
                 format!(
                     "Min speedup: {:.2}x",
-                    speedups.iter().cloned().fold(f64::MAX, f64::min)
+                    speedups.iter().copied().fold(f64::MAX, f64::min)
                 ),
             ],
         });
@@ -1321,7 +1293,7 @@ fn generate_insights(
         let throughput_mbs = (total_bytes as f64 * 1e9) / (total_time_ns as f64 * 1_000_000.0);
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Aggregate Throughput: {:.2} MB/s", throughput_mbs),
+            title: format!("Aggregate Throughput: {throughput_mbs:.2} MB/s"),
             description: "Combined parsing throughput across all benchmarks".to_string(),
             data_points: vec![
                 format!("Total data: {} bytes", total_bytes),
@@ -1487,7 +1459,7 @@ fn export_reports() {
             let config = ExportConfig::all();
 
             match new_report.save_all(base_path, &config) {
-                Ok(_) => {
+                Ok(()) => {
                     println!(
                         "\n[OK] Exported {} tables and {} insights",
                         new_report.custom_tables.len(),
@@ -1495,10 +1467,10 @@ fn export_reports() {
                     );
                 }
                 Err(e) => {
-                    eprintln!("Export failed: {}", e);
+                    eprintln!("Export failed: {e}");
                     // Fallback to legacy export
-                    let _ = report.save_json(format!("{}.json", base_path));
-                    let _ = fs::write(format!("{}.md", base_path), report.to_markdown());
+                    let _ = report.save_json(format!("{base_path}.json"));
+                    let _ = fs::write(format!("{base_path}.md"), report.to_markdown());
                 }
             }
         }

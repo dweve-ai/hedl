@@ -16,36 +16,27 @@ Expose Rust functionality to C/C++ and other languages via FFI.
 
 ## Basic FFI Pattern
 
-### Rust Side
+The HEDL FFI implementation follows a comprehensive design with proper error handling, thread safety, and memory management. The main modules are:
 
-File: `crates/hedl-ffi/src/lib.rs`
+- `parsing.rs` - Parse functions
+- `operations.rs` - Document operations
+- `conversions/` - Format conversion functions
+- `error.rs` - Error handling
+- `memory.rs` - Memory management
+- `types.rs` - Type definitions and constants
+
+### Core Pattern
+
+All FFI functions follow this pattern:
 
 ```rust
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-use hedl_core::{parse, Document};
+// 1. Use #[no_mangle] for C symbol export
+// 2. Use unsafe extern "C" for C calling convention
+// 3. Accept C types (*const c_char, c_int, etc.)
+// 4. Return c_int error codes (0 = success)
+// 5. Use output parameters via mutable pointers
+// 6. Set thread-local error messages for failures
 
-/// Opaque pointer to HEDL document
-pub struct HedlDocument {
-    inner: Document,
-}
-
-/// Error code enum
-#[repr(C)]
-pub enum HedlErrorCode {
-    Success = 0,
-    ParseError = 1,
-    NullPointer = 2,
-    Utf8Error = 3,
-}
-
-/// Parse HEDL from C string
-///
-/// # Safety
-///
-/// - `input` must be valid UTF-8 C string
-/// - Caller owns returned document, must free with hedl_free_document
-/// - Error messages are stored in thread-local storage, retrieve with hedl_get_last_error()
 #[no_mangle]
 pub unsafe extern "C" fn hedl_parse(
     input: *const c_char,
@@ -53,60 +44,15 @@ pub unsafe extern "C" fn hedl_parse(
     strict: c_int,
     out_doc: *mut *mut HedlDocument,
 ) -> c_int {
-    // Clear previous error
-    clear_error();
-
-    // Check for null
-    if input.is_null() || out_doc.is_null() {
-        set_error("Null pointer argument");
-        return HEDL_ERR_NULL_PTR;
-    }
-
-    // Get input string (handles both null-terminated and length-specified)
-    let input_str = match get_input_string(input, input_len) {
-        Ok(s) => s,
-        Err(code) => return code,
-    };
-
-    // Create parse options
-    let options = ParseOptions {
-        strict_refs: strict != 0,
-        ..Default::default()
-    };
-
-    // Parse document
-    match parse_with_limits(input_str.as_bytes(), options) {
-        Ok(doc) => {
-            let handle = Box::new(HedlDocument { inner: doc });
-            *out_doc = Box::into_raw(handle);
-            HEDL_OK
-        }
-        Err(e) => {
-            let msg = format!("Parse error: {}", e);
-            set_error(&msg);
-            *out_doc = std::ptr::null_mut();
-            HEDL_ERR_PARSE
-        }
-    }
+    // Implementation validates all pointers, handles errors,
+    // and returns appropriate error codes
 }
+```
 
-/// Free document
-///
-/// # Safety
-///
-/// - `doc` must be valid pointer from hedl_parse
-/// - Must only be called once per document
-#[no_mangle]
-pub unsafe extern "C" fn hedl_free_document(doc: *mut HedlDocument) {
-    if !doc.is_null() {
-        drop(Box::from_raw(doc));
-    }
-}
+### Error Handling Pattern
 
-/// Free C string returned by HEDL
-// Error handling helpers (thread-local storage)
+```rust
 use std::cell::RefCell;
-use std::os::raw::c_void;
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -114,10 +60,6 @@ thread_local! {
 
 fn set_error(msg: &str) {
     LAST_ERROR.with(|e| *e.borrow_mut() = Some(msg.to_string()));
-}
-
-fn clear_error() {
-    LAST_ERROR.with(|e| *e.borrow_mut() = None);
 }
 
 #[no_mangle]
@@ -129,78 +71,55 @@ pub extern "C" fn hedl_get_last_error() -> *const c_char {
             .unwrap_or(std::ptr::null())
     })
 }
-
-// Helper function to get input string
-fn get_input_string(input: *const c_char, input_len: c_int) -> Result<String, c_int> {
-    unsafe {
-        if input_len < 0 {
-            // Null-terminated string
-            CStr::from_ptr(input)
-                .to_str()
-                .map(|s| s.to_string())
-                .map_err(|_| {
-                    set_error("Invalid UTF-8");
-                    HEDL_ERR_INVALID_UTF8
-                })
-        } else {
-            // Length-specified string
-            let slice = std::slice::from_raw_parts(input as *const u8, input_len as usize);
-            std::str::from_utf8(slice)
-                .map(|s| s.to_string())
-                .map_err(|_| {
-                    set_error("Invalid UTF-8");
-                    HEDL_ERR_INVALID_UTF8
-                })
-        }
-    }
-}
 ```
+
+See actual implementation in `crates/hedl-ffi/src/parsing.rs` and `crates/hedl-ffi/src/error.rs`.
 
 ### C Header
 
 File: `crates/hedl-ffi/hedl.h`
 
+The main header defines the C API with these key features:
+
+**Opaque Types** (implementation details hidden):
 ```c
-#ifndef HEDL_H
-#define HEDL_H
-
-#include <stdint.h>
-#include <stddef.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// Opaque types
 typedef struct HedlDocument HedlDocument;
+typedef struct HedlDiagnostics HedlDiagnostics;
+```
 
-// Error codes
+**Error Codes** (all negative on failure, 0 = success):
+```c
 #define HEDL_OK 0
-#define HEDL_ERR_NULL_PTR 1
-#define HEDL_ERR_PARSE 2
-#define HEDL_ERR_INVALID_UTF8 3
-// ... other error codes
+#define HEDL_ERR_NULL_PTR -1
+#define HEDL_ERR_INVALID_UTF8 -2
+#define HEDL_ERR_PARSE -3
+#define HEDL_ERR_JSON -5
+// ... more format-specific errors
+```
 
+**Core Functions**:
+```c
 // Parse HEDL document
-// input: UTF-8 encoded HEDL text
-// input_len: Length in bytes, or -1 for null-terminated string
-// strict: Non-zero for strict reference validation
-// out_doc: Output pointer for document handle
-// Returns: HEDL_OK on success, error code on failure
-int hedl_parse(const char* input, int input_len, int strict, HedlDocument** out_doc);
+int hedl_parse(
+    const char* input,      // UTF-8 text
+    int input_len,          // -1 for null-terminated
+    int strict,             // Non-zero for strict validation
+    HedlDocument** out_doc  // Output handle
+);
 
-// Get last error message for current thread
+// Get error message (thread-safe)
 const char* hedl_get_last_error(void);
 
-// Free document
+// Convert to JSON
+int hedl_to_json(
+    HedlDocument* doc,
+    int include_metadata,
+    char** out_json
+);
+
+// Memory management
 void hedl_free_document(HedlDocument* doc);
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // HEDL_H
+void hedl_free_string(char* str);
 ```
 
 ### C Usage
@@ -230,109 +149,152 @@ int main() {
 
 ## Advanced Patterns
 
-### Callback-based Output (Zero-Copy Transfer)
+### Format Conversion Functions
 
-The HEDL FFI provides callback-based functions for format conversions:
+The HEDL FFI provides functions to convert between formats:
 
-```rust
-use std::os::raw::c_void;
+```c
+// Convert HEDL to JSON
+int hedl_to_json(HedlDocument* doc, int include_metadata, char** out_json);
 
-/// Callback function type for receiving output data
-pub type HedlOutputCallback = unsafe extern "C" fn(
-    data: *const c_char,
-    len: usize,
-    user_data: *mut c_void,
-);
+// Convert HEDL to YAML
+int hedl_to_yaml(HedlDocument* doc, char** out_yaml);
 
-#[no_mangle]
-pub unsafe extern "C" fn hedl_to_json_callback(
-    doc: *const HedlDocument,
-    include_metadata: c_int,
-    callback: HedlOutputCallback,
-    user_data: *mut c_void,
-) -> c_int {
-    // ... validation ...
-    let json = match hedl_json::to_json(&(*doc).inner, &config) {
-        Ok(j) => j,
-        Err(e) => {
-            set_error(&format!("JSON conversion error: {}", e));
-            return HEDL_ERR_JSON;
-        }
-    };
+// Convert HEDL to XML
+int hedl_to_xml(HedlDocument* doc, int include_metadata, char** out_xml);
 
-    // Call callback with JSON data
-    let data = json.as_ptr() as *const c_char;
-    let len = json.len();
-    callback(data, len, user_data);
-    HEDL_OK
-}
+// Convert HEDL to CSV
+int hedl_to_csv(HedlDocument* doc, char** out_csv);
 ```
+
+**Example C Code**:
+```c
+HedlDocument* doc = NULL;
+char* json_output = NULL;
+
+// Parse HEDL
+if (hedl_parse(hedl_text, -1, 1, &doc) != HEDL_OK) {
+    fprintf(stderr, "Parse failed: %s\n", hedl_get_last_error());
+    return;
+}
+
+// Convert to JSON
+if (hedl_to_json(doc, 0, &json_output) == HEDL_OK) {
+    printf("JSON: %s\n", json_output);
+    hedl_free_string(json_output);  // Must free returned strings
+}
+
+hedl_free_document(doc);
+```
+
+See `crates/hedl-ffi/src/conversions/` for callback-based implementations.
 
 ### Thread Safety
 
-The HEDL FFI uses **thread-local error storage** for thread-safe error handling:
+**Error Handling**: Thread-safe via thread-local storage:
 
-```rust
-use std::cell::RefCell;
+```c
+// Each thread has independent error state
+const char* hedl_get_last_error(void);              // Thread-local
+const char* hedl_get_last_error_threadsafe(void);   // Explicit thread-safe version
+```
 
-thread_local! {
-    static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
+**Multi-threaded Example**:
+```c
+#include <pthread.h>
+
+void* worker_thread(void* arg) {
+    const char* hedl_input = (const char*)arg;
+    HedlDocument* doc = NULL;
+
+    // Each thread gets independent error state
+    int result = hedl_parse(hedl_input, -1, 1, &doc);
+    if (result != HEDL_OK) {
+        // This error is for THIS thread only - won't interfere with other threads
+        fprintf(stderr, "[Thread %ld] Error: %s\n", pthread_self(),
+                hedl_get_last_error_threadsafe());
+        return NULL;
+    }
+
+    // Process document...
+    hedl_free_document(doc);
+    return (void*)1;
 }
 
-#[no_mangle]
-pub extern "C" fn hedl_get_last_error_threadsafe() -> *const c_char {
-    // Returns error for CURRENT thread only
-    // No locks required - wait-free access
-    LAST_ERROR.with(|e| {
-        e.borrow()
-            .as_ref()
-            .map(|s| s.as_ptr() as *const c_char)
-            .unwrap_or(std::ptr::null())
-    })
+int main() {
+    pthread_t threads[4];
+    const char* inputs[4] = { /* ... */ };
+
+    for (int i = 0; i < 4; i++) {
+        pthread_create(&threads[i], NULL, worker_thread, (void*)inputs[i]);
+    }
+
+    for (int i = 0; i < 4; i++) {
+        pthread_join(threads[i], NULL);
+    }
 }
 ```
 
-**Note**: Document handles themselves are NOT thread-safe. Each thread should create and manage its own documents.
+**Document Handles**: NOT thread-safe - each thread must create/manage its own:
+- Don't share `HedlDocument*` between threads
+- Each thread should parse its own documents
+- Use appropriate synchronization if necessary
 
 ## Testing FFI
 
+FFI tests are located in `crates/hedl-ffi/tests/`. Run with:
+
+```bash
+cargo test -p hedl-ffi
+```
+
+**Example Rust test pattern** (from actual tests):
+
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::ffi::CString;
-    use std::ptr;
+#[test]
+fn test_hedl_parse_valid() {
+    unsafe {
+        let input = CString::new("%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+        let mut doc: *mut HedlDocument = ptr::null_mut();
 
-    #[test]
-    fn test_ffi_round_trip() {
-        unsafe {
-            let input = CString::new("%VERSION: 1.0\n---\nname: Alice").unwrap();
-            let mut doc: *mut HedlDocument = ptr::null_mut();
+        let result = hedl_parse(input.as_ptr(), -1, 1, &mut doc);
 
-            let result = hedl_parse(input.as_ptr(), -1, 1, &mut doc);
-            assert_eq!(result, HEDL_OK);
-            assert!(!doc.is_null());
+        assert_eq!(result, HEDL_OK);
+        assert!(!doc.is_null());
 
-            hedl_free_document(doc);
-        }
+        hedl_free_document(doc);
     }
+}
 
-    #[test]
-    fn test_ffi_error_handling() {
-        unsafe {
-            let input = CString::new("invalid: [[[").unwrap();
-            let mut doc: *mut HedlDocument = ptr::null_mut();
+#[test]
+fn test_hedl_parse_invalid() {
+    unsafe {
+        let input = CString::new("invalid: [[[").unwrap();
+        let mut doc: *mut HedlDocument = ptr::null_mut();
 
-            let result = hedl_parse(input.as_ptr(), -1, 1, &mut doc);
-            assert_eq!(result, HEDL_ERR_PARSE);
-            assert!(doc.is_null());
+        let result = hedl_parse(input.as_ptr(), -1, 1, &mut doc);
 
-            let error = hedl_get_last_error();
-            assert!(!error.is_null());
-        }
+        // Parse error code is -3
+        assert_eq!(result, HEDL_ERR_PARSE);
+        assert!(doc.is_null());
+
+        // Error message is available
+        let error = hedl_get_last_error();
+        assert!(!error.is_null());
+
+        let err_str = CStr::from_ptr(error);
+        println!("Error: {:?}", err_str);
     }
 }
 ```
+
+**Testing Checklist**:
+- Valid HEDL parsing succeeds
+- Invalid HEDL returns error code
+- Error messages are populated
+- Memory is properly freed
+- Null pointer handling is correct
+- Multi-threaded error isolation works
 
 ## Related
 

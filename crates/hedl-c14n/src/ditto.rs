@@ -81,8 +81,8 @@ use hedl_core::Value;
 /// // Same values and types
 /// assert!(can_use_ditto(&Value::Int(42), &Value::Int(42)));
 /// assert!(can_use_ditto(
-///     &Value::String("hello".to_string()),
-///     &Value::String("hello".to_string())
+///     &Value::String("hello".to_string().into()),
+///     &Value::String("hello".to_string().into())
 /// ));
 ///
 /// // Different values
@@ -91,6 +91,7 @@ use hedl_core::Value;
 /// // Different types (even if semantically similar)
 /// assert!(!can_use_ditto(&Value::Int(42), &Value::Float(42.0)));
 /// ```
+#[must_use]
 pub fn can_use_ditto(current: &Value, previous: &Value) -> bool {
     // Ditto requires deep equality including type
     values_equal(current, previous)
@@ -129,7 +130,10 @@ mod tests {
     fn test_ditto_null_vs_other() {
         assert!(!can_use_ditto(&Value::Null, &Value::Bool(false)));
         assert!(!can_use_ditto(&Value::Null, &Value::Int(0)));
-        assert!(!can_use_ditto(&Value::Null, &Value::String("".to_string())));
+        assert!(!can_use_ditto(
+            &Value::Null,
+            &Value::String(String::new().into())
+        ));
     }
 
     // ==================== Bool tests ====================
@@ -262,60 +266,60 @@ mod tests {
     #[test]
     fn test_ditto_string_same() {
         assert!(can_use_ditto(
-            &Value::String("hello".to_string()),
-            &Value::String("hello".to_string())
+            &Value::String("hello".to_string().into()),
+            &Value::String("hello".to_string().into())
         ));
     }
 
     #[test]
     fn test_ditto_string_different() {
         assert!(!can_use_ditto(
-            &Value::String("hello".to_string()),
-            &Value::String("world".to_string())
+            &Value::String("hello".to_string().into()),
+            &Value::String("world".to_string().into())
         ));
     }
 
     #[test]
     fn test_ditto_string_empty() {
         assert!(can_use_ditto(
-            &Value::String("".to_string()),
-            &Value::String("".to_string())
+            &Value::String(String::new().into()),
+            &Value::String(String::new().into())
         ));
     }
 
     #[test]
     fn test_ditto_string_case_sensitive() {
         assert!(!can_use_ditto(
-            &Value::String("Hello".to_string()),
-            &Value::String("hello".to_string())
+            &Value::String("Hello".to_string().into()),
+            &Value::String("hello".to_string().into())
         ));
     }
 
     #[test]
     fn test_ditto_string_whitespace() {
         assert!(!can_use_ditto(
-            &Value::String(" hello".to_string()),
-            &Value::String("hello".to_string())
+            &Value::String(" hello".to_string().into()),
+            &Value::String("hello".to_string().into())
         ));
         assert!(!can_use_ditto(
-            &Value::String("hello ".to_string()),
-            &Value::String("hello".to_string())
+            &Value::String("hello ".to_string().into()),
+            &Value::String("hello".to_string().into())
         ));
     }
 
     #[test]
     fn test_ditto_string_unicode() {
         assert!(can_use_ditto(
-            &Value::String("héllo 世界".to_string()),
-            &Value::String("héllo 世界".to_string())
+            &Value::String("héllo 世界".to_string().into()),
+            &Value::String("héllo 世界".to_string().into())
         ));
     }
 
     #[test]
     fn test_ditto_string_with_special_chars() {
         assert!(can_use_ditto(
-            &Value::String("line1\nline2".to_string()),
-            &Value::String("line1\nline2".to_string())
+            &Value::String("line1\nline2".to_string().into()),
+            &Value::String("line1\nline2".to_string().into())
         ));
     }
 
@@ -323,51 +327,51 @@ mod tests {
 
     #[test]
     fn test_ditto_tensor_scalar_same() {
-        let t1 = Value::Tensor(Tensor::Scalar(1.0));
-        let t2 = Value::Tensor(Tensor::Scalar(1.0));
+        let t1 = Value::Tensor(Box::new(Tensor::Scalar(1.0)));
+        let t2 = Value::Tensor(Box::new(Tensor::Scalar(1.0)));
         assert!(can_use_ditto(&t1, &t2));
     }
 
     #[test]
     fn test_ditto_tensor_scalar_different() {
-        let t1 = Value::Tensor(Tensor::Scalar(1.0));
-        let t2 = Value::Tensor(Tensor::Scalar(2.0));
+        let t1 = Value::Tensor(Box::new(Tensor::Scalar(1.0)));
+        let t2 = Value::Tensor(Box::new(Tensor::Scalar(2.0)));
         assert!(!can_use_ditto(&t1, &t2));
     }
 
     #[test]
     fn test_ditto_tensor_array_same() {
-        let t1 = Value::Tensor(Tensor::Array(vec![
+        let t1 = Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
-        ]));
-        let t2 = Value::Tensor(Tensor::Array(vec![
+        ])));
+        let t2 = Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
-        ]));
+        ])));
         assert!(can_use_ditto(&t1, &t2));
     }
 
     #[test]
     fn test_ditto_tensor_array_different_values() {
-        let t1 = Value::Tensor(Tensor::Array(vec![
+        let t1 = Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
-        ]));
-        let t2 = Value::Tensor(Tensor::Array(vec![
+        ])));
+        let t2 = Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(3.0),
-        ]));
+        ])));
         assert!(!can_use_ditto(&t1, &t2));
     }
 
     #[test]
     fn test_ditto_tensor_array_different_length() {
-        let t1 = Value::Tensor(Tensor::Array(vec![Tensor::Scalar(1.0)]));
-        let t2 = Value::Tensor(Tensor::Array(vec![
+        let t1 = Value::Tensor(Box::new(Tensor::Array(vec![Tensor::Scalar(1.0)])));
+        let t2 = Value::Tensor(Box::new(Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
-        ]));
+        ])));
         assert!(!can_use_ditto(&t1, &t2));
     }
 
@@ -398,41 +402,41 @@ mod tests {
 
     #[test]
     fn test_ditto_expression_same() {
-        let e1 = Value::Expression(Expression::Identifier {
+        let e1 = Value::Expression(Box::new(Expression::Identifier {
             name: "foo".to_string(),
             span: Default::default(),
-        });
-        let e2 = Value::Expression(Expression::Identifier {
+        }));
+        let e2 = Value::Expression(Box::new(Expression::Identifier {
             name: "foo".to_string(),
             span: Default::default(),
-        });
+        }));
         assert!(can_use_ditto(&e1, &e2));
     }
 
     #[test]
     fn test_ditto_expression_different() {
-        let e1 = Value::Expression(Expression::Identifier {
+        let e1 = Value::Expression(Box::new(Expression::Identifier {
             name: "foo".to_string(),
             span: Default::default(),
-        });
-        let e2 = Value::Expression(Expression::Identifier {
+        }));
+        let e2 = Value::Expression(Box::new(Expression::Identifier {
             name: "bar".to_string(),
             span: Default::default(),
-        });
+        }));
         assert!(!can_use_ditto(&e1, &e2));
     }
 
     #[test]
     fn test_ditto_expression_different_variant() {
-        let e1 = Value::Expression(Expression::Identifier {
+        let e1 = Value::Expression(Box::new(Expression::Identifier {
             name: "foo".to_string(),
             span: Default::default(),
-        });
-        let e2 = Value::Expression(Expression::Call {
+        }));
+        let e2 = Value::Expression(Box::new(Expression::Call {
             name: "foo".to_string(),
             args: vec![],
             span: Default::default(),
-        });
+        }));
         assert!(!can_use_ditto(&e1, &e2));
     }
 
@@ -446,11 +450,11 @@ mod tests {
         assert!(!can_use_ditto(&Value::Int(1), &Value::Bool(true)));
         assert!(!can_use_ditto(&Value::Int(42), &Value::Float(42.0)));
         assert!(!can_use_ditto(
-            &Value::String("42".to_string()),
+            &Value::String("42".to_string().into()),
             &Value::Int(42)
         ));
         assert!(!can_use_ditto(
-            &Value::String("true".to_string()),
+            &Value::String("true".to_string().into()),
             &Value::Bool(true)
         ));
     }
@@ -464,17 +468,17 @@ mod tests {
             Value::Bool(false),
             Value::Int(42),
             Value::Float(3.125),
-            Value::String("hello".to_string()),
-            Value::Tensor(Tensor::Scalar(1.0)),
+            Value::String("hello".to_string().into()),
+            Value::Tensor(Box::new(Tensor::Scalar(1.0))),
             Value::Reference(Reference::qualified("Type", "field")),
-            Value::Expression(Expression::Identifier {
+            Value::Expression(Box::new(Expression::Identifier {
                 name: "expr".to_string(),
                 span: Default::default(),
-            }),
+            })),
         ];
 
         for v in &values {
-            assert!(can_use_ditto(v, v), "Value {:?} should equal itself", v);
+            assert!(can_use_ditto(v, v), "Value {v:?} should equal itself");
         }
     }
 }

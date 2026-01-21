@@ -19,7 +19,7 @@
 //!
 //! Demonstrates processing multiple HEDL streams concurrently using tokio.
 //!
-//! Run with: cargo run --example async_concurrent --features async
+//! Run with: cargo run --example `async_concurrent` --features async
 
 #[cfg(feature = "async")]
 use hedl_stream::{AsyncStreamingParser, NodeEvent};
@@ -31,7 +31,7 @@ async fn process_stream(
     name: &str,
     data: &str,
 ) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
-    println!("[{}] Starting processing...", name);
+    println!("[{name}] Starting processing...");
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(data)).await?;
 
@@ -42,7 +42,7 @@ async fn process_stream(
         }
     }
 
-    println!("[{}] Completed: {} nodes processed", name, count);
+    println!("[{name}] Completed: {count} nodes processed");
     Ok(count)
 }
 
@@ -51,7 +51,7 @@ async fn process_stream(
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("=== Concurrent Async Parsing Example ===\n");
 
-    let data1 = r#"
+    let data1 = r"
 %VERSION: 1.0
 %STRUCT: Product: [id, name, price]
 ---
@@ -59,9 +59,9 @@ products: @Product
   | p1, Widget, 9.99
   | p2, Gadget, 19.99
   | p3, Doohickey, 29.99
-"#;
+";
 
-    let data2 = r#"
+    let data2 = r"
 %VERSION: 1.0
 %STRUCT: Customer: [id, name, tier]
 ---
@@ -70,9 +70,9 @@ customers: @Customer
   | c2, Bob, Silver
   | c3, Carol, Bronze
   | c4, David, Gold
-"#;
+";
 
-    let data3 = r#"
+    let data3 = r"
 %VERSION: 1.0
 %STRUCT: Transaction: [id, amount, type]
 ---
@@ -82,7 +82,7 @@ transactions: @Transaction
   | t3, 75.00, debit
   | t4, 125.00, credit
   | t5, 200.00, debit
-"#;
+";
 
     // Process all streams concurrently
     let (result1, result2, result3) = tokio::join!(

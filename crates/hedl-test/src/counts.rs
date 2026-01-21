@@ -23,6 +23,7 @@ use hedl_core::{Document, Item, MatrixList, Node, Value};
 use std::collections::BTreeMap;
 
 /// Count nodes in a document.
+#[must_use]
 pub fn count_nodes(doc: &Document) -> usize {
     let mut count = 0;
     for item in doc.root.values() {
@@ -36,7 +37,9 @@ pub fn count_nodes(doc: &Document) -> usize {
 fn count_nodes_in_list(list: &MatrixList) -> usize {
     let mut count = list.rows.len();
     for row in &list.rows {
-        count += count_children(&row.children);
+        if let Some(ref children) = row.children {
+            count += count_children(children);
+        }
     }
     count
 }
@@ -46,13 +49,16 @@ fn count_children(children: &BTreeMap<String, Vec<Node>>) -> usize {
     for nodes in children.values() {
         count += nodes.len();
         for node in nodes {
-            count += count_children(&node.children);
+            if let Some(ref child_children) = node.children {
+                count += count_children(child_children);
+            }
         }
     }
     count
 }
 
 /// Count references in a document.
+#[must_use]
 pub fn count_references(doc: &Document) -> usize {
     let mut count = 0;
     for item in doc.root.values() {
@@ -76,9 +82,11 @@ fn count_refs_in_node(node: &Node) -> usize {
             count += 1;
         }
     }
-    for children in node.children.values() {
-        for child in children {
-            count += count_refs_in_node(child);
+    if let Some(ref children) = node.children {
+        for child_nodes in children.values() {
+            for child in child_nodes {
+                count += count_refs_in_node(child);
+            }
         }
     }
     count

@@ -1,8 +1,8 @@
 # hedl-mcp
 
-**Model Context Protocol server for HEDL—complete AI/LLM integration with 10 tools, caching, rate limiting, and streaming support.**
+**Model Context Protocol server for HEDL—complete AI/LLM integration with 11 tools, caching, rate limiting, and streaming support.**
 
-AI/LLM systems need seamless access to HEDL files: reading documents, validating schemas, converting formats, querying entities, optimizing token usage. `hedl-mcp` provides a production-grade MCP server that bridges AI systems with the HEDL ecosystem through 10 specialized tools, high-performance caching (2-5x speedup), rate limiting (DoS protection), and streaming support for large files.
+AI/LLM systems need seamless access to HEDL files: reading documents, validating schemas, converting formats, querying entities, optimizing token usage. `hedl-mcp` provides a production-grade MCP server that bridges AI systems with the HEDL ecosystem through 11 specialized tools (including batch operations), high-performance caching (2-5x speedup), rate limiting (DoS protection), and streaming support for large files.
 
 This is the official Model Context Protocol server for HEDL. Connect any MCP-compatible AI system (Claude Desktop, custom agents, LLM applications) to HEDL with comprehensive tools for validation, conversion, optimization, and querying.
 
@@ -10,7 +10,7 @@ This is the official Model Context Protocol server for HEDL. Connect any MCP-com
 
 Complete MCP server with production-ready infrastructure:
 
-1. **10 MCP Tools**: Read, query, validate, optimize, stats, format, write, convert (to/from), stream
+1. **11 MCP Tools**: Read, query, validate, optimize, stats, format, write, convert (to/from), stream, batch
 2. **JSON-RPC 2.0 Protocol**: Full MCP specification compliance (protocol version 2024-11-05)
 3. **High-Performance Caching**: LRU cache with 2-5x speedup on repeated operations
 4. **Rate Limiting**: Token bucket algorithm with 200 burst capacity, 100 req/s sustained
@@ -87,7 +87,7 @@ server.run_stdio().await?;  // Async mode
 server.run_stdio_sync()?;   // Sync mode
 ```
 
-## MCP Tools (10 Total)
+## MCP Tools (11 Total)
 
 ### 1. hedl_read - Read and Parse HEDL Files
 
@@ -104,10 +104,9 @@ Read HEDL files from directory or specific file with optional JSON representatio
 
 **Arguments**:
 - `path` (string, required) - File or directory path (scoped to root_path)
-- `recursive` (boolean, optional) - Recursively scan directories (default: false)
-- `parallel` (boolean, optional) - Use parallel processing (default: false)
-- `threads` (number, optional) - Thread count for parallel mode (default: num_cpus)
+- `recursive` (boolean, optional) - Recursively scan directories (default: true)
 - `include_json` (boolean, optional) - Include JSON representation in output (default: false)
+- `num_threads` (number, optional) - Thread count for parallel processing (default: CPU core count)
 
 **Output**:
 ```json
@@ -125,7 +124,7 @@ Read HEDL files from directory or specific file with optional JSON representatio
 }
 ```
 
-**Parallel Processing**: Processes multiple files concurrently with configurable thread pool for maximum throughput.
+**Parallel Processing**: Automatically uses parallel processing for directory operations with configurable thread pool. Single-file operations do not use parallelism.
 
 ### 2. hedl_query - Query Entity Registry
 
@@ -135,17 +134,18 @@ Query parsed entities by type and ID with graph-aware nested children support:
 {
   "tool": "hedl_query",
   "arguments": {
-    "path": "data/users.hedl",
-    "type": "User",
+    "hedl": "%VERSION: 1.0\n---\nusers: @User[id, name]\n  | alice, Alice Smith",
+    "type_name": "User",
     "id": "alice"
   }
 }
 ```
 
 **Arguments**:
-- `path` (string, required) - HEDL file path
-- `type` (string, optional) - Filter by entity type
+- `hedl` (string, required) - HEDL document content to query
+- `type_name` (string, optional) - Filter by entity type name
 - `id` (string, optional) - Filter by entity ID
+- `include_children` (boolean, optional) - Include nested children in results (default: true)
 
 **Output**:
 ```json
@@ -154,14 +154,14 @@ Query parsed entities by type and ID with graph-aware nested children support:
     {
       "type": "User",
       "id": "alice",
-      "fields": ["alice", "Alice Smith", "alice@example.com", "2024-01-15"],
-      "line": 15,
+      "fields": ["alice", "Alice Smith"],
+      "line": 3,
       "children": [
         {
           "type": "Post",
           "id": "post1",
-          "fields": ["post1", "My First Post", "..."],
-          "line": 23
+          "fields": ["post1", "My First Post"],
+          "line": 4
         }
       ]
     }
@@ -171,9 +171,10 @@ Query parsed entities by type and ID with graph-aware nested children support:
 ```
 
 **Features**:
-- Filter by type only: returns all entities of that type
-- Filter by ID only: returns entities with matching ID across all types
+- Filter by type_name only: returns all entities of that type
+- Filter by id only: returns entities with matching ID across all types
 - Recursive children traversal via %NEST relationships
+- Set `include_children: false` to exclude nested entity information
 
 ### 3. hedl_validate - Validate HEDL Documents
 
@@ -183,7 +184,7 @@ Validate syntax, schema, and references with detailed diagnostics:
 {
   "tool": "hedl_validate",
   "arguments": {
-    "content": "%VERSION: 1.0\n---\nusers: @User[id, name]\n  | alice, Alice",
+    "hedl": "%VERSION: 1.0\n---\nusers: @User[id, name]\n  | alice, Alice",
     "strict": true,
     "lint": true
   }
@@ -191,8 +192,8 @@ Validate syntax, schema, and references with detailed diagnostics:
 ```
 
 **Arguments**:
-- `content` (string, required) - HEDL content to validate
-- `strict` (boolean, optional) - Treat lint warnings as errors (default: false)
+- `hedl` (string, required) - HEDL document content to validate
+- `strict` (boolean, optional) - Treat lint warnings as errors (default: true)
 - `lint` (boolean, optional) - Include linting diagnostics (default: true)
 
 **Output** (valid document):
@@ -244,14 +245,15 @@ Convert JSON to optimized HEDL format with token savings statistics:
   "tool": "hedl_optimize",
   "arguments": {
     "json": "{\"users\": [{\"id\": \"alice\", \"name\": \"Alice\"}]}",
-    "enable_ditto": true
+    "ditto": true
   }
 }
 ```
 
 **Arguments**:
 - `json` (string, required) - JSON content to convert
-- `enable_ditto` (boolean, optional) - Enable ditto optimization (default: true)
+- `ditto` (boolean, optional) - Enable ditto optimization for repeated values (default: true)
+- `compact` (boolean, optional) - Minimize whitespace in output (default: false)
 
 **Output**:
 ```json
@@ -275,14 +277,14 @@ Compare HEDL vs JSON token counts with detailed breakdown:
 {
   "tool": "hedl_stats",
   "arguments": {
-    "content": "users: @User[id, name]\n  | alice, Alice\n  | bob, Bob",
+    "hedl": "users: @User[id, name]\n  | alice, Alice\n  | bob, Bob",
     "tokenizer": "simple"
   }
 }
 ```
 
 **Arguments**:
-- `content` (string, required) - HEDL content to analyze
+- `hedl` (string, required) - HEDL document content to analyze
 - `tokenizer` (string, optional) - Tokenizer to use: "simple" or "cl100k" (default: "simple")
 
 **Output**:
@@ -322,15 +324,15 @@ Canonicalize HEDL with optional ditto optimization:
 {
   "tool": "hedl_format",
   "arguments": {
-    "content": "users:@User[id,name]\n|alice,Alice",
-    "enable_ditto": true
+    "hedl": "users:@User[id,name]\n|alice,Alice",
+    "ditto": true
   }
 }
 ```
 
 **Arguments**:
-- `content` (string, required) - HEDL content to format
-- `enable_ditto` (boolean, optional) - Enable ditto optimization (default: false)
+- `hedl` (string, required) - HEDL document content to format
+- `ditto` (boolean, optional) - Enable ditto optimization for repeated values (default: true)
 
 **Output**:
 ```json
@@ -366,9 +368,9 @@ Write HEDL content with optional validation and formatting:
 **Arguments**:
 - `path` (string, required) - Output file path (scoped to root_path)
 - `content` (string, required) - HEDL content to write
-- `validate` (boolean, optional) - Validate before writing (default: false)
+- `validate` (boolean, optional) - Validate before writing (default: true)
 - `format` (boolean, optional) - Canonicalize before writing (default: false)
-- `backup` (boolean, optional) - Create .hedl.bak backup (default: false)
+- `backup` (boolean, optional) - Create .hedl.bak backup (default: true)
 
 **Output**:
 ```json
@@ -387,25 +389,29 @@ Write HEDL content with optional validation and formatting:
 
 ### 8. hedl_convert_to - Convert HEDL to Other Formats
 
-Export HEDL to JSON, YAML, CSV, Parquet (base64), or Cypher (Neo4j):
+Export HEDL to JSON, YAML, XML, CSV, Parquet (base64), Cypher (Neo4j), or TOON:
 
 ```json
 {
   "tool": "hedl_convert_to",
   "arguments": {
-    "content": "users: @User[id, name]\n  | alice, Alice",
+    "hedl": "users: @User[id, name]\n  | alice, Alice",
     "format": "json",
-    "pretty": true
+    "options": {
+      "pretty": true
+    }
   }
 }
 ```
 
 **Arguments**:
-- `content` (string, required) - HEDL content to convert
-- `format` (string, required) - Target format: "json", "yaml", "csv", "parquet", "cypher"
-- `pretty` (boolean, optional) - Pretty-print output (JSON, YAML) (default: false)
-- `headers` (boolean, optional) - Include CSV headers (default: true)
-- `include_constraints` (boolean, optional) - Add Cypher constraints (default: false)
+- `hedl` (string, required) - HEDL document content to convert
+- `format` (string, required) - Target format: "json", "yaml", "xml", "csv", "parquet", "cypher", "toon"
+- `options` (object, optional) - Format-specific options:
+  - For JSON/YAML/XML: `pretty` (bool) - Pretty-print output (default: true)
+  - For XML: `include_metadata` (bool) - Include metadata (default: true), `root_element` (string)
+  - For CSV: `include_headers` (bool) - Include CSV headers (default: true)
+  - For Cypher: `include_constraints` (bool) - Add constraints (default: false)
 
 **Output**:
 ```json
@@ -415,12 +421,12 @@ Export HEDL to JSON, YAML, CSV, Parquet (base64), or Cypher (Neo4j):
 }
 ```
 
-**Parquet Output**: Base64-encoded bytes (binary format)
+**Parquet Output**: Base64-encoded `parquet_base64` field with byte count
 **Cypher Output**: Neo4j CREATE/MERGE statements with optional constraints
 
 ### 9. hedl_convert_from - Convert Other Formats to HEDL
 
-Import JSON, YAML, CSV, or Parquet into HEDL:
+Import JSON, YAML, XML, CSV, Parquet, or TOON into HEDL:
 
 ```json
 {
@@ -428,16 +434,19 @@ Import JSON, YAML, CSV, or Parquet into HEDL:
   "arguments": {
     "content": "{\"users\": [{\"id\": \"alice\", \"name\": \"Alice\"}]}",
     "format": "json",
-    "canonicalize": true
+    "options": {
+      "canonicalize": true
+    }
   }
 }
 ```
 
 **Arguments**:
-- `content` (string, required) - Source content to convert
-- `format` (string, required) - Source format: "json", "yaml", "csv", "parquet"
-- `canonicalize` (boolean, optional) - Canonicalize output (default: false)
-- `schema` (array of strings, optional) - CSV column names (required for CSV without headers)
+- `content` (string, required) - Source content to convert (base64 for parquet)
+- `format` (string, required) - Source format: "json", "yaml", "xml", "csv", "parquet", "toon"
+- `options` (object, optional) - Format-specific options:
+  - General: `canonicalize` (bool) - Canonicalize output (default: false)
+  - CSV: `schema` (array of strings) - Column names (required for headerless CSV)
 
 **Output**:
 ```json
@@ -447,7 +456,8 @@ Import JSON, YAML, CSV, or Parquet into HEDL:
 }
 ```
 
-**CSV Conversion**: Requires schema for headerless CSV, auto-detects types for values
+**CSV Conversion**: Requires schema option for headerless CSV; auto-detects types for values
+**Parquet Input**: Provide base64-encoded content in `content` field
 
 ### 10. hedl_stream - Stream Parse Large Documents
 
@@ -457,7 +467,7 @@ Memory-efficient parsing with pagination and type filtering:
 {
   "tool": "hedl_stream",
   "arguments": {
-    "path": "large_export.hedl",
+    "hedl": "users: @User[id, name]\n  | alice, Alice\n  | bob, Bob",
     "type_filter": "User",
     "offset": 0,
     "limit": 100
@@ -466,10 +476,10 @@ Memory-efficient parsing with pagination and type filtering:
 ```
 
 **Arguments**:
-- `path` (string, required) - HEDL file path
+- `hedl` (string, required) - HEDL document content to stream parse
 - `type_filter` (string, optional) - Filter entities by type
 - `offset` (number, optional) - Skip first N entities (default: 0)
-- `limit` (number, optional) - Maximum entities to return (default: 1000)
+- `limit` (number, optional) - Maximum entities to return (default: 100)
 
 **Output**:
 ```json
@@ -478,18 +488,98 @@ Memory-efficient parsing with pagination and type filtering:
     {
       "type": "User",
       "id": "alice",
-      "fields": ["alice", "Alice Smith", "alice@example.com"],
-      "line": 15
+      "fields": ["alice", "Alice"],
+      "line": 2
     }
   ],
   "count": 1,
-  "total": 125,
+  "total": 2,
   "has_more": true,
   "next_offset": 100
 }
 ```
 
-**Performance**: O(1) memory per entity—processes multi-gigabyte files without loading entire document.
+**Performance**: Streaming architecture processes documents efficiently with configurable pagination.
+
+### 11. batch - Execute Multiple Operations
+
+Execute multiple operations in a single request with dependency resolution and parallel execution:
+
+```json
+{
+  "tool": "batch",
+  "arguments": {
+    "operations": [
+      {
+        "id": "validate1",
+        "tool": "hedl_validate",
+        "arguments": {
+          "hedl": "%VERSION: 1.0\n---\nusers: @User[id, name]\n  | alice, Alice"
+        }
+      },
+      {
+        "id": "format1",
+        "tool": "hedl_format",
+        "arguments": {
+          "hedl": "users:@User[id,name]\n|alice,Alice"
+        },
+        "depends_on": ["validate1"]
+      }
+    ],
+    "mode": "continue_on_error",
+    "parallel": true,
+    "transaction": false,
+    "timeout": 30
+  }
+}
+```
+
+**Arguments**:
+- `operations` (array, required) - List of operations to execute:
+  - `id` (string, required) - Unique operation identifier
+  - `tool` (string, required) - Tool name to execute
+  - `arguments` (object, required) - Tool-specific arguments
+  - `depends_on` (array, optional) - Operation IDs this depends on
+- `mode` (string, optional) - Execution mode: "continue_on_error" or "stop_on_error" (default: "continue_on_error")
+- `parallel` (boolean, optional) - Enable parallel execution for independent operations (default: true)
+- `transaction` (boolean, optional) - All-or-nothing transaction semantics (default: false)
+- `timeout` (number, optional) - Maximum execution time in seconds (1-3600)
+
+**Output**:
+```json
+{
+  "results": [
+    {
+      "id": "validate1",
+      "status": "success",
+      "result": {
+        "valid": true,
+        "version": "1.0"
+      }
+    },
+    {
+      "id": "format1",
+      "status": "success",
+      "result": {
+        "formatted": "users: @User[id, name]\n  | alice, Alice"
+      }
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "succeeded": 2,
+    "failed": 0,
+    "duration_ms": 45
+  }
+}
+```
+
+**Features**:
+- **Dependency Resolution**: Automatically orders operations based on `depends_on` declarations
+- **Parallel Execution**: Independent operations run concurrently (when `parallel: true`)
+- **Error Handling**: Continue on errors or stop at first failure
+- **Transaction Semantics**: All-or-nothing execution with rollback on failure
+- **Timeout Protection**: Maximum execution time prevents runaway operations
 
 ## High-Performance Caching
 
@@ -658,7 +748,7 @@ List and read HEDL files as MCP resources:
 - `shutdown` - Graceful server termination
 
 **Tools**:
-- `tools/list` - List all 10 available tools with schemas
+- `tools/list` - List all 11 available tools with schemas
 - `tools/call` - Execute specific tool with arguments
 
 **Resources**:
@@ -765,7 +855,8 @@ Detailed performance benchmarks are available in the HEDL repository benchmark s
 ## Testing Coverage
 
 Comprehensive test suite covering:
-- **All 10 Tools**: Valid/invalid inputs, edge cases, error conditions
+- **All 11 Tools**: Valid/invalid inputs, edge cases, error conditions
+- **Batch Operations**: Dependency resolution, parallel execution, error handling
 - **Caching**: Hits, misses, LRU eviction, statistics
 - **Rate Limiting**: Burst capacity, sustained rate, token refill, overflow
 - **Security**: Path traversal detection, input size validation
@@ -779,9 +870,9 @@ Comprehensive test suite covering:
 - `hedl-lint` 1.0 - Best practices linting
 - `hedl-json`, `hedl-yaml`, `hedl-xml`, `hedl-csv`, `hedl-parquet`, `hedl-neo4j` 1.0 - Format conversion
 - `serde` 1.0, `serde_json` 1.0 - JSON serialization
-- `tokio` 1.35 - Async runtime
-- `dashmap` 5.5 - Concurrent HashMap for caching
-- `rayon` 1.8 - Parallel processing
+- `tokio` 1.0 - Async runtime
+- `dashmap` 6.1 - Concurrent HashMap for caching
+- `rayon` 1.10 - Parallel processing
 - `thiserror` 1.0 - Error type definitions
 
 ## License

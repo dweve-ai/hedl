@@ -16,7 +16,12 @@ pub fn parse_with_limits(
 
 pub struct ParseOptions {
     pub limits: Limits,
-    pub strict_refs: bool,
+    pub reference_mode: ReferenceMode,
+}
+
+pub enum ReferenceMode {
+    Strict,   // Unresolved references cause errors (default)
+    Lenient,  // Unresolved references are silently ignored
 }
 
 impl Default for ParseOptions {
@@ -29,6 +34,7 @@ impl Default for ParseOptions {
 ```rust
 pub struct Document {
     pub version: (u32, u32),
+    pub schema_versions: BTreeMap<String, SchemaVersion>,
     pub aliases: BTreeMap<String, String>,
     pub structs: BTreeMap<String, Vec<String>>,
     pub nests: BTreeMap<String, String>,
@@ -46,10 +52,10 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),
+    Tensor(Box<Tensor>),
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>),
 }
 ```
 

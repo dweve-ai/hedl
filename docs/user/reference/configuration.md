@@ -161,5 +161,4 @@ hedl batch-validate **/*.hedl --parallel
 ---
 
 **Related:**
-- [CLI Commands](cli-commands.md) - Command options
-- [How-To: Optimize Performance](../how-to/optimize-performance.md) - Performance tuning
+- [CLI Guide](../cli-guide.md) - Command options

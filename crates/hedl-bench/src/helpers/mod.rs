@@ -23,8 +23,10 @@
 //! - **conversion**: Format conversion helpers
 //! - **streaming**: Streaming parser utilities
 //! - **validation**: Document validation helpers
+//! - **metrics**: Throughput and size comparison utilities
 
 pub mod conversion;
+pub mod metrics;
 pub mod parsing;
 // pub mod streaming;  // TODO: Fix iterator type mismatches
 pub mod validation;
@@ -34,6 +36,7 @@ pub use conversion::{
     convert_from_json, convert_from_yaml, convert_to_canonical, convert_to_json, convert_to_xml,
     convert_to_yaml, roundtrip_test, Format,
 };
+pub use metrics::{compare_sizes, measure_throughput_ns, SizeComparison};
 pub use parsing::{parse_batch, parse_safe, parse_unchecked, parse_with_timing};
 // pub use streaming::{
 //     create_stream_parser, count_node_events, count_all_events,

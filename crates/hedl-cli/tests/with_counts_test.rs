@@ -17,25 +17,26 @@
 
 //! Integration tests for --with-counts flag
 
+use assert_cmd::cargo_bin;
 use assert_cmd::Command;
 use std::fs;
 use tempfile::NamedTempFile;
 
 #[test]
 fn test_with_counts_adds_counts_to_simple_lists() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 teams: @Team
   | t1,Warriors
   | t2,Lakers
   | t3,Celtics
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -55,18 +56,18 @@ teams: @Team
 
 #[test]
 fn test_with_counts_overwrites_existing_counts() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 teams(5): @Team
   | t1,Warriors
   | t2,Lakers
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -87,16 +88,16 @@ teams(5): @Team
 
 #[test]
 fn test_with_counts_handles_empty_lists() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 teams: @Team
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -115,7 +116,7 @@ teams: @Team
 
 #[test]
 fn test_with_counts_handles_nested_objects() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 sports:
@@ -126,12 +127,12 @@ sports:
   football:
     teams: @Team
       | t3,Chiefs
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -153,18 +154,18 @@ sports:
 
 #[test]
 fn test_without_counts_flag_preserves_no_counts() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
 teams: @Team
   | t1,Warriors
   | t2,Lakers
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args(["format", temp_file.path().to_str().unwrap()])
         .output()
         .expect("Failed to execute hedl");
@@ -178,7 +179,7 @@ teams: @Team
 
 #[test]
 fn test_with_counts_multiple_lists() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 %STRUCT: Player: [id,name]
 ---
@@ -190,12 +191,12 @@ teams: @Team
 players: @Player
   | p1,Curry
   | p2,James
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),
@@ -219,17 +220,17 @@ players: @Player
 
 #[test]
 fn test_with_counts_inline_schema() {
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
 teams: @Team[id,name]
   | t1,Warriors
   | t2,Lakers
-"#;
+";
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
 
-    let output = Command::new(assert_cmd::cargo::cargo_bin("hedl"))
+    let output = Command::new(cargo_bin!("hedl"))
         .args([
             "format",
             temp_file.path().to_str().unwrap(),

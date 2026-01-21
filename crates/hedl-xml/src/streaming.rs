@@ -53,6 +53,9 @@ use quick_xml::Reader;
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read};
 
+// Re-export EntityPolicy from from_xml module
+pub use crate::from_xml::EntityPolicy;
+
 /// Configuration for streaming XML parsing
 #[derive(Debug, Clone)]
 pub struct StreamConfig {
@@ -68,6 +71,21 @@ pub struct StreamConfig {
     pub version: (u32, u32),
     /// Try to infer list structures from repeated elements
     pub infer_lists: bool,
+
+    /// Entity handling policy (XXE prevention)
+    pub entity_policy: EntityPolicy,
+
+    /// Enable security event logging
+    pub log_security_events: bool,
+}
+
+/// Position information for progress tracking and error reporting
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct StreamPosition {
+    /// Byte offset from start of stream
+    pub byte_offset: u64,
+    /// Number of items parsed so far
+    pub items_parsed: usize,
 }
 
 impl Default for StreamConfig {
@@ -79,6 +97,8 @@ impl Default for StreamConfig {
             default_type_name: "Item".to_string(),
             version: (1, 0),
             infer_lists: true,
+            entity_policy: EntityPolicy::default(),
+            log_security_events: false,
         }
     }
 }
@@ -94,6 +114,8 @@ pub struct XmlStreamingParser<R: Read> {
     root_parsed: bool,
     exhausted: bool,
     buf: Vec<u8>,
+    /// Current position in the stream for progress tracking
+    position: StreamPosition,
 }
 
 /// An item yielded by the streaming parser
@@ -110,6 +132,7 @@ impl<R: Read> XmlStreamingParser<R> {
     pub fn new(reader: R, config: StreamConfig) -> Result<Self, String> {
         let buf_reader = BufReader::with_capacity(config.buffer_size, reader);
         let xml_reader = Reader::from_reader(buf_reader);
+
         Ok(XmlStreamingParser {
             reader: xml_reader,
             config,
@@ -117,7 +140,32 @@ impl<R: Read> XmlStreamingParser<R> {
             root_parsed: false,
             exhausted: false,
             buf: Vec::with_capacity(8192),
+            position: StreamPosition::default(),
         })
+    }
+
+    /// Get the current stream position for progress tracking
+    ///
+    /// Returns the byte offset and number of items parsed so far.
+    /// Useful for progress bars and error reporting.
+    #[inline]
+    pub fn position(&self) -> StreamPosition {
+        StreamPosition {
+            byte_offset: self.reader.buffer_position(),
+            items_parsed: self.position.items_parsed,
+        }
+    }
+
+    /// Get the number of bytes processed so far
+    #[inline]
+    pub fn bytes_processed(&self) -> u64 {
+        self.reader.buffer_position()
+    }
+
+    /// Get the number of items parsed so far
+    #[inline]
+    pub fn items_parsed(&self) -> usize {
+        self.position.items_parsed
     }
 
     /// Internal method to find and parse the root element
@@ -125,6 +173,22 @@ impl<R: Read> XmlStreamingParser<R> {
         loop {
             self.buf.clear();
             match self.reader.read_event_into(&mut self.buf) {
+                Ok(Event::DocType(_e)) => {
+                    if self.config.log_security_events {
+                        eprintln!(
+                            "[SECURITY] DTD detected in streaming XML at position {}",
+                            self.reader.buffer_position()
+                        );
+                    }
+
+                    if self.config.entity_policy == EntityPolicy::RejectDtd {
+                        return Err(format!(
+                            "DOCTYPE declaration rejected at position {} (XXE prevention)",
+                            self.reader.buffer_position()
+                        ));
+                    }
+                    // Continue for other policies
+                }
                 Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
                     self.root_element_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     self.root_parsed = true;
@@ -164,7 +228,7 @@ impl<R: Read> XmlStreamingParser<R> {
                     let name = to_hedl_key(&raw_name);
                     let elem_owned = e.to_owned();
 
-                    let item = parse_empty_element(&elem_owned)?;
+                    let item = parse_empty_element(&elem_owned, &self.config)?;
                     return Ok(Some(StreamItem {
                         key: name,
                         value: item,
@@ -217,7 +281,10 @@ impl<R: Read> Iterator for XmlStreamingParser<R> {
 
         // Try to parse the next element
         match self.parse_next_root_element() {
-            Ok(Some(item)) => Some(Ok(item)),
+            Ok(Some(item)) => {
+                self.position.items_parsed += 1;
+                Some(Ok(item))
+            }
             Ok(None) => {
                 self.exhausted = true;
                 None
@@ -267,7 +334,7 @@ pub fn from_xml_stream<R: Read>(
 
 fn parse_element<R>(
     reader: &mut Reader<R>,
-    elem: &quick_xml::events::BytesStart,
+    elem: &quick_xml::events::BytesStart<'_>,
     config: &StreamConfig,
     depth: usize,
 ) -> Result<Item, String>
@@ -327,7 +394,7 @@ where
                 let raw_child_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 let child_name = to_hedl_key(&raw_child_name);
                 let elem_owned = e.to_owned();
-                let child_item = parse_empty_element(&elem_owned)?;
+                let child_item = parse_empty_element(&elem_owned, config)?;
 
                 child_elements
                     .entry(child_name)
@@ -335,10 +402,23 @@ where
                     .push(child_item);
             }
             Ok(Event::Text(e)) => {
-                text_content.push_str(
-                    &e.unescape()
-                        .map_err(|e| format!("Text unescape error: {}", e))?,
-                );
+                let content = e
+                    .xml_content()
+                    .map_err(|e| format!("Text decode error: {}", e))?;
+                text_content.push_str(&content);
+            }
+            Ok(Event::GeneralRef(e)) => {
+                // Handle entity references (quick-xml 0.38+ reports these as separate events)
+                let ref_name = e.decode().map_err(|e| format!("Ref decode error: {}", e))?;
+                let unescaped = match ref_name.as_ref() {
+                    "amp" => "&",
+                    "lt" => "<",
+                    "gt" => ">",
+                    "quot" => "\"",
+                    "apos" => "'",
+                    _ => return Err(format!("Unknown entity reference: {}", ref_name)),
+                };
+                text_content.push_str(unescaped);
             }
             Ok(Event::End(e)) => {
                 let end_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
@@ -359,7 +439,8 @@ where
             if items.len() > 1 && config.infer_lists {
                 if child_name == "item" && items_are_tensor_elements(&items) {
                     let tensor = items_to_tensor(&items)?;
-                    result_children.insert(child_name, Item::Scalar(Value::Tensor(tensor)));
+                    result_children
+                        .insert(child_name, Item::Scalar(Value::Tensor(Box::new(tensor))));
                 } else {
                     let list = items_to_matrix_list(&child_name, items, config)?;
                     result_children.insert(child_name, Item::List(list));
@@ -373,7 +454,10 @@ where
         if result_children.len() == 1 {
             let (child_key, child_item) = result_children.iter().next().unwrap();
             if let Item::List(list) = child_item {
-                let has_nested_children = list.rows.iter().any(|node| !node.children.is_empty());
+                let has_nested_children = list
+                    .rows
+                    .iter()
+                    .any(|node| node.children().map(|c| !c.is_empty()).unwrap_or(false));
                 if !has_nested_children {
                     let parent_singular =
                         singularize_and_capitalize(&to_hedl_key(&name)).to_lowercase();
@@ -390,13 +474,13 @@ where
         let value = if is_reference {
             Value::Reference(parse_reference(text_content.trim())?)
         } else {
-            parse_value(&text_content)?
+            parse_value_with_config(&text_content, config)?
         };
         Ok(Item::Scalar(value))
     } else if !attributes.is_empty() {
         let mut obj = BTreeMap::new();
         for (key, value_str) in attributes {
-            let value = parse_value(&value_str)?;
+            let value = parse_value_with_config(&value_str, config)?;
             obj.insert(key, Item::Scalar(value));
         }
         Ok(Item::Object(obj))
@@ -405,7 +489,10 @@ where
     }
 }
 
-fn parse_empty_element(elem: &quick_xml::events::BytesStart) -> Result<Item, String> {
+fn parse_empty_element(
+    elem: &quick_xml::events::BytesStart<'_>,
+    config: &StreamConfig,
+) -> Result<Item, String> {
     let mut attributes = BTreeMap::new();
 
     for attr in elem.attributes().flatten() {
@@ -419,20 +506,40 @@ fn parse_empty_element(elem: &quick_xml::events::BytesStart) -> Result<Item, Str
         Ok(Item::Scalar(Value::Null))
     } else if attributes.len() == 1 && attributes.contains_key("value") {
         let value_str = attributes.get("value").unwrap();
-        let value = parse_value(value_str)?;
+        let value = parse_value_with_config(value_str, config)?;
         Ok(Item::Scalar(value))
     } else {
         let mut obj = BTreeMap::new();
         for (key, value_str) in attributes {
-            let value = parse_value(&value_str)?;
+            let value = parse_value_with_config(&value_str, config)?;
             obj.insert(key, Item::Scalar(value));
         }
         Ok(Item::Object(obj))
     }
 }
 
-fn parse_value(s: &str) -> Result<Value, String> {
+fn parse_value_with_config(s: &str, config: &StreamConfig) -> Result<Value, String> {
     let trimmed = s.trim();
+
+    // Detect entity references (&entity;)
+    if trimmed.contains('&') && trimmed.contains(';') {
+        if config.log_security_events {
+            eprintln!("[SECURITY] Entity reference detected in value: {}", trimmed);
+        }
+
+        // Check for potentially malicious entity patterns
+        if (trimmed.contains("&xxe;")
+            || trimmed.contains("&file;")
+            || trimmed.contains("&passwd;")
+            || trimmed.contains("&secret;"))
+            && config.entity_policy == EntityPolicy::WarnOnEntities
+        {
+            eprintln!(
+                "[WARNING] Suspicious entity reference detected: {}",
+                trimmed
+            );
+        }
+    }
 
     if trimmed.is_empty() {
         return Ok(Value::Null);
@@ -441,7 +548,7 @@ fn parse_value(s: &str) -> Result<Value, String> {
     if trimmed.starts_with("$(") && trimmed.ends_with(')') {
         let expr =
             parse_expression_token(trimmed).map_err(|e| format!("Invalid expression: {}", e))?;
-        return Ok(Value::Expression(expr));
+        return Ok(Value::Expression(Box::new(expr)));
     }
 
     if trimmed == "true" {
@@ -458,7 +565,14 @@ fn parse_value(s: &str) -> Result<Value, String> {
         return Ok(Value::Float(f));
     }
 
-    Ok(Value::String(trimmed.to_string()))
+    Ok(Value::String(trimmed.to_string().into()))
+}
+
+#[allow(dead_code)]
+fn parse_value(s: &str) -> Result<Value, String> {
+    // Legacy function for backward compatibility
+    let config = StreamConfig::default();
+    parse_value_with_config(s, &config)
 }
 
 fn items_to_matrix_list(
@@ -540,9 +654,13 @@ fn item_to_node(
             Ok(Node {
                 type_name: type_name.to_string(),
                 id,
-                fields,
-                children,
-                child_count: None,
+                fields: fields.into(),
+                children: if children.is_empty() {
+                    None
+                } else {
+                    Some(Box::new(children))
+                },
+                child_count: 0,
             })
         }
         Item::Scalar(value) => {
@@ -550,9 +668,9 @@ fn item_to_node(
             Ok(Node {
                 type_name: type_name.to_string(),
                 id: id.clone(),
-                fields: vec![Value::String(id), value],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: vec![Value::String(id.into()), value].into(),
+                children: None,
+                child_count: 0,
             })
         }
         Item::List(_) => Err("Cannot convert nested list to node".to_string()),
@@ -560,27 +678,39 @@ fn item_to_node(
 }
 
 fn to_hedl_key(s: &str) -> String {
-    let mut result = String::new();
+    let mut result = String::with_capacity(s.len() + 4); // Pre-allocate with small buffer
     let mut prev_was_upper = false;
+    let mut prev_was_underscore = false;
 
     for (i, c) in s.chars().enumerate() {
         if c.is_ascii_uppercase() {
-            if i > 0 && !prev_was_upper && !result.ends_with('_') {
+            // Insert underscore before uppercase if not at start, not after underscore, and previous wasn't uppercase
+            if i > 0 && !prev_was_upper && !prev_was_underscore {
                 result.push('_');
             }
             result.push(c.to_ascii_lowercase());
             prev_was_upper = true;
+            prev_was_underscore = false;
+        } else if c == '_' {
+            // Only add underscore if previous character wasn't also underscore
+            if !prev_was_underscore && !result.is_empty() {
+                result.push(c);
+            }
+            prev_was_underscore = true;
+            prev_was_upper = false;
         } else {
             result.push(c);
             prev_was_upper = false;
+            prev_was_underscore = false;
         }
     }
 
-    while result.contains("__") {
-        result = result.replace("__", "_");
+    // Trim trailing underscores (already handled leading via !result.is_empty() check)
+    while result.ends_with('_') {
+        result.pop();
     }
 
-    result.trim_matches('_').to_string()
+    result
 }
 
 fn items_are_tensor_elements(items: &[Item]) -> bool {
@@ -602,10 +732,10 @@ fn items_to_tensor(items: &[Item]) -> Result<Tensor, String> {
         let tensor = match item {
             Item::Scalar(Value::Int(n)) => Tensor::Scalar(*n as f64),
             Item::Scalar(Value::Float(f)) => Tensor::Scalar(*f),
-            Item::Scalar(Value::Tensor(t)) => t.clone(),
+            Item::Scalar(Value::Tensor(t)) => (**t).clone(),
             Item::Object(obj) if obj.len() == 1 => {
                 if let Some(Item::Scalar(Value::Tensor(t))) = obj.get("item") {
-                    t.clone()
+                    (**t).clone()
                 } else {
                     return Err("Cannot convert non-numeric item to tensor".to_string());
                 }
@@ -642,6 +772,8 @@ mod tests {
             default_type_name: "CustomItem".to_string(),
             version: (2, 0),
             infer_lists: false,
+            entity_policy: EntityPolicy::RejectDtd,
+            log_security_events: true,
         };
         assert_eq!(config.buffer_size, 131072);
         assert_eq!(config.max_recursion_depth, 50);
@@ -655,18 +787,21 @@ mod tests {
     fn test_stream_item_construction() {
         let item = StreamItem {
             key: "test".to_string(),
-            value: Item::Scalar(Value::String("value".to_string())),
+            value: Item::Scalar(Value::String("value".to_string().into())),
         };
         assert_eq!(item.key, "test");
         assert_eq!(
             item.value.as_scalar(),
-            Some(&Value::String("value".to_string()))
+            Some(&Value::String("value".to_string().into()))
         );
     }
 
     #[test]
     fn test_parse_value_string() {
-        assert_eq!(parse_value("hello"), Ok(Value::String("hello".to_string())));
+        assert_eq!(
+            parse_value("hello"),
+            Ok(Value::String("hello".to_string().into()))
+        );
     }
 
     #[test]
@@ -712,11 +847,11 @@ mod tests {
             let mut m = BTreeMap::new();
             m.insert(
                 "id".to_string(),
-                Item::Scalar(Value::String("1".to_string())),
+                Item::Scalar(Value::String("1".to_string().into())),
             );
             m.insert(
                 "name".to_string(),
-                Item::Scalar(Value::String("Alice".to_string())),
+                Item::Scalar(Value::String("Alice".to_string().into())),
             );
             m
         })];
@@ -739,7 +874,7 @@ mod tests {
     fn test_items_are_tensor_elements_non_numeric() {
         let items = vec![
             Item::Scalar(Value::Int(1)),
-            Item::Scalar(Value::String("hello".to_string())),
+            Item::Scalar(Value::String("hello".to_string().into())),
         ];
         assert!(!items_are_tensor_elements(&items));
     }

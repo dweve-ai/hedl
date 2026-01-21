@@ -21,7 +21,8 @@ use hedl_core::{Document, MatrixList, Node, Reference, Value};
 use std::collections::{BTreeMap, HashSet};
 
 use crate::config::{RelationshipNaming, ToCypherConfig};
-use crate::cypher::{to_relationship_type, CypherValue};
+use crate::constants::{NEST_RELATIONSHIP_GENERIC, NEST_RELATIONSHIP_PREFIX};
+use crate::cypher::{to_relationship_type, validate_id, CypherValue};
 use crate::error::Result;
 use crate::mapping::node::Neo4jRelationship;
 
@@ -67,8 +68,23 @@ fn extract_reference_relationships(
     relationships: &mut Vec<Neo4jRelationship>,
 ) -> Result<()> {
     for node in &list.rows {
+        // Validate node ID once per node
+        let validated_node_id =
+            validate_id(&node.id, &format!("node in {}", list.type_name), config)?;
+
         for (i, field) in node.fields.iter().enumerate() {
             if let Value::Reference(ref_value) = field {
+                // Validate reference ID
+                let validated_ref_id = validate_id(
+                    &ref_value.id,
+                    &format!(
+                        "reference in {}.{}",
+                        list.type_name,
+                        list.schema.get(i).unwrap_or(&String::new())
+                    ),
+                    config,
+                )?;
+
                 // Get the column name for relationship naming
                 let column_name = list.schema.get(i).cloned().unwrap_or_default();
 
@@ -79,15 +95,16 @@ fn extract_reference_relationships(
                 // Determine target label
                 let target_label = ref_value
                     .type_name
-                    .clone()
-                    .unwrap_or_else(|| list.type_name.clone());
+                    .as_deref()
+                    .unwrap_or(&list.type_name)
+                    .to_string();
 
                 relationships.push(Neo4jRelationship::new(
                     &list.type_name,
-                    &node.id,
+                    &validated_node_id,
                     rel_type,
                     target_label,
-                    &ref_value.id,
+                    &validated_ref_id,
                 ));
             }
         }
@@ -106,35 +123,49 @@ fn extract_child_references(
     config: &ToCypherConfig,
     relationships: &mut Vec<Neo4jRelationship>,
 ) -> Result<()> {
-    for (child_key, children) in &node.children {
-        for child in children {
-            // Check for references in child fields
-            // Note: Children don't have a schema in the same way, so we use field index
-            for (i, field) in child.fields.iter().enumerate() {
-                if let Value::Reference(ref_value) = field {
-                    let rel_type = determine_relationship_type(
-                        &format!("{}_{}", child_key, i),
-                        ref_value,
-                        config.reference_naming,
-                    );
+    if let Some(children_map) = node.children() {
+        for (child_key, children) in children_map {
+            for child in children {
+                // Validate child ID
+                let validated_child_id =
+                    validate_id(&child.id, &format!("child in {child_key}"), config)?;
 
-                    let target_label = ref_value
-                        .type_name
-                        .clone()
-                        .unwrap_or_else(|| child.type_name.clone());
+                // Check for references in child fields
+                // Note: Children don't have a schema in the same way, so we use field index
+                for (i, field) in child.fields.iter().enumerate() {
+                    if let Value::Reference(ref_value) = field {
+                        // Validate reference ID
+                        let validated_ref_id = validate_id(
+                            &ref_value.id,
+                            &format!("reference in child {child_key}.{i}"),
+                            config,
+                        )?;
 
-                    relationships.push(Neo4jRelationship::new(
-                        &child.type_name,
-                        &child.id,
-                        rel_type,
-                        target_label,
-                        &ref_value.id,
-                    ));
+                        let rel_type = determine_relationship_type(
+                            &format!("{child_key}_{i}"),
+                            ref_value,
+                            config.reference_naming,
+                        );
+
+                        let target_label = ref_value
+                            .type_name
+                            .as_deref()
+                            .unwrap_or(&child.type_name)
+                            .to_string();
+
+                        relationships.push(Neo4jRelationship::new(
+                            &child.type_name,
+                            &validated_child_id,
+                            rel_type,
+                            target_label,
+                            &validated_ref_id,
+                        ));
+                    }
                 }
-            }
 
-            // Recurse into nested children
-            extract_child_references(child, &child.type_name, config, relationships)?;
+                // Recurse into nested children
+                extract_child_references(child, &child.type_name, config, relationships)?;
+            }
         }
     }
 
@@ -152,31 +183,47 @@ fn extract_nest_relationships(
     let parent_nodes = collect_nodes_of_type(doc, &nest.parent);
 
     for parent_node in parent_nodes {
+        // Validate parent node ID
+        let validated_parent_id = validate_id(
+            &parent_node.id,
+            &format!("NEST parent node in {}", nest.parent),
+            config,
+        )?;
+
         // Look for children of the NEST child type
-        for (child_key, children) in &parent_node.children {
-            for (order, child) in children.iter().enumerate() {
-                if child.type_name == nest.child {
-                    // Determine relationship type for NEST
-                    let rel_type =
-                        determine_nest_relationship_type(&nest.child, config.nest_naming);
+        if let Some(children_map) = parent_node.children() {
+            for (child_key, children) in children_map {
+                for (order, child) in children.iter().enumerate() {
+                    if child.type_name == nest.child {
+                        // Validate child ID
+                        let validated_child_id = validate_id(
+                            &child.id,
+                            &format!("NEST child node in {}", nest.child),
+                            config,
+                        )?;
 
-                    let mut rel = Neo4jRelationship::new(
-                        &nest.parent,
-                        &parent_node.id,
-                        rel_type,
-                        &nest.child,
-                        &child.id,
-                    );
+                        // Determine relationship type for NEST
+                        let rel_type =
+                            determine_nest_relationship_type(&nest.child, config.nest_naming);
 
-                    // Add order property for NEST relationships
-                    rel.properties
-                        .insert("_nest_order".to_string(), CypherValue::Int(order as i64));
-                    rel.properties.insert(
-                        "_nest_key".to_string(),
-                        CypherValue::String(child_key.clone()),
-                    );
+                        let mut rel = Neo4jRelationship::new(
+                            &nest.parent,
+                            &validated_parent_id,
+                            rel_type,
+                            &nest.child,
+                            &validated_child_id,
+                        );
 
-                    relationships.push(rel);
+                        // Add order property for NEST relationships
+                        rel.properties
+                            .insert("_nest_order".to_string(), CypherValue::Int(order as i64));
+                        rel.properties.insert(
+                            "_nest_key".to_string(),
+                            CypherValue::String(child_key.clone()),
+                        );
+
+                        relationships.push(rel);
+                    }
                 }
             }
         }
@@ -210,13 +257,15 @@ fn collect_nodes_of_type_recursive<'a>(
     type_name: &str,
     nodes: &mut Vec<&'a Node>,
 ) {
-    for children in parent.children.values() {
-        for child in children {
-            if child.type_name == type_name {
-                nodes.push(child);
+    if let Some(children_map) = parent.children() {
+        for children in children_map.values() {
+            for child in children {
+                if child.type_name == type_name {
+                    nodes.push(child);
+                }
+                // Recurse into nested children
+                collect_nodes_of_type_recursive(child, type_name, nodes);
             }
-            // Recurse into nested children
-            collect_nodes_of_type_recursive(child, type_name, nodes);
         }
     }
 }
@@ -243,13 +292,16 @@ fn determine_relationship_type(
 /// Determine the relationship type name for NEST hierarchies.
 fn determine_nest_relationship_type(child_type: &str, naming: RelationshipNaming) -> String {
     match naming {
-        RelationshipNaming::PropertyName => format!("HAS_{}", child_type.to_uppercase()),
-        RelationshipNaming::Generic => "HAS_CHILD".to_string(),
+        RelationshipNaming::PropertyName => {
+            format!("{}{}", NEST_RELATIONSHIP_PREFIX, child_type.to_uppercase())
+        }
+        RelationshipNaming::Generic => NEST_RELATIONSHIP_GENERIC.to_string(),
         RelationshipNaming::TargetType => child_type.to_uppercase(),
     }
 }
 
 /// Build a set of all valid node IDs in the document for reference validation.
+#[must_use]
 pub fn collect_node_ids(doc: &Document) -> HashSet<(Option<String>, String)> {
     let mut ids = HashSet::new();
 
@@ -272,16 +324,19 @@ pub fn collect_node_ids(doc: &Document) -> HashSet<(Option<String>, String)> {
 
 /// Collect node IDs from children recursively.
 fn collect_child_ids(node: &Node, ids: &mut HashSet<(Option<String>, String)>) {
-    for children in node.children.values() {
-        for child in children {
-            ids.insert((Some(child.type_name.clone()), child.id.clone()));
-            ids.insert((None, child.id.clone()));
-            collect_child_ids(child, ids);
+    if let Some(children_map) = node.children() {
+        for children in children_map.values() {
+            for child in children {
+                ids.insert((Some(child.type_name.clone()), child.id.clone()));
+                ids.insert((None, child.id.clone()));
+                collect_child_ids(child, ids);
+            }
         }
     }
 }
 
 /// Validate that all references point to existing nodes.
+#[must_use]
 pub fn validate_references(
     relationships: &[Neo4jRelationship],
     node_ids: &HashSet<(Option<String>, String)>,
@@ -304,13 +359,14 @@ pub fn validate_references(
 ///
 /// This is used when importing from Neo4j to detect which relationships
 /// should become NEST hierarchies.
+#[must_use]
 pub fn infer_nests_from_relationships(relationships: &[Neo4jRelationship]) -> Vec<Nest> {
     let mut nests = Vec::new();
     let mut seen: HashSet<(String, String)> = HashSet::new();
 
     for rel in relationships {
         // Look for HAS_* patterns
-        if rel.rel_type.starts_with("HAS_") {
+        if rel.rel_type.starts_with(NEST_RELATIONSHIP_PREFIX) {
             let pair = (rel.from_label.clone(), rel.to_label.clone());
             if !seen.contains(&pair) {
                 seen.insert(pair);
@@ -326,6 +382,7 @@ pub fn infer_nests_from_relationships(relationships: &[Neo4jRelationship]) -> Ve
 }
 
 /// Group relationships by source node for efficient Cypher generation.
+#[must_use]
 pub fn group_relationships_by_source(
     relationships: &[Neo4jRelationship],
 ) -> BTreeMap<(String, String), Vec<&Neo4jRelationship>> {
@@ -342,6 +399,7 @@ pub fn group_relationships_by_source(
 }
 
 /// Group relationships by type for batch creation.
+#[must_use]
 pub fn group_relationships_by_type(
     relationships: &[Neo4jRelationship],
 ) -> BTreeMap<String, Vec<&Neo4jRelationship>> {
@@ -357,11 +415,12 @@ pub fn group_relationships_by_type(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use smallvec::SmallVec;
 
     fn make_ref(type_name: Option<&str>, id: &str) -> Reference {
         Reference {
-            type_name: type_name.map(String::from),
-            id: id.to_string(),
+            type_name: type_name.map(|s| s.to_string().into()),
+            id: id.to_string().into(),
         }
     }
 
@@ -422,12 +481,12 @@ mod tests {
                 rows: vec![Node {
                     type_name: "User".to_string(),
                     id: "alice".to_string(),
-                    fields: vec![
-                        Value::String("alice".to_string()),
-                        Value::String("Alice".to_string()),
-                    ],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String("alice".to_string().into()),
+                        Value::String("Alice".to_string().into()),
+                    ]),
+                    children: None,
+                    child_count: 0,
                 }],
                 count_hint: None,
             }),
@@ -435,6 +494,7 @@ mod tests {
 
         let doc = Document {
             version: (1, 0),
+            schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),

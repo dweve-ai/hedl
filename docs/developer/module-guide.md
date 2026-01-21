@@ -74,7 +74,7 @@ use hedl::lint::{lint, lint_with_config};
 
 ```toml
 [dependencies]
-hedl = { version = "1.0", features = ["yaml", "xml", "csv"] }
+hedl = { version = "1.2", features = ["yaml", "xml", "csv"] }
 ```
 
 Available features:
@@ -84,7 +84,7 @@ Available features:
 - `parquet` - Parquet conversion
 - `neo4j` - Neo4j Cypher generation
 - `toon` - TOON format support
-- `all` - All features
+- `all-formats` - All format conversion features enabled
 
 ---
 
@@ -128,11 +128,13 @@ pub fn parse_with_limits(
     options: ParseOptions
 ) -> HedlResult<Document>;
 
-// Builder pattern
+// Builder pattern (available via ParseOptions::builder())
 let options = ParseOptions::builder()
     .max_depth(50)
-    .strict(true)
+    .reference_mode(ReferenceMode::Strict)
     .build();
+
+// Note: max_depth corresponds to limits.max_indent_depth internally
 ```
 
 **3. Data Model**
@@ -140,6 +142,7 @@ let options = ParseOptions::builder()
 // Document structure
 pub struct Document {
     pub version: (u32, u32),
+    pub schema_versions: BTreeMap<String, SchemaVersion>,
     pub aliases: BTreeMap<String, String>,
     pub structs: BTreeMap<String, Vec<String>>,
     pub nests: BTreeMap<String, String>,
@@ -156,13 +159,15 @@ pub struct MatrixList {
     pub type_name: String,
     pub schema: Vec<String>,
     pub rows: Vec<Node>,
+    pub count_hint: Option<usize>,
 }
 
 pub struct Node {
     pub type_name: String,
     pub id: String,
-    pub fields: Vec<Value>,
-    pub children: BTreeMap<String, Vec<Node>>,
+    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,  // Lazy allocation
+    pub child_count: u16,  // Compact hint
 }
 
 pub enum Value {
@@ -170,10 +175,10 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),           // Box<str> reduces enum size
+    Tensor(Box<Tensor>),        // Boxed to reduce enum size
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>), // Boxed to reduce enum size
 }
 ```
 
@@ -182,12 +187,19 @@ pub enum Value {
 pub trait DocumentVisitor {
     type Error;
 
+    // Methods with default implementations (optional to override)
+    fn begin_document(&mut self, doc: &Document, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn end_document(&mut self, doc: &Document, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn begin_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn end_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn begin_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn end_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn begin_node_children(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+    fn end_node_children(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+
+    // Required methods (must be implemented)
     fn visit_scalar(&mut self, key: &str, value: &Value, ctx: &VisitorContext) -> Result<(), Self::Error>;
-    fn begin_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error>;
-    fn end_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error>;
-    fn begin_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error>;
-    fn end_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error>;
-    fn visit_node(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error>;
+    fn visit_node(&mut self, node: &Node, schema: &[String], ctx: &VisitorContext) -> Result<(), Self::Error>;
 }
 
 // Traverse document
@@ -216,6 +228,8 @@ pub enum HedlErrorKind {
 #### Resource Limits
 
 ```rust
+use std::time::Duration;
+
 pub struct Limits {
     pub max_file_size: usize,         // Default: 1 GB
     pub max_line_length: usize,       // Default: 1 MB
@@ -227,6 +241,8 @@ pub struct Limits {
     pub max_block_string_size: usize, // Default: 10 MB
     pub max_object_keys: usize,       // Default: 10,000
     pub max_total_keys: usize,        // Default: 10 million
+    pub max_total_ids: usize,         // Default: 10 million
+    pub timeout: Option<Duration>,    // Default: 30 seconds (None disables)
 }
 ```
 
@@ -281,9 +297,8 @@ let config = CanonicalConfig::builder()
 
 ```rust
 pub enum QuotingStrategy {
-    Minimal,    // Quote only when needed
+    Minimal,    // Quote only when necessary (default)
     Always,     // Always quote strings
-    Consistent, // Quote all or none in a context
 }
 ```
 
@@ -376,33 +391,40 @@ Event-based streaming parser that processes HEDL documents without loading the e
 #### API
 
 ```rust
-// Synchronous streaming
-pub struct StreamingParser {
+// Synchronous streaming (implements Iterator)
+pub struct StreamingParser<R: Read> {
     // ...
 }
 
-impl StreamingParser {
-    pub fn new(reader: impl BufRead) -> Self;
+impl<R: Read> StreamingParser<R> {
+    pub fn new(reader: R) -> StreamResult<Self>;
+    pub fn with_config(reader: R, config: StreamingParserConfig) -> StreamResult<Self>;
+    pub fn header(&self) -> Option<&HeaderInfo>;
 }
 
-// Asynchronous streaming
-pub struct AsyncStreamingParser {
+// Implements Iterator<Item = StreamResult<NodeEvent>>
+
+// Asynchronous streaming (feature = "async")
+pub struct AsyncStreamingParser<R: AsyncRead + Unpin> {
     // ...
 }
 
-impl AsyncStreamingParser {
-    pub fn new(reader: impl AsyncBufRead) -> Self;
-    pub async fn next_event(&mut self) -> Result<Option<Event>, StreamError>;
+impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
+    pub async fn new(reader: R) -> StreamResult<Self>;
+    pub async fn next_event(&mut self) -> StreamResult<Option<NodeEvent>>;
+    pub async fn next_batch(&mut self, batch_size: usize) -> StreamResult<Vec<NodeEvent>>;
 }
 
-// Events
-pub enum Event {
-    StartDocument,
-    EndDocument,
-    StartObject { id: Option<String>, type_name: Option<String> },
-    EndObject,
-    Attribute { key: String, value: Value },
-    MatrixRow { values: Vec<Value> },
+// Events emitted by the streaming parser
+pub enum NodeEvent {
+    Header(HeaderInfo),
+    ListStart { key: String, type_name: String, schema: Vec<String>, line: usize },
+    Node(NodeInfo),
+    ListEnd { key: String, type_name: String, count: usize },
+    Scalar { key: String, value: Value, line: usize },
+    ObjectStart { key: String, line: usize },
+    ObjectEnd { key: String },
+    EndOfDocument,
 }
 ```
 
@@ -416,18 +438,23 @@ pub enum Event {
 #### Example
 
 ```rust
-use hedl_stream::StreamingParser;
+use hedl_stream::{StreamingParser, NodeEvent};
+use std::io::BufReader;
+use std::fs::File;
 
 let file = File::open("large.hedl")?;
-let mut parser = StreamingParser::new(BufReader::new(file));
+let parser = StreamingParser::new(BufReader::new(file))?;
 
-while let Some(event) = parser.next_event()? {
-    match event {
-        Event::StartObject { id, type_name } => {
-            println!("Object: {:?} ({})", id, type_name);
+for event in parser {
+    match event? {
+        NodeEvent::Node(info) => {
+            println!("Node: {} (type: {})", info.id, info.type_name);
         }
-        Event::Attribute { key, value } => {
+        NodeEvent::Scalar { key, value, .. } => {
             println!("  {}: {:?}", key, value);
+        }
+        NodeEvent::ListStart { key, type_name, .. } => {
+            println!("List: {} of type {}", key, type_name);
         }
         _ => {}
     }
@@ -567,7 +594,7 @@ user:
 
 #### Features
 
-- **Attributes**: XML attributes → HEDL attributes with `@` prefix
+- **Attributes**: XML attributes → regular HEDL fields (no prefix)
 - **Text content**: Mapped to `_text` attribute
 - **Namespaces**: Preserved in attribute names
 - **CDATA**: Preserved as string values
@@ -728,7 +755,7 @@ let config = CypherConfig::builder()
 
 **Path**: `crates/hedl-cli/`
 **Purpose**: Command-line interface
-**Dependencies**: hedl, clap, colored
+**Dependencies**: hedl-core, hedl-c14n, hedl-json, hedl-yaml, hedl-xml, hedl-csv, hedl-parquet, hedl-toon, hedl-lint, hedl-stream, clap, colored, rayon, walkdir, indicatif
 
 #### Commands
 
@@ -794,7 +821,7 @@ Supports all LSP-compatible editors:
 
 **Path**: `crates/hedl-mcp/`
 **Purpose**: Model Context Protocol server
-**Dependencies**: hedl, mcp-server
+**Dependencies**: hedl-core, hedl-json, hedl-c14n, hedl-lint, hedl-yaml, hedl-csv, hedl-parquet, hedl-neo4j, hedl-stream, tokio, serde_json
 
 #### Overview
 
@@ -903,11 +930,20 @@ const hedl = doc.toHedl();
 Full TypeScript definitions provided:
 
 ```typescript
-export function parse(input: string): HedlDocument;
+// Standalone functions
+export function parse(input: string): HedlDocument;  // May throw on error
+export function toJson(input: string, pretty?: boolean): string;
+export function fromJson(json: string, useDitto?: boolean): string;
+export function format(input: string, useDitto?: boolean): string;
+export function validate(input: string, runLint?: boolean): ValidationResult;
+export function version(): string;
+
+// Document class
 export class HedlDocument {
-  toJson(): any;           // Returns parsed JSON object
-  toJsonString(): string;  // Returns JSON string
-  toHedl(): string;        // Returns HEDL string
+  toJson(): any;                          // Returns parsed JSON object (requires "json" feature)
+  toJsonString(pretty?: boolean): string; // Returns JSON string
+  toHedl(useDitto?: boolean): string;     // Returns HEDL string
+  readonly rootItemCount: number;
 }
 ```
 
@@ -919,38 +955,46 @@ export class HedlDocument {
 
 **Path**: `crates/hedl-test/`
 **Purpose**: Test utilities and fixtures
-**Dependencies**: hedl-core
+**Dependencies**: hedl-core, hedl-c14n
 
 #### Utilities
 
 ```rust
-// Test data generators
-pub fn generate_document(config: &GenConfig) -> Document;
-pub fn generate_random_value() -> Value;
+// Fixture access
+use hedl_test::fixtures;
 
-// Assertion helpers
-pub fn assert_parse_eq(input: &str, expected: &Document);
-pub fn assert_round_trip(doc: &Document);
+let doc = fixtures::scalars();           // All scalar types
+let doc = fixtures::user_list();         // MatrixList with users
+let doc = fixtures::with_references();   // Cross-references
+let doc = fixtures::comprehensive();     // Everything together
 
-// Fixture management
-pub fn load_fixture(name: &str) -> String;
-pub fn all_fixtures() -> Vec<(String, String)>;
-```
+// Count utilities (from counts module)
+use hedl_test::{count_nodes, count_references};
 
-#### Property-Based Testing
+let node_count = count_nodes(&doc);
+let ref_count = count_references(&doc);
 
-```rust
-use hedl_test::proptest::*;
+// Expression utilities
+use hedl_test::{expr, expr_value};
 
-proptest! {
-    #[test]
-    fn test_parse_roundtrip(doc in arb_document()) {
-        let hedl = canonicalize(&doc).unwrap();
-        let parsed = parse(&hedl).unwrap();
-        assert_eq!(doc, parsed);
-    }
+let e = expr("now()");               // Create Expression
+let v = expr_value("count + 1");     // Create Value::Expression
+
+// Get all fixtures
+for (name, fixture_fn) in fixtures::all() {
+    let doc = fixture_fn();
+    // Use fixture
 }
 ```
+
+#### Available Fixtures
+
+All fixtures are provided as functions in the `fixtures` module:
+- `scalars()` - All scalar value types
+- `user_list()` - MatrixList with 3 users
+- `with_nest()` - Nested relationships
+- `with_references()` - Cross-entity references
+- `comprehensive()` - Full feature coverage
 
 ---
 
@@ -1055,9 +1099,9 @@ graph TD
 | hedl-toon | TOON format | hedl-core |
 | hedl-parquet | Parquet conversion | hedl-core, parquet |
 | hedl-neo4j | Neo4j Cypher | hedl-core |
-| hedl-cli | CLI tool | hedl, clap |
-| hedl-lsp | Language server | hedl, tower-lsp |
-| hedl-mcp | MCP server | hedl, mcp-server |
+| hedl-cli | CLI tool | All hedl crates, clap, colored, rayon |
+| hedl-lsp | Language server | hedl, hedl-core, hedl-lint, hedl-c14n, tower-lsp |
+| hedl-mcp | MCP server | hedl, all format crates, tokio, serde_json |
 | hedl-ffi | C bindings | hedl |
 | hedl-wasm | WASM bindings | hedl, wasm-bindgen |
 | hedl-test | Test utilities | hedl-core, proptest |

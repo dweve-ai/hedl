@@ -313,12 +313,12 @@ export default HedlEditor;
 
 ```typescript
 import { useState, useEffect } from 'react';
-import init, { parse, toJson, ValidationResult } from 'hedl-wasm';
+import init, { parse, toJson, validate, HedlDocument, ValidationResult } from 'hedl-wasm';
 
 interface UseHedlResult {
     ready: boolean;
-    parse: (input: string) => any;
-    toJson: (doc: any) => string;
+    parse: (input: string) => HedlDocument;
+    toJson: (hedl: string, pretty?: boolean) => string;
     validate: (input: string) => ValidationResult;
 }
 
@@ -333,7 +333,7 @@ export function useHedl(): UseHedlResult {
         ready,
         parse: ready ? parse : () => { throw new Error('WASM not ready'); },
         toJson: ready ? toJson : () => { throw new Error('WASM not ready'); },
-        validate: ready ? validate : () => ({ valid: false, errors: [] }),
+        validate: ready ? validate : () => ({ valid: false, errors: [], warnings: [] }),
     };
 }
 
@@ -507,22 +507,26 @@ setMaxInputSize(10 * 1024 * 1024); // 10 MB
 
 ### Comprehensive Error Handling
 
+All HEDL WASM functions throw standard JavaScript `Error` objects on failure. Parse errors include line information in the error message.
+
 ```typescript
-import { parse, HedlError } from 'hedl-wasm';
+import { parse } from 'hedl-wasm';
 
 function safeParseHedl(input: string) {
     try {
         const doc = parse(input);
         return { success: true, doc };
     } catch (error) {
-        if (error instanceof HedlError) {
+        // Errors are standard JavaScript Error objects
+        if (error instanceof Error) {
+            // Parse errors include line info in message:
+            // "Parse error at line 5: unexpected token"
+            const lineMatch = error.message.match(/line (\d+)/i);
             return {
                 success: false,
                 error: {
-                    kind: error.kind,
                     message: error.message,
-                    line: error.line,
-                    column: error.column,
+                    line: lineMatch ? parseInt(lineMatch[1], 10) : undefined,
                 }
             };
         }

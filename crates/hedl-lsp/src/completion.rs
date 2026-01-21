@@ -27,9 +27,9 @@
 //!
 //! - **Header**: Header directives (%VERSION, %STRUCT, %ALIAS, %NEST)
 //! - **Reference**: Type names after @ symbol
-//! - **ReferenceId**: Entity IDs after @Type:
-//! - **ListType**: Type names in list declarations
-//! - **MatrixCell**: Values in matrix cells (ditto, null, booleans, references)
+//! - **`ReferenceId`**: Entity IDs after @Type:
+//! - **`ListType`**: Type names in list declarations
+//! - **`MatrixCell`**: Values in matrix cells (ditto, null, booleans, references)
 //! - **Key**: Property keys in object notation
 //! - **Value**: Property values (aliases, type references)
 //!
@@ -44,7 +44,9 @@
 
 use crate::analysis::AnalyzedDocument;
 use crate::utils::safe_slice_to;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, Position,
+};
 
 /// Completion context for determining what to suggest.
 ///
@@ -56,14 +58,22 @@ pub enum CompletionContext {
     /// In header section (directives).
     Header,
     /// After @ in reference position.
-    Reference { partial_type: Option<String> },
+    Reference {
+        /// Partially typed type name, if any.
+        partial_type: Option<String>,
+    },
     /// After @Type: in reference position.
-    ReferenceId { type_name: String },
+    ReferenceId {
+        /// The type name for entity ID completion.
+        type_name: String,
+    },
     /// After : in list declaration (type name).
     ListType,
     /// In matrix row (cell values).
     MatrixCell {
+        /// The type name of the matrix.
         type_name: String,
+        /// The column index (0-based).
         column_index: usize,
     },
     /// Key position in body.
@@ -78,8 +88,9 @@ pub enum CompletionContext {
 ///
 /// # Performance
 ///
-/// Uses cached analysis data including header_end_line for O(1) context detection
-/// and reference_index for fast entity lookup.
+/// Uses cached analysis data including `header_end_line` for O(1) context detection
+/// and `reference_index` for fast entity lookup.
+#[must_use]
 pub fn get_completions(
     analysis: &AnalyzedDocument,
     content: &str,
@@ -133,11 +144,19 @@ pub fn get_completions(
 ///
 /// Uses cached `header_end_line` from analysis for O(1) header detection instead
 /// of O(n) iteration through all lines.
-fn determine_context_optimized(
+///
+/// # Position Handling
+///
+/// LSP positions use UTF-16 code units, so we must convert to byte offsets
+/// for proper handling of multi-byte UTF-8 characters.
+#[must_use]
+pub fn determine_context_optimized(
     analysis: &AnalyzedDocument,
     content: &str,
     position: Position,
 ) -> CompletionContext {
+    use crate::utils::utf16_col_to_byte_offset;
+
     let lines: Vec<&str> = content.lines().collect();
     let line_num = position.line as usize;
 
@@ -146,10 +165,12 @@ fn determine_context_optimized(
     }
 
     let line = lines[line_num];
-    let char_pos = position.character as usize;
+
+    // Convert UTF-16 position to byte offset
+    let byte_offset = utf16_col_to_byte_offset(line, position.character);
 
     // Security: Use safe slicing to prevent UTF-8 boundary panics
-    let prefix = safe_slice_to(line, char_pos);
+    let prefix = safe_slice_to(line, byte_offset);
 
     // Performance: Use cached header_end_line for O(1) lookup
     let in_header = if let Some(header_end) = analysis.header_end_line {
@@ -161,6 +182,71 @@ fn determine_context_optimized(
 
     if in_header && (prefix.trim().starts_with('%') || prefix.trim().is_empty()) {
         return CompletionContext::Header;
+    }
+
+    // Check for matrix row FIRST (before reference check)
+    // This prevents @ symbols in email addresses or other data from being
+    // misinterpreted as reference syntax
+    if line.trim_start().starts_with('|') {
+        // Find which cell we're in by parsing the CSV up to the cursor
+
+        // Get the portion of the line after the pipe
+        let pipe_pos = line.find('|').unwrap_or(0);
+        let after_pipe = &line[pipe_pos + 1..];
+
+        // Skip row prefix (|N or |[N]) to find where CSV starts
+        let csv_start_offset = if after_pipe.trim_start().starts_with('[') {
+            // |[N] pattern - skip the bracket notation
+            if let Some(bracket_end) = after_pipe.find(']') {
+                bracket_end + 1
+            } else {
+                0
+            }
+        } else if after_pipe
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_digit())
+        {
+            // |N pattern - skip the number
+            after_pipe.chars().take_while(char::is_ascii_digit).count()
+        } else {
+            0
+        };
+
+        let csv_start = pipe_pos + 1 + csv_start_offset;
+        let csv_portion = if byte_offset > csv_start {
+            safe_slice_to(&line[csv_start..], byte_offset - csv_start)
+        } else {
+            ""
+        };
+
+        // Parse CSV up to cursor to count columns (respecting quotes)
+        let column_index = if csv_portion.is_empty() {
+            0
+        } else {
+            // Parse the CSV portion to count completed fields
+            match hedl_core::lex::parse_csv_row(csv_portion) {
+                Ok(fields) => {
+                    // Check if we're in the middle of a field or past it
+                    // If the portion doesn't end with a comma, we're in the last parsed field
+                    if csv_portion.trim_end().ends_with(',') {
+                        fields.len()
+                    } else {
+                        fields.len().saturating_sub(1)
+                    }
+                }
+                Err(_) => {
+                    // Fallback: quote-aware comma counting for incomplete fields
+                    // This handles the case where cursor is inside an unclosed quote
+                    count_columns_quote_aware(csv_portion)
+                }
+            }
+        };
+
+        return CompletionContext::MatrixCell {
+            type_name: find_active_list_type(lines, line_num),
+            column_index,
+        };
     }
 
     // Check for reference context
@@ -189,16 +275,6 @@ fn determine_context_optimized(
         return CompletionContext::ListType;
     }
 
-    // Check for matrix row
-    if line.trim_start().starts_with('|') {
-        // Find which cell we're in
-        let pipe_count = prefix.matches('|').count();
-        return CompletionContext::MatrixCell {
-            type_name: find_active_list_type(lines, line_num),
-            column_index: pipe_count.saturating_sub(1),
-        };
-    }
-
     // Check for key vs value position
     if prefix.contains(':') {
         CompletionContext::Value
@@ -207,7 +283,7 @@ fn determine_context_optimized(
     }
 }
 
-/// Legacy determine_context for backwards compatibility (deprecated).
+/// Legacy `determine_context` for backwards compatibility (deprecated).
 ///
 /// # Security
 ///
@@ -280,21 +356,88 @@ fn determine_context(content: &str, position: Position) -> CompletionContext {
 }
 
 fn find_active_list_type(lines: Vec<&str>, current_line: usize) -> String {
-    // Look backwards to find the list declaration
+    // Look backwards to find the list declaration for the current row.
+    // Key insight: List declarations (e.g., "users: @User") are at a LOWER
+    // indentation level than their rows (e.g., "  | alice, Alice").
+    // The declaration is the parent, rows are children indented under it.
+
+    let current_line_content = match lines.get(current_line) {
+        Some(line) => *line,
+        None => return String::new(),
+    };
+
+    let current_indent = current_line_content.len() - current_line_content.trim_start().len();
+
+    // Search backwards for a list declaration at less indentation
     for i in (0..current_line).rev() {
-        let line = lines[i].trim();
-        if line.contains(": @") {
-            // Extract type name
-            if let Some(at_pos) = line.find('@') {
-                let rest = &line[at_pos + 1..];
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        // Skip empty lines and comments
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        let line_indent = line.len() - line.trim_start().len();
+
+        // Declaration must be at LESS indentation than the row (it's the parent)
+        if line_indent >= current_indent {
+            // Same or more indentation: could be a sibling row or nested content
+            // Keep searching backwards
+            continue;
+        }
+
+        // Found a line at less indentation - check if it's a list declaration
+        if trimmed.contains(": @") {
+            // Extract the type name after @
+            if let Some(at_pos) = trimmed.find('@') {
+                let rest = &trimmed[at_pos + 1..];
                 let end = rest
                     .find(|c: char| c == '[' || c.is_whitespace())
                     .unwrap_or(rest.len());
                 return rest[..end].to_string();
             }
         }
+
+        // Found a non-declaration line at less indentation
+        // This could be a parent node - keep searching to find the actual declaration
+        // But if we hit the root level (indent 0) without finding a declaration, stop
+        if line_indent == 0 && !trimmed.contains(": @") {
+            break;
+        }
     }
+
     String::new()
+}
+
+/// Count columns in a CSV portion using quote-aware parsing.
+/// This handles incomplete quoted fields where `parse_csv_row` would fail.
+/// Counts commas that are outside of quoted regions.
+fn count_columns_quote_aware(s: &str) -> usize {
+    let mut column_count = 0;
+    let mut in_quotes = false;
+    let mut prev_char = None;
+
+    for c in s.chars() {
+        match c {
+            '"' => {
+                // Toggle quote state (handle escaped quotes "")
+                if prev_char == Some('"') && in_quotes {
+                    // This is an escaped quote, don't toggle
+                    prev_char = None;
+                    continue;
+                }
+                in_quotes = !in_quotes;
+            }
+            ',' if !in_quotes => {
+                column_count += 1;
+            }
+            _ => {}
+        }
+        prev_char = Some(c);
+    }
+
+    column_count
 }
 
 fn header_completions() -> Vec<CompletionItem> {
@@ -362,14 +505,13 @@ fn reference_type_completions(
         let entity_count = analysis
             .entities
             .get(&type_name)
-            .map(|m| m.len())
-            .unwrap_or(0);
+            .map_or(0, std::collections::HashMap::len);
 
         items.push(CompletionItem {
             label: type_name.clone(),
             kind: Some(CompletionItemKind::CLASS),
-            detail: Some(format!("{} entities", entity_count)),
-            insert_text: Some(format!("{}:", type_name)),
+            detail: Some(format!("{entity_count} entities")),
+            insert_text: Some(format!("{type_name}:")),
             insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
             documentation: analysis
                 .get_schema(&type_name)
@@ -388,7 +530,7 @@ fn reference_id_completions(analysis: &AnalyzedDocument, type_name: &str) -> Vec
         .map(|id| CompletionItem {
             label: id.clone(),
             kind: Some(CompletionItemKind::REFERENCE),
-            detail: Some(format!("@{}:{}", type_name, id)),
+            detail: Some(format!("@{type_name}:{id}")),
             insert_text: Some(id),
             insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
             ..Default::default()
@@ -406,7 +548,7 @@ fn list_type_completions(analysis: &AnalyzedDocument) -> Vec<CompletionItem> {
                 label: type_name.clone(),
                 kind: Some(CompletionItemKind::CLASS),
                 detail: schema.map(|cols| format!("[{}]", cols.join(", "))),
-                insert_text: Some(format!("@{}", type_name)),
+                insert_text: Some(format!("@{type_name}")),
                 insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
                 documentation: Some(Documentation::String(
                     "Use this type for the list".to_string(),
@@ -437,9 +579,9 @@ fn matrix_cell_completions(
                     for (t, entities) in &analysis.entities {
                         for id in entities.keys() {
                             items.push(CompletionItem {
-                                label: format!("@{}:{}", t, id),
+                                label: format!("@{t}:{id}"),
                                 kind: Some(CompletionItemKind::REFERENCE),
-                                detail: Some(format!("Reference to {} entity", t)),
+                                detail: Some(format!("Reference to {t} entity")),
                                 ..Default::default()
                             });
                         }
@@ -515,7 +657,7 @@ fn key_completions(analysis: &AnalyzedDocument) -> Vec<CompletionItem> {
         items.push(CompletionItem {
             label: type_name.to_lowercase(),
             kind: Some(CompletionItemKind::PROPERTY),
-            detail: Some(format!("List of {} entities", type_name)),
+            detail: Some(format!("List of {type_name} entities")),
             insert_text: Some(format!("{}: @{}", type_name.to_lowercase(), type_name)),
             insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
             ..Default::default()
@@ -531,10 +673,10 @@ fn value_completions(analysis: &AnalyzedDocument) -> Vec<CompletionItem> {
     // Add aliases
     for (alias, (value, _)) in &analysis.aliases {
         items.push(CompletionItem {
-            label: format!("${}", alias),
+            label: format!("${alias}"),
             kind: Some(CompletionItemKind::VARIABLE),
-            detail: Some(format!("Alias for \"{}\"", value)),
-            insert_text: Some(format!("${}", alias)),
+            detail: Some(format!("Alias for \"{value}\"")),
+            insert_text: Some(format!("${alias}")),
             ..Default::default()
         });
     }
@@ -542,10 +684,10 @@ fn value_completions(analysis: &AnalyzedDocument) -> Vec<CompletionItem> {
     // Add type references for list declarations
     for type_name in analysis.get_type_names() {
         items.push(CompletionItem {
-            label: format!("@{}", type_name),
+            label: format!("@{type_name}"),
             kind: Some(CompletionItemKind::CLASS),
             detail: Some("Start a typed list".to_string()),
-            insert_text: Some(format!("@{}", type_name)),
+            insert_text: Some(format!("@{type_name}")),
             ..Default::default()
         });
     }

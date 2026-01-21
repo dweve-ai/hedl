@@ -40,7 +40,9 @@ graph LR
 ## Document Structure
 
 ```rust
-use hedl_core::{Document, Item, MatrixList, Node, Value};
+use hedl_core::{Document, Item, MatrixList, Node, Value, SchemaVersion};
+use std::time::Duration;
+use smallvec::SmallVec;
 use std::collections::BTreeMap;
 
 /// A parsed HEDL document
@@ -53,6 +55,8 @@ pub struct Document {
     pub structs: BTreeMap<String, Vec<String>>,
     /// Nest relationships (parent -> child)
     pub nests: BTreeMap<String, String>,
+    /// Schema versions for typed validation
+    pub schema_versions: BTreeMap<String, SchemaVersion>,
     /// Root body content
     pub root: BTreeMap<String, Item>,
 }
@@ -73,24 +77,24 @@ pub struct Node {
     pub type_name: String,
     /// The node's ID (first column value)
     pub id: String,
-    /// Field values (aligned with schema columns)
-    pub fields: Vec<Value>,
-    /// Child nodes grouped by type (from NEST relationships)
-    pub children: BTreeMap<String, Vec<Node>>,
-    /// Optional count of direct children (for LLM comprehension hints)
-    pub child_count: Option<usize>,
+    /// Field values (SmallVec avoids heap for ≤4 fields)
+    pub fields: SmallVec<[Value; 4]>,
+    /// Child nodes (lazy Box allocation, None when no children)
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,
+    /// Child count hint for LLM comprehension (u16 saves 6 bytes vs Option<usize>)
+    pub child_count: u16,
 }
 
-/// A scalar value in HEDL
+/// A scalar value in HEDL (optimized with Box for large variants)
 pub enum Value {
     Null,
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),           // Box<str> reduces enum size vs String
+    Tensor(Box<Tensor>),        // Boxed to reduce enum size
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>), // Boxed to reduce enum size
 }
 ```
 
@@ -130,12 +134,12 @@ let opts = ParseOptions::default();
 let opts = ParseOptions::builder()
     .max_depth(100)
     .max_nodes(100_000)
-    .strict(true)
+    .reference_mode(ReferenceMode::Strict)
     .build();
 
 // Or use builder pattern for clarity
 let opts = ParseOptions::builder()
-    .strict(false)
+    .reference_mode(ReferenceMode::Lenient)
     .max_nodes(50_000)
     .build();
 
@@ -197,15 +201,15 @@ users: @User
 References are resolved after parsing using a `TypeRegistry`:
 
 ```rust
-use hedl_core::reference::{register_node, resolve_references, TypeRegistry};
+use hedl_core::reference::{register_node, resolve_references, ReferenceMode, TypeRegistry};
 
 // 1. Register all nodes during parsing
 let mut registry = TypeRegistry::new();
-register_node(&mut registry, &node.type_name, &node.id, line_num)?;
+register_node(&mut registry, &node.type_name, &node.id, line_num, &limits)?;
 
 // 2. Resolve all references after parsing
-// Reference resolution is handled internally based on ParseOptions.strict
-resolve_references(&doc, &options)?;
+// Reference resolution based on ParseOptions.reference_mode
+resolve_references(&doc, ReferenceMode::Strict)?;  // or ReferenceMode::Lenient
 ```
 
 References can be:
@@ -276,6 +280,8 @@ pub struct Limits {
     pub max_block_string_size: usize, // Default: 10MB
     pub max_object_keys: usize,       // Default: 10k
     pub max_total_keys: usize,        // Default: 10M
+    pub max_total_ids: usize,         // Default: 10M
+    pub timeout: Option<Duration>,    // Default: 30 seconds (None disables)
 }
 ```
 

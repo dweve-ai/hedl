@@ -343,8 +343,9 @@ class Document:
         """Get the number of schema definitions."""
         self._check_closed()
         count = self._lib.hedl_schema_count(self._ptr)
+        # These functions don't set thread-local error messages, so we use a fixed message
         if count < 0:
-            raise HedlError.from_lib(count, "Get schema count")
+            raise HedlError("invalid document handle", count)
         return count
 
     @property
@@ -352,8 +353,9 @@ class Document:
         """Get the number of alias definitions."""
         self._check_closed()
         count = self._lib.hedl_alias_count(self._ptr)
+        # These functions don't set thread-local error messages, so we use a fixed message
         if count < 0:
-            raise HedlError.from_lib(count, "Get alias count")
+            raise HedlError("invalid document handle", count)
         return count
 
     @property
@@ -361,8 +363,9 @@ class Document:
         """Get the number of root items."""
         self._check_closed()
         count = self._lib.hedl_root_item_count(self._ptr)
+        # These functions don't set thread-local error messages, so we use a fixed message
         if count < 0:
-            raise HedlError.from_lib(count, "Get root item count")
+            raise HedlError("invalid document handle", count)
         return count
 
     def canonicalize(self) -> str:

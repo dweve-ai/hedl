@@ -24,7 +24,7 @@ use crate::tools::json_utils::value_to_json;
 use crate::tools::types::{StreamArgs, MAX_INPUT_SIZE};
 use serde_json::{json, Value as JsonValue};
 
-/// Execute hedl_stream tool.
+/// Execute `hedl_stream` tool.
 pub fn execute_hedl_stream(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: StreamArgs = parse_args(args)?;
 
@@ -33,15 +33,14 @@ pub fn execute_hedl_stream(args: Option<JsonValue>) -> McpResult<CallToolResult>
 
     let reader = std::io::Cursor::new(args.hedl.as_bytes());
     let parser = hedl_stream::StreamingParser::new(reader)
-        .map_err(|e| McpError::InvalidArguments(format!("Stream parse error: {}", e)))?;
+        .map_err(|e| McpError::InvalidArguments(format!("Stream parse error: {e}")))?;
 
     let mut entities = Vec::new();
     let mut skipped = 0;
     let mut count = 0;
 
     for event in parser {
-        let event =
-            event.map_err(|e| McpError::InvalidArguments(format!("Stream error: {}", e)))?;
+        let event = event.map_err(|e| McpError::InvalidArguments(format!("Stream error: {e}")))?;
 
         if let hedl_stream::NodeEvent::Node(node) = event {
             // Apply type filter

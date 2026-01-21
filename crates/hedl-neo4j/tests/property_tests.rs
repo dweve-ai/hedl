@@ -28,17 +28,23 @@
 //! - Identifier validation
 //! - Value conversion roundtrips
 
+// Allow single_match for proptest tuple destructuring patterns
+#![allow(clippy::single_match)]
+
 use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
 use hedl_neo4j::{
     cypher::{
         escape_identifier, escape_label, escape_relationship_type, escape_string,
         is_valid_identifier, quote_string, to_relationship_type,
     },
-    mapping::{cypher_to_value, value_to_cypher},
-    to_cypher, to_cypher_statements, CypherValue, ToCypherConfig,
+    from_neo4j::{from_neo4j_records, from_records_iter, from_records_streaming, Neo4jRecord},
+    mapping::{cypher_to_value, value_to_cypher, Neo4jNode},
+    to_cypher, to_cypher_statements, CypherValue, FromNeo4jConfig, ToCypherConfig,
 };
 use proptest::prelude::*;
+use smallvec::SmallVec;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 // ============================================================================
 // String Escaping Properties
@@ -67,8 +73,8 @@ proptest! {
     #[test]
     fn prop_quote_string_format(s in ".*") {
         let quoted = quote_string(&s);
-        prop_assert!(quoted.starts_with("'"));
-        prop_assert!(quoted.ends_with("'"));
+        prop_assert!(quoted.starts_with('\''));
+        prop_assert!(quoted.ends_with('\''));
     }
 
     /// Escaping should be idempotent on safe strings
@@ -200,10 +206,11 @@ proptest! {
     fn prop_string_roundtrip(s in "[a-zA-Z0-9 ]+") {
         // Use strings that don't start with @ or [ to avoid special parsing
         let config = ToCypherConfig::default();
-        let hedl_val = Value::String(s.clone());
+        let hedl_val = Value::String(s.clone().into());
         let cypher_val = value_to_cypher(&hedl_val, "field", &config).unwrap();
         if let CypherValue::String(t) = cypher_val {
-            prop_assert_eq!(s, t);
+            let t_str: &str = &t;
+            prop_assert_eq!(s.as_str(), t_str);
         } else {
             prop_assert!(false, "Expected CypherValue::String");
         }
@@ -255,7 +262,8 @@ proptest! {
         let cypher_val = CypherValue::String(s.clone());
         let hedl_val = cypher_to_value(&cypher_val).unwrap();
         if let Value::String(t) = hedl_val {
-            prop_assert_eq!(s, t);
+            let t_str: &str = &t;
+            prop_assert_eq!(s.as_str(), t_str);
         } else {
             prop_assert!(false, "Expected Value::String");
         }
@@ -316,7 +324,7 @@ proptest! {
     fn prop_full_value_roundtrip_string(s in "[a-zA-Z0-9 ]+") {
         // Use strings that don't start with @ or [ to avoid special parsing
         let config = ToCypherConfig::default();
-        let original = Value::String(s);
+        let original = Value::String(s.into());
         let cypher = value_to_cypher(&original, "field", &config).unwrap();
         let restored = cypher_to_value(&cypher).unwrap();
         prop_assert_eq!(original, restored);
@@ -343,7 +351,7 @@ proptest! {
     fn prop_nested_special_chars(depth in 1usize..10, base in "[a-zA-Z0-9]+") {
         let mut s = base;
         for _ in 0..depth {
-            s = format!("'{}'", s);
+            s = format!("'{s}'");
         }
         let escaped = escape_string(&s);
         // Should handle deeply nested quotes
@@ -365,9 +373,9 @@ fn test_escape_empty_string() {
 fn test_escape_only_special_chars() {
     let special = "'\"\\\n\r\t";
     let escaped = escape_string(special);
-    assert!(!escaped.contains("\n")); // Raw newline should be escaped
-    assert!(!escaped.contains("\r"));
-    assert!(!escaped.contains("\t"));
+    assert!(!escaped.contains('\n')); // Raw newline should be escaped
+    assert!(!escaped.contains('\r'));
+    assert!(!escaped.contains('\t'));
 }
 
 #[test]
@@ -447,8 +455,8 @@ fn test_reference_string_parsing() {
     let cypher = CypherValue::String("@User:alice".to_string());
     let hedl = cypher_to_value(&cypher).unwrap();
     if let Value::Reference(r) = hedl {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(r.id.as_ref(), "alice");
     } else {
         panic!("Expected reference for @User:alice");
     }
@@ -458,7 +466,7 @@ fn test_reference_string_parsing() {
     let hedl = cypher_to_value(&cypher).unwrap();
     if let Value::Reference(r) = hedl {
         assert_eq!(r.type_name, None);
-        assert_eq!(r.id, "bob");
+        assert_eq!(r.id.as_ref(), "bob");
     } else {
         panic!("Expected reference for @bob");
     }
@@ -505,7 +513,7 @@ fn arb_hedl_value() -> impl Strategy<Value = Value> {
             .prop_filter("finite", |f| f.is_finite())
             .prop_map(Value::Float),
         any::<bool>().prop_map(Value::Bool),
-        "[a-zA-Z0-9 ]{0,50}".prop_map(Value::String),
+        "[a-zA-Z0-9 ]{0,50}".prop_map(|s: String| Value::String(s.into())),
         Just(Value::Null),
     ]
 }
@@ -519,13 +527,13 @@ fn arb_hedl_node(type_name: String, num_fields: usize) -> impl Strategy<Value = 
     )
         .prop_map(move |(id, mut fields)| {
             // First field is always the ID
-            fields.insert(0, Value::String(id.clone()));
+            fields.insert(0, Value::String(id.clone().into()));
             Node {
                 type_name: type_name.clone(),
                 id,
-                fields,
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(fields),
+                children: None,
+                child_count: 0,
             }
         })
 }
@@ -545,15 +553,15 @@ fn arb_hedl_node_with_refs(
         Node {
             type_name: type_name.clone(),
             id: id.clone(),
-            fields: vec![
-                Value::String(id),
+            fields: SmallVec::from_vec(vec![
+                Value::String(id.into()),
                 Value::Reference(Reference {
-                    type_name: Some(ref_type),
-                    id: target_id,
+                    type_name: Some(ref_type.into()),
+                    id: target_id.into(),
                 }),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         }
     })
 }
@@ -572,9 +580,12 @@ fn arb_hedl_node_with_nest(type_name: String, child_type: String) -> impl Strate
                 .map(|child_id| Node {
                     type_name: child_type.clone(),
                     id: child_id.clone(),
-                    fields: vec![Value::String(child_id), Value::String("test".to_string())],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String(child_id.into()),
+                        Value::String("test".to_string().into()),
+                    ]),
+                    children: None,
+                    child_count: 0,
                 })
                 .collect();
             let child_count = child_nodes.len();
@@ -583,9 +594,12 @@ fn arb_hedl_node_with_nest(type_name: String, child_type: String) -> impl Strate
             Node {
                 type_name: type_name.clone(),
                 id: id.clone(),
-                fields: vec![Value::String(id), Value::String("parent".to_string())],
-                children,
-                child_count: Some(child_count),
+                fields: SmallVec::from_vec(vec![
+                    Value::String(id.into()),
+                    Value::String("parent".to_string().into()),
+                ]),
+                children: Some(Box::new(children)),
+                child_count: child_count as u16,
             }
         })
 }
@@ -603,9 +617,12 @@ fn arb_document() -> impl Strategy<Value = Document> {
                 .map(|id| Node {
                     type_name: type_name.clone(),
                     id: id.clone(),
-                    fields: vec![Value::String(id), Value::String("Test".to_string())],
-                    children: BTreeMap::new(),
-                    child_count: None,
+                    fields: SmallVec::from_vec(vec![
+                        Value::String(id.into()),
+                        Value::String("Test".to_string().into()),
+                    ]),
+                    children: None,
+                    child_count: 0,
                 })
                 .collect();
 
@@ -622,6 +639,7 @@ fn arb_document() -> impl Strategy<Value = Document> {
 
             Document {
                 version: (1, 0),
+                schema_versions: BTreeMap::new(),
                 aliases: BTreeMap::new(),
                 structs: BTreeMap::new(),
                 nests: BTreeMap::new(),
@@ -647,22 +665,25 @@ fn arb_document_with_nest() -> impl Strategy<Value = Document> {
                     let mut children = BTreeMap::new();
                     let child_nodes = vec![Node {
                         type_name: child_type.clone(),
-                        id: format!("{}_child", id),
-                        fields: vec![
-                            Value::String(format!("{}_child", id)),
-                            Value::String("Child Title".to_string()),
-                        ],
-                        children: BTreeMap::new(),
-                        child_count: None,
+                        id: format!("{id}_child"),
+                        fields: SmallVec::from_vec(vec![
+                            Value::String(format!("{id}_child").into()),
+                            Value::String("Child Title".to_string().into()),
+                        ]),
+                        children: None,
+                        child_count: 0,
                     }];
                     children.insert("children".to_string(), child_nodes);
 
                     Node {
                         type_name: parent_type.clone(),
                         id: id.clone(),
-                        fields: vec![Value::String(id), Value::String("Parent".to_string())],
-                        children,
-                        child_count: Some(1),
+                        fields: SmallVec::from_vec(vec![
+                            Value::String(id.into()),
+                            Value::String("Parent".to_string().into()),
+                        ]),
+                        children: Some(Box::new(children)),
+                        child_count: 1,
                     }
                 })
                 .collect();
@@ -690,6 +711,7 @@ fn arb_document_with_nest() -> impl Strategy<Value = Document> {
 
             Document {
                 version: (1, 0),
+                schema_versions: BTreeMap::new(),
                 aliases: BTreeMap::new(),
                 structs,
                 nests,
@@ -778,19 +800,20 @@ proptest! {
                     rows: vec![Node {
                         type_name: "Test".to_string(),
                         id: "test1".to_string(),
-                        fields: vec![
-                            Value::String("test1".to_string()),
-                            Value::String(malicious.clone()),
-                        ],
-                        children: BTreeMap::new(),
-                        child_count: None,
+                        fields: SmallVec::from_vec(vec![
+                            Value::String("test1".to_string().into()),
+                            Value::String(malicious.clone().into()),
+                        ]),
+                        children: None,
+                        child_count: 0,
                     }],
                     count_hint: None,
                 }),
             );
             Document {
                 version: (1, 0),
-                aliases: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+        aliases: BTreeMap::new(),
                 structs: BTreeMap::new(),
                 nests: BTreeMap::new(),
                 root,
@@ -913,10 +936,8 @@ proptest! {
                             ml.rows
                                 .iter()
                                 .map(|node| {
-                                    node.children
-                                        .values()
-                                        .map(|children| children.len())
-                                        .sum::<usize>()
+                                    node.children()
+                                        .map_or(0, |c| c.values().map(std::vec::Vec::len).sum::<usize>())
                                 })
                                 .sum::<usize>(),
                         )
@@ -970,7 +991,7 @@ proptest! {
             // If there are parent-child relationships, there should be relationship creation
             let has_children = doc.root.values().any(|item| {
                 if let Item::List(ml) = item {
-                    ml.rows.iter().any(|node| !node.children.is_empty())
+                    ml.rows.iter().any(|node| node.children().is_some_and(|c| !c.is_empty()))
                 } else {
                     false
                 }
@@ -1074,7 +1095,8 @@ proptest! {
     fn prop_empty_document_minimal_output(_x in Just(())) {
         let doc = Document {
             version: (1, 0),
-            aliases: BTreeMap::new(),
+        schema_versions: BTreeMap::new(),
+        aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
             root: BTreeMap::new(),
@@ -1128,7 +1150,7 @@ proptest! {
     /// Backslashes in strings should be doubled
     #[test]
     fn prop_backslash_doubling(base in "[a-zA-Z]+") {
-        let with_backslash = format!("{}\\{}", base, base);
+        let with_backslash = format!("{base}\\{base}");
         let escaped = escape_string(&with_backslash);
         // Each backslash should become two
         let input_backslashes = with_backslash.chars().filter(|&c| c == '\\').count();
@@ -1139,5 +1161,300 @@ proptest! {
             input_backslashes,
             output_backslashes
         );
+    }
+}
+
+// ============================================================================
+// Streaming API Properties (500 test cases)
+// ============================================================================
+
+/// Generate arbitrary Neo4j records for streaming tests
+fn arb_neo4j_record() -> impl Strategy<Value = Neo4jRecord> {
+    (arb_type_name(), arb_identifier(), "[a-zA-Z0-9 ]{0,50}").prop_map(|(label, id, name)| {
+        Neo4jRecord::new(Neo4jNode::new(&label, &id).with_property("name", name))
+    })
+}
+
+/// Generate arbitrary list of Neo4j records
+fn arb_neo4j_records(min: usize, max: usize) -> impl Strategy<Value = Vec<Neo4jRecord>> {
+    prop::collection::vec(arb_neo4j_record(), min..max)
+}
+
+/// Generate records with consistent labels for schema merging tests
+fn arb_records_same_label(min: usize, max: usize) -> impl Strategy<Value = Vec<Neo4jRecord>> {
+    (
+        arb_type_name(),
+        prop::collection::vec(arb_identifier(), min..max),
+    )
+        .prop_map(|(label, ids)| {
+            ids.into_iter()
+                .map(|id| Neo4jRecord::new(Neo4jNode::new(&label, &id)))
+                .collect()
+        })
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Streaming API should produce equivalent results to buffered API
+    #[test]
+    fn prop_streaming_vs_buffered_equivalence(records in arb_neo4j_records(0, 50)) {
+        let config = FromNeo4jConfig::default();
+
+        // Process with buffered API
+        let buffered_result = from_neo4j_records(&records, &config);
+
+        // Process with streaming API
+        let streaming_result = from_records_iter(records.clone().into_iter(), &config);
+
+        match (buffered_result, streaming_result) {
+            (Ok(buffered_doc), Ok(streaming_doc)) => {
+                // Version should match
+                prop_assert_eq!(buffered_doc.version, streaming_doc.version);
+
+                // Root keys should match
+                let buffered_keys: BTreeSet<_> = buffered_doc.root.keys().collect();
+                let streaming_keys: BTreeSet<_> = streaming_doc.root.keys().collect();
+                prop_assert_eq!(buffered_keys, streaming_keys);
+
+                // Number of items per key should match
+                for key in buffered_doc.root.keys() {
+                    if let (Some(Item::List(b_list)), Some(Item::List(s_list))) =
+                        (buffered_doc.root.get(key), streaming_doc.root.get(key))
+                    {
+                        prop_assert_eq!(
+                            b_list.rows.len(),
+                            s_list.rows.len(),
+                            "Row count mismatch for key: {}",
+                            key
+                        );
+                    }
+                }
+            }
+            (Err(_), Err(_)) => {}, // Both failed consistently
+            (Ok(_), Err(e)) => prop_assert!(false, "Streaming failed but buffered succeeded: {:?}", e),
+            (Err(e), Ok(_)) => prop_assert!(false, "Buffered failed but streaming succeeded: {:?}", e),
+        }
+    }
+
+    /// Config options should not affect output consistency
+    #[test]
+    fn prop_config_invariance(records in arb_neo4j_records(1, 30)) {
+        let config1 = FromNeo4jConfig::new();
+        let config2 = FromNeo4jConfig::default();
+
+        let result1 = from_records_iter(records.clone().into_iter(), &config1);
+        let result2 = from_records_iter(records.into_iter(), &config2);
+
+        match (result1, result2) {
+            (Ok(doc1), Ok(doc2)) => {
+                // All should produce same number of root keys
+                prop_assert_eq!(doc1.root.len(), doc2.root.len());
+
+                // All should have same node counts
+                for key in doc1.root.keys() {
+                    if let (
+                        Some(Item::List(l1)),
+                        Some(Item::List(l2)),
+                    ) = (doc1.root.get(key), doc2.root.get(key))
+                    {
+                        prop_assert_eq!(l1.rows.len(), l2.rows.len());
+                    }
+                }
+            }
+            _ => {}, // If any fail, they should all fail (or succeed)
+        }
+    }
+
+    /// Streaming alias should be equivalent to from_records_iter
+    #[test]
+    fn prop_streaming_alias_equivalence(records in arb_neo4j_records(0, 20)) {
+        let config = FromNeo4jConfig::default();
+
+        let result1 = from_records_iter(records.clone().into_iter(), &config);
+        let result2 = from_records_streaming(records.into_iter(), &config);
+
+        match (result1, result2) {
+            (Ok(doc1), Ok(doc2)) => {
+                prop_assert_eq!(doc1.root.len(), doc2.root.len());
+                prop_assert_eq!(doc1.version, doc2.version);
+            }
+            (Err(_), Err(_)) => {},
+            _ => prop_assert!(false, "Alias should produce identical results"),
+        }
+    }
+
+    /// Schema merging should include all discovered properties
+    #[test]
+    fn prop_schema_merging_complete(base_id in arb_identifier()) {
+        // Create records with varying property sets
+        let records = vec![
+            Neo4jRecord::new(
+                Neo4jNode::new("TestType", format!("{base_id}_1"))
+                    .with_property("prop_a", "value_a")
+            ),
+            Neo4jRecord::new(
+                Neo4jNode::new("TestType", format!("{base_id}_2"))
+                    .with_property("prop_b", "value_b")
+            ),
+            Neo4jRecord::new(
+                Neo4jNode::new("TestType", format!("{base_id}_3"))
+                    .with_property("prop_a", "value_a")
+                    .with_property("prop_c", "value_c")
+            ),
+        ];
+
+        let config = FromNeo4jConfig::new();
+        let doc = from_records_iter(records.into_iter(), &config).unwrap();
+
+        // Schema should include all discovered properties
+        let schema = doc.structs.get("TestType").unwrap();
+        prop_assert!(schema.contains(&"prop_a".to_string()), "Schema missing prop_a");
+        prop_assert!(schema.contains(&"prop_b".to_string()), "Schema missing prop_b");
+        prop_assert!(schema.contains(&"prop_c".to_string()), "Schema missing prop_c");
+    }
+
+    /// Empty input should produce empty document
+    #[test]
+    fn prop_empty_input_empty_output(_x in Just(())) {
+        let records: Vec<Neo4jRecord> = vec![];
+        let config = FromNeo4jConfig::new();
+
+        let doc = from_records_iter(records.into_iter(), &config).unwrap();
+
+        prop_assert!(doc.root.is_empty());
+        prop_assert!(doc.nests.is_empty());
+        prop_assert!(doc.structs.is_empty());
+    }
+
+    /// All input records should appear in output (no data loss)
+    #[test]
+    fn prop_no_data_loss(records in arb_records_same_label(1, 20)) {
+        let input_count = records.len();
+        let config = FromNeo4jConfig::new();
+
+        let doc = from_records_iter(records.into_iter(), &config).unwrap();
+
+        // Count total nodes in output
+        let output_count: usize = doc.root.values()
+            .filter_map(|item| {
+                if let Item::List(list) = item {
+                    Some(list.rows.len())
+                } else {
+                    None
+                }
+            })
+            .sum();
+
+        prop_assert_eq!(input_count, output_count, "Data loss detected: input {} != output {}", input_count, output_count);
+    }
+
+    /// Excluded labels should be filtered in streaming mode
+    #[test]
+    fn prop_streaming_respects_exclude_labels(id in arb_identifier()) {
+        let records = vec![
+            Neo4jRecord::new(Neo4jNode::new("User", format!("user_{id}"))),
+            Neo4jRecord::new(Neo4jNode::new("Internal", format!("internal_{id}"))),
+            Neo4jRecord::new(Neo4jNode::new("User", format!("user2_{id}"))),
+        ];
+
+        let config = FromNeo4jConfig::new()
+            .exclude_label("Internal");
+
+        let doc = from_records_iter(records.into_iter(), &config).unwrap();
+
+        prop_assert!(doc.root.contains_key("user"));
+        prop_assert!(!doc.root.contains_key("internal"));
+    }
+}
+
+// ============================================================================
+// Index Hints Configuration Properties (500 test cases)
+// ============================================================================
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// Index hints should be present when enabled
+    #[test]
+    fn prop_index_hints_when_enabled(doc in arb_document()) {
+        let config = ToCypherConfig {
+            use_index_hints: true,
+            ..Default::default()
+        };
+
+        if let Ok(cypher) = to_cypher(&doc, &config) {
+            // Count relationships in document
+            let has_relationships = doc.root.values().any(|item| {
+                if let Item::List(list) = item {
+                    list.rows.iter().any(|node| {
+                        node.fields.iter().any(|f| matches!(f, Value::Reference(_)))
+                    })
+                } else {
+                    false
+                }
+            });
+
+            // If there are reference relationships, we expect index hints
+            if has_relationships && cypher.contains("MATCH") {
+                // Index hints use "USING INDEX" syntax
+                prop_assert!(
+                    cypher.contains("USING INDEX") || !cypher.contains("MATCH (from"),
+                    "Expected USING INDEX hints for relationships when enabled"
+                );
+            }
+        }
+    }
+
+    /// Index hints should be absent when disabled
+    #[test]
+    fn prop_no_index_hints_when_disabled(doc in arb_document()) {
+        let config = ToCypherConfig {
+            use_index_hints: false,
+            ..Default::default()
+        };
+
+        if let Ok(cypher) = to_cypher(&doc, &config) {
+            prop_assert!(
+                !cypher.contains("USING INDEX"),
+                "Should not contain USING INDEX when hints disabled"
+            );
+        }
+    }
+
+    /// Index hints config should be deterministic
+    #[test]
+    fn prop_index_hints_deterministic(doc in arb_document(), enable in any::<bool>()) {
+        let config = ToCypherConfig {
+            use_index_hints: enable,
+            ..Default::default()
+        };
+
+        let result1 = to_cypher(&doc, &config);
+        let result2 = to_cypher(&doc, &config);
+
+        match (result1, result2) {
+            (Ok(c1), Ok(c2)) => prop_assert_eq!(c1, c2, "Index hint config not deterministic"),
+            (Err(_), Err(_)) => {},
+            _ => prop_assert!(false, "Inconsistent success/failure"),
+        }
+    }
+
+    /// Template caching config should not affect output content
+    #[test]
+    fn prop_template_caching_no_content_change(doc in arb_document()) {
+        let config_cached = ToCypherConfig {
+            enable_template_caching: true,
+            ..Default::default()
+        };
+        let config_uncached = ToCypherConfig {
+            enable_template_caching: false,
+            ..Default::default()
+        };
+
+        if let (Ok(cached), Ok(uncached)) = (to_cypher(&doc, &config_cached), to_cypher(&doc, &config_uncached)) {
+            // Output should be identical - caching is internal optimization
+            prop_assert_eq!(cached, uncached, "Template caching should not affect output");
+        }
     }
 }

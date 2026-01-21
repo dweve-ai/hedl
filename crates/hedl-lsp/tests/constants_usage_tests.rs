@@ -35,13 +35,11 @@ fn test_debounce_constant_is_reasonable() {
     // Verify debounce delay is within acceptable range for user experience
     assert!(
         DEBOUNCE_MS >= 50,
-        "Debounce too short ({}ms), will cause excessive CPU usage",
-        DEBOUNCE_MS
+        "Debounce too short ({DEBOUNCE_MS}ms), will cause excessive CPU usage"
     );
     assert!(
         DEBOUNCE_MS <= 500,
-        "Debounce too long ({}ms), will feel laggy to users",
-        DEBOUNCE_MS
+        "Debounce too long ({DEBOUNCE_MS}ms), will feel laggy to users"
     );
 
     // The chosen value should be exactly 200ms
@@ -144,15 +142,13 @@ fn test_lsp_protocol_constants_are_consistent() {
     // Line end should be large enough for typical code lines
     assert!(
         DIAGNOSTIC_LINE_END_CHAR >= 100,
-        "Line end character ({}) too small for typical code",
-        DIAGNOSTIC_LINE_END_CHAR
+        "Line end character ({DIAGNOSTIC_LINE_END_CHAR}) too small for typical code"
     );
 
     // But not unnecessarily large
     assert!(
         DIAGNOSTIC_LINE_END_CHAR <= 10000,
-        "Line end character ({}) unnecessarily large",
-        DIAGNOSTIC_LINE_END_CHAR
+        "Line end character ({DIAGNOSTIC_LINE_END_CHAR}) unnecessarily large"
     );
 }
 
@@ -253,7 +249,7 @@ fn test_cache_size_limits() {
 
     // Insert 3 documents (at limit)
     for i in 0..3 {
-        let uri = Url::parse(&format!("file:///test{}.hedl", i)).unwrap();
+        let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
         manager.insert_or_update(&uri, "content");
     }
 

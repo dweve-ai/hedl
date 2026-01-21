@@ -52,9 +52,9 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
             }
             (header_lines.join("\n"), body_lines.join("\n"))
         };
-        format!("%VERSION: 1.0\n{}\n---\n{}", header, body)
+        format!("%VERSION: 1.0\n{header}\n---\n{body}")
     } else {
-        format!("%VERSION: 1.0\n---\n{}", input)
+        format!("%VERSION: 1.0\n---\n{input}")
     };
     parse(hedl.as_bytes()).unwrap()
 }
@@ -63,11 +63,11 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
 
 #[test]
 fn test_generate_basic_schema() {
-    let hedl = r#"
+    let hedl = r"
 name: Alice
 age: 30
 active: true
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema(&doc, &SchemaConfig::default()).unwrap();
@@ -155,12 +155,12 @@ string_val: "hello"
 
 #[test]
 fn test_reference_type() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name]
 users: @User
   |u123, Alice
 owner: @User:u123
-"#;
+";
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
 
@@ -174,7 +174,7 @@ owner: @User:u123
 
 #[test]
 fn test_expression_type() {
-    let hedl = r#"computed: $(now())"#;
+    let hedl = r"computed: $(now())";
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
 
@@ -187,10 +187,10 @@ fn test_expression_type() {
 
 #[test]
 fn test_tensor_types() {
-    let hedl = r#"
+    let hedl = r"
 scalar: [42.0]
 array: [[1.0, 2.0], [3.0, 4.0]]
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -210,11 +210,11 @@ array: [[1.0, 2.0], [3.0, 4.0]]
 
 #[test]
 fn test_struct_definition() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name, email]
 users: @User
   |u1, Alice, alice@example.com
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -233,11 +233,11 @@ users: @User
 
 #[test]
 fn test_struct_required_fields() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name]
 users: @User
   |u1, Alice
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -252,14 +252,14 @@ users: @User
 
 #[test]
 fn test_multiple_structs() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name]
 %STRUCT: Post: [id, title]
 %STRUCT: Comment: [id, text]
 
 users: @User
   |u1, Alice
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -273,11 +273,11 @@ users: @User
 
 #[test]
 fn test_matrix_list_references_definition() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Product: [id, name, price]
 products: @Product
   |p1, Widget, 9.99
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -298,14 +298,14 @@ products: @Product
 
 #[test]
 fn test_nest_relationship() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Team: [id, name]
 %STRUCT: Member: [id, name]
 %NEST: Team > Member
 
 teams: @Team
   |t1, Engineering
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -329,14 +329,14 @@ teams: @Team
 
 #[test]
 fn test_nested_children_array() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Department: [id, name]
 %STRUCT: Employee: [id, name]
 %NEST: Department > Employee
 
 departments: @Department
   |d1, Engineering
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -401,18 +401,20 @@ fn test_config_strict_mode() {
 
     let schema = generate_schema_value(&doc, &config).unwrap();
     assert_eq!(
-        schema.get("additionalProperties").and_then(|v| v.as_bool()),
+        schema
+            .get("additionalProperties")
+            .and_then(serde_json::Value::as_bool),
         Some(false)
     );
 }
 
 #[test]
 fn test_config_strict_mode_in_definitions() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name]
 users: @User
   |u1, Alice
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let config = SchemaConfig::builder().strict(true).build();
@@ -422,7 +424,8 @@ users: @User
     let user = defs.get("User").unwrap().as_object().unwrap();
 
     assert_eq!(
-        user.get("additionalProperties").and_then(|v| v.as_bool()),
+        user.get("additionalProperties")
+            .and_then(serde_json::Value::as_bool),
         Some(false)
     );
 }
@@ -477,7 +480,9 @@ fn test_config_builder_chaining() {
     assert!(schema.get("description").is_some());
     assert!(schema.get("$id").is_some());
     assert_eq!(
-        schema.get("additionalProperties").and_then(|v| v.as_bool()),
+        schema
+            .get("additionalProperties")
+            .and_then(serde_json::Value::as_bool),
         Some(false)
     );
 }
@@ -525,11 +530,11 @@ fn test_validate_invalid_type() {
 
 #[test]
 fn test_validate_generated_schema() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name, email]
 users: @User
   |u1, Alice, alice@example.com
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -537,7 +542,7 @@ users: @User
     // Generated schema should be valid
     let validation_result = validate_schema(&schema);
     if let Err(e) = &validation_result {
-        eprintln!("Validation error: {:?}", e);
+        eprintln!("Validation error: {e:?}");
         eprintln!(
             "Generated schema: {}",
             serde_json::to_string_pretty(&schema).unwrap()
@@ -550,11 +555,11 @@ users: @User
 
 #[test]
 fn test_infer_email_field() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, email]
 users: @User
   |u1, alice@example.com
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -569,11 +574,11 @@ users: @User
 
 #[test]
 fn test_infer_url_field() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Site: [id, url]
 sites: @Site
   |s1, https://example.com
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -588,11 +593,11 @@ sites: @Site
 
 #[test]
 fn test_infer_date_field() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Event: [id, created_at]
 events: @Event
   |e1, 2024-01-01T00:00:00Z
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -610,11 +615,11 @@ events: @Event
 
 #[test]
 fn test_infer_boolean_field() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, is_active]
 users: @User
   |u1, true
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -634,13 +639,13 @@ users: @User
 
 #[test]
 fn test_nested_objects() {
-    let hedl = r#"
+    let hedl = r"
 user:
   name: Alice
   address:
     city: Seattle
     zip: 98101
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -658,13 +663,13 @@ user:
 
 #[test]
 fn test_deep_nesting() {
-    let hedl = r#"
+    let hedl = r"
 root:
   level1:
     level2:
       level3:
         value: deep
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -688,11 +693,11 @@ fn test_empty_struct() {
 
 #[test]
 fn test_special_characters_in_field_names() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, user_name, email_address]
 users: @User
   |u1, Alice, alice@example.com
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -787,11 +792,11 @@ comments: @Comment
 
 #[test]
 fn test_schema_serialization() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: Product: [id, name, price]
 products: @Product
   |p1, Widget, 9.99
-"#;
+";
 
     let doc = parse_hedl(hedl);
     let schema_str = generate_schema(&doc, &SchemaConfig::default()).unwrap();
@@ -806,11 +811,11 @@ products: @Product
 
 #[test]
 fn test_roundtrip_schema_generation() {
-    let hedl = r#"
+    let hedl = r"
 %STRUCT: User: [id, name, age]
 users: @User
   |u1, Alice, 30
-"#;
+";
 
     let doc = parse_hedl(hedl);
 

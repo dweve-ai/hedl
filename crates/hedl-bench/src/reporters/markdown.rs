@@ -41,7 +41,7 @@ pub fn export_markdown(report: &BenchmarkReport, path: &Path) -> io::Result<()> 
     if !report.notes.is_empty() {
         md.push_str("## Notes\n\n");
         for note in &report.notes {
-            md.push_str(&format!("- {}\n", note));
+            md.push_str(&format!("- {note}\n"));
         }
         md.push('\n');
     }
@@ -53,8 +53,7 @@ pub fn export_markdown(report: &BenchmarkReport, path: &Path) -> io::Result<()> 
     for result in &report.results {
         let throughput: String = result
             .throughput_mbs()
-            .map(|t| format!("{:.2} MB/s", t))
-            .unwrap_or_else(|| "N/A".to_string());
+            .map_or_else(|| "N/A".to_string(), |t| format!("{t:.2} MB/s"));
 
         md.push_str(&format!(
             "| {} | {:?} | {} | {} |\n",

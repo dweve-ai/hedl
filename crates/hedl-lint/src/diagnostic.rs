@@ -16,6 +16,10 @@
 // limitations under the License.
 
 //! Lint diagnostic types
+//!
+//! The `DiagnosticKind` enum contains only variants that correspond to
+//! implemented lint rules. Future lint rules will add new variants as needed.
+//! For custom or extension rules, use the `Custom(String)` variant.
 
 /// Severity level for diagnostics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -39,26 +43,17 @@ impl std::fmt::Display for Severity {
 }
 
 /// Kind of diagnostic
+///
+/// Each variant corresponds to a specific lint rule implementation,
+/// except for `Custom` which is used for user-defined or future rules.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DiagnosticKind {
     /// ID naming convention violation
     IdNaming,
-    /// Type naming convention violation
-    TypeNaming,
     /// Unused schema definition
     UnusedSchema,
-    /// Unused alias definition
-    UnusedAlias,
-    /// Potentially ambiguous reference
-    AmbiguousReference,
     /// Empty matrix list
     EmptyList,
-    /// Inconsistent ditto usage
-    InconsistentDitto,
-    /// Missing ID column
-    MissingIdColumn,
-    /// Duplicate keys in object
-    DuplicateKey,
     /// Unqualified reference in Key-Value context
     UnqualifiedKvReference,
     /// Custom rule violation
@@ -83,6 +78,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    /// Create a warning diagnostic.
     pub fn warning(
         kind: DiagnosticKind,
         message: impl Into<String>,
@@ -98,6 +94,7 @@ impl Diagnostic {
         }
     }
 
+    /// Create an error diagnostic.
     pub fn error(
         kind: DiagnosticKind,
         message: impl Into<String>,
@@ -113,6 +110,7 @@ impl Diagnostic {
         }
     }
 
+    /// Create a hint diagnostic.
     pub fn hint(
         kind: DiagnosticKind,
         message: impl Into<String>,
@@ -128,37 +126,51 @@ impl Diagnostic {
         }
     }
 
+    /// Add a line number to this diagnostic.
+    #[must_use]
     pub fn with_line(mut self, line: usize) -> Self {
         self.line = Some(line);
         self
     }
 
+    /// Add a suggested fix to this diagnostic.
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
         self
     }
 
-    // Public getters
+    /// Get the severity level of this diagnostic.
+    #[must_use]
     pub fn severity(&self) -> Severity {
         self.severity
     }
 
+    /// Get the kind of this diagnostic.
+    #[must_use]
     pub fn kind(&self) -> &DiagnosticKind {
         &self.kind
     }
 
+    /// Get the diagnostic message.
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }
 
+    /// Get the line number if set.
+    #[must_use]
     pub fn line(&self) -> Option<usize> {
         self.line
     }
 
+    /// Get the rule ID that generated this diagnostic.
+    #[must_use]
     pub fn rule_id(&self) -> &str {
         &self.rule_id
     }
 
+    /// Get the suggested fix if available.
+    #[must_use]
     pub fn suggestion(&self) -> Option<&str> {
         self.suggestion.as_deref()
     }
@@ -172,13 +184,13 @@ impl Diagnostic {
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(line) = self.line {
-            write!(f, "line {}: ", line)?;
+            write!(f, "line {line}: ")?;
         }
 
         write!(f, "[{}] {}: {}", self.rule_id, self.severity, self.message)?;
 
         if let Some(ref suggestion) = self.suggestion {
-            write!(f, " ({})", suggestion)?;
+            write!(f, " ({suggestion})")?;
         }
 
         Ok(())
@@ -242,8 +254,8 @@ mod tests {
     #[test]
     fn test_diagnostic_kind_eq() {
         assert_eq!(DiagnosticKind::IdNaming, DiagnosticKind::IdNaming);
-        assert_eq!(DiagnosticKind::TypeNaming, DiagnosticKind::TypeNaming);
-        assert_ne!(DiagnosticKind::IdNaming, DiagnosticKind::TypeNaming);
+        assert_eq!(DiagnosticKind::UnusedSchema, DiagnosticKind::UnusedSchema);
+        assert_ne!(DiagnosticKind::IdNaming, DiagnosticKind::UnusedSchema);
     }
 
     #[test]
@@ -276,23 +288,17 @@ mod tests {
     #[test]
     fn test_diagnostic_kind_debug() {
         let kind = DiagnosticKind::EmptyList;
-        let debug = format!("{:?}", kind);
+        let debug = format!("{kind:?}");
         assert!(debug.contains("EmptyList"));
     }
 
     #[test]
     fn test_all_diagnostic_kinds() {
         // Verify all kinds are distinct
-        let kinds = vec![
+        let kinds = [
             DiagnosticKind::IdNaming,
-            DiagnosticKind::TypeNaming,
             DiagnosticKind::UnusedSchema,
-            DiagnosticKind::UnusedAlias,
-            DiagnosticKind::AmbiguousReference,
             DiagnosticKind::EmptyList,
-            DiagnosticKind::InconsistentDitto,
-            DiagnosticKind::MissingIdColumn,
-            DiagnosticKind::DuplicateKey,
             DiagnosticKind::UnqualifiedKvReference,
             DiagnosticKind::Custom("test".to_string()),
         ];
@@ -323,7 +329,11 @@ mod tests {
 
     #[test]
     fn test_diagnostic_error() {
-        let diag = Diagnostic::error(DiagnosticKind::DuplicateKey, "Error message", "error-rule");
+        let diag = Diagnostic::error(
+            DiagnosticKind::Custom("custom-error".to_string()),
+            "Error message",
+            "error-rule",
+        );
         assert_eq!(diag.severity, Severity::Error);
         assert_eq!(diag.message, "Error message");
         assert_eq!(diag.rule_id, "error-rule");
@@ -363,7 +373,7 @@ mod tests {
 
     #[test]
     fn test_diagnostic_clone() {
-        let diag = Diagnostic::warning(DiagnosticKind::TypeNaming, "msg", "rule")
+        let diag = Diagnostic::warning(DiagnosticKind::UnusedSchema, "msg", "rule")
             .with_line(5)
             .with_suggestion("suggestion");
 
@@ -378,7 +388,7 @@ mod tests {
     #[test]
     fn test_diagnostic_debug() {
         let diag = Diagnostic::warning(DiagnosticKind::UnusedSchema, "test", "rule");
-        let debug = format!("{:?}", diag);
+        let debug = format!("{diag:?}");
         assert!(debug.contains("Diagnostic"));
         assert!(debug.contains("Warning"));
     }
@@ -388,7 +398,7 @@ mod tests {
     #[test]
     fn test_display_basic() {
         let diag = Diagnostic::warning(DiagnosticKind::EmptyList, "List is empty", "empty-list");
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("[empty-list]"));
         assert!(display.contains("warning"));
         assert!(display.contains("List is empty"));
@@ -396,8 +406,13 @@ mod tests {
 
     #[test]
     fn test_display_with_line() {
-        let diag = Diagnostic::error(DiagnosticKind::DuplicateKey, "Dup key", "dup").with_line(42);
-        let display = format!("{}", diag);
+        let diag = Diagnostic::error(
+            DiagnosticKind::Custom("dup-key".to_string()),
+            "Dup key",
+            "dup",
+        )
+        .with_line(42);
+        let display = format!("{diag}");
         assert!(display.contains("line 42:"));
     }
 
@@ -405,31 +420,31 @@ mod tests {
     fn test_display_with_suggestion() {
         let diag = Diagnostic::warning(DiagnosticKind::IdNaming, "Short ID", "id")
             .with_suggestion("Use longer name");
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("(Use longer name)"));
     }
 
     #[test]
     fn test_display_full() {
-        let diag = Diagnostic::error(DiagnosticKind::UnusedAlias, "Unused", "unused-alias")
-            .with_line(10)
-            .with_suggestion("Remove it");
-        let display = format!("{}", diag);
+        let diag = Diagnostic::error(
+            DiagnosticKind::UnusedSchema,
+            "Schema unused",
+            "unused-schema",
+        )
+        .with_line(10)
+        .with_suggestion("Remove it");
+        let display = format!("{diag}");
         assert!(display.contains("line 10:"));
-        assert!(display.contains("[unused-alias]"));
+        assert!(display.contains("[unused-schema]"));
         assert!(display.contains("error"));
-        assert!(display.contains("Unused"));
+        assert!(display.contains("Schema unused"));
         assert!(display.contains("(Remove it)"));
     }
 
     #[test]
     fn test_display_hint() {
-        let diag = Diagnostic::hint(
-            DiagnosticKind::AmbiguousReference,
-            "Might be ambiguous",
-            "ref",
-        );
-        let display = format!("{}", diag);
+        let diag = Diagnostic::hint(DiagnosticKind::IdNaming, "Short ID detected", "id-naming");
+        let display = format!("{diag}");
         assert!(display.contains("hint"));
     }
 
@@ -451,7 +466,7 @@ mod tests {
     fn test_diagnostic_line_zero() {
         let diag = Diagnostic::warning(DiagnosticKind::IdNaming, "msg", "rule").with_line(0);
         assert_eq!(diag.line, Some(0));
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("line 0:"));
     }
 
@@ -464,7 +479,7 @@ mod tests {
     #[test]
     fn test_diagnostic_unicode_message() {
         let diag = Diagnostic::warning(DiagnosticKind::IdNaming, "Unicode: 你好 🎉", "rule");
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("你好"));
         assert!(display.contains("🎉"));
     }
@@ -473,14 +488,14 @@ mod tests {
     fn test_diagnostic_unicode_suggestion() {
         let diag = Diagnostic::warning(DiagnosticKind::IdNaming, "msg", "rule")
             .with_suggestion("建议: 修复");
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("建议"));
     }
 
     #[test]
     fn test_diagnostic_multiline_message() {
         let diag = Diagnostic::warning(DiagnosticKind::IdNaming, "Line 1\nLine 2", "rule");
-        let display = format!("{}", diag);
+        let display = format!("{diag}");
         assert!(display.contains("Line 1\nLine 2"));
     }
 

@@ -9,7 +9,7 @@ Welcome to the HEDL (Hierarchical Entity Data Language) API documentation. This 
 #### Rust
 ```toml
 [dependencies]
-hedl = "1.0"
+hedl = "1.2"
 ```
 
 #### C/C++ (via FFI)
@@ -70,8 +70,12 @@ if (hedl_parse(input, -1, 0, &doc) == HEDL_OK) {
 ```javascript
 import { parse } from 'hedl-wasm';
 
-const doc = parse(hedlText);
-console.log(`Parsed ${doc.rootItemCount} items`);
+try {
+    const doc = parse(hedlText);
+    console.log(`Parsed ${doc.rootItemCount} items`);
+} catch (error) {
+    console.error(`Parse error: ${error.message}`);
+}
 ```
 
 ### Serialization
@@ -103,18 +107,18 @@ import { parse, toJson, format } from 'hedl-wasm';
 // Parse document
 const doc = parse(hedlText);
 
-// Convert HEDL string to JSON string
-const json = toJson(hedlText, true);
+// Convert HEDL string to JSON string (second param: pretty-print)
+const json = toJson(hedlText, true);  // true = pretty-printed output
 
-// Or format HEDL string to canonical form
-const canonical = format(hedlText, true);
+// Or format HEDL string to canonical form (second param: use ditto)
+const canonical = format(hedlText, true);  // true = use ditto optimization
 ```
 
 ### Validation
 
 #### Rust
 ```rust
-use hedl::{validate, lint};
+use hedl::{parse, validate, lint};
 
 // Basic validation
 validate(hedl_text)?;
@@ -145,17 +149,22 @@ if (hedl_lint(doc, &diag) == HEDL_OK) {
 
 #### JavaScript
 ```javascript
-import { validate, lint } from 'hedl-wasm';
+import { validate } from 'hedl-wasm';
 
-const result = validate(hedlText);
+// Validate with linting enabled (second parameter)
+const result = validate(hedlText, true);
 if (!result.valid) {
-    console.error(result.errors);
+    result.errors.forEach(e => {
+        console.error(`Line ${e.line}: ${e.message}`);
+    });
 }
 
-const diagnostics = lint(hedlText);
-diagnostics.forEach(d => {
-    console.log(`${d.severity}: ${d.message}`);
-});
+// Warnings from linting (if available)
+if (result.warnings) {
+    result.warnings.forEach(w => {
+        console.log(`Warning: ${w.message}`);
+    });
+}
 ```
 
 ## Core Concepts
@@ -209,15 +218,22 @@ try {
 
 ### Token Efficiency
 
-HEDL is designed for AI/ML contexts with significant token savings:
+HEDL is designed for AI/ML contexts with significant token savings.
 
-```rust
-use hedl_wasm::getStats;
+**JavaScript/TypeScript (WASM):**
+```javascript
+// Note: Requires 'statistics' or 'token-tools' feature in WASM build
+import { getStats } from 'hedl-wasm';
 
-let stats = getStats(hedlText);
-println!("HEDL tokens: {}", stats.hedlTokens);
-println!("JSON tokens: {}", stats.jsonTokens);
-println!("Savings: {}%", stats.savingsPercent);
+const stats = getStats(hedlText);
+console.log(`HEDL tokens: ${stats.hedlTokens}`);
+console.log(`JSON tokens: ${stats.jsonTokens}`);
+console.log(`Savings: ${stats.savingsPercent}%`);
+```
+
+**CLI:**
+```bash
+hedl stats document.hedl --tokens
 ```
 
 ### Memory Management

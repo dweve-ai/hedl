@@ -20,28 +20,29 @@
 //! This example shows how to use `to_cypher_stream()` to generate Cypher
 //! queries from large HEDL documents with constant memory usage.
 //!
-//! Run with: cargo run --example streaming_example
+//! Run with: cargo run --example `streaming_example`
 
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_neo4j::{to_cypher, to_cypher_stream, ToCypherConfig};
+use smallvec::SmallVec;
 use std::collections::BTreeMap;
 use std::io::{BufWriter, Write};
 
 fn create_large_document(num_nodes: usize) -> Document {
-    println!("Creating document with {} nodes...", num_nodes);
+    println!("Creating document with {num_nodes} nodes...");
 
     let mut rows = Vec::new();
     for i in 0..num_nodes {
         rows.push(Node {
             type_name: "User".to_string(),
-            id: format!("user{}", i),
-            fields: vec![
-                Value::String(format!("user{}", i)),
-                Value::String(format!("User {}", i)),
-                Value::String(format!("user{}@example.com", i)),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            id: format!("user{i}"),
+            fields: SmallVec::from_vec(vec![
+                Value::String(format!("user{i}").into()),
+                Value::String(format!("User {i}").into()),
+                Value::String(format!("user{i}@example.com").into()),
+            ]),
+            children: None,
+            child_count: 0,
         });
     }
 
@@ -58,6 +59,7 @@ fn create_large_document(num_nodes: usize) -> Document {
 
     Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),

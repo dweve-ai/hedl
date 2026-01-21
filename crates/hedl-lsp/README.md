@@ -4,7 +4,7 @@
 
 Writing HEDL without IDE support means no syntax validation, no autocomplete, no reference checking, no quick navigation. Modern development demands real-time feedback, intelligent suggestions, and seamless navigation. `hedl-lsp` brings HEDL to every LSP-compatible editor: VS Code, Neovim, Emacs, Sublime Text, and more.
 
-This is a complete LSP server with 9 implemented features, performance optimizations (200ms debouncing, O(1) reference lookups, caching), and comprehensive error handling. Write HEDL with confidence—get instant diagnostics, context-aware completions, hover documentation, and cross-document navigation.
+This is a complete LSP server with 10 implemented features, performance optimizations (200ms debouncing, O(1) reference lookups, caching), and comprehensive error handling. Write HEDL with confidence—get instant diagnostics, context-aware completions, hover documentation, and cross-document navigation.
 
 ## What's Implemented
 
@@ -19,9 +19,7 @@ Complete LSP server with production-grade features:
 7. **Workspace Symbols**: Case-insensitive search across all open documents
 8. **Semantic Highlighting**: Token types and modifiers for syntax awareness
 9. **Document Formatting**: Canonicalization via hedl-c14n
-10. **Performance Optimization**: 200ms debouncing, caching, O(1) reference index
-11. **Memory Management**: LRU eviction with 500 MB/1000 document limits
-12. **Text Synchronization**: Full document sync with immediate re-analysis on save
+10. **Rename Refactoring**: Safe rename for entity IDs, types, aliases, and field names with conflict detection
 
 ## Installation
 
@@ -517,6 +515,40 @@ users: @User[id, name]
 - Alphabetically sorts header directives
 - Graceful handling of parse errors (returns original on failure)
 
+### Rename Refactoring
+
+**Trigger**: F2 (or editor's rename command) on a symbol
+
+Safe, validated rename refactoring for HEDL symbols with conflict detection and cross-document support:
+
+**Supported Symbol Types**:
+- **Entity IDs**: Rename individual entities (e.g., `alice` → `alice_smith`)
+- **Type Names**: Rename schema types (e.g., `User` → `Account`)
+- **Alias Names**: Rename variable aliases (e.g., `api_url` → `api_endpoint`)
+- **Field Names**: Rename schema fields (e.g., `email` → `email_address`)
+
+**Features**:
+- **Prepare Rename**: Shows what will be renamed before committing (with validation)
+- **Conflict Detection**: Prevents duplicate names in scope
+- **Cross-Document Support**: Rename across all open documents (workspace-wide)
+- **Validation**: Syntax and semantic correctness checks
+- **Case Similarity Warnings**: Detects names differing only in case
+
+**Example**:
+```hedl
+# Rename entity 'alice' to 'alice_smith'
+users: @User[id, name]
+  | alice, Alice Smith           # Definition
+  | bob, Bob Jones
+
+# References to alice (all updated):
+owner: @User:alice               # Line 1
+author: @User:alice              # Line 2
+created_by: @User:alice          # Line 3
+```
+
+**Result**: All 3 occurrences renamed to `alice_smith` in a single atomic operation.
+
 ## Performance Optimizations
 
 ### 1. Debouncing (200ms)
@@ -602,9 +634,10 @@ header_end_line: Option<usize>
 
 ```rust
 pub struct DocumentManager {
-    documents: DashMap<Url, Arc<AnalyzedDocument>>,
-    max_documents: usize,         // 1000
-    max_document_size: usize,     // 500 MB
+    documents: DashMap<Url, Arc<Mutex<DocumentState>>>,
+    cache_stats: Arc<Mutex<CacheStatistics>>,
+    max_cache_size: Arc<parking_lot::RwLock<usize>>,      // 1000
+    max_document_size: Arc<parking_lot::RwLock<usize>>,   // 500 MB
 }
 ```
 
@@ -620,19 +653,24 @@ Document size (520 MB) exceeds limit (500 MB)
 When cache is full (1000 documents), least-recently-used documents are evicted:
 
 ```rust
-// Cache statistics tracking
-hits: AtomicUsize,
-misses: AtomicUsize,
-evictions: AtomicUsize,
+pub struct CacheStatistics {
+    pub hits: u64,
+    pub misses: u64,
+    pub evictions: u64,
+    pub current_size: usize,
+    pub max_size: usize,
+}
 ```
 
-**Cache Stats** (logged at debug level):
+**Cache Stats** (available via `statistics()` method):
 ```
-DocumentManager cache stats:
-  Hits: 15,234
-  Misses: 1,523
-  Evictions: 23
-  Hit rate: 90.9%
+CacheStatistics {
+  hits: 15234,
+  misses: 1523,
+  evictions: 23,
+  current_size: 847,
+  max_size: 1000
+}
 ```
 
 ### UTF-8 Safety
@@ -672,6 +710,7 @@ On LSP `initialize`:
       "save": { "includeText": true }
     },
     "completionProvider": {
+      "resolveProvider": false,
       "triggerCharacters": ["@", ":", "%", "$", "|"]
     },
     "hoverProvider": true,
@@ -680,19 +719,22 @@ On LSP `initialize`:
     "documentSymbolProvider": true,
     "workspaceSymbolProvider": true,
     "documentFormattingProvider": true,
+    "renameProvider": {
+      "prepareProvider": true
+    },
     "semanticTokensProvider": {
       "legend": {
         "tokenTypes": ["keyword", "type", "variable", "string", "number", "comment", "operator"],
         "tokenModifiers": ["definition", "declaration"]
-      }
+      },
+      "range": false,
+      "full": true
     }
   }
 }
 ```
 
 ## What This Crate Doesn't Implement
-
-**Rename (Refactoring)**: Not implemented—entity renaming would require cross-document analysis and transactional updates.
 
 **Code Lens**: Not implemented—no actionable commands displayed inline.
 
@@ -728,8 +770,11 @@ pub struct AnalyzedDocument {
 **ReferenceIndex** (v2):
 ```rust
 pub struct ReferenceIndex {
+    // Definition locations: (type, id) -> location
     definitions: HashMap<(String, String), RefLocation>,
+    // Reference locations: reference_string -> vec of locations
     references: HashMap<String, Vec<RefLocation>>,
+    // Reverse mapping: location -> reference string
     location_to_ref: HashMap<u32, Vec<(String, RefLocation)>>,
 }
 ```
@@ -774,14 +819,19 @@ Detailed performance benchmarks are available in the HEDL repository benchmark s
 ## Dependencies
 
 - `tower-lsp` 0.20 - LSP protocol implementation
-- `tokio` 1.35 - Async runtime
+- `tokio` 1.0 - Async runtime (features: full)
 - `dashmap` 5.5 - Concurrent HashMap
 - `parking_lot` 0.12 - High-performance mutexes
 - `ropey` 1.6 - Rope for efficient document editing
 - `tracing` 0.1 - Structured logging
-- `hedl-core` 1.0 - HEDL parser
-- `hedl-lint` 1.0 - HEDL linter
-- `hedl-c14n` 1.0 - HEDL canonicalization
+- `tracing-subscriber` 0.3 - Logging configuration (features: env-filter)
+- `hedl-core` (workspace) - HEDL parser
+- `hedl` (workspace) - HEDL core library
+- `hedl-lint` (workspace) - HEDL linter
+- `hedl-c14n` (workspace) - HEDL canonicalization
+- `serde` (workspace) - Serialization framework
+- `serde_json` (workspace) - JSON support
+- `thiserror` (workspace) - Error handling
 
 ## License
 

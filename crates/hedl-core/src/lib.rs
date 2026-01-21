@@ -33,27 +33,62 @@
 //!
 //! See [`lex`] module documentation for more details and examples.
 
+#![cfg_attr(not(test), warn(missing_docs))]
 mod block_string;
+pub mod coercion;
 pub mod convert;
 mod document;
 mod error;
 pub mod errors;
-mod header;
-mod inference;
+pub mod header;
+pub mod inference;
 pub mod lex;
 mod limits;
+#[cfg(feature = "parallel")]
+pub mod parallel;
 mod parser;
-mod preprocess;
-mod reference;
+pub mod preprocess;
+pub mod reference;
+pub mod schema_version;
 pub mod traverse;
+pub mod types;
+pub mod validation;
 mod value;
+pub mod visitor;
 
+pub use coercion::{
+    coerce, coerce_with_config, CoercionConfig, CoercionLevel, CoercionMode, CoercionResult,
+};
 pub use document::{Document, Item, MatrixList, Node};
 pub use error::{HedlError, HedlErrorKind, HedlResult};
+pub use inference::{
+    infer_value_synthesize, infer_value_with_type, InferenceConfidence, InferenceContext,
+    InferenceResult,
+};
 pub use limits::Limits;
 pub use parser::{parse, parse_with_limits, ParseOptions, ParseOptionsBuilder};
+pub use preprocess::preprocess;
+pub use reference::{resolve_references, resolve_references_with_limits, ReferenceMode};
+pub use schema_version::{FieldDef, Schema, SchemaVersion};
 pub use traverse::{traverse, DocumentVisitor, StatsCollector, VisitorContext};
+
+// Re-export visitor types for public API
+pub use types::{value_to_expected_type, ExpectedType, TensorDtype};
 pub use value::{Reference, Value};
+pub use visitor::{
+    transform, traverse as visitor_traverse, traverse_fallible, traverse_mut, DepthCounter,
+    FallibleVisitor, NodeCollector, PathCollector, PathSegment, ReferenceCollector, Transformer,
+    TraversalConfig, TraversalMode, TraversalOrder, TraversalResult, TraversalStats, VisitDecision,
+    Visitor, VisitorMut,
+};
 
 // Re-export useful types from the consolidated lex module
 pub use lex::{ExprLiteral, Expression, Reference as ReferenceToken, Tensor};
+
+// Re-export parallel types when feature is enabled
+#[cfg(feature = "parallel")]
+pub use parallel::{
+    collect_ids_parallel, identify_entity_boundaries, parse_matrix_rows_parallel,
+    validate_references_parallel, AtomicSecurityCounters, EntityBoundary, EntityType,
+    MatrixRowBatch, ParallelConfig,
+};

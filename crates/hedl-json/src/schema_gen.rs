@@ -149,13 +149,14 @@ impl Default for SchemaConfig {
 }
 
 impl SchemaConfig {
-    /// Create a new builder for SchemaConfig
+    /// Create a new builder for `SchemaConfig`
+    #[must_use]
     pub fn builder() -> SchemaConfigBuilder {
         SchemaConfigBuilder::default()
     }
 }
 
-/// Builder for SchemaConfig
+/// Builder for `SchemaConfig`
 #[derive(Debug)]
 pub struct SchemaConfigBuilder {
     title: Option<String>,
@@ -199,24 +200,28 @@ impl SchemaConfigBuilder {
     }
 
     /// Enable strict mode (disallow additional properties)
+    #[must_use]
     pub fn strict(mut self, strict: bool) -> Self {
         self.strict = strict;
         self
     }
 
     /// Include example values in schema
+    #[must_use]
     pub fn include_examples(mut self, include: bool) -> Self {
         self.include_examples = include;
         self
     }
 
     /// Include metadata fields (title, description, $id)
+    #[must_use]
     pub fn include_metadata(mut self, include: bool) -> Self {
         self.include_metadata = include;
         self
     }
 
-    /// Build the SchemaConfig
+    /// Build the `SchemaConfig`
+    #[must_use]
     pub fn build(self) -> SchemaConfig {
         SchemaConfig {
             title: self.title,
@@ -248,7 +253,7 @@ pub fn generate_schema(doc: &Document, config: &SchemaConfig) -> Result<String, 
     Ok(serde_json::to_string_pretty(&schema)?)
 }
 
-/// Generate JSON Schema (Draft 7) from HEDL document as a JsonValue
+/// Generate JSON Schema (Draft 7) from HEDL document as a `JsonValue`
 ///
 /// # Arguments
 ///
@@ -257,7 +262,7 @@ pub fn generate_schema(doc: &Document, config: &SchemaConfig) -> Result<String, 
 ///
 /// # Returns
 ///
-/// A JsonValue representing the JSON Schema
+/// A `JsonValue` representing the JSON Schema
 ///
 /// # Errors
 ///
@@ -593,11 +598,11 @@ fn pluralize(word: &str) -> String {
         || word.ends_with("ch")
         || word.ends_with("sh")
     {
-        format!("{}es", word)
+        format!("{word}es")
     } else if word.ends_with('y') && !word.ends_with("ay") && !word.ends_with("ey") {
         format!("{}ies", &word[..word.len() - 1])
     } else {
-        format!("{}s", word)
+        format!("{word}s")
     }
 }
 
@@ -654,8 +659,7 @@ fn validate_schema_internal(
     ];
     if !valid_types.contains(&schema_type) {
         return Err(SchemaError::ValidationError(format!(
-            "Invalid type: {}. Must be one of: {:?}",
-            schema_type, valid_types
+            "Invalid type: {schema_type}. Must be one of: {valid_types:?}"
         )));
     }
 
@@ -664,7 +668,7 @@ fn validate_schema_internal(
         if let Some(defs) = definitions.as_object() {
             for (name, def_schema) in defs {
                 validate_schema_internal(def_schema, false).map_err(|e| {
-                    SchemaError::ValidationError(format!("Invalid definition '{}': {}", name, e))
+                    SchemaError::ValidationError(format!("Invalid definition '{name}': {e}"))
                 })?;
             }
         }

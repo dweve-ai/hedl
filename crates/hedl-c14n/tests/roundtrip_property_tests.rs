@@ -47,7 +47,7 @@ proptest! {
         key in "[a-z][a-z0-9_]{0,20}",
         value in -10000_i64..10000
     ) {
-        let doc = format!("%VERSION: 1.0\n---\n{}: {}\n", key, value);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: {value}\n");
 
         let result1 = parse(doc.as_bytes());
         let result2 = parse(doc.as_bytes());
@@ -70,7 +70,7 @@ proptest! {
         key in "[a-z][a-z0-9_]{0,20}",
         value in -1000_i64..1000
     ) {
-        let doc = format!("%VERSION: 1.0\n---\n{}: {}\n", key, value);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: {value}\n");
 
         let parsed = parse(doc.as_bytes()).unwrap();
         let canon1 = canonicalize(&parsed).unwrap();
@@ -88,7 +88,7 @@ proptest! {
         key in "[a-z][a-z0-9_]{0,20}",
         value in i64::MIN/1000..i64::MAX/1000
     ) {
-        let doc = format!("%VERSION: 1.0\n---\n{}: {}\n", key, value);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: {value}\n");
 
         // Parse original
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -115,7 +115,7 @@ proptest! {
         // Skip NaN and infinity for this test
         prop_assume!(value.is_finite());
 
-        let doc = format!("%VERSION: 1.0\n---\n{}: {}\n", key, value);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: {value}\n");
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
         let canon = canonicalize(&parsed1).unwrap();
@@ -139,7 +139,7 @@ proptest! {
         key in "[a-z][a-z0-9_]{0,20}",
         value: bool
     ) {
-        let doc = format!("%VERSION: 1.0\n---\n{}: {}\n", key, value);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: {value}\n");
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
         let canon = canonicalize(&parsed1).unwrap();
@@ -159,7 +159,7 @@ proptest! {
         key in "[a-z][a-z0-9_]{0,20}",
         value in "[a-zA-Z][a-zA-Z0-9 _-]{0,99}"
     ) {
-        let doc = format!("%VERSION: 1.0\n---\n{}: {}\n", key, value);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: {value}\n");
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
         let canon = canonicalize(&parsed1).unwrap();
@@ -175,7 +175,7 @@ proptest! {
     /// Property: Null values roundtrip exactly.
     #[test]
     fn prop_null_roundtrip(key in "[a-z][a-z0-9_]{0,20}") {
-        let doc = format!("%VERSION: 1.0\n---\n{}: ~\n", key);
+        let doc = format!("%VERSION: 1.0\n---\n{key}: ~\n");
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
         let canon = canonicalize(&parsed1).unwrap();
@@ -195,8 +195,7 @@ proptest! {
         id in "[a-z][a-z0-9_]{0,20}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {}: [id]\n---\nitems: @{}\n  | {}\nref: @{}:{}\n",
-            type_name, type_name, id, type_name, id
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nref: @{type_name}:{id}\n"
         );
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -221,10 +220,9 @@ proptest! {
     ) {
         let mut doc = format!(
             "%VERSION: 1.0\n\
-             %STRUCT: {}: [id, value]\n\
+             %STRUCT: {type_name}: [id, value]\n\
              ---\n\
-             items: @{}\n",
-            type_name, type_name
+             items: @{type_name}\n"
         );
 
         for i in 0..count {
@@ -258,11 +256,11 @@ proptest! {
 
         for d in 0..depth {
             let indent = "  ".repeat(d);
-            doc.push_str(&format!("{}level{}:\n", indent, d));
+            doc.push_str(&format!("{indent}level{d}:\n"));
         }
 
         let indent = "  ".repeat(depth);
-        doc.push_str(&format!("{}value: 42\n", indent));
+        doc.push_str(&format!("{indent}value: 42\n"));
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
         let canon = canonicalize(&parsed1).unwrap();
@@ -273,7 +271,7 @@ proptest! {
         let mut obj2 = &parsed2.root;
 
         for d in 0..depth {
-            let key = format!("level{}", d);
+            let key = format!("level{d}");
             obj1 = obj1.get(&key).unwrap().as_object().unwrap();
             obj2 = obj2.get(&key).unwrap().as_object().unwrap();
         }
@@ -293,9 +291,9 @@ proptest! {
         let mut keys = Vec::new();
 
         for i in 0..count {
-            let key = format!("key{:02}", i);
+            let key = format!("key{i:02}");
             keys.push(key.clone());
-            doc.push_str(&format!("{}: {}\n", key, i));
+            doc.push_str(&format!("{key}: {i}\n"));
         }
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -319,10 +317,10 @@ proptest! {
         let mut doc = String::from("%VERSION: 1.0\n---\n");
         for d in 0..depth {
             let indent = "  ".repeat(d);
-            doc.push_str(&format!("{}level{}:\n", indent, d));
+            doc.push_str(&format!("{indent}level{d}:\n"));
         }
         let indent = "  ".repeat(depth);
-        doc.push_str(&format!("{}value: 42\n", indent));
+        doc.push_str(&format!("{indent}value: 42\n"));
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
         let canon = canonicalize(&parsed1).unwrap();
@@ -333,7 +331,7 @@ proptest! {
         let mut obj2 = &parsed2.root;
 
         for d in 0..depth {
-            let key = format!("level{}", d);
+            let key = format!("level{d}");
             obj1 = obj1.get(&key).unwrap().as_object().unwrap();
             obj2 = obj2.get(&key).unwrap().as_object().unwrap();
         }
@@ -357,7 +355,7 @@ mod edge_cases {
         /// Note: HEDL requires objects to have at least one child.
         #[test]
         fn prop_simple_object_roundtrip(key in "[a-z][a-z0-9_]{0,20}") {
-            let doc = format!("%VERSION: 1.0\n---\n{}:\n  child: value\n", key);
+            let doc = format!("%VERSION: 1.0\n---\n{key}:\n  child: value\n");
 
             let parsed1 = parse(doc.as_bytes()).unwrap();
             let canon = canonicalize(&parsed1).unwrap();
@@ -376,7 +374,7 @@ mod edge_cases {
             key in "[a-z][a-z0-9_]{0,20}",
             value in "[\u{4E00}-\u{9FFF}]{1,20}"  // Chinese characters
         ) {
-            let doc = format!("%VERSION: 1.0\n---\n{}: \"{}\"\n", key, value);
+            let doc = format!("%VERSION: 1.0\n---\n{key}: \"{value}\"\n");
 
             let parsed1 = parse(doc.as_bytes()).unwrap();
             let canon = canonicalize(&parsed1).unwrap();
@@ -396,10 +394,9 @@ mod edge_cases {
         ) {
             let mut doc = format!(
                 "%VERSION: 1.0\n\
-                 %STRUCT: {}: [id, int_val, str_val, bool_val]\n\
+                 %STRUCT: {type_name}: [id, int_val, str_val, bool_val]\n\
                  ---\n\
-                 items: @{}\n",
-                type_name, type_name
+                 items: @{type_name}\n"
             );
 
             for i in 0..count {

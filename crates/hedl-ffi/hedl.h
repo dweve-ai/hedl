@@ -111,31 +111,97 @@ age: 30
 namespace hedl {
 #endif  // __cplusplus
 
+/*
+ Error code for reentrant FFI calls.
+ */
+#define HEDL_ERR_REENTRANT_CALL -14
+
+/*
+ Success return code.
+ */
 #define HEDL_OK 0
 
+/*
+ Null pointer argument error.
+ */
 #define HEDL_ERR_NULL_PTR -1
 
+/*
+ Invalid UTF-8 encoding error.
+ */
 #define HEDL_ERR_INVALID_UTF8 -2
 
+/*
+ HEDL parsing error.
+ */
 #define HEDL_ERR_PARSE -3
 
+/*
+ Canonicalization error.
+ */
 #define HEDL_ERR_CANONICALIZE -4
 
+/*
+ JSON conversion error.
+ */
 #define HEDL_ERR_JSON -5
 
+/*
+ Memory allocation error.
+ */
 #define HEDL_ERR_ALLOC -6
 
+/*
+ YAML conversion error.
+ */
 #define HEDL_ERR_YAML -7
 
+/*
+ XML conversion error.
+ */
 #define HEDL_ERR_XML -8
 
+/*
+ CSV conversion error.
+ */
 #define HEDL_ERR_CSV -9
 
+/*
+ Parquet conversion error.
+ */
 #define HEDL_ERR_PARQUET -10
 
+/*
+ Lint validation error.
+ */
 #define HEDL_ERR_LINT -11
 
+/*
+ Neo4j export error.
+ */
 #define HEDL_ERR_NEO4J -12
+
+/*
+ TOON conversion error.
+ */
+#define HEDL_ERR_TOON -13
+
+/*
+ Operation was cancelled.
+ */
+#define HEDL_ERR_CANCELLED -15
+
+/*
+ Task queue is full.
+ */
+#define HEDL_ERR_QUEUE_FULL -16
+
+/*
+ Invalid handle provided.
+ */
+#define HEDL_ERR_INVALID_HANDLE -17
+
+typedef struct Arc_AtomicBool Arc_AtomicBool;
 
 /*
  Opaque handle to lint diagnostics
@@ -146,6 +212,27 @@ typedef struct HedlDiagnostics HedlDiagnostics;
  Opaque handle to a HEDL document
  */
 typedef struct HedlDocument HedlDocument;
+
+typedef struct Option_HedlCompletionCallbackFn Option_HedlCompletionCallbackFn;
+
+/*
+ Opaque handle to an async operation.
+
+ Returned by `hedl_*_async()` functions. Must be freed with `hedl_async_free()`.
+ */
+typedef struct HedlAsyncOp {
+    uint64_t id;
+    struct Arc_AtomicBool cancelled;
+    struct Arc_AtomicBool completed;
+} HedlAsyncOp;
+
+/*
+ Nullable completion callback type for FFI.
+
+ This is `Option<fn_type>` which correctly represents a nullable function pointer
+ in FFI. C callers can pass NULL, and we can check with `.is_none()`.
+ */
+typedef struct Option_HedlCompletionCallbackFn HedlCompletionCallback;
 
 /*
  Output callback function type for zero-copy string return.
@@ -163,6 +250,241 @@ extern "C" {
 #endif // __cplusplus
 
 /*
+ Parse a HEDL document asynchronously.
+
+ # Arguments
+
+ - `input`: UTF-8 encoded HEDL document
+ - `input_len`: Length of input in bytes, or -1 for null-terminated
+ - `strict`: Non-zero for strict mode (validate references)
+ - `callback`: Completion callback (invoked on worker thread)
+ - `user_data`: User context pointer passed to callback
+
+ # Returns
+
+ Async operation handle on success, NULL on submission failure.
+ Call `hedl_async_free()` to release handle when done.
+
+ # Callback Signature
+
+ ```c
+ void callback(int status, HedlDocument* doc, const char* error, void* user_data);
+ ```
+
+ - On success: `status=HEDL_OK`, `doc!=NULL`, `error=NULL`
+ - On error: `status=error_code`, `doc=NULL`, `error=error_message`
+
+ # Thread Safety
+
+ - Callback executes on worker thread - must be thread-safe
+ - Input data is copied - safe to free after function returns
+
+ # Memory Management
+
+ - Operation handle: Must call `hedl_async_free()` regardless of completion
+ - Document: Callback receives ownership - must call `hedl_free_document()`
+
+ # Safety
+
+ Input pointer must be valid UTF-8. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_parse_async(const char *input,
+                                     int input_len,
+                                     int strict,
+                                     HedlCompletionCallback callback,
+                                     void *user_data);
+
+/*
+ Canonicalize a HEDL document asynchronously.
+
+ # Arguments
+
+ - `doc`: Document handle
+ - `callback`: Completion callback
+ - `user_data`: User context pointer
+
+ # Returns
+
+ Async operation handle on success, NULL on failure.
+
+ # Callback
+
+ Callback receives `char*` result - must call `hedl_free_string()`.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_canonicalize_async(const struct HedlDocument *doc,
+                                            HedlCompletionCallback callback,
+                                            void *user_data);
+
+/*
+ Lint a HEDL document asynchronously.
+
+ # Arguments
+
+ - `doc`: Document handle
+ - `callback`: Completion callback
+ - `user_data`: User context pointer
+
+ # Returns
+
+ Async operation handle on success, NULL on failure.
+
+ # Callback
+
+ Callback receives `HedlDiagnostics*` result - must call `hedl_free_diagnostics()`.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_lint_async(const struct HedlDocument *doc,
+                                    HedlCompletionCallback callback,
+                                    void *user_data);
+
+/*
+ Convert a HEDL document to JSON asynchronously.
+
+ # Arguments
+
+ - `doc`: Document handle
+ - `include_metadata`: Non-zero to include metadata
+ - `callback`: Completion callback
+ - `user_data`: User context pointer
+
+ # Returns
+
+ Async operation handle on success, NULL on failure.
+
+ # Callback
+
+ Callback receives `char*` result - must call `hedl_free_string()`.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_to_json_async(const struct HedlDocument *doc,
+                                       int include_metadata,
+                                       HedlCompletionCallback callback,
+                                       void *user_data);
+
+/*
+ Convert a HEDL document to YAML asynchronously.
+
+ # Arguments
+
+ - `doc`: Document handle
+ - `include_metadata`: Non-zero to include metadata
+ - `callback`: Completion callback
+ - `user_data`: User context pointer
+
+ # Returns
+
+ Async operation handle on success, NULL on failure.
+
+ # Callback
+
+ Callback receives `char*` result - must call `hedl_free_string()`.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_to_yaml_async(const struct HedlDocument *doc,
+                                       int include_metadata,
+                                       HedlCompletionCallback callback,
+                                       void *user_data);
+
+/*
+ Convert a HEDL document to XML asynchronously.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_to_xml_async(const struct HedlDocument *doc,
+                                      HedlCompletionCallback callback,
+                                      void *user_data);
+
+/*
+ Convert a HEDL document to CSV asynchronously.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_to_csv_async(const struct HedlDocument *doc,
+                                      HedlCompletionCallback callback,
+                                      void *user_data);
+
+/*
+ Convert a HEDL document to Neo4j Cypher asynchronously.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_to_neo4j_cypher_async(const struct HedlDocument *doc,
+                                               int include_metadata,
+                                               HedlCompletionCallback callback,
+                                               void *user_data);
+
+/*
+ Convert a HEDL document to TOON asynchronously.
+
+ # Arguments
+
+ - `doc`: Document handle
+ - `callback`: Completion callback
+ - `user_data`: User context pointer
+
+ # Returns
+
+ Async operation handle on success, NULL on failure.
+
+ # Callback
+
+ Callback receives `char*` result - must call `hedl_free_string()`.
+
+ # Safety
+
+ Document pointer must be valid. Callback must be thread-safe.
+ */
+struct HedlAsyncOp *hedl_to_toon_async(const struct HedlDocument *doc,
+                                       HedlCompletionCallback callback,
+                                       void *user_data);
+
+/*
+ Cancel an async operation.
+
+ Requests cancellation of the operation. Cancellation is best-effort:
+
+ - If not started: Cancelled immediately, callback invoked with `HEDL_ERR_CANCELLED`
+ - If in progress: Attempts to abort, callback invoked with `HEDL_ERR_CANCELLED`
+ - If completed: No effect (callback already executed)
+
+ # Safety
+
+ Handle must be valid and not already freed.
+ */
+void hedl_async_cancel(struct HedlAsyncOp *op);
+
+/*
+ Free an async operation handle.
+
+ Releases resources associated with the operation handle.
+ Safe to call regardless of operation state (pending/completed/cancelled).
+
+ # Safety
+
+ Handle must be valid and not already freed. Do not use handle after freeing.
+ */
+void hedl_async_free(struct HedlAsyncOp *op);
+
+/*
  Parse JSON into a HEDL document.
 
  # Arguments
@@ -171,7 +493,7 @@ extern "C" {
  * `out_doc` - Pointer to store document handle
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -190,7 +512,7 @@ int hedl_from_json(const char *json, int json_len, struct HedlDocument **out_doc
  * `out_doc` - Pointer to store document handle
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -209,7 +531,7 @@ int hedl_from_yaml(const char *yaml, int yaml_len, struct HedlDocument **out_doc
  * `out_doc` - Pointer to store document handle
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -228,7 +550,7 @@ int hedl_from_xml(const char *xml, int xml_len, struct HedlDocument **out_doc);
  * `out_doc` - Pointer to store document handle
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -239,15 +561,37 @@ int hedl_from_xml(const char *xml, int xml_len, struct HedlDocument **out_doc);
 int hedl_from_parquet(const uint8_t *data, uintptr_t len, struct HedlDocument **out_doc);
 
 /*
+ Parse TOON into a HEDL document.
+
+ TOON (Typed Object Outline Notation) is an external format specification
+ for human-readable data serialization.
+
+ # Arguments
+ * `toon` - UTF-8 encoded TOON string
+ * `toon_len` - Length of input in bytes, or -1 for null-terminated
+ * `out_doc` - Pointer to store document handle
+
+ # Returns
+ `HEDL_OK` on success, error code on failure.
+
+ # Safety
+ All pointers must be valid.
+
+ # Feature
+ Requires the "toon" feature to be enabled.
+ */
+int hedl_from_toon(const char *toon, int toon_len, struct HedlDocument **out_doc);
+
+/*
  Convert a HEDL document to JSON.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `include_metadata` - Non-zero to include HEDL metadata (__type__, __schema__)
- * `out_str` - Pointer to store JSON output (must be freed with hedl_free_string)
+ * `out_str` - Pointer to store JSON output (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -261,12 +605,12 @@ int hedl_to_json(const struct HedlDocument *doc, int include_metadata, char **ou
  Convert a HEDL document to YAML.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `include_metadata` - Non-zero to include HEDL metadata
- * `out_str` - Pointer to store YAML output (must be freed with hedl_free_string)
+ * `out_str` - Pointer to store YAML output (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -280,11 +624,11 @@ int hedl_to_yaml(const struct HedlDocument *doc, int include_metadata, char **ou
  Convert a HEDL document to XML.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
- * `out_str` - Pointer to store XML output (must be freed with hedl_free_string)
+ * `doc` - Document handle from `hedl_parse`
+ * `out_str` - Pointer to store XML output (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -300,11 +644,11 @@ int hedl_to_xml(const struct HedlDocument *doc, char **out_str);
  Note: Only works for documents with matrix lists.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
- * `out_str` - Pointer to store CSV output (must be freed with hedl_free_string)
+ * `doc` - Document handle from `hedl_parse`
+ * `out_str` - Pointer to store CSV output (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -320,13 +664,13 @@ int hedl_to_csv(const struct HedlDocument *doc, char **out_str);
  Note: Only works for documents with matrix lists.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `out_data` - Pointer to store output data pointer
  * `out_len` - Pointer to store output length
 
  # Returns
- HEDL_OK on success, error code on failure.
- The output data must be freed with hedl_free_bytes.
+ `HEDL_OK` on success, error code on failure.
+ The output data must be freed with `hedl_free_bytes`.
 
  # Safety
  All pointers must be valid.
@@ -342,12 +686,12 @@ int hedl_to_parquet(const struct HedlDocument *doc, uint8_t **out_data, uintptr_
  Generates CREATE/MERGE statements, constraints, and relationships.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `use_merge` - Non-zero to use MERGE (idempotent), zero for CREATE
- * `out_str` - Pointer to store Cypher output (must be freed with hedl_free_string)
+ * `out_str` - Pointer to store Cypher output (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -358,19 +702,40 @@ int hedl_to_parquet(const struct HedlDocument *doc, uint8_t **out_data, uintptr_
 int hedl_to_neo4j_cypher(const struct HedlDocument *doc, int use_merge, char **out_str);
 
 /*
+ Convert a HEDL document to TOON format.
+
+ TOON (Typed Object Outline Notation) is an external format specification
+ for human-readable data serialization.
+
+ # Arguments
+ * `doc` - Document handle from `hedl_parse`
+ * `out_str` - Pointer to store TOON output (must be freed with `hedl_free_string`)
+
+ # Returns
+ `HEDL_OK` on success, error code on failure.
+
+ # Safety
+ All pointers must be valid.
+
+ # Feature
+ Requires the "toon" feature to be enabled.
+ */
+int hedl_to_toon(const struct HedlDocument *doc, char **out_str);
+
+/*
  Convert a HEDL document to JSON using zero-copy callback pattern.
 
  For outputs >1MB, this avoids memory allocation by passing data directly
  to the callback. For smaller outputs, consider using `hedl_to_json`.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `include_metadata` - Non-zero to include HEDL metadata (__type__, __schema__)
  * `callback` - Function to receive the output data
  * `user_data` - User context pointer passed to callback
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  - All pointers must be valid
@@ -392,13 +757,13 @@ int hedl_to_json_callback(const struct HedlDocument *doc,
  to the callback. For smaller outputs, consider using `hedl_to_yaml`.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `include_metadata` - Non-zero to include HEDL metadata
  * `callback` - Function to receive the output data
  * `user_data` - User context pointer passed to callback
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  - All pointers must be valid
@@ -420,12 +785,12 @@ int hedl_to_yaml_callback(const struct HedlDocument *doc,
  to the callback. For smaller outputs, consider using `hedl_to_xml`.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `callback` - Function to receive the output data
  * `user_data` - User context pointer passed to callback
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  - All pointers must be valid
@@ -448,12 +813,12 @@ int hedl_to_xml_callback(const struct HedlDocument *doc,
  to the callback. For smaller outputs, consider using `hedl_to_csv`.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `callback` - Function to receive the output data
  * `user_data` - User context pointer passed to callback
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  - All pointers must be valid
@@ -476,13 +841,13 @@ int hedl_to_csv_callback(const struct HedlDocument *doc,
  to the callback. For smaller outputs, consider using `hedl_to_neo4j_cypher`.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `use_merge` - Non-zero to use MERGE (idempotent), zero for CREATE
  * `callback` - Function to receive the output data
  * `user_data` - User context pointer passed to callback
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  - All pointers must be valid
@@ -504,12 +869,12 @@ int hedl_to_neo4j_cypher_callback(const struct HedlDocument *doc,
  to the callback. For smaller outputs, consider using `hedl_canonicalize`.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `callback` - Function to receive the output data
  * `user_data` - User context pointer passed to callback
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  - All pointers must be valid
@@ -534,13 +899,13 @@ int hedl_diagnostics_count(const struct HedlDiagnostics *diag);
  # Arguments
  * `diag` - Diagnostics handle
  * `index` - Diagnostic index
- * `out_str` - Pointer to store message (must be freed with hedl_free_string)
+ * `out_str` - Pointer to store message (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
- All pointers must be valid. Returns HEDL_ERR_NULL_PTR if diag is NULL or poisoned.
+ All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if diag is NULL or poisoned.
  */
 int hedl_diagnostics_get(const struct HedlDiagnostics *diag, int index, char **out_str);
 
@@ -708,7 +1073,7 @@ void hedl_free_string(char *s);
 
  # Safety
 
- The pointer must have been returned by hedl_parse or hedl_from_*.
+ The pointer must have been returned by `hedl_parse` or `hedl_from`_*.
 
  **Double-free protection:** If the pointer is NULL or the poison value,
  this function returns safely without attempting to free.
@@ -724,7 +1089,7 @@ void hedl_free_document(struct HedlDocument *doc);
 
  # Safety
 
- The pointer must have been returned by hedl_lint.
+ The pointer must have been returned by `hedl_lint`.
 
  **Double-free protection:** If the pointer is NULL or the poison value,
  this function returns safely without attempting to free.
@@ -754,7 +1119,12 @@ void hedl_free_diagnostics(struct HedlDiagnostics *diag);
  - Pointers from other libraries
  - Incorrect length (MUST match the length returned by the allocating function)
 
- NULL pointers are safely ignored (when len is 0).
+ NULL pointers are safely ignored.
+
+ # Note
+ This function correctly handles:
+ - NULL pointers (no-op, safe to call)
+ - Non-NULL pointers with len == 0 (empty slice allocation, freed correctly)
 
  # Feature
  Always available, but only useful with "parquet" feature.
@@ -765,14 +1135,14 @@ void hedl_free_bytes(uint8_t *data, uintptr_t len);
  Canonicalize a HEDL document.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
- * `out_str` - Pointer to store canonical output (must be freed with hedl_free_string)
+ * `doc` - Document handle from `hedl_parse`
+ * `out_str` - Pointer to store canonical output (must be freed with `hedl_free_string`)
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
- All pointers must be valid. Returns HEDL_ERR_NULL_PTR if doc is NULL or poisoned.
+ All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if doc is NULL or poisoned.
  */
 int hedl_canonicalize(const struct HedlDocument *doc, char **out_str);
 
@@ -780,14 +1150,14 @@ int hedl_canonicalize(const struct HedlDocument *doc, char **out_str);
  Lint a HEDL document.
 
  # Arguments
- * `doc` - Document handle from hedl_parse
+ * `doc` - Document handle from `hedl_parse`
  * `out_diag` - Pointer to store diagnostics handle
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
- All pointers must be valid. Returns HEDL_ERR_NULL_PTR if doc is NULL or poisoned.
+ All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if doc is NULL or poisoned.
  */
 int hedl_lint(const struct HedlDocument *doc, struct HedlDiagnostics **out_diag);
 
@@ -801,7 +1171,7 @@ int hedl_lint(const struct HedlDocument *doc, struct HedlDiagnostics **out_diag)
  * `out_doc` - Pointer to store document handle
 
  # Returns
- HEDL_OK on success, error code on failure.
+ `HEDL_OK` on success, error code on failure.
 
  # Safety
  All pointers must be valid.
@@ -817,7 +1187,7 @@ int hedl_parse(const char *input, int input_len, int strict, struct HedlDocument
  * `strict` - Non-zero for strict mode
 
  # Returns
- HEDL_OK if valid, error code if invalid.
+ `HEDL_OK` if valid, error code if invalid.
 
  # Safety
  Input pointer must be valid.
@@ -828,7 +1198,7 @@ int hedl_validate(const char *input, int input_len, int strict);
  Get the HEDL version of a parsed document.
 
  # Safety
- All pointers must be valid. Returns HEDL_ERR_NULL_PTR if doc is NULL or poisoned.
+ All pointers must be valid. Returns `HEDL_ERR_NULL_PTR` if doc is NULL or poisoned.
  */
 int hedl_get_version(const struct HedlDocument *doc, int *major, int *minor);
 

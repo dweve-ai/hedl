@@ -237,7 +237,7 @@ impl ConversionCommands {
     /// - Parsing fails
     /// - Conversion fails
     /// - Output writing fails
-    pub fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), crate::error::CliError> {
         match self {
             ConversionCommands::ToJson {
                 file,

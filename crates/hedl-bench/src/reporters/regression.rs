@@ -31,6 +31,7 @@ use crate::reporters::types::{BenchmarkReport, Severity};
 /// # Returns
 ///
 /// Vector of detected regressions.
+#[must_use]
 pub fn detect_regressions(results: &BenchmarkReport, baseline: &Baseline) -> Vec<Regression> {
     let mut regressions = Vec::new();
 
@@ -62,6 +63,7 @@ pub fn detect_regressions(results: &BenchmarkReport, baseline: &Baseline) -> Vec
 /// # Returns
 ///
 /// Severity level.
+#[must_use]
 pub fn classify_severity(regression: &Regression) -> Severity {
     match regression.status.severity() {
         "severe" => Severity::Critical,
@@ -80,6 +82,7 @@ pub fn classify_severity(regression: &Regression) -> Severity {
 /// # Returns
 ///
 /// Formatted string report.
+#[must_use]
 pub fn format_regression_report(regressions: &[Regression]) -> String {
     if regressions.is_empty() {
         return "No regressions detected.".to_string();
@@ -133,11 +136,14 @@ mod tests {
         );
 
         let mut report = BenchmarkReport::new("Test");
-        report.add_result(BenchResult::new(
-            "bench1",
-            100,
-            Measurement::new(Duration::from_nanos(1_200_000)), // 20% slower
-        ));
+        report.add_result(
+            BenchResult::new(
+                "bench1",
+                100,
+                Measurement::new(Duration::from_nanos(1_200_000)), // 20% slower
+            )
+            .unwrap(),
+        );
 
         let regressions = detect_regressions(&report, &baseline);
         assert_eq!(regressions.len(), 1);

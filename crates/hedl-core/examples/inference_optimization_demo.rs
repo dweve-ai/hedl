@@ -20,7 +20,7 @@
 //! This example shows the performance impact of the lookup table optimization
 //! for common values (true, false, null) in HEDL document parsing.
 //!
-//! Run with: cargo run --release --example inference_optimization_demo
+//! Run with: cargo run --release --example `inference_optimization_demo`
 
 use std::time::Instant;
 
@@ -28,7 +28,7 @@ fn main() {
     println!("=== HEDL Value Inference Optimization Demo ===\n");
 
     // Test Case 1: Boolean-heavy document (60% bool/null)
-    let bool_heavy = r#"%VERSION: 1.0
+    let bool_heavy = r"%VERSION: 1.0
 ---
 flags:
   enabled: true
@@ -41,10 +41,10 @@ flags:
   validate: true
   compress: ~
   encrypt: false
-"#;
+";
 
     // Test Case 2: Null-heavy document (50% null)
-    let null_heavy = r#"%VERSION: 1.0
+    let null_heavy = r"%VERSION: 1.0
 ---
 optional:
   field1: ~
@@ -57,10 +57,10 @@ optional:
   field8: ~
   field9: test
   field10: ~
-"#;
+";
 
     // Test Case 3: Mixed realistic workload (40% bool/null)
-    let mixed = r#"%VERSION: 1.0
+    let mixed = r"%VERSION: 1.0
 ---
 user:
   active: true
@@ -73,10 +73,10 @@ user:
   badge: ~
   admin: false
   rating: 4.5
-"#;
+";
 
     // Test Case 4: Number-heavy baseline (20% bool/null)
-    let number_heavy = r#"%VERSION: 1.0
+    let number_heavy = r"%VERSION: 1.0
 ---
 metrics:
   count: 42
@@ -89,7 +89,7 @@ metrics:
   median: 200
   stddev: 30.2
   valid: false
-"#;
+";
 
     let test_cases = [
         ("Boolean-heavy (60% bool/null)", bool_heavy),
@@ -118,10 +118,10 @@ metrics:
         let throughput_mbs = (doc.len() as f64 * 1e9 * iterations as f64)
             / (duration.as_nanos() as f64 * 1_000_000.0);
 
-        println!("  {}", name);
+        println!("  {name}");
         println!("    Document size: {} bytes", doc.len());
-        println!("    Average parse time: {} ns", avg_ns);
-        println!("    Throughput: {:.2} MB/s", throughput_mbs);
+        println!("    Average parse time: {avg_ns} ns");
+        println!("    Throughput: {throughput_mbs:.2} MB/s");
         println!();
     }
 

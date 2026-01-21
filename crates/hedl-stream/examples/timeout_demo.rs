@@ -26,14 +26,14 @@ fn main() {
 
     // Example 1: Normal parsing without timeout
     println!("Example 1: Normal parsing (no timeout)");
-    let normal_input = r#"
+    let normal_input = r"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice Smith
   | bob, Bob Jones
-"#;
+";
 
     let parser = StreamingParser::new(Cursor::new(normal_input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -53,16 +53,16 @@ users: @User
     // Example 3: Large input with timeout
     println!("Example 3: Large input with short timeout (100ms)");
     let mut large_input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
-"#,
+",
     );
 
     // Generate 50,000 rows
     for i in 0..50_000 {
-        large_input.push_str(&format!("  | row{}, value{}\n", i, i));
+        large_input.push_str(&format!("  | row{i}, value{i}\n"));
     }
 
     let config = StreamingParserConfig {
@@ -80,25 +80,25 @@ data: @Data
                     Ok(_) => count += 1,
                     Err(StreamError::Timeout { elapsed, limit }) => {
                         println!("  ⚠ Timeout detected!");
-                        println!("    Elapsed: {:?}", elapsed);
-                        println!("    Limit: {:?}", limit);
-                        println!("    Events processed before timeout: {}", count);
+                        println!("    Elapsed: {elapsed:?}");
+                        println!("    Limit: {limit:?}");
+                        println!("    Events processed before timeout: {count}");
                         timed_out = true;
                         break;
                     }
                     Err(e) => {
-                        eprintln!("  ✗ Error: {}", e);
+                        eprintln!("  ✗ Error: {e}");
                         break;
                     }
                 }
             }
 
             if !timed_out {
-                println!("  ✓ Completed all {} events within timeout", count);
+                println!("  ✓ Completed all {count} events within timeout");
             }
         }
         Err(e) => {
-            eprintln!("  ✗ Failed to create parser: {}", e);
+            eprintln!("  ✗ Failed to create parser: {e}");
         }
     }
 
@@ -110,7 +110,7 @@ data: @Data
 
     // Add 10,000 type definitions (potential DoS)
     for i in 0..10_000 {
-        malicious_input.push_str(&format!("%STRUCT: Type{}: [id, name, value]\n", i));
+        malicious_input.push_str(&format!("%STRUCT: Type{i}: [id, name, value]\n"));
     }
     malicious_input.push_str("---\n");
 
@@ -125,12 +125,12 @@ data: @Data
         }
         Err(StreamError::Timeout { elapsed, limit }) => {
             println!("  ⚠ Timeout during parser creation!");
-            println!("    Elapsed: {:?}", elapsed);
-            println!("    Limit: {:?}", limit);
+            println!("    Elapsed: {elapsed:?}");
+            println!("    Limit: {limit:?}");
             println!("    ✓ Successfully protected against malicious header");
         }
         Err(e) => {
-            eprintln!("  ✗ Error: {}", e);
+            eprintln!("  ✗ Error: {e}");
         }
     }
 

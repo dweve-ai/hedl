@@ -66,19 +66,21 @@
 //! - [Fixtures Guide](FIXTURES_GUIDE.md) - Comprehensive usage guide
 //! - Module documentation for detailed API information
 
+#![cfg_attr(not(test), warn(missing_docs))]
 use hedl_core::Document;
 
 /// Type alias for a list of fixture functions (name, generator).
 pub type FixtureList = Vec<(&'static str, fn() -> Document)>;
 
-/// Returns all fixtures as (name, hedl_text) pairs.
+/// Returns all fixtures as (name, `hedl_text`) pairs.
+#[must_use]
 pub fn fixtures_as_hedl() -> Vec<(&'static str, String)> {
     fixtures::all()
         .into_iter()
         .map(|(name, fixture_fn)| {
             let doc = fixture_fn();
             let hedl_text = hedl_c14n::canonicalize(&doc)
-                .unwrap_or_else(|e| format!("# Error serializing: {}", e));
+                .unwrap_or_else(|e| format!("# Error serializing: {e}"));
             (name, hedl_text)
         })
         .collect()
@@ -89,7 +91,7 @@ pub fn fixtures_as_hedl() -> Vec<(&'static str, String)> {
 pub fn write_fixtures_to_dir(dir: &std::path::Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)?;
     for (name, hedl_text) in fixtures_as_hedl() {
-        let path = dir.join(format!("{}.hedl", name));
+        let path = dir.join(format!("{name}.hedl"));
         std::fs::write(path, hedl_text)?;
     }
     Ok(())
@@ -123,8 +125,7 @@ mod tests {
             assert_eq!(
                 doc.version,
                 (1, 0),
-                "Fixture {} should have version 1.0",
-                name
+                "Fixture {name} should have version 1.0"
             );
         }
     }
@@ -159,7 +160,7 @@ mod tests {
         // Check that alice has children
         if let Some(Item::List(list)) = doc.root.get("users") {
             let alice = list.rows.iter().find(|n| n.id == "alice").unwrap();
-            assert!(!alice.children.is_empty());
+            assert!(alice.children.is_some());
         }
     }
 

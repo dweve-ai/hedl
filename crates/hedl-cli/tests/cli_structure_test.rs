@@ -34,7 +34,7 @@ struct TestCli {
 #[test]
 fn test_core_commands_available() {
     let cmd = TestCli::command();
-    let subcommands: Vec<_> = cmd.get_subcommands().map(|c| c.get_name()).collect();
+    let subcommands: Vec<_> = cmd.get_subcommands().map(clap::Command::get_name).collect();
 
     // Core commands
     assert!(subcommands.contains(&"validate"));
@@ -48,7 +48,7 @@ fn test_core_commands_available() {
 #[test]
 fn test_conversion_commands_available() {
     let cmd = TestCli::command();
-    let subcommands: Vec<_> = cmd.get_subcommands().map(|c| c.get_name()).collect();
+    let subcommands: Vec<_> = cmd.get_subcommands().map(clap::Command::get_name).collect();
 
     // Conversion commands
     assert!(subcommands.contains(&"to-json"));
@@ -67,7 +67,7 @@ fn test_conversion_commands_available() {
 #[test]
 fn test_batch_commands_available() {
     let cmd = TestCli::command();
-    let subcommands: Vec<_> = cmd.get_subcommands().map(|c| c.get_name()).collect();
+    let subcommands: Vec<_> = cmd.get_subcommands().map(clap::Command::get_name).collect();
 
     // Batch commands
     assert!(subcommands.contains(&"batch-validate"));
@@ -79,7 +79,7 @@ fn test_batch_commands_available() {
 #[test]
 fn test_utility_commands_available() {
     let cmd = TestCli::command();
-    let subcommands: Vec<_> = cmd.get_subcommands().map(|c| c.get_name()).collect();
+    let subcommands: Vec<_> = cmd.get_subcommands().map(clap::Command::get_name).collect();
 
     // Utility commands
     assert!(subcommands.contains(&"completion"));
@@ -233,5 +233,5 @@ fn test_command_count() {
     // - 12 conversion (to/from for json, yaml, xml, csv, parquet, toon)
     // - 3 batch (batch-validate, batch-format, batch-lint)
     // - 1 utility (completion)
-    assert_eq!(count, 21, "Expected 21 commands, found {}", count);
+    assert_eq!(count, 21, "Expected 21 commands, found {count}");
 }

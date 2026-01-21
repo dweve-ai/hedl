@@ -26,22 +26,22 @@ use std::time::Duration;
 #[test]
 fn test_timeout_on_large_input() {
     let config = StreamingParserConfig {
-        timeout: Some(Duration::from_millis(100)),
+        timeout: Some(Duration::from_millis(1)), // Use 1ms for reliable timeout trigger
         ..Default::default()
     };
 
-    // Generate a large input that should exceed timeout
+    // Generate a large input that should exceed timeout even with 1ms
     let mut input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
-"#,
+",
     );
 
-    // Generate 100,000 rows (should take longer than 100ms to parse)
-    for i in 0..100_000 {
-        input.push_str(&format!("  | row{}, value{}\n", i, i));
+    // Generate 1,000,000 rows to ensure timeout triggers even in release mode
+    for i in 0..1_000_000 {
+        input.push_str(&format!("  | row{i}, value{i}\n"));
     }
 
     let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
@@ -62,27 +62,27 @@ data: @Data
 #[test]
 fn test_timeout_on_deeply_nested_input() {
     let config = StreamingParserConfig {
-        timeout: Some(Duration::from_millis(100)),
-        max_indent_depth: 1000, // Allow deep nesting
+        timeout: Some(Duration::from_millis(1)), // Use 1ms for reliable timeout trigger
+        max_indent_depth: 1000,                  // Allow deep nesting
         ..Default::default()
     };
 
     // Generate deeply nested structure with actual data that requires parsing
     let mut input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-"#,
+",
     );
 
     // Create many nested objects with actual list data to parse
-    for i in 0..5000 {
+    for i in 0..50_000 {
         let indent = "  ".repeat((i / 100) % 10); // Create some nesting
-        input.push_str(&format!("{}level{}: @Data\n", indent, i));
+        input.push_str(&format!("{indent}level{i}: @Data\n"));
         // Add rows for each list to increase parsing workload
         for j in 0..20 {
             let row_indent = "  ".repeat((i / 100) % 10 + 1);
-            input.push_str(&format!("{}| row{}, val{}\n", row_indent, j, j));
+            input.push_str(&format!("{row_indent}| row{j}, val{j}\n"));
         }
     }
 
@@ -105,7 +105,7 @@ fn test_timeout_on_deeply_nested_input() {
             assert!(found_timeout, "Expected timeout during parsing");
         }
         Err(e) => {
-            panic!("Unexpected error: {:?}", e);
+            panic!("Unexpected error: {e:?}");
         }
     }
 }
@@ -113,16 +113,16 @@ fn test_timeout_on_deeply_nested_input() {
 #[test]
 fn test_timeout_during_header_parsing() {
     let config = StreamingParserConfig {
-        timeout: Some(Duration::from_millis(50)),
+        timeout: Some(Duration::from_millis(1)), // Use 1ms for reliable timeout trigger
         ..Default::default()
     };
 
     // Generate many header directives
     let mut input = String::from("%VERSION: 1.0\n");
 
-    // Add thousands of STRUCT definitions
-    for i in 0..50_000 {
-        input.push_str(&format!("%STRUCT: Type{}: [id, name]\n", i));
+    // Add many STRUCT definitions to ensure timeout triggers even in release mode
+    for i in 0..500_000 {
+        input.push_str(&format!("%STRUCT: Type{i}: [id, name]\n"));
     }
 
     input.push_str("---\n");
@@ -145,16 +145,16 @@ fn test_no_timeout_by_default() {
     };
 
     let mut input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
-"#,
+",
     );
 
     // Generate moderate amount of data
     for i in 0..1000 {
-        input.push_str(&format!("  | row{}, value{}\n", i, i));
+        input.push_str(&format!("  | row{i}, value{i}\n"));
     }
 
     let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
@@ -169,7 +169,10 @@ data: @Data
     );
 
     // Verify we got all the data
-    let successful: Vec<_> = events.into_iter().filter_map(|e| e.ok()).collect();
+    let successful: Vec<_> = events
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .collect();
     assert!(successful.len() > 1000); // ListStart + 1000 nodes + ListEnd + more
 }
 
@@ -180,13 +183,13 @@ fn test_sufficient_timeout_completes() {
         ..Default::default()
     };
 
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
 users: @User
   | alice, Alice Smith
   | bob, Bob Jones
-"#;
+";
 
     let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
 
@@ -204,9 +207,9 @@ fn test_timeout_with_zero_duration() {
         ..Default::default()
     };
 
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 ---
-"#;
+";
 
     // Should timeout immediately or very quickly
     let result = StreamingParser::with_config(Cursor::new(input), config);
@@ -226,7 +229,7 @@ fn test_timeout_with_zero_duration() {
             }
         }
         Err(e) => {
-            panic!("Unexpected error: {:?}", e);
+            panic!("Unexpected error: {e:?}");
         }
     }
 }
@@ -238,12 +241,12 @@ fn test_timeout_with_very_small_duration() {
         ..Default::default()
     };
 
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Data: [id]
 ---
 data: @Data
   | row1
-"#;
+";
 
     let result = StreamingParser::with_config(Cursor::new(input), config);
 
@@ -276,15 +279,15 @@ fn test_timeout_error_contains_duration_info() {
 
     // Generate enough data to trigger timeout
     let mut input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id]
 ---
 data: @Data
-"#,
+",
     );
 
     for i in 0..100_000 {
-        input.push_str(&format!("  | row{}\n", i));
+        input.push_str(&format!("  | row{i}\n"));
     }
 
     let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
@@ -297,7 +300,7 @@ data: @Data
             // Check error message format
             let error_msg = format!("{}", StreamError::Timeout { elapsed, limit });
             assert!(error_msg.contains("timeout"));
-            assert!(error_msg.contains(&format!("{:?}", limit)));
+            assert!(error_msg.contains(&format!("{limit:?}")));
             break;
         }
     }
@@ -308,16 +311,16 @@ data: @Data
 #[test]
 fn test_timeout_prevents_infinite_loop_malicious_input() {
     let config = StreamingParserConfig {
-        timeout: Some(Duration::from_millis(200)),
+        timeout: Some(Duration::from_millis(1)), // Use 1ms for reliable timeout trigger
         ..Default::default()
     };
 
     // Simulate malicious input with many repeated structures
     let mut input = String::from("%VERSION: 1.0\n");
 
-    // Add many type definitions (could be malicious)
-    for i in 0..500_000 {
-        input.push_str(&format!("%STRUCT: Type{}: [id]\n", i));
+    // Add many type definitions to ensure timeout triggers even in release mode
+    for i in 0..1_000_000 {
+        input.push_str(&format!("%STRUCT: Type{i}: [id]\n"));
     }
 
     input.push_str("---\n");
@@ -340,24 +343,23 @@ fn test_timeout_on_extremely_wide_matrix() {
     // Generate schema with many columns
     let mut columns = vec!["id".to_string()];
     for i in 0..10_000 {
-        columns.push(format!("col{}", i));
+        columns.push(format!("col{i}"));
     }
 
     let schema = columns.join(", ");
     let mut input = format!(
-        r#"%VERSION: 1.0
-%STRUCT: WideData: [{}]
+        r"%VERSION: 1.0
+%STRUCT: WideData: [{schema}]
 ---
 data: @WideData
-"#,
-        schema
+"
     );
 
     // Add rows with all those columns
     for row_num in 0..100 {
-        input.push_str(&format!("  | row{}", row_num));
+        input.push_str(&format!("  | row{row_num}"));
         for i in 0..10_000 {
-            input.push_str(&format!(", val{}", i));
+            input.push_str(&format!(", val{i}"));
         }
         input.push('\n');
     }
@@ -388,23 +390,23 @@ data: @WideData
 #[test]
 fn test_timeout_with_other_limits() {
     let config = StreamingParserConfig {
-        timeout: Some(Duration::from_millis(100)),
+        timeout: Some(Duration::from_millis(1)), // Use 1ms for reliable timeout trigger
         max_indent_depth: 10,
         max_line_length: 1000,
         ..Default::default()
     };
 
     let mut input = String::from(
-        r#"%VERSION: 1.0
+        r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
-"#,
+",
     );
 
-    // Generate data that might hit various limits
-    for i in 0..100_000 {
-        input.push_str(&format!("  | row{}, value{}\n", i, i));
+    // Generate data to ensure timeout triggers even in release mode
+    for i in 0..1_000_000 {
+        input.push_str(&format!("  | row{i}, value{i}\n"));
     }
 
     let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
@@ -427,14 +429,14 @@ data: @Data
 fn test_timeout_check_overhead_minimal() {
     // Test that timeout checking doesn't significantly slow down parsing
 
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
 data: @Data
   | row1, value1
   | row2, value2
   | row3, value3
-"#;
+";
 
     // Parse with timeout
     let config_with_timeout = StreamingParserConfig {
@@ -462,9 +464,7 @@ data: @Data
     // This is a loose bound since it depends on system load
     assert!(
         duration_with < duration_without * 2 + Duration::from_millis(10),
-        "Timeout checking overhead is too high: with={:?} without={:?}",
-        duration_with,
-        duration_without
+        "Timeout checking overhead is too high: with={duration_with:?} without={duration_without:?}"
     );
 }
 
@@ -476,14 +476,14 @@ fn test_timeout_periodic_checking() {
         ..Default::default()
     };
 
-    let input = r#"%VERSION: 1.0
+    let input = r"%VERSION: 1.0
 %STRUCT: Data: [id]
 ---
 data: @Data
   | row1
   | row2
   | row3
-"#;
+";
 
     // With very short timeout and small input, should complete or timeout quickly
     let start = std::time::Instant::now();
@@ -494,7 +494,6 @@ data: @Data
     // Should complete in reasonable time (not hung)
     assert!(
         elapsed < Duration::from_secs(1),
-        "Parsing took too long: {:?}",
-        elapsed
+        "Parsing took too long: {elapsed:?}"
     );
 }

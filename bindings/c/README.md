@@ -160,23 +160,32 @@ int main(void) {
 ```c
 HedlDocument* doc = /* ... parse document ... */;
 
-// Convert to JSON (pretty-printed)
+// Convert to JSON (with metadata)
 char* json = NULL;
-hedl_to_json(doc, 1, &json);
-printf("JSON: %s\n", json);
-hedl_free_string(json);
+if (hedl_to_json(doc, 1, &json) == HEDL_OK) {
+    printf("JSON: %s\n", json);
+    hedl_free_string(json);
+} else {
+    fprintf(stderr, "JSON conversion error: %s\n", hedl_get_last_error());
+}
 
 // Convert to YAML
 char* yaml = NULL;
-hedl_to_yaml(doc, &yaml);
-printf("YAML: %s\n", yaml);
-hedl_free_string(yaml);
+if (hedl_to_yaml(doc, 0, &yaml) == HEDL_OK) {
+    printf("YAML: %s\n", yaml);
+    hedl_free_string(yaml);
+} else {
+    fprintf(stderr, "YAML conversion error: %s\n", hedl_get_last_error());
+}
 
 // Convert to XML
 char* xml = NULL;
-hedl_to_xml(doc, &xml);
-printf("XML: %s\n", xml);
-hedl_free_string(xml);
+if (hedl_to_xml(doc, &xml) == HEDL_OK) {
+    printf("XML: %s\n", xml);
+    hedl_free_string(xml);
+} else {
+    fprintf(stderr, "XML conversion error: %s\n", hedl_get_last_error());
+}
 ```
 
 ### Error Handling

@@ -48,12 +48,13 @@ pub fn validate_generated(hedl: &str) -> Result<()> {
 /// # Returns
 ///
 /// true if complexity matches expectation.
+#[must_use]
 pub fn verify_complexity(hedl: &str, expected: ComplexityLevel) -> bool {
     match expected {
         ComplexityLevel::Flat => {
             // Should not have %NEST or references
-            !hedl.contains("%NEST") && !hedl.contains("@")
-                || (hedl.contains("@") && hedl.contains(": @")) // Struct refs OK
+            !hedl.contains("%NEST") && !hedl.contains('@')
+                || (hedl.contains('@') && hedl.contains(": @")) // Struct refs OK
         }
         ComplexityLevel::ModerateNesting => {
             // Should have some %NEST but not too deep
@@ -66,7 +67,7 @@ pub fn verify_complexity(hedl: &str, expected: ComplexityLevel) -> bool {
         }
         ComplexityLevel::ReferenceHeavy => {
             // Should have many @Type:id references
-            hedl.matches("@").count() > 10
+            hedl.matches('@').count() > 10
         }
         ComplexityLevel::DeepHierarchy => {
             // Should have deep nesting
@@ -85,6 +86,7 @@ pub fn verify_complexity(hedl: &str, expected: ComplexityLevel) -> bool {
 /// # Returns
 ///
 /// Approximate entity count.
+#[must_use]
 pub fn count_entities(hedl: &str) -> usize {
     hedl.lines()
         .filter(|line| line.trim().starts_with('|'))
@@ -102,6 +104,7 @@ pub fn count_entities(hedl: &str) -> usize {
 /// # Returns
 ///
 /// true if count is within tolerance.
+#[must_use]
 pub fn verify_entity_count(hedl: &str, expected: usize, tolerance: f32) -> bool {
     let actual = count_entities(hedl);
     let lower = (expected as f32 * (1.0 - tolerance)) as usize;
@@ -151,7 +154,7 @@ pub fn validate_roundtrip(hedl: &str) -> Result<()> {
         .map_err(|e| crate::BenchError::ParseError(e.to_string()))?;
 
     let json = hedl_json::to_json(&doc, &hedl_json::ToJsonConfig::default())
-        .map_err(|e| crate::BenchError::ConversionError(e.to_string()))?;
+        .map_err(|e| crate::BenchError::ConversionError(e.clone()))?;
 
     let _doc2 = hedl_json::from_json(&json, &hedl_json::FromJsonConfig::default())
         .map_err(|e| crate::BenchError::ConversionError(e.to_string()))?;
@@ -170,9 +173,10 @@ pub fn validate_roundtrip(hedl: &str) -> Result<()> {
 /// # Returns
 ///
 /// Complexity score (higher = more complex).
+#[must_use]
 pub fn estimate_complexity_score(hedl: &str) -> usize {
     let nest_count = hedl.matches("%NEST").count() * 10;
-    let ref_count = hedl.matches("@").count();
+    let ref_count = hedl.matches('@').count();
     let ditto_count = hedl.matches('^').count();
     let line_count = hedl.lines().count();
 

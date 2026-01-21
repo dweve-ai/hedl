@@ -4,19 +4,19 @@
 
 Valid syntax isn't enough. Unused schemas clutter headers. Empty lists waste space. Unqualified references in key-value contexts lose type information. ID fields should follow conventions. Code reviews catch these issues too late. Automated linting enforces standards consistently across teams and prevents common mistakes from reaching production.
 
-`hedl-lint` provides comprehensive linting with 5 configurable rules covering naming conventions, schema usage, reference quality, and structural best practices. Integrates seamlessly with `hedl-cli`, LSP, and CI/CD pipelines. Configurable severity levels (Hint/Warning/Error) with rule-specific enable/disable. Custom rule support via trait system. Security-hardened with recursion and diagnostic limits.
+`hedl-lint` provides comprehensive linting with 4 configurable rules covering naming conventions, schema usage, reference quality, and structural best practices. Integrates seamlessly with `hedl-cli`, LSP, and CI/CD pipelines. Configurable severity levels (Hint/Warning/Error) with per-rule error escalation. Custom rule support via trait system. Security-hardened with recursion and diagnostic limits.
 
 ## What's Implemented
 
 Comprehensive linting with configuration and security:
 
-1. **5 Lint Rules**: ID naming, unused schemas, empty lists, unqualified references, unused aliases
+1. **4 Lint Rules**: ID naming, unused schemas, empty lists, unqualified references
 2. **Three Severity Levels**: Hint (informational), Warning (should fix), Error (must fix)
-3. **Configurable Rules**: Enable/disable individual rules, set severity per rule
-4. **Severity Escalation**: Promote hints to warnings, warnings to errors via config
+3. **Configurable Rules**: Enable/disable individual rules, escalate to error via config
+4. **Rule-Level Escalation**: Promote individual rule diagnostics to error via config
 5. **Custom Rules**: LintRule trait for user-defined lint checks
 6. **Security Limits**: Max recursion depth (1000), max diagnostics (10,000)
-7. **Line Number Tracking**: Every diagnostic includes source line number
+7. **Line Number Tracking**: Diagnostics support optional line numbers
 8. **CLI Integration**: Used by `hedl lint` command with multiple output formats
 9. **IDE Integration**: Powers diagnostics in hedl-lsp for real-time feedback
 10. **Performance**: O(n) single pass through document, minimal overhead
@@ -25,7 +25,7 @@ Comprehensive linting with configuration and security:
 
 ```toml
 [dependencies]
-hedl-lint = "1.0"
+hedl-lint = "1.2"
 ```
 
 ## Basic Usage
@@ -48,36 +48,29 @@ products: @Item
   | item1, Widget, 9.99
 "#)?;
 
-let diagnostics = lint(&doc)?;
+let diagnostics = lint(&doc);
 
-for diag in diagnostics {
-    println!("[{}] Line {}: {}",
-        diag.severity, diag.line, diag.message);
+for diag in &diagnostics {
+    println!("{}", diag);
 }
 ```
 
 **Output**:
 ```
-[Warning] Line 3: Unused schema definition: 'Product' is defined but never used
-[Hint] Line 8: Consider using qualified reference '@Item:item1' instead of unqualified 'item1' for better type safety
+[unused-schema] warning: Schema 'Product' is defined but never used
 ```
 
 ### Custom Configuration
 
 ```rust
-use hedl_lint::{lint_with_config, LintConfig, RuleConfig, Severity};
+use hedl_lint::{lint_with_config, LintConfig, Severity};
 
-let config = LintConfig::builder()
-    .rule("id-naming", RuleConfig::enabled(Severity::Hint))
-    .rule("unused-schema", RuleConfig::enabled(Severity::Warning))
-    .rule("empty-list", RuleConfig::enabled(Severity::Hint))
-    .rule("unqualified-kv-ref", RuleConfig::enabled(Severity::Warning))
-    .rule("unused-alias", RuleConfig::disabled())  // Disabled by default
-    .escalate_hints_to_warnings(false)
-    .escalate_warnings_to_errors(false)
-    .build();
+let mut config = LintConfig::default();
+config.disable_rule("id-naming");
+config.set_rule_error("unused-schema");
+config.min_severity = Severity::Warning;
 
-let diagnostics = lint_with_config(&doc, &config)?;
+let diagnostics = lint_with_config(&doc, config);
 ```
 
 ## Lint Rules
@@ -107,9 +100,9 @@ users: @User[id, name]
 
 **Configuration**:
 ```rust
-.rule("id-naming", RuleConfig::enabled(Severity::Hint))
-// Or disable entirely:
-.rule("id-naming", RuleConfig::disabled())
+let mut config = LintConfig::default();
+// Enable by default, or disable:
+config.disable_rule("id-naming");
 ```
 
 ### 2. unused-schema (Warning, enabled)
@@ -139,9 +132,9 @@ users: @User
 
 **Configuration**:
 ```rust
-.rule("unused-schema", RuleConfig::enabled(Severity::Warning))
+let mut config = LintConfig::default();
 // Escalate to error for strict validation:
-.rule("unused-schema", RuleConfig::enabled(Severity::Error))
+config.set_rule_error("unused-schema");
 ```
 
 ### 3. empty-list (Hint, enabled)
@@ -172,9 +165,9 @@ users: @User[0]
 
 **Configuration**:
 ```rust
-.rule("empty-list", RuleConfig::enabled(Severity::Hint))
-// Escalate to warning for production:
-.rule("empty-list", RuleConfig::enabled(Severity::Warning))
+let mut config = LintConfig::default();
+// Escalate to error for strict validation:
+config.set_rule_error("empty-list");
 ```
 
 ### 4. unqualified-kv-ref (Warning, enabled)
@@ -201,36 +194,10 @@ config:
 
 **Configuration**:
 ```rust
-.rule("unqualified-kv-ref", RuleConfig::enabled(Severity::Warning))
+let mut config = LintConfig::default();
+// Enabled by default with Warning severity
 ```
 
-### 5. unused-alias (Warning, disabled by default)
-
-Detects %ALIAS definitions that are never used:
-
-```hedl
-%VERSION: 1.0
-%ALIAS: api_url: https://api.example.com
-%ALIAS: db_host: localhost
----
-config:
-  endpoint: $api_url       # api_url used
-  # db_host never used
-
-# Warning: Alias 'db_host' defined but never referenced
-```
-
-**Why Disabled By Default**:
-- Aliases may be used in external templates
-- Configuration files often have optional aliases
-- Less critical than unused schemas
-
-**Enable When**: Strict validation desired, no external template system
-
-**Configuration**:
-```rust
-.rule("unused-alias", RuleConfig::enabled(Severity::Warning))
-```
 
 ## Severity Levels
 
@@ -278,60 +245,52 @@ config:
 
 ## Configuration System
 
-### LintConfig Builder
+### LintConfig
 
 ```rust
-use hedl_lint::{LintConfig, RuleConfig, Severity};
+use hedl_lint::{LintConfig, Severity};
 
-let config = LintConfig::builder()
-    // Enable/disable individual rules
-    .rule("id-naming", RuleConfig::enabled(Severity::Hint))
-    .rule("unused-schema", RuleConfig::enabled(Severity::Error))  // Escalated
-    .rule("empty-list", RuleConfig::disabled())
-    .rule("unqualified-kv-ref", RuleConfig::enabled(Severity::Warning))
-    .rule("unused-alias", RuleConfig::enabled(Severity::Warning))
+let mut config = LintConfig::default();
 
-    // Global severity escalation
-    .escalate_hints_to_warnings(true)   // Promote all hints to warnings
-    .escalate_warnings_to_errors(true)  // Promote all warnings to errors
+// Enable/disable individual rules
+config.enable_rule("id-naming");
+config.disable_rule("empty-list");
 
-    .build();
+// Escalate specific rules to error
+config.set_rule_error("unused-schema");
+
+// Set minimum severity to report
+config.min_severity = Severity::Warning;
+
+// Set maximum diagnostics to collect (default: 10,000)
+config.max_diagnostics = 5000;
 ```
 
-### RuleConfig Options
+### RuleConfig
 
-**Enabled with Severity**:
-```rust
-RuleConfig::enabled(Severity::Hint)
-RuleConfig::enabled(Severity::Warning)
-RuleConfig::enabled(Severity::Error)
-```
-
-**Disabled**:
-```rust
-RuleConfig::disabled()
-```
-
-### Severity Escalation
-
-**escalate_hints_to_warnings** (default: false)
-- Promotes all Hint diagnostics to Warning
-- Useful for stricter CI/CD validation
-- Makes informational suggestions more prominent
-
-**escalate_warnings_to_errors** (default: false)
-- Promotes all Warning diagnostics to Error
-- Useful for zero-warnings policy
-- Blocks builds on any quality issues
+Rule configuration is stored in a HashMap and has two fields:
+- `enabled: bool` - Whether the rule is active
+- `error: bool` - Whether to escalate all diagnostics from this rule to Error severity
 
 **Example**:
 ```rust
-let strict_config = LintConfig::builder()
-    .escalate_hints_to_warnings(true)
-    .escalate_warnings_to_errors(true)
-    .build();
+use hedl_lint::rules::RuleConfig;
 
-// Now ALL diagnostics become errors (fail fast)
+let rule_config = RuleConfig {
+    enabled: true,
+    error: true,  // Escalate this rule's diagnostics to Error
+};
+```
+
+### Per-Rule Escalation
+
+The `set_rule_error` method enables a rule and escalates both Hint and Warning diagnostics to Error:
+
+```rust
+let mut config = LintConfig::default();
+config.set_rule_error("unused-schema");
+
+// Now all unused-schema diagnostics become errors (fail fast)
 ```
 
 ## Custom Rules
@@ -339,27 +298,32 @@ let strict_config = LintConfig::builder()
 Implement the `LintRule` trait for custom checks:
 
 ```rust
-use hedl_lint::{LintRule, Diagnostic, Severity};
+use hedl_lint::{LintRule, Diagnostic, DiagnosticKind};
 use hedl_core::Document;
 
 pub struct RequireDescriptionRule;
 
 impl LintRule for RequireDescriptionRule {
-    fn name(&self) -> &str {
+    fn id(&self) -> &str {
         "require-description"
+    }
+
+    fn description(&self) -> &str {
+        "Check that document has a description field"
     }
 
     fn check(&self, doc: &Document) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
 
         // Check if document has 'description' field
-        if !doc.fields.contains_key("description") {
-            diagnostics.push(Diagnostic {
-                line: 1,
-                severity: Severity::Warning,
-                rule: self.name().to_string(),
-                message: "Document should have a 'description' field".to_string(),
-            });
+        if !doc.root.contains_key("description") {
+            diagnostics.push(
+                Diagnostic::warning(
+                    DiagnosticKind::Custom("require-description".to_string()),
+                    "Document should have a 'description' field",
+                    "require-description"
+                ).with_line(1)
+            );
         }
 
         diagnostics
@@ -367,30 +331,26 @@ impl LintRule for RequireDescriptionRule {
 }
 
 // Use custom rule
-use hedl_lint::{lint_with_rules, LintConfig};
+use hedl_lint::{LintRunner, LintConfig};
 
-let custom_rules: Vec<Box<dyn LintRule>> = vec![
-    Box::new(RequireDescriptionRule),
-];
+let mut runner = LintRunner::new(LintConfig::default());
+runner.add_rule(Box::new(RequireDescriptionRule));
 
-let config = LintConfig::default();
-let diagnostics = lint_with_rules(&doc, &config, &custom_rules)?;
+let diagnostics = runner.run(&doc);
 ```
 
 ### LintRule Trait
 
 ```rust
-pub trait LintRule {
+pub trait LintRule: Send + Sync {
     /// Unique rule identifier (kebab-case)
-    fn name(&self) -> &str;
+    fn id(&self) -> &str;
+
+    /// Rule description
+    fn description(&self) -> &str;
 
     /// Check document and return diagnostics
     fn check(&self, doc: &Document) -> Vec<Diagnostic>;
-
-    /// Optional: default severity (override in config)
-    fn default_severity(&self) -> Severity {
-        Severity::Warning
-    }
 }
 ```
 
@@ -404,7 +364,7 @@ Protection against deeply nested structures:
 const MAX_RECURSION_DEPTH: usize = 1000;
 
 // Linting document > 1000 levels deep:
-// Error: LintError::MaxRecursionExceeded { depth: 1001, max: 1000 }
+// Warning diagnostic added, traversal stops at that depth
 ```
 
 **Prevents**:
@@ -420,7 +380,7 @@ Protection against diagnostic explosion:
 const MAX_DIAGNOSTICS: usize = 10_000;
 
 // If linting generates > 10,000 diagnostics:
-// Error: LintError::TooManyDiagnostics { count: 10001, max: 10000 }
+// Warning diagnostic added, further diagnostics suppressed
 ```
 
 **Prevents**:
@@ -428,55 +388,69 @@ const MAX_DIAGNOSTICS: usize = 10_000;
 - Unbounded diagnostic generation
 - DoS attacks via pathological documents
 
-## Error Handling
+## Diagnostic Structure
+
+The `lint` and `lint_with_config` functions return `Vec<Diagnostic>` directly (no Result wrapper), as linting does not fail on malformed documents:
 
 ```rust
-use hedl_lint::{lint, LintError};
+use hedl_lint::lint;
 
-match lint(&doc) {
-    Ok(diagnostics) => {
-        for diag in diagnostics {
-            println!("{:?}", diag);
-        }
-    }
-    Err(LintError::MaxRecursionExceeded { depth, max }) => {
-        eprintln!("Document nesting too deep: {} (max: {})", depth, max);
-    }
-    Err(LintError::TooManyDiagnostics { count, max }) => {
-        eprintln!("Too many issues: {} (max: {})", count, max);
-    }
-    Err(e) => {
-        eprintln!("Lint error: {}", e);
-    }
+let diagnostics = lint(&doc);
+
+for diag in &diagnostics {
+    println!("{}", diag);
 }
 ```
 
-### Error Types
+### Diagnostic Fields
 
-- `MaxRecursionExceeded` - Nesting depth exceeds 1000 levels
-- `TooManyDiagnostics` - Generated diagnostics exceed 10,000
-- `Io(std::io::Error)` - I/O failures
-- `InvalidRule(String)` - Unknown rule name in configuration
-
-## Diagnostic Structure
+Diagnostics are accessed through getter methods:
 
 ```rust
-pub struct Diagnostic {
-    pub line: usize,              // Source line number (1-indexed)
-    pub severity: Severity,       // Hint / Warning / Error
-    pub rule: String,             // Rule name (e.g., "unused-schema")
-    pub message: String,          // Human-readable description
+let diag = &diagnostics[0];
+println!("Severity: {:?}", diag.severity());
+println!("Kind: {:?}", diag.kind());
+println!("Message: {}", diag.message());
+println!("Rule ID: {}", diag.rule_id());
+if let Some(line) = diag.line() {
+    println!("Line: {}", line);
+}
+if let Some(suggestion) = diag.suggestion() {
+    println!("Suggestion: {}", suggestion);
+}
+```
+
+### DiagnosticKind Enum
+
+The `DiagnosticKind` enum identifies the type of lint issue:
+
+```rust
+pub enum DiagnosticKind {
+    /// ID naming convention violation
+    IdNaming,
+    /// Unused schema definition
+    UnusedSchema,
+    /// Empty matrix list
+    EmptyList,
+    /// Unqualified reference in Key-Value context
+    UnqualifiedKvReference,
+    /// Custom rule violation
+    Custom(String),
 }
 ```
 
 **Example**:
 ```rust
-Diagnostic {
-    line: 5,
-    severity: Severity::Warning,
-    rule: "unused-schema".to_string(),
-    message: "Schema 'Product' defined but never used".to_string(),
-}
+use hedl_lint::{Diagnostic, DiagnosticKind, Severity};
+
+let diag = Diagnostic::warning(
+    DiagnosticKind::UnusedSchema,
+    "Schema 'Product' defined but never used",
+    "unused-schema"
+).with_line(5);
+
+println!("{}", diag);
+// Output: line 5: [unused-schema] warning: Schema 'Product' defined but never used
 ```
 
 ## CLI Integration
@@ -550,7 +524,7 @@ The `hedl-lsp` crate uses `hedl-lint` for real-time diagnostics:
 
 ## Dependencies
 
-- `hedl-core` 1.0 - Core HEDL data structures and parsing
+- `hedl-core` 1.2 - Core HEDL data structures and parsing
 - `thiserror` 1.0 - Error type definitions
 
 ## License

@@ -169,10 +169,10 @@ Generate user entities with realistic data:
 use hedl_bench::generate_users;
 
 let doc = generate_users(1000);
-// 1000 users with id, name, email, age, active fields
+// 1000 users with id, name, email, role, created_at fields
 ```
 
-**Fields**: id, name, email, age, active
+**Fields**: id, name, email, role, created_at
 **Size**: ~80 bytes per user
 **Use Case**: Basic entity list benchmarking
 
@@ -182,23 +182,23 @@ Generate product catalog:
 
 ```rust
 let doc = generate_products(500);
-// 500 products with id, title, price, stock, category
+// 500 products with id, name, price, category, stock, description
 ```
 
-**Fields**: id, title, price, stock, category, discontinued
+**Fields**: id, name, price, category, stock, description
 **Size**: ~100 bytes per product
 **Use Case**: E-commerce workloads
 
-### generate_orders(count, items_per_order)
+### generate_orders(count)
 
 Generate orders with nested items:
 
 ```rust
-let doc = generate_orders(100, 5);
-// 100 orders, each with 5 items (nested structure)
+let doc = generate_orders(100);
+// 100 orders, each with 1-5 items (nested structure)
 ```
 
-**Fields**: Order(id, customer, total, status) + Item(product, quantity, price)
+**Fields**: Order(id, customer, status, total) + Item(sku, name, quantity, price)
 **Size**: ~200 bytes per order + 50 bytes per item
 **Use Case**: Nested structure benchmarking
 
@@ -211,10 +211,10 @@ let doc = generate_blog(50, 20);
 // 50 blog posts, each with 20 comments
 ```
 
-**Structure**: Post(id, author, title, content, tags) + Comment(author, text, timestamp)
+**Structure**: Author(id, name, email) + Post(id, title, author, published_at) + Comment(id, author, content, created_at)
 **Use Case**: Hierarchical content benchmarking
 
-### generate_analytics(time_series_points)
+### generate_analytics(count)
 
 Generate analytics time series:
 
@@ -223,7 +223,7 @@ let doc = generate_analytics(10000);
 // 10K time series data points
 ```
 
-**Fields**: timestamp, metric, value, dimensions
+**Fields**: id, timestamp, name, value, tags
 **Use Case**: Large dataset performance
 
 ### generate_graph(nodes, edges_per_node)
@@ -251,10 +251,10 @@ cargo bench -p hedl-bench -- --baseline main
 ```
 
 **Regression Severity**:
-- **Green** (0-5%): Acceptable variance
-- **Yellow** (5-10%): Monitor, investigate if consistent
-- **Orange** (10-20%): Performance regression, requires investigation
-- **Red** (>20%): Critical regression, blocks merge
+- **None** (0-4%): No regression detected
+- **Minor** (5-14%): Minor regression, monitor if consistent
+- **Moderate** (15-49%): Moderate regression, requires investigation
+- **Severe** (50%+): Severe regression, blocks merge
 
 **CI/CD Integration**:
 ```yaml
@@ -310,38 +310,42 @@ cargo bench -p hedl-bench -- memory_profile
 
 ## Statistical Analysis
 
-All benchmarks include comprehensive statistics:
+Benchmarks collect comprehensive performance metrics:
 
 ```rust
-pub struct BenchmarkResult {
+// Performance result for a single benchmark run
+pub struct PerfResult {
     pub name: String,
-    pub iterations: usize,
+    pub iterations: u64,
+    pub total_time_ns: u64,
+    pub throughput_bytes: Option<u64>,
+    pub avg_time_ns: Option<u64>,
+    pub throughput_mbs: Option<f64>,
+}
+
+// Statistical analysis from multiple measurements
+pub struct Statistics {
     pub mean: Duration,
     pub std_dev: Duration,
     pub min: Duration,
     pub max: Duration,
-    pub p50: Duration,     // Median
-    pub p90: Duration,
-    pub p95: Duration,
-    pub p99: Duration,
-    pub throughput: f64,   // MB/s
-    pub allocations: usize,
+    pub median: Duration,
+}
+
+// Percentile measurements for baseline tracking
+pub struct Percentiles {
+    pub p50: u64,  // Median
+    pub p95: u64,
+    pub p99: u64,
 }
 ```
 
 **Console Output**:
 ```
 parse_users_1k
-  mean:       1.234 ms
-  std_dev:    0.045 ms
-  min:        1.189 ms
-  max:        1.456 ms
-  p50:        1.230 ms
-  p90:        1.289 ms
-  p95:        1.315 ms
-  p99:        1.398 ms
+  avg_time:   1.234 ms
   throughput: 40.5 MB/s
-  allocs:     147
+  iterations: 100
 ```
 
 ## Export Formats
@@ -413,14 +417,14 @@ cargo bench -p hedl-bench -- --thorough
 ```
 
 **Defaults**:
-- Warmup: 3 iterations
-- Measurement: 10 iterations
-- Quick: 1 warmup, 5 measurement
-- Thorough: 10 warmup, 100 measurement
+- Warmup: 100ms duration
+- Iterations: Size-dependent (1000 for small, 100 for medium, 10 for large datasets)
+- Baseline path: `baselines/current.json`
+- Export formats: Console and JSON
 
 ## Use Cases
 
-**Performance Regression Detection**: Run benchmarks in CI/CD to catch performance regressions before merge. Fail builds on >10% degradation.
+**Performance Regression Detection**: Run benchmarks in CI/CD to catch performance regressions before merge. Fail builds on moderate (>15%) or severe (>50%) degradation.
 
 **Optimization Validation**: Quantify performance improvements from optimizations. Verify claims with rigorous measurement.
 
@@ -444,13 +448,13 @@ cargo bench -p hedl-bench -- --thorough
 
 ## Dependencies
 
-- `hedl-core` 1.0 - Core implementation
+- `hedl-core` 1.2 - Core implementation
 - All format crates (json, yaml, xml, csv, parquet, toon, neo4j)
-- `hedl-stream` 1.0 - Streaming parser
-- `hedl-lint` 1.0 - Linting
-- `hedl-c14n` 1.0 - Canonicalization
+- `hedl-stream` 1.2 - Streaming parser
+- `hedl-lint` 1.2 - Linting
+- `hedl-c14n` 1.2 - Canonicalization
 - `criterion` 0.5 - Benchmarking framework
-- `tiktoken-rs` 0.5 - Token counting
+- `tiktoken-rs` 0.6 - Token counting
 
 ## License
 

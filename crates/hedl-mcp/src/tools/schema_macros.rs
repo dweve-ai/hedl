@@ -214,6 +214,23 @@ macro_rules! schema_string_array {
     };
 }
 
+/// Generate a JSON schema object with array type and custom items schema.
+///
+/// # Usage
+/// ```text
+/// schema_array!("List of operations", items: {"type": "object", "properties": {...}})
+/// ```
+#[macro_export]
+macro_rules! schema_array {
+    ($description:expr, items: $items:tt) => {
+        serde_json::json!({
+            "type": "array",
+            "items": $items,
+            "description": $description
+        })
+    };
+}
+
 /// Generate a complete tool schema with properties and required fields.
 ///
 /// This is the top-level macro for defining entire tool schemas.

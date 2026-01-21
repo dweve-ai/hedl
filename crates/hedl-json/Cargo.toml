@@ -1,19 +1,73 @@
+# =============================================================================
+# HEDL JSON - crates/hedl-json/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-json"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
 description = "HEDL to/from JSON conversion"
+documentation = "https://docs.rs/hedl-json"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
-hedl-core.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-serde_json_path = "0.7"
-thiserror.workspace = true
+hedl-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+smallvec = { workspace = true }
+
+serde_json_path = { version = "0.7", optional = true }
+jsonschema = { version = "0.27", optional = true }
+serde_jsonrc = { version = "0.1", optional = true }
 
 [dev-dependencies]
 hedl-test = { workspace = true }
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { workspace = true }
+
+[features]
+default = ["json-path"]
+json-path = ["dep:serde_json_path"]
+lenient = ["serde_jsonrc"]
+validation = ["jsonschema"]
+
+[[bench]]
+name = "array_optimization"
+harness = false

@@ -79,19 +79,19 @@ pub use utility::UtilityCommands;
 /// ```
 #[derive(Subcommand)]
 pub enum Commands {
-    // Core commands - flattened to appear at top level
+    /// Core commands (validate, format, lint, inspect, stats).
     #[command(flatten)]
     Core(CoreCommands),
 
-    // Conversion commands - flattened to appear at top level
+    /// Conversion commands (JSON, YAML, XML, CSV, Parquet).
     #[command(flatten)]
     Conversion(ConversionCommands),
 
-    // Batch commands - flattened to appear at top level
+    /// Batch processing commands (batch-validate, batch-format, batch-lint).
     #[command(flatten)]
     Batch(BatchCommands),
 
-    // Utility commands - flattened to appear at top level
+    /// Utility commands (completion).
     #[command(flatten)]
     Utility(UtilityCommands),
 }
@@ -113,7 +113,7 @@ impl Commands {
     /// - Parsing or validation fails
     /// - Conversion fails
     /// - Any other command-specific error occurs
-    pub fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), crate::error::CliError> {
         match self {
             Commands::Core(cmd) => cmd.execute(),
             Commands::Conversion(cmd) => cmd.execute(),

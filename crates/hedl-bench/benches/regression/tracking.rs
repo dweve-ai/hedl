@@ -32,7 +32,7 @@
 //!
 //! Run with: cargo bench --package hedl-bench --bench tracking
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::{
     check_regression, load_baseline, save_baseline, update_current_baseline, Baseline,
     BenchmarkBaseline, Percentiles, RegressionStatus,
@@ -44,9 +44,26 @@ use hedl_bench::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
+use std::hint::black_box;
 use std::path::Path;
 use std::sync::Once;
 use std::time::{Duration, Instant};
+
+// ============================================================================
+// Benchmark Measurement Structure
+// ============================================================================
+
+/// Benchmark measurement data for recording performance with baseline comparison.
+struct BenchmarkMeasurement<'a> {
+    name: &'a str,
+    operation_type: &'a str,
+    size: usize,
+    complexity: &'a str,
+    time_ns: u64,
+    iterations: u64,
+    samples: &'a [u64],
+    throughput_bytes: Option<u64>,
+}
 
 // ============================================================================
 // Report Infrastructure
@@ -55,10 +72,10 @@ use std::time::{Duration, Instant};
 static INIT: Once = Once::new();
 
 thread_local! {
-    static REPORT: RefCell<Option<BenchmarkReport>> = RefCell::new(None);
-    static BASELINE: RefCell<Option<Baseline>> = RefCell::new(None);
+    static REPORT: RefCell<Option<BenchmarkReport>> = const { RefCell::new(None) };
+    static BASELINE: RefCell<Option<Baseline>> = const { RefCell::new(None) };
     static CURRENT: RefCell<Baseline> = RefCell::new(Baseline::new("current".to_string()));
-    static REGRESSIONS: RefCell<Vec<RegressionInfo>> = RefCell::new(Vec::new());
+    static REGRESSIONS: RefCell<Vec<RegressionInfo>> = const { RefCell::new(Vec::new()) };
 }
 
 #[derive(Debug, Clone)]
@@ -93,50 +110,38 @@ fn ensure_init() {
             BASELINE.with(|b| {
                 *b.borrow_mut() = Some(baseline);
             });
-            println!("Loaded baseline: {}", baseline_path);
+            println!("Loaded baseline: {baseline_path}");
         } else {
-            println!(
-                "No baseline found at {}, creating new baseline",
-                baseline_path
-            );
+            println!("No baseline found at {baseline_path}, creating new baseline");
         }
     });
 }
 
-fn record_perf_with_baseline(
-    name: &str,
-    operation_type: &str,
-    size: usize,
-    complexity: &str,
-    time_ns: u64,
-    iterations: u64,
-    samples: &[u64],
-    throughput_bytes: Option<u64>,
-) {
+fn record_perf_with_baseline(measurement: &BenchmarkMeasurement<'_>) {
     REPORT.with(|r| {
         if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes.map(|bytes| {
-                let bytes_per_sec = (bytes as f64 * 1e9) / time_ns as f64;
+            let throughput_mbs = measurement.throughput_bytes.map(|bytes| {
+                let bytes_per_sec = (bytes as f64 * 1e9) / measurement.time_ns as f64;
                 bytes_per_sec / 1_000_000.0
             });
             report.add_perf(PerfResult {
-                name: name.to_string(),
-                iterations,
-                total_time_ns: time_ns,
-                throughput_bytes,
-                avg_time_ns: Some(time_ns / iterations.max(1)),
+                name: measurement.name.to_string(),
+                iterations: measurement.iterations,
+                total_time_ns: measurement.time_ns,
+                throughput_bytes: measurement.throughput_bytes,
+                avg_time_ns: Some(measurement.time_ns / measurement.iterations.max(1)),
                 throughput_mbs,
             });
         }
     });
 
     // Calculate percentiles from samples
-    let mut sorted_samples = samples.to_vec();
+    let mut sorted_samples = measurement.samples.to_vec();
     sorted_samples.sort_unstable();
     let percentiles = Percentiles::from_sorted(&sorted_samples);
 
     // Create baseline data
-    let avg_ns = time_ns / iterations.max(1);
+    let avg_ns = measurement.time_ns / measurement.iterations.max(1);
     let baseline_data = BenchmarkBaseline::new(
         Duration::from_nanos(avg_ns),
         Duration::from_nanos(0), // TODO: Calculate std dev from samples
@@ -145,13 +150,14 @@ fn record_perf_with_baseline(
 
     // Update current baseline
     CURRENT.with(|c| {
-        c.borrow_mut().add_benchmark(name, baseline_data.clone());
+        c.borrow_mut()
+            .add_benchmark(measurement.name, baseline_data.clone());
     });
 
     // Check for regressions against loaded baseline
     BASELINE.with(|b| {
         if let Some(ref baseline) = *b.borrow() {
-            if let Some(baseline_metrics) = baseline.get_benchmark(name) {
+            if let Some(baseline_metrics) = baseline.get_benchmark(measurement.name) {
                 let status = check_regression(avg_ns, baseline_metrics);
                 let change_percent = if baseline_metrics.mean > 0 {
                     ((avg_ns as f64 - baseline_metrics.mean as f64) / baseline_metrics.mean as f64)
@@ -162,16 +168,16 @@ fn record_perf_with_baseline(
 
                 REGRESSIONS.with(|r| {
                     r.borrow_mut().push(RegressionInfo {
-                        name: name.to_string(),
-                        operation_type: operation_type.to_string(),
+                        name: measurement.name.to_string(),
+                        operation_type: measurement.operation_type.to_string(),
                         baseline_mean: baseline_metrics.mean,
                         current_mean: avg_ns,
                         baseline_p95: baseline_metrics.percentiles.p95,
                         current_p95: percentiles.p95,
                         status,
                         change_percent,
-                        size,
-                        complexity_level: complexity.to_string(),
+                        size: measurement.size,
+                        complexity_level: measurement.complexity.to_string(),
                     });
                 });
             }
@@ -179,7 +185,7 @@ fn record_perf_with_baseline(
     });
 
     // Save to current baseline file (incremental updates)
-    let _ = update_current_baseline("baselines/current.json", name, baseline_data);
+    let _ = update_current_baseline("baselines/current.json", measurement.name, baseline_data);
 }
 
 // ============================================================================
@@ -220,16 +226,16 @@ fn bench_regression_parsing(c: &mut Criterion) {
 
         let elapsed = start.elapsed();
 
-        record_perf_with_baseline(
-            &format!("parsing_{}", name),
-            "parsing",
+        record_perf_with_baseline(&BenchmarkMeasurement {
+            name: &format!("parsing_{name}"),
+            operation_type: "parsing",
             size,
             complexity,
-            elapsed.as_nanos() as u64,
+            time_ns: elapsed.as_nanos() as u64,
             iterations,
-            &samples,
-            Some(bytes),
-        );
+            samples: &samples,
+            throughput_bytes: Some(bytes),
+        });
     }
 
     group.finish();
@@ -266,16 +272,16 @@ fn bench_regression_canonicalization(c: &mut Criterion) {
 
         let elapsed = start.elapsed();
 
-        record_perf_with_baseline(
-            &format!("canonicalization_{}", name),
-            "canonicalization",
+        record_perf_with_baseline(&BenchmarkMeasurement {
+            name: &format!("canonicalization_{name}"),
+            operation_type: "canonicalization",
             size,
             complexity,
-            elapsed.as_nanos() as u64,
+            time_ns: elapsed.as_nanos() as u64,
             iterations,
-            &samples,
-            None,
-        );
+            samples: &samples,
+            throughput_bytes: None,
+        });
     }
 
     group.finish();
@@ -319,16 +325,16 @@ fn bench_regression_conversion(c: &mut Criterion) {
 
         let elapsed = start.elapsed();
 
-        record_perf_with_baseline(
-            &format!("conversion_json_{}", name),
-            "conversion",
+        record_perf_with_baseline(&BenchmarkMeasurement {
+            name: &format!("conversion_json_{name}"),
+            operation_type: "conversion",
             size,
             complexity,
-            elapsed.as_nanos() as u64,
+            time_ns: elapsed.as_nanos() as u64,
             iterations,
-            &samples,
-            None,
-        );
+            samples: &samples,
+            throughput_bytes: None,
+        });
     }
 
     group.finish();
@@ -365,16 +371,16 @@ fn bench_regression_validation(c: &mut Criterion) {
 
         let elapsed = start.elapsed();
 
-        record_perf_with_baseline(
-            &format!("validation_{}", name),
-            "validation",
+        record_perf_with_baseline(&BenchmarkMeasurement {
+            name: &format!("validation_{name}"),
+            operation_type: "validation",
             size,
             complexity,
-            elapsed.as_nanos() as u64,
+            time_ns: elapsed.as_nanos() as u64,
             iterations,
-            &samples,
-            None,
-        );
+            samples: &samples,
+            throughput_bytes: None,
+        });
     }
 
     group.finish();
@@ -411,16 +417,16 @@ fn bench_regression_linting(c: &mut Criterion) {
 
         let elapsed = start.elapsed();
 
-        record_perf_with_baseline(
-            &format!("linting_{}", name),
-            "linting",
+        record_perf_with_baseline(&BenchmarkMeasurement {
+            name: &format!("linting_{name}"),
+            operation_type: "linting",
             size,
             complexity,
-            elapsed.as_nanos() as u64,
+            time_ns: elapsed.as_nanos() as u64,
             iterations,
-            &samples,
-            None,
-        );
+            samples: &samples,
+            throughput_bytes: None,
+        });
     }
 
     group.finish();
@@ -465,16 +471,16 @@ fn bench_regression_full_pipeline(c: &mut Criterion) {
 
         let elapsed = start.elapsed();
 
-        record_perf_with_baseline(
-            &format!("pipeline_full_{}", name),
-            "pipeline",
+        record_perf_with_baseline(&BenchmarkMeasurement {
+            name: &format!("pipeline_full_{name}"),
+            operation_type: "pipeline",
             size,
             complexity,
-            elapsed.as_nanos() as u64,
+            time_ns: elapsed.as_nanos() as u64,
             iterations,
-            &samples,
-            Some(bytes),
-        );
+            samples: &samples,
+            throughput_bytes: Some(bytes),
+        });
     }
 
     group.finish();
@@ -1188,7 +1194,7 @@ fn create_stability_metrics_table(results: &[RegressionTestResult], report: &mut
         };
 
         table.rows.push(vec![
-            TableCell::String(format!("{} ({})", name, desc)),
+            TableCell::String(format!("{name} ({desc})")),
             TableCell::Float(value),
             TableCell::Float(threshold),
             TableCell::String(status.to_string()),
@@ -1334,7 +1340,7 @@ fn create_baseline_quality_table(report: &mut BenchmarkReport) {
 
                 table.rows.push(vec![
                     TableCell::String("Benchmark Count".to_string()),
-                    TableCell::String(format!("{}", benchmark_count)),
+                    TableCell::String(format!("{benchmark_count}")),
                     TableCell::String(format!("Timestamp: {}", baseline.timestamp)),
                     TableCell::String(
                         if benchmark_count >= 10 {
@@ -1400,7 +1406,7 @@ fn create_action_items_table(results: &[RegressionTestResult], report: &mut Benc
     if severe > 0 {
         table.rows.push(vec![
             TableCell::String("CRITICAL".to_string()),
-            TableCell::String(format!("{} severe regressions", severe)),
+            TableCell::String(format!("{severe} severe regressions")),
             TableCell::Integer(severe as i64),
             TableCell::String("Investigate and fix before release".to_string()),
             TableCell::String("Restore performance to baseline levels".to_string()),
@@ -1410,7 +1416,7 @@ fn create_action_items_table(results: &[RegressionTestResult], report: &mut Benc
     if moderate > 0 {
         table.rows.push(vec![
             TableCell::String("HIGH".to_string()),
-            TableCell::String(format!("{} moderate regressions", moderate)),
+            TableCell::String(format!("{moderate} moderate regressions")),
             TableCell::Integer(moderate as i64),
             TableCell::String("Profile affected operations and optimize".to_string()),
             TableCell::String("Reduce regression to <5%".to_string()),
@@ -1428,7 +1434,7 @@ fn create_action_items_table(results: &[RegressionTestResult], report: &mut Benc
     for (operation, count) in regression_counts.iter().filter(|(_, &c)| c >= 2) {
         table.rows.push(vec![
             TableCell::String("MEDIUM".to_string()),
-            TableCell::String(format!("{} consistently regressing", operation)),
+            TableCell::String(format!("{operation} consistently regressing")),
             TableCell::Integer(*count as i64),
             TableCell::String("Systematic optimization needed".to_string()),
             TableCell::String("Improve scalability".to_string()),
@@ -1559,8 +1565,7 @@ fn generate_insights(
         report.add_insight(Insight {
             category: "strength".to_string(),
             title: format!(
-                "Excellent Performance Stability: {:.1}% Regression Rate",
-                regression_rate
+                "Excellent Performance Stability: {regression_rate:.1}% Regression Rate"
             ),
             description: "Performance remains stable across versions with minimal regressions"
                 .to_string(),
@@ -1574,10 +1579,7 @@ fn generate_insights(
     } else if severe > 0 {
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!(
-                "Critical Performance Regressions Detected: {} Severe",
-                severe
-            ),
+            title: format!("Critical Performance Regressions Detected: {severe} Severe"),
             description: "Significant performance degradation requires immediate investigation"
                 .to_string(),
             data_points: vec![
@@ -1600,10 +1602,7 @@ fn generate_insights(
     if let Some((worst_op, count)) = regression_by_op.iter().max_by_key(|(_, &c)| c) {
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!(
-                "{} Operation Most Affected: {} Regressions",
-                worst_op, count
-            ),
+            title: format!("{worst_op} Operation Most Affected: {count} Regressions"),
             description: "Specific operation shows systematic performance degradation".to_string(),
             data_points: vec![
                 format!(
@@ -1650,7 +1649,7 @@ fn generate_insights(
                     .to_string(),
                 data_points: size_changes
                     .iter()
-                    .map(|(size, change)| format!("Size {}: {:+.1}% change", size, change))
+                    .map(|(size, change)| format!("Size {size}: {change:+.1}% change"))
                     .collect(),
             });
         } else if trend_decreasing {
@@ -1660,7 +1659,7 @@ fn generate_insights(
                 description: "Performance improves or stabilizes with larger datasets".to_string(),
                 data_points: size_changes
                     .iter()
-                    .map(|(size, change)| format!("Size {}: {:+.1}% change", size, change))
+                    .map(|(size, change)| format!("Size {size}: {change:+.1}% change"))
                     .collect(),
             });
         }
@@ -1684,7 +1683,7 @@ fn generate_insights(
                     "strength"
                 }
                 .to_string(),
-                title: format!("Throughput Changed by {:.1}%", avg_throughput_change),
+                title: format!("Throughput Changed by {avg_throughput_change:.1}%"),
                 description: "Data processing throughput significantly affected".to_string(),
                 data_points: vec![
                     format!("Average change: {:+.1}%", avg_throughput_change),
@@ -1720,10 +1719,7 @@ fn generate_insights(
     if p95_regressions > 0 {
         report.add_insight(Insight {
             category: "weakness".to_string(),
-            title: format!(
-                "Tail Latency Degradation: {} Tests Affected",
-                p95_regressions
-            ),
+            title: format!("Tail Latency Degradation: {p95_regressions} Tests Affected"),
             description: "P95 latency regressions impact worst-case performance".to_string(),
             data_points: vec![
                 format!("{} tests show >15% P95 latency increase", p95_regressions),
@@ -1756,8 +1752,8 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "strength".to_string(),
-            title: format!("{} Performance Improvements Detected", improvements),
-            description: format!("Average improvement: {:.1}% faster", avg_improvement),
+            title: format!("{improvements} Performance Improvements Detected"),
+            description: format!("Average improvement: {avg_improvement:.1}% faster"),
             data_points: vec![
                 format!("{} tests show >5% performance gain", improvements),
                 format!("Average speedup: {:.1}%", avg_improvement),
@@ -1776,7 +1772,7 @@ fn generate_insights(
             .push(result);
     }
 
-    for (complexity, comp_results) in by_complexity.iter() {
+    for (complexity, comp_results) in &by_complexity {
         let regressions = comp_results
             .iter()
             .filter(|r| r.status.contains("REGRESSION"))
@@ -1786,10 +1782,7 @@ fn generate_insights(
         if rate > 30.0 {
             report.add_insight(Insight {
                 category: "finding".to_string(),
-                title: format!(
-                    "High Regression Rate for {} Complexity: {:.1}%",
-                    complexity, rate
-                ),
+                title: format!("High Regression Rate for {complexity} Complexity: {rate:.1}%"),
                 description: "Specific complexity level shows disproportionate regressions"
                     .to_string(),
                 data_points: vec![
@@ -1813,7 +1806,7 @@ fn generate_insights(
 
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!("Version Health Score: {:.1}%", health_score),
+            title: format!("Version Health Score: {health_score:.1}%"),
             description: "Overall assessment of version-to-version performance".to_string(),
             data_points: vec![
                 format!("Total benchmarks: {}", version.total_benchmarks),
@@ -1846,10 +1839,7 @@ fn generate_insights(
 
     report.add_insight(Insight {
         category: "recommendation".to_string(),
-        title: format!(
-            "Regression Test Coverage: {} Operations Tracked",
-            operations_tested
-        ),
+        title: format!("Regression Test Coverage: {operations_tested} Operations Tracked"),
         description: "Comprehensive regression tracking across multiple operations".to_string(),
         data_points: vec![
             format!("{} distinct operations tested", operations_tested),
@@ -1866,25 +1856,22 @@ fn generate_insights(
     });
 
     // Insight 10: Actionable recommendations
-    let critical_actions = severe + (if regression_rate > 20.0 { 1 } else { 0 });
+    let critical_actions = severe + usize::from(regression_rate > 20.0);
 
     if critical_actions > 0 {
         report.add_insight(Insight {
             category: "recommendation".to_string(),
-            title: format!(
-                "{} Critical Actions Required Before Release",
-                critical_actions
-            ),
+            title: format!("{critical_actions} Critical Actions Required Before Release"),
             description: "Performance regressions require investigation and remediation"
                 .to_string(),
             data_points: vec![
                 if severe > 0 {
-                    format!("Fix {} severe regressions (>15% slowdown)", severe)
+                    format!("Fix {severe} severe regressions (>15% slowdown)")
                 } else {
                     String::new()
                 },
                 if regression_rate > 20.0 {
-                    format!("Address high regression rate ({:.1}%)", regression_rate)
+                    format!("Address high regression rate ({regression_rate:.1}%)")
                 } else {
                     String::new()
                 },
@@ -1916,10 +1903,7 @@ fn generate_insights(
     if high_confidence_results > 0 {
         report.add_insight(Insight {
             category: "finding".to_string(),
-            title: format!(
-                "{} High-Confidence Changes Detected",
-                high_confidence_results
-            ),
+            title: format!("{high_confidence_results} High-Confidence Changes Detected"),
             description: "Large performance deltas provide high statistical confidence".to_string(),
             data_points: vec![
                 format!(
@@ -1953,14 +1937,22 @@ fn export_reports(c: &mut Criterion) {
             let _ = fs::create_dir_all(parent);
         }
         if let Err(e) = save_baseline(&c.borrow()) {
-            eprintln!("Warning: Failed to save current baseline: {}", e);
+            eprintln!("Warning: Failed to save current baseline: {e}");
         }
     });
 
     // Generate regression console report
     REGRESSIONS.with(|r| {
         let regressions = r.borrow();
-        if !regressions.is_empty() {
+        if regressions.is_empty() {
+            println!("\n{}", "=".repeat(80));
+            println!("NO BASELINE AVAILABLE");
+            println!("{}", "=".repeat(80));
+            println!("This is the first run - establishing baseline");
+            println!("Current measurements saved to: baselines/current.json");
+            println!("Run benchmarks again to compare against this baseline");
+            println!("{}", "=".repeat(80));
+        } else {
             println!("\n{}", "=".repeat(80));
             println!("REGRESSION ANALYSIS SUMMARY");
             println!("{}", "=".repeat(80));
@@ -1986,10 +1978,10 @@ fn export_reports(c: &mut Criterion) {
             }
 
             println!("Total Tests: {}", regressions.len());
-            println!("Severe Regressions: {}", severe_count);
-            println!("Moderate Regressions: {}", moderate_count);
-            println!("Minor Regressions: {}", minor_count);
-            println!("Improvements: {}", improvement_count);
+            println!("Severe Regressions: {severe_count}");
+            println!("Moderate Regressions: {moderate_count}");
+            println!("Minor Regressions: {minor_count}");
+            println!("Improvements: {improvement_count}");
             println!();
 
             if has_regression {
@@ -2019,24 +2011,13 @@ fn export_reports(c: &mut Criterion) {
             println!("{}", "=".repeat(80));
 
             if severe_count > 0 {
-                println!(
-                    "\n⚠️  WARNING: {} SEVERE REGRESSIONS DETECTED!",
-                    severe_count
-                );
+                println!("\n⚠️  WARNING: {severe_count} SEVERE REGRESSIONS DETECTED!");
                 println!("   Do not release until performance is restored!");
             } else if has_regression {
                 println!("\n⚠️  NOTICE: Regressions detected - review before release");
             } else {
                 println!("\n✓  No regressions detected - performance stable or improved");
             }
-        } else {
-            println!("\n{}", "=".repeat(80));
-            println!("NO BASELINE AVAILABLE");
-            println!("{}", "=".repeat(80));
-            println!("This is the first run - establishing baseline");
-            println!("Current measurements saved to: baselines/current.json");
-            println!("Run benchmarks again to compare against this baseline");
-            println!("{}", "=".repeat(80));
         }
     });
 
@@ -2081,7 +2062,7 @@ fn export_reports(c: &mut Criterion) {
         report.print();
 
         if let Err(e) = std::fs::create_dir_all("target") {
-            eprintln!("Failed to create target directory: {}", e);
+            eprintln!("Failed to create target directory: {e}");
             return;
         }
 
@@ -2092,7 +2073,7 @@ fn export_reports(c: &mut Criterion) {
                 report.custom_tables.len(),
                 report.insights.len()
             ),
-            Err(e) => eprintln!("Failed to export reports: {}", e),
+            Err(e) => eprintln!("Failed to export reports: {e}"),
         }
     }
 }

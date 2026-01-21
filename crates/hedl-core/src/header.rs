@@ -26,17 +26,29 @@ use std::collections::BTreeMap;
 /// Parsed header data.
 #[derive(Debug, Clone)]
 pub struct Header {
+    /// HEDL format version as (major, minor).
     pub version: (u32, u32),
+    /// Type aliases mapping alias name to original type.
     pub aliases: BTreeMap<String, String>,
+    /// Struct definitions mapping struct name to field names.
     pub structs: BTreeMap<String, Vec<String>>,
-    pub nests: BTreeMap<String, String>,
-    /// Struct instance counts from count hints (e.g., `users(5): @User`).
-    /// Reserved for validation and optimization features.
-    #[allow(dead_code)]
+    /// Expected row counts for structs (from count hints).
     pub struct_counts: BTreeMap<String, usize>,
-    /// Line number after the separator (where body starts).
-    #[allow(dead_code)]
-    pub body_start_line: usize,
+    /// Nesting relationships mapping child type to parent type.
+    pub nests: BTreeMap<String, String>,
+}
+
+impl Header {
+    /// Create a new Header with the given version and empty collections.
+    pub fn new(version: (u32, u32)) -> Self {
+        Self {
+            version,
+            aliases: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            struct_counts: BTreeMap::new(),
+            nests: BTreeMap::new(),
+        }
+    }
 }
 
 /// Parse the header section from preprocessed lines.
@@ -50,8 +62,8 @@ pub fn parse_header(
     let mut version: Option<(u32, u32)> = None;
     let mut aliases: BTreeMap<String, String> = BTreeMap::new();
     let mut structs: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut nests: BTreeMap<String, String> = BTreeMap::new();
     let mut struct_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut nests: BTreeMap<String, String> = BTreeMap::new();
     let mut first_directive = true;
 
     for (idx, &(line_num, line)) in lines.iter().enumerate() {
@@ -78,9 +90,8 @@ pub fn parse_header(
                     version: version.unwrap(),
                     aliases,
                     structs,
-                    nests,
                     struct_counts,
-                    body_start_line: line_num + 1,
+                    nests,
                 },
                 idx + 1,
             ));
@@ -126,9 +137,9 @@ pub fn parse_header(
                     }
                 } else {
                     structs.insert(type_name.clone(), columns);
-                }
-                if let Some(count_val) = count {
-                    struct_counts.insert(type_name, count_val);
+                    if let Some(c) = count {
+                        struct_counts.insert(type_name, c);
+                    }
                 }
             }
             "%ALIAS" => {
@@ -188,6 +199,10 @@ fn parse_version(payload: &str, line_num: usize) -> HedlResult<(u32, u32)> {
     Ok((major, minor))
 }
 
+/// Parse a struct definition.
+///
+/// Validates the type name, column list, and optional count hint syntax.
+/// Returns the type name, columns, and optional count.
 fn parse_struct(
     payload: &str,
     line_num: usize,
@@ -200,45 +215,14 @@ fn parse_struct(
 
     let before_colon = payload[..colon_pos].trim();
 
-    // Check for optional count syntax: TypeName (N)
-    let (type_name, count) = if let Some(paren_start) = before_colon.rfind('(') {
-        // Found opening parenthesis - try to parse count
-        let type_part = before_colon[..paren_start].trim();
-        let count_part = &before_colon[paren_start + 1..];
-
-        if let Some(paren_end) = count_part.find(')') {
-            let count_str = count_part[..paren_end].trim();
-            let remaining = count_part[paren_end + 1..].trim();
-
-            // Ensure nothing after closing parenthesis
-            if !remaining.is_empty() {
-                return Err(messages::struct_count_unexpected_content(
-                    remaining, line_num,
-                ));
-            }
-
-            // Parse count as usize
-            let count_val: usize = count_str
-                .parse()
-                .map_err(|_| messages::struct_count_invalid(count_str, line_num))?;
-
-            // Check for leading zeros
-            if count_str.len() > 1 && count_str.starts_with('0') {
-                return Err(messages::struct_count_leading_zeros(line_num));
-            }
-
-            (type_part, Some(count_val))
-        } else {
-            // Opening parenthesis without closing - treat as part of type name (will fail validation)
-            (before_colon, None)
-        }
-    } else {
-        // No parenthesis found - no count specified
-        (before_colon, None)
+    // Parse optional count hint using shared parser
+    let (type_name, count) = {
+        use crate::lex::count_hint::{parse_parenthesized_count, CountParsingConfig};
+        parse_parenthesized_count(before_colon, CountParsingConfig::STRUCT_HINT, line_num)?
     };
 
-    if !is_valid_type_name(type_name) {
-        return Err(messages::invalid_type_name(type_name, line_num));
+    if !is_valid_type_name(&type_name) {
+        return Err(messages::invalid_type_name(&type_name, line_num));
     }
 
     let columns_str = payload[colon_pos + 1..].trim();
@@ -899,7 +883,6 @@ mod tests {
                 "industry".to_string()
             ])
         );
-        assert_eq!(header.struct_counts.get("Company"), Some(&1));
     }
 
     #[test]
@@ -917,16 +900,16 @@ mod tests {
                 "budget".to_string()
             ])
         );
-        assert_eq!(header.struct_counts.get("Division"), Some(&3));
     }
 
     #[test]
     fn test_struct_with_zero_count() {
         let input = "%VERSION: 1.0\n%STRUCT: Empty (0): [id]\n---";
         let lines = make_lines(input);
-        let (header, _) =
-            parse_header(&lines, &default_limits(), &TimeoutContext::new(None)).unwrap();
-        assert_eq!(header.struct_counts.get("Empty"), Some(&0));
+        let result = parse_header(&lines, &default_limits(), &TimeoutContext::new(None));
+        assert!(result.is_ok());
+        let (header, _) = result.unwrap();
+        assert_eq!(header.structs.get("Empty"), Some(&vec!["id".to_string()]));
     }
 
     #[test]

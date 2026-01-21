@@ -29,7 +29,7 @@ Parse, validate, and work with HEDL documents:
 
 ```toml
 [dependencies]
-hedl = "1.0"
+hedl = "1.2"
 ```
 
 **What you get**: Parsing, canonicalization, linting, validation
@@ -41,7 +41,7 @@ Enable only the formats you need:
 
 ```toml
 [dependencies]
-hedl = { version = "1.0", features = ["yaml", "xml"] }
+hedl = { version = "1.2", features = ["yaml", "xml"] }
 ```
 
 ### All Features
@@ -50,7 +50,7 @@ Get everything (recommended for applications):
 
 ```toml
 [dependencies]
-hedl = { version = "1.0", features = ["all-formats"] }
+hedl = { version = "1.2", features = ["all-formats"] }
 ```
 
 **Includes**: JSON, YAML, XML, CSV, Parquet, Neo4j, TOON, Serde
@@ -138,7 +138,7 @@ let canonical = canonicalize(&doc)?;
 
 **Use When**: Git commits, content hashing, cache keys, comparing documents
 
-### lint(doc: &Document) -> Result<Vec<Diagnostic>>
+### lint(doc: &Document) -> Vec<Diagnostic>
 
 Run lint checks for best practices:
 
@@ -146,7 +146,7 @@ Run lint checks for best practices:
 use hedl::{parse, lint};
 
 let doc = parse(hedl_bytes)?;
-let diagnostics = lint(&doc)?;
+let diagnostics = lint(&doc);
 
 for diag in diagnostics {
     println!("[{}] Line {}: {}",
@@ -274,7 +274,7 @@ std::fs::read("file.hedl")
 Enable Serde serialization for Document type:
 
 ```toml
-hedl = { version = "1.0", features = ["serde"] }
+hedl = { version = "1.2", features = ["serde"] }
 ```
 
 **Provides**: Serialize/Deserialize impls for Document, Value, Reference
@@ -286,35 +286,35 @@ hedl = { version = "1.0", features = ["serde"] }
 Enable YAML format conversion:
 
 ```toml
-hedl = { version = "1.0", features = ["yaml"] }
+hedl = { version = "1.2", features = ["yaml"] }
 ```
 
 **Adds**:
 - `hedl::to_yaml(doc) -> Result<String>`
 - `hedl::from_yaml(yaml) -> Result<Document>`
 
-**Dependencies**: yaml-rust 0.8
+**Dependencies**: serde_yaml 0.9
 
 ### xml
 
 Enable XML format conversion:
 
 ```toml
-hedl = { version = "1.0", features = ["xml"] }
+hedl = { version = "1.2", features = ["xml"] }
 ```
 
 **Adds**:
 - `hedl::to_xml(doc) -> Result<String>`
 - `hedl::from_xml(xml) -> Result<Document>`
 
-**Dependencies**: quick-xml 0.36
+**Dependencies**: quick-xml 0.31
 
 ### csv
 
 Enable CSV format conversion:
 
 ```toml
-hedl = { version = "1.0", features = ["csv"] }
+hedl = { version = "1.2", features = ["csv"] }
 ```
 
 **Adds**:
@@ -328,7 +328,7 @@ hedl = { version = "1.0", features = ["csv"] }
 Enable Apache Parquet columnar format:
 
 ```toml
-hedl = { version = "1.0", features = ["parquet"] }
+hedl = { version = "1.2", features = ["parquet"] }
 ```
 
 **Adds**:
@@ -342,7 +342,7 @@ hedl = { version = "1.0", features = ["parquet"] }
 Enable Neo4j Cypher generation:
 
 ```toml
-hedl = { version = "1.0", features = ["neo4j"] }
+hedl = { version = "1.2", features = ["neo4j"] }
 ```
 
 **Adds**:
@@ -356,7 +356,7 @@ hedl = { version = "1.0", features = ["neo4j"] }
 Enable TOON format (token-optimized for LLMs):
 
 ```toml
-hedl = { version = "1.0", features = ["toon"] }
+hedl = { version = "1.2", features = ["toon"] }
 ```
 
 **Adds**:
@@ -370,7 +370,7 @@ hedl = { version = "1.0", features = ["toon"] }
 Enable all format converters:
 
 ```toml
-hedl = { version = "1.0", features = ["all-formats"] }
+hedl = { version = "1.2", features = ["all-formats"] }
 ```
 
 **Equivalent to**: `["serde", "yaml", "xml", "csv", "parquet", "neo4j", "toon"]`

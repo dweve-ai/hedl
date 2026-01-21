@@ -25,7 +25,7 @@ Comprehensive Parquet integration with Apache Arrow:
 
 ```toml
 [dependencies]
-hedl-parquet = "1.0"
+hedl-parquet = "1.2"
 ```
 
 ## Basic Usage
@@ -37,7 +37,7 @@ Export HEDL entity list to Parquet file:
 ```rust
 use hedl_core::parse;
 use hedl_parquet::to_parquet;
-use std::fs::File;
+use std::path::Path;
 
 let doc = parse(br#"
 %VERSION: 1.0
@@ -49,8 +49,7 @@ users: @User
   | carol, Carol White, 35, carol@example.com, false
 "#)?;
 
-let file = File::create("users.parquet")?;
-to_parquet(&doc, file)?;
+to_parquet(&doc, Path::new("users.parquet"))?;
 ```
 
 **Generated Parquet**:
@@ -62,17 +61,16 @@ to_parquet(&doc, file)?;
 ### Custom Configuration
 
 ```rust
-use hedl_parquet::{to_parquet_with_config, ParquetConfig, Compression};
+use hedl_parquet::{to_parquet_with_config, ToParquetConfig};
+use parquet::basic::Compression;
+use std::path::Path;
 
-let config = ParquetConfig::builder()
-    .compression(Compression::ZSTD)          // ZSTD compression
-    .row_group_size(10000)                   // 10K rows per group
-    .include_metadata(true)                  // Include HEDL metadata
-    .max_columns(500)                        // Limit column count
-    .build();
+let config = ToParquetConfig {
+    compression: Compression::ZSTD(Default::default()),
+    ..Default::default()
+};
 
-let file = File::create("users.parquet")?;
-to_parquet_with_config(&doc, file, &config)?;
+to_parquet_with_config(&doc, Path::new("users.parquet"), &config)?;
 ```
 
 ### Parquet → HEDL
@@ -81,15 +79,14 @@ Import Parquet file back to HEDL:
 
 ```rust
 use hedl_parquet::from_parquet;
-use std::fs::File;
+use std::path::Path;
 
-let file = File::open("users.parquet")?;
-let doc = from_parquet(file)?;
+let doc = from_parquet(Path::new("users.parquet"))?;
 
 // Use HEDL's structured API
 println!("Version: {}.{}", doc.version.0, doc.version.1);
-for (type_name, entities) in &doc.entities {
-    println!("{}: {} entities", type_name, entities.len());
+for (key, item) in &doc.root {
+    println!("{}: {:?}", key, item);
 }
 ```
 
@@ -100,7 +97,7 @@ for (type_name, entities) in &doc.entities {
 Fast compression with moderate compression ratios:
 
 ```rust
-.compression(Compression::SNAPPY)
+Compression::SNAPPY
 ```
 
 **Characteristics**:
@@ -115,7 +112,7 @@ Fast compression with moderate compression ratios:
 High compression ratios at cost of speed:
 
 ```rust
-.compression(Compression::GZIP)
+Compression::GZIP(Default::default())
 ```
 
 **Characteristics**:
@@ -130,7 +127,7 @@ High compression ratios at cost of speed:
 Modern compression with excellent speed/ratio balance:
 
 ```rust
-.compression(Compression::ZSTD)
+Compression::ZSTD(Default::default())
 ```
 
 **Characteristics**:
@@ -145,7 +142,7 @@ Modern compression with excellent speed/ratio balance:
 No compression (raw columnar storage):
 
 ```rust
-.compression(Compression::UNCOMPRESSED)
+Compression::UNCOMPRESSED
 ```
 
 **Characteristics**:
@@ -168,8 +165,8 @@ Value::Bool(true)           → arrow::datatypes::DataType::Boolean
 Value::Null                 → null value in nullable column
 
 // References serialized as strings
-Value::Reference(qualified("User", "alice"))  → "@User:alice" (Utf8)
-Value::Reference(local("item1"))             → "@item1" (Utf8)
+Value::Reference(hedl_core::Reference::qualified("User", "alice"))  → "@User:alice" (Utf8)
+Value::Reference(hedl_core::Reference::local("item1"))              → "@item1" (Utf8)
 
 // Expressions evaluated then converted
 Value::Expression("$(1+2)") → 3 (Int64)
@@ -212,19 +209,17 @@ Schema {
 
 ## Configuration Reference
 
-### ParquetConfig
+### ToParquetConfig
 
 ```rust
-use hedl_parquet::{ParquetConfig, Compression};
+use hedl_parquet::ToParquetConfig;
+use parquet::basic::Compression;
 
-let config = ParquetConfig::builder()
-    .compression(Compression::SNAPPY)        // Compression algorithm
-    .row_group_size(1000)                    // Rows per row group (default: 1000)
-    .include_metadata(true)                  // Include HEDL metadata (default: true)
-    .max_columns(1000)                       // Maximum columns (default: 1000)
-    .max_decompression_size(100 * 1024 * 1024)  // 100 MB bomb protection
-    .preserve_order(true)                    // Maintain insertion order (default: true)
-    .build();
+let config = ToParquetConfig {
+    compression: Compression::SNAPPY,        // Compression algorithm
+    enable_dictionary: true,                 // Dictionary encoding (default: true)
+    ..Default::default()
+};
 ```
 
 ### Configuration Options
@@ -234,29 +229,22 @@ let config = ParquetConfig::builder()
 - Options: SNAPPY, GZIP, ZSTD, UNCOMPRESSED
 - Trade-off: speed vs size
 
-**row_group_size** (default: 1000)
-- Rows per Parquet row group
-- Affects query performance and memory usage
-- Recommendation: 1000-10000 for most cases
+**enable_dictionary** (default: true)
+- Enable dictionary encoding for string columns
+- Significantly improves compression for low-cardinality columns
 
-**include_metadata** (default: true)
-- Include HEDL metadata in Parquet schema
-- Required for roundtrip fidelity
-- Disable if targeting systems that don't handle custom metadata
+**writer_version** (default: WriterVersion::PARQUET_2_0)
+- Parquet writer version for compatibility
 
-**max_columns** (default: 1000)
-- Maximum allowed columns per schema
-- Security limit to prevent resource exhaustion
-- Raise for wide schemas (>1000 columns)
+**statistics** (default: EnabledStatistics::Chunk)
+- Controls what column statistics are written
+- Options: EnabledStatistics::None, EnabledStatistics::Chunk, EnabledStatistics::Page
 
-**max_decompression_size** (default: 100 MB)
-- Decompression bomb protection
-- Prevents memory exhaustion from malicious compressed data
-- Raise for legitimate large files
+**coerce_types** (default: false)
+- Controls how type mismatches are handled
+- `false` (recommended): Type mismatches write null
+- `true`: Type mismatches coerce to default values (0, false, "")
 
-**preserve_order** (default: true)
-- Maintain entity insertion order during conversion
-- Disable for performance if order doesn't matter
 
 ## Security Features
 
@@ -265,10 +253,10 @@ let config = ParquetConfig::builder()
 Prevents memory exhaustion from malicious compressed Parquet:
 
 ```rust
-const MAX_DECOMPRESSION_SIZE: usize = 100 * 1024 * 1024;  // 100 MB
+// Internal constant: MAX_DECOMPRESSED_SIZE = 100 MB
 
 // Reading compressed file that decompresses to > 100 MB:
-// Error: ParquetError::DecompressionBombDetected { size: 500MB, max: 100MB }
+// Returns HedlError::security("Decompressed size exceeds limit...")
 ```
 
 **Protection Against**:
@@ -281,10 +269,10 @@ const MAX_DECOMPRESSION_SIZE: usize = 100 * 1024 * 1024;  // 100 MB
 Prevents resource exhaustion from wide schemas:
 
 ```rust
-const MAX_COLUMNS: usize = 1000;
+// Internal constant: MAX_COLUMNS = 1000
 
 // Processing schema with > 1000 columns:
-// Error: ParquetError::TooManyColumns { count: 1500, max: 1000 }
+// Returns HedlError::security("Schema exceeds maximum column count: 1500 (max: 1000)")
 ```
 
 **Protection Against**:
@@ -298,7 +286,7 @@ All integer operations checked for overflow:
 
 ```rust
 // Safe arithmetic on column counts, row counts, buffer sizes
-// Panics prevented, returns error on overflow
+// Panics prevented, returns HedlError on overflow
 ```
 
 ## Position Preservation
@@ -316,63 +304,58 @@ users: @User
 
 **When Importing**: Rows reconstructed in same order
 
-**Configuration**:
-```rust
-.preserve_order(true)  // Maintain order (default)
-.preserve_order(false) // Allow reordering for optimization
-```
+**Note**: Row order is always preserved. The Parquet writer processes rows sequentially.
 
 ## Batch Processing
 
-Write multiple entity lists to separate Parquet files:
+Process multiple documents to separate Parquet files:
 
 ```rust
-use hedl_parquet::{write_entity_list, ParquetConfig};
+use hedl_parquet::to_parquet;
+use hedl_core::parse;
+use std::path::Path;
 
-let config = ParquetConfig::default();
-
-// Write each entity list to separate file
-for (type_name, entities) in &doc.entities {
-    let filename = format!("{}.parquet", type_name.to_lowercase());
-    let file = File::create(&filename)?;
-    write_entity_list(type_name, entities, file, &config)?;
+// Write each document to separate file
+for file_path in hedl_files {
+    let content = std::fs::read(&file_path)?;
+    let doc = parse(&content)?;
+    let output_path = file_path.with_extension("parquet");
+    to_parquet(&doc, &output_path)?;
 }
 ```
 
 **Benefits**:
-- Independent file per entity type
+- Independent file per document
 - Parallel processing possible
-- Selective loading (load only needed types)
+- Selective loading (load only needed files)
 
 ## Error Handling
 
-```rust
-use hedl_parquet::{to_parquet, ParquetError};
+All functions return `Result<T, HedlError>` from `hedl-core`:
 
-match to_parquet(&doc, file) {
+```rust
+use hedl_parquet::to_parquet;
+use hedl_core::HedlError;
+use std::path::Path;
+
+match to_parquet(&doc, Path::new("output.parquet")) {
     Ok(()) => println!("Export successful"),
-    Err(ParquetError::TooManyColumns { count, max }) => {
-        eprintln!("Schema too wide: {} columns (max: {})", count, max);
+    Err(e) if matches!(e.kind, hedl_core::HedlErrorKind::Security) => {
+        eprintln!("Security error: {}", e);
     }
-    Err(ParquetError::DecompressionBombDetected { size, max }) => {
-        eprintln!("File too large after decompression: {} bytes (max: {})",
-            size, max);
-    }
-    Err(ParquetError::UnsupportedType { type_name, field }) => {
-        eprintln!("Unsupported type '{}' in field '{}'", type_name, field);
+    Err(e) if matches!(e.kind, hedl_core::HedlErrorKind::IO) => {
+        eprintln!("I/O error: {}", e);
     }
     Err(e) => eprintln!("Error: {}", e),
 }
 ```
 
-### Error Types
+### Error Categories
 
-- `TooManyColumns` - Schema exceeds column limit
-- `DecompressionBombDetected` - Decompressed size exceeds limit
-- `UnsupportedType` - Value type cannot be represented in Parquet
-- `SchemaConflict` - Inconsistent types within column
-- `Arrow(arrow::error::ArrowError)` - Arrow library errors
-- `Io(std::io::Error)` - I/O failures
+- **Security errors**: Column count exceeded, decompression bomb detected
+- **Conversion errors**: Unsupported types, schema inference failures
+- **I/O errors**: File access, permission issues
+- **Arrow errors**: Underlying Arrow/Parquet library errors
 
 ## Use Cases
 
@@ -416,7 +399,7 @@ match to_parquet(&doc, file) {
 
 ## Dependencies
 
-- `hedl-core` 1.0 - Core HEDL implementation
+- `hedl-core` 1.2 - Core HEDL implementation
 - `arrow` 57.0 - Apache Arrow columnar format
 - `parquet` 57.0 - Apache Parquet file format
 - `thiserror` 1.0 - Error type definitions

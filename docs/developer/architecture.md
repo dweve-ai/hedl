@@ -54,7 +54,6 @@ graph TB
     HEDL --> CORE
     HEDL --> C14N
     HEDL --> LINT
-    HEDL --> STREAM
     HEDL --> JSON
     HEDL --> YAML
     HEDL --> XML
@@ -75,7 +74,7 @@ graph TB
     LINT --> CORE
     STREAM --> CORE
 
-    TEST --> BENCH
+    BENCH --> TEST
 ```
 
 ## Architectural Layers
@@ -97,6 +96,7 @@ The foundation of the HEDL system.
 ```rust
 pub struct Document {
     pub version: (u32, u32),
+    pub schema_versions: BTreeMap<String, SchemaVersion>,
     pub aliases: BTreeMap<String, String>,
     pub structs: BTreeMap<String, Vec<String>>,
     pub nests: BTreeMap<String, String>,
@@ -114,10 +114,10 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
-    Tensor(Tensor),
+    String(Box<str>),           // Box<str> reduces enum size
+    Tensor(Box<Tensor>),        // Boxed to reduce enum size
     Reference(Reference),
-    Expression(Expression),
+    Expression(Box<Expression>), // Boxed to reduce enum size
 }
 ```
 
@@ -181,7 +181,7 @@ pub enum Value {
 **API Design:**
 ```rust
 // Simple parsing
-let doc = hedl::parse(text)?;
+let doc = hedl::parse(text.as_bytes())?;
 
 // With options
 let options = hedl::ParseOptions::builder().max_depth(50).build();
@@ -191,8 +191,8 @@ let doc = hedl::parse_with_limits(text.as_bytes(), options)?;
 let output = hedl::c14n::canonicalize(&doc)?;
 
 // Format conversion
-let json = hedl::json::to_json(&doc)?;
-let yaml = hedl::yaml::to_yaml(&doc)?;
+let json = hedl::json::hedl_to_json(&doc)?;
+let yaml = hedl::yaml::hedl_to_yaml(&doc)?;
 ```
 
 ### 3. Format Conversion Layer
@@ -281,6 +281,8 @@ hedl to-json <file>         # Convert to JSON
 hedl from-json <file>       # Convert from JSON
 ```
 
+**Note**: The CLI includes all format converters (YAML, XML, CSV, Parquet, TOON) but excludes Neo4j. Neo4j support is available through the `hedl-neo4j` crate directly.
+
 **Features:**
 - Colored output
 - Progress bars for large files
@@ -345,16 +347,22 @@ if (doc) {
 - Promise-based async operations
 - TypeScript type definitions
 - Browser and Node.js support
+- **JSON conversion only** (YAML, XML, CSV, etc. not available in WASM)
 
 **Example:**
 ```javascript
-import init, { parse } from './hedl_wasm.js';
+import init, { parse, toJsonString, fromJsonString } from './hedl_wasm.js';
 
 await init();
 const doc = parse(hedlText);
-const json = doc.toJsonString();  // Method on HedlDocument
+const json = toJsonString(doc);  // JSON output
 console.log(json);
+
+// Parse from JSON
+const doc2 = fromJsonString(jsonText);
 ```
+
+**Note**: The WASM build excludes optional format adapters (YAML, XML, CSV, Parquet, Neo4j) to minimize bundle size. Only HEDL parsing and JSON conversion are available.
 
 ### 6. Support Layer
 
@@ -461,7 +469,7 @@ Compile-time validation of configuration:
 
 ```rust
 let options = ParseOptions::builder()
-    .strict(true)
+    .reference_mode(ReferenceMode::Strict)
     .max_depth(50)
     .build();
 ```
@@ -650,7 +658,7 @@ GitHub Actions for:
 - Build (Linux, macOS, Windows)
 - Test (all crates)
 - Lint (clippy, fmt)
-- Coverage (tarpaulin)
+- Coverage (llvm-cov)
 - Benchmarks (criterion)
 - Security audit (cargo-audit)
 

@@ -146,7 +146,7 @@ fn example_multithreaded_operations() {
             std::thread::spawn(move || {
                 unsafe {
                     let input =
-                        CString::new(format!("%VERSION: 1.0\n---\nthread: {}\ndata: test\n", i))
+                        CString::new(format!("%VERSION: 1.0\n---\nthread: {i}\ndata: test\n"))
                             .unwrap();
 
                     let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -176,7 +176,7 @@ fn example_multithreaded_operations() {
 
 /// Example 5: Using environment variables to control logging.
 ///
-/// This demonstrates how RUST_LOG environment variable can be used
+/// This demonstrates how `RUST_LOG` environment variable can be used
 /// to dynamically control audit log verbosity.
 fn example_env_var_configuration() {
     info!("=== Example 5: Environment Variable Configuration ===");

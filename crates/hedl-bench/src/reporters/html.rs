@@ -47,7 +47,7 @@ pub fn export_html(report: &BenchmarkReport, path: &Path) -> io::Result<()> {
     if !report.notes.is_empty() {
         html.push_str("<h2>Notes</h2>\n<ul>\n");
         for note in &report.notes {
-            html.push_str(&format!("<li>{}</li>\n", note));
+            html.push_str(&format!("<li>{note}</li>\n"));
         }
         html.push_str("</ul>\n");
     }
@@ -58,8 +58,7 @@ pub fn export_html(report: &BenchmarkReport, path: &Path) -> io::Result<()> {
     for result in &report.results {
         let throughput: String = result
             .throughput_mbs()
-            .map(|t| format!("{:.2} MB/s", t))
-            .unwrap_or_else(|| "N/A".to_string());
+            .map_or_else(|| "N/A".to_string(), |t| format!("{t:.2} MB/s"));
 
         html.push_str(&format!(
             "<tr><td>{}</td><td>{:?}</td><td>{}</td><td>{}</td></tr>\n",

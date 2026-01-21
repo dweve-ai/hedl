@@ -189,12 +189,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read file
     let content = std::fs::read_to_string(&args.file)?;
 
-    // Parse
-    let doc = if args.strict {
-        parse(&content)?
-    } else {
-        hedl::parse_lenient(&content)?
-    };
+    // Parse with reference mode based on --strict flag
+    let opts = ParseOptions::builder()
+        .reference_mode(if args.strict {
+            ReferenceMode::Strict
+        } else {
+            ReferenceMode::Lenient
+        })
+        .build();
+    let doc = hedl::parse_with_limits(content.as_bytes(), opts)?;
 
     // Lint
     let diagnostics = lint(&doc);
@@ -286,7 +289,8 @@ Key considerations for language bindings:
 **Core traversal function** (from `hedl-core/src/traverse.rs`):
 
 ```rust
-use hedl_core::{traverse, Document, DocumentVisitor, VisitorContext, Item, Value};
+use hedl_core::traverse::{traverse, DocumentVisitor, VisitorContext};
+use hedl_core::{Document, Node, Value, MatrixList};
 
 pub struct CustomVisitor {
     // Visitor state
@@ -295,31 +299,32 @@ pub struct CustomVisitor {
 impl DocumentVisitor for CustomVisitor {
     type Error = hedl_core::HedlError;
 
-    fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
-        // Visit all root items
-        for (key, item) in &doc.root {
-            self.visit_item(key, item)?;
-        }
+    fn visit_scalar(&mut self, key: &str, value: &Value, ctx: &VisitorContext) -> Result<(), Self::Error> {
+        // Process scalar values (key-value pairs)
+        println!("Scalar at depth {}: {} = {:?}", ctx.depth, key, value);
         Ok(())
     }
 
-    fn visit_item(&mut self, key: &str, item: &Item) -> Result<(), Self::Error> {
-        match item {
-            Item::Scalar(v) => { /* process scalar */ }
-            Item::Object(children) => {
-                for (child_key, child_item) in children {
-                    self.visit_item(child_key, child_item)?;
-                }
-            }
-            Item::List(matrix) => { /* process matrix list */ }
-        }
+    fn visit_node(&mut self, node: &Node, schema: &[String], ctx: &VisitorContext) -> Result<(), Self::Error> {
+        // Process matrix list rows
+        println!("Node at depth {}: id={}", ctx.depth, node.id);
+        Ok(())
+    }
+
+    fn begin_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
+        println!("Entering object: {}", key);
+        Ok(())
+    }
+
+    fn end_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
+        println!("Leaving object: {}", key);
         Ok(())
     }
 }
 
-// Usage
+// Usage: traverse handles the recursive walking
 let mut visitor = CustomVisitor::new();
-visitor.visit_document(&doc)?;
+traverse(&doc, &mut visitor)?;
 ```
 
 ### Example: Statistics Collector (Currently Implemented)
@@ -347,14 +352,21 @@ pub struct ReferenceCollector {
 }
 
 impl DocumentVisitor for ReferenceCollector {
-    fn visit_value(&mut self, value: &Value, _ctx: &VisitorContext) -> Result<(), HedlError> {
-        if let Value::Reference(ref r) = value {
-            let ref_str = if let Some(type_name) = &r.type_name {
-                format!("@{}:{}", type_name, r.id)
-            } else {
-                format!("@{}", r.id)
-            };
-            self.references.push(ref_str);
+    type Error = std::convert::Infallible;
+
+    fn visit_scalar(&mut self, _key: &str, value: &Value, _ctx: &VisitorContext) -> Result<(), Self::Error> {
+        if let Value::Reference(r) = value {
+            self.references.push(r.to_string());
+        }
+        Ok(())
+    }
+
+    fn visit_node(&mut self, node: &Node, _schema: &[String], _ctx: &VisitorContext) -> Result<(), Self::Error> {
+        // Check node fields for references
+        for value in &node.fields {
+            if let Value::Reference(r) = value {
+                self.references.push(r.to_string());
+            }
         }
         Ok(())
     }
@@ -394,20 +406,21 @@ impl LintRule for NoLongKeysRule {
         impl DocumentVisitor for KeyLengthVisitor {
             type Error = std::convert::Infallible;
 
-            fn visit_item(&mut self, _item: &Item, ctx: &VisitorContext) -> Result<(), Self::Error> {
-                if let Some(key) = ctx.current_key() {
-                    if key.len() > self.max_length {
-                        self.diagnostics.push(Diagnostic {
-                            kind: DiagnosticKind::Style,
-                            severity: Severity::Warning,
-                            message: format!(
-                                "Key '{}' exceeds maximum length of {} characters",
-                                key, self.max_length
-                            ),
-                            position: ctx.position,
-                        });
-                    }
+            fn visit_scalar(&mut self, key: &str, _value: &Value, _ctx: &VisitorContext) -> Result<(), Self::Error> {
+                if key.len() > self.max_length {
+                    self.diagnostics.push(Diagnostic::new(
+                        Severity::Warning,
+                        DiagnosticKind::Custom("no-long-keys".into()),
+                        format!(
+                            "Key '{}' exceeds maximum length of {} characters",
+                            key, self.max_length
+                        ),
+                    ));
                 }
+                Ok(())
+            }
+
+            fn visit_node(&mut self, _node: &Node, _schema: &[String], _ctx: &VisitorContext) -> Result<(), Self::Error> {
                 Ok(())
             }
         }
@@ -462,16 +475,19 @@ impl LintRule for CustomRule {
         impl DocumentVisitor for RuleVisitor {
             type Error = std::convert::Infallible;
 
-            fn visit_item(&mut self, item: &Item, ctx: &VisitorContext) -> Result<(), Self::Error> {
+            fn visit_scalar(&mut self, key: &str, value: &Value, _ctx: &VisitorContext) -> Result<(), Self::Error> {
                 // Custom validation logic
                 // if /* condition */ {
                 //     self.diagnostics.push(Diagnostic::new(
-                //         &self.rule_name,
                 //         self.severity,
-                //         "Rule violation message",
-                //         ctx.position,
+                //         DiagnosticKind::Custom(self.rule_name.clone()),
+                //         "Rule violation message".to_string(),
                 //     ));
                 // }
+                Ok(())
+            }
+
+            fn visit_node(&mut self, _node: &Node, _schema: &[String], _ctx: &VisitorContext) -> Result<(), Self::Error> {
                 Ok(())
             }
         }

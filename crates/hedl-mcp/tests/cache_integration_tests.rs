@@ -213,7 +213,7 @@ fn test_cache_correctness_query() {
     let result_all = hedl_mcp::tools::execute_hedl_query(Some(args_all.clone())).unwrap();
     let result_all_json = serde_json::to_value(&result_all).unwrap();
 
-    let cache_key_all = format!("{}:::true", hedl);
+    let cache_key_all = format!("{hedl}:::true");
     cache.insert("query", &cache_key_all, result_all_json.clone());
 
     // Query specific user
@@ -221,7 +221,7 @@ fn test_cache_correctness_query() {
     let result_alice = hedl_mcp::tools::execute_hedl_query(Some(args_alice.clone())).unwrap();
     let result_alice_json = serde_json::to_value(&result_alice).unwrap();
 
-    let cache_key_alice = format!("{}::alice:true", hedl);
+    let cache_key_alice = format!("{hedl}::alice:true");
     cache.insert("query", &cache_key_alice, result_alice_json.clone());
 
     // Verify different queries are cached separately
@@ -244,7 +244,7 @@ fn test_cache_correctness_stats() {
     let result_simple = hedl_mcp::tools::execute_hedl_stats(Some(args_simple.clone())).unwrap();
     let result_simple_json = serde_json::to_value(&result_simple).unwrap();
 
-    let cache_key_simple = format!("{}:simple", hedl);
+    let cache_key_simple = format!("{hedl}:simple");
     cache.insert("stats", &cache_key_simple, result_simple_json.clone());
 
     // Verify cached result
@@ -347,7 +347,7 @@ fn test_cache_memory_bounds() {
 
     // Insert more than capacity
     for i in 0..100 {
-        cache.insert("op", &format!("input{}", i), json!(i));
+        cache.insert("op", &format!("input{i}"), json!(i));
     }
 
     // Cache size should not exceed max_size

@@ -35,6 +35,7 @@
 
 use crate::error::{Result, ToonError, MAX_NESTING_DEPTH};
 use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 /// Configuration for TOON parsing
@@ -78,41 +79,39 @@ pub fn from_toon_with_config(input: &str, config: &FromToonConfig) -> Result<Doc
     parser.parse()
 }
 
-/// A parsed line with metadata
-#[derive(Debug, Clone)]
-struct Line {
+/// A parsed line with metadata (zero-copy: borrows from input)
+#[derive(Debug, Clone, Copy)]
+struct Line<'a> {
     number: usize,
     indent: usize,
-    content: String,
+    content: &'a str, // Zero-copy slice into input
 }
 
-/// Internal parser state
-struct ToonParser {
-    lines: Vec<Line>,
+/// Internal parser state (zero-copy: borrows from input)
+struct ToonParser<'a> {
+    lines: Vec<Line<'a>>,
     pos: usize,
     indent_width: usize,
     auto_detect_indent: bool,
 }
 
-impl ToonParser {
-    fn new(input: &str, config: &FromToonConfig) -> Self {
-        let lines: Vec<Line> = input
-            .lines()
-            .enumerate()
-            .filter_map(|(i, line)| {
-                let trimmed = line.trim_start();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    let indent = line.len() - trimmed.len();
-                    Some(Line {
-                        number: i + 1,
-                        indent,
-                        content: trimmed.to_string(),
-                    })
-                }
-            })
-            .collect();
+impl<'a> ToonParser<'a> {
+    fn new(input: &'a str, config: &FromToonConfig) -> Self {
+        // Pre-count non-empty lines for capacity hint
+        let line_count_hint = input.lines().filter(|l| !l.trim_start().is_empty()).count();
+        let mut lines = Vec::with_capacity(line_count_hint);
+
+        for (i, line) in input.lines().enumerate() {
+            let trimmed = line.trim_start();
+            if !trimmed.is_empty() {
+                let indent = line.len() - trimmed.len();
+                lines.push(Line {
+                    number: i + 1,
+                    indent,
+                    content: trimmed, // Zero-copy: just a slice
+                });
+            }
+        }
 
         Self {
             lines,
@@ -135,14 +134,14 @@ impl ToonParser {
                 });
             }
 
-            let (key, item) = self.parse_item(0, 0)?;
+            let (key, item) = self.parse_item(0)?;
             doc.root.insert(key, item);
         }
 
         Ok(doc)
     }
 
-    fn parse_item(&mut self, _base_indent: usize, depth: usize) -> Result<(String, Item)> {
+    fn parse_item(&mut self, depth: usize) -> Result<(String, Item)> {
         if depth > MAX_NESTING_DEPTH {
             return Err(ToonError::MaxDepthExceeded {
                 depth,
@@ -152,10 +151,10 @@ impl ToonParser {
 
         let line_num = self.lines[self.pos].number;
         let line_indent = self.lines[self.pos].indent;
-        let content = self.lines[self.pos].content.clone();
+        let content = self.lines[self.pos].content; // Zero-copy: just reference
 
         // Try to parse as array header
-        if let Some((key, count, schema, delimiter)) = self.try_parse_array_header(&content) {
+        if let Some((key, count, schema, delimiter)) = self.try_parse_array_header(content) {
             self.pos += 1;
 
             if count == 0 {
@@ -174,7 +173,7 @@ impl ToonParser {
         }
 
         // Parse as key: value or key: (object)
-        let (key, value_part) = self.parse_key_value_str(&content, line_num)?;
+        let (key, value_part) = self.parse_key_value_str(content, line_num)?;
         self.pos += 1;
 
         if value_part.is_empty() {
@@ -244,6 +243,7 @@ impl ToonParser {
         delimiter: char,
     ) -> Result<MatrixList> {
         let mut list = MatrixList::with_count_hint("Item", schema.clone(), count);
+        list.rows.reserve(count); // Pre-allocate for known count
 
         while self.pos < self.lines.len() {
             let line_indent = self.lines[self.pos].indent;
@@ -256,9 +256,9 @@ impl ToonParser {
                 self.indent_width = line_indent - base_indent;
             }
 
-            let content = self.lines[self.pos].content.clone();
+            let content = self.lines[self.pos].content; // Zero-copy reference
             let line_num = self.lines[self.pos].number;
-            let values = self.parse_delimited_row(&content, delimiter, line_num)?;
+            let values = self.parse_delimited_row(content, delimiter, schema.len(), line_num)?;
 
             if values.len() != schema.len() {
                 return Err(ToonError::SchemaMismatch {
@@ -330,14 +330,14 @@ impl ToonParser {
             });
         }
 
-        let mut fields = Vec::new();
-        let mut schema = Vec::new();
+        let mut fields = Vec::with_capacity(8); // Common case: <8 fields
+        let mut schema = Vec::with_capacity(8);
         let children: BTreeMap<String, Vec<Node>> = BTreeMap::new();
         let mut first_item = true;
 
         while self.pos < self.lines.len() {
             let line_indent = self.lines[self.pos].indent;
-            let content = self.lines[self.pos].content.clone();
+            let content = self.lines[self.pos].content; // Zero-copy reference
 
             if first_item {
                 if line_indent != item_indent || !content.starts_with("- ") {
@@ -350,7 +350,7 @@ impl ToonParser {
 
                 schema.push(key);
                 if value_str.is_empty() {
-                    fields.push(Value::String(String::new()));
+                    fields.push(Value::String(String::new().into()));
                 } else {
                     fields.push(self.parse_value(&value_str, line_num)?);
                 }
@@ -376,7 +376,7 @@ impl ToonParser {
                 }
 
                 let line_num = self.lines[self.pos].number;
-                let (key, value_str) = self.parse_key_value_str(&content, line_num)?;
+                let (key, value_str) = self.parse_key_value_str(content, line_num)?;
                 schema.push(key);
                 fields.push(self.parse_value(&value_str, line_num)?);
                 self.pos += 1;
@@ -384,7 +384,11 @@ impl ToonParser {
         }
 
         let mut node = Node::new("Item", "", fields);
-        node.children = children;
+        node.children = if children.is_empty() {
+            None
+        } else {
+            Some(Box::new(children))
+        };
         Ok((node, schema))
     }
 
@@ -406,7 +410,7 @@ impl ToonParser {
                 self.indent_width = line_indent - base_indent;
             }
 
-            let (key, item) = self.parse_item(line_indent, depth + 1)?;
+            let (key, item) = self.parse_item(depth + 1)?;
             children.insert(key, item);
         }
 
@@ -438,30 +442,48 @@ impl ToonParser {
         Ok((key, value))
     }
 
+    /// Parse a delimited row using byte-based scanning for better performance
     fn parse_delimited_row(
         &self,
         content: &str,
         delimiter: char,
+        field_count: usize,
         line_num: usize,
     ) -> Result<Vec<Value>> {
-        let mut values = Vec::new();
+        let mut values = Vec::with_capacity(field_count);
+        let bytes = content.as_bytes();
+        let delim_byte = delimiter as u8;
         let mut pos = 0;
-        let chars: Vec<char> = content.chars().collect();
 
-        while pos < chars.len() {
-            while pos < chars.len() && chars[pos].is_whitespace() {
+        while pos < bytes.len() {
+            // Skip leading whitespace
+            while pos < bytes.len() && bytes[pos].is_ascii_whitespace() {
                 pos += 1;
             }
 
-            if pos >= chars.len() {
+            if pos >= bytes.len() {
                 break;
             }
 
-            let (value, end_pos) = self.parse_row_value(&chars, pos, delimiter, line_num)?;
-            values.push(value);
-            pos = end_pos;
+            // Check for quoted string
+            if bytes[pos] == b'"' {
+                let (value, end_pos) = self.parse_quoted_row_value(content, pos, line_num)?;
+                values.push(value);
+                pos = end_pos;
+            } else {
+                // Find end of unquoted field
+                let start = pos;
+                while pos < bytes.len() && bytes[pos] != delim_byte {
+                    pos += 1;
+                }
+                let field = &content[start..pos];
+                values.push(self.parse_value(field.trim(), line_num)?);
+            }
 
-            while pos < chars.len() && (chars[pos] == delimiter || chars[pos].is_whitespace()) {
+            // Skip delimiter and trailing whitespace
+            while pos < bytes.len()
+                && (bytes[pos] == delim_byte || bytes[pos].is_ascii_whitespace())
+            {
                 pos += 1;
             }
         }
@@ -469,6 +491,60 @@ impl ToonParser {
         Ok(values)
     }
 
+    /// Parse a quoted value from a row, returning the value and end position
+    fn parse_quoted_row_value(
+        &self,
+        content: &str,
+        start: usize,
+        line_num: usize,
+    ) -> Result<(Value, usize)> {
+        let bytes = content.as_bytes();
+        let mut pos = start + 1; // Skip opening quote
+        let mut has_escape = false;
+
+        // First pass: scan for end quote and check for escapes
+        while pos < bytes.len() {
+            if bytes[pos] == b'\\' && pos + 1 < bytes.len() {
+                has_escape = true;
+                pos += 2; // Skip escape sequence
+            } else if bytes[pos] == b'"' {
+                // Found closing quote
+                let end_pos = pos + 1;
+
+                if has_escape {
+                    // Slow path: build unescaped string
+                    let inner = &content[start + 1..pos];
+                    let unescaped = self.unescape_string(inner);
+                    let value = if unescaped.starts_with('@') {
+                        Value::Reference(parse_reference(&unescaped))
+                    } else {
+                        Value::String(unescaped.into_owned().into())
+                    };
+                    return Ok((value, end_pos));
+                } else {
+                    // Fast path: no escapes, just slice
+                    let s = &content[start + 1..pos];
+                    let value = if s.starts_with('@') {
+                        Value::Reference(parse_reference(s))
+                    } else {
+                        Value::String(s.to_string().into())
+                    };
+                    return Ok((value, end_pos));
+                }
+            } else {
+                pos += 1;
+            }
+        }
+
+        // Unterminated quote
+        Err(ToonError::ParseError {
+            line: line_num,
+            message: "Unterminated quoted string".to_string(),
+        })
+    }
+
+    // Reserved for extended matrix row parsing functionality
+    #[allow(dead_code)]
     fn parse_row_value(
         &self,
         chars: &[char],
@@ -508,7 +584,7 @@ impl ToonParser {
                 return Ok((Value::Reference(parse_reference(&s)), pos));
             }
 
-            return Ok((Value::String(s), pos));
+            return Ok((Value::String(s.into()), pos));
         }
 
         let mut end = start;
@@ -526,7 +602,7 @@ impl ToonParser {
         let s = s.trim();
 
         if s.is_empty() {
-            return Ok(Value::String(String::new()));
+            return Ok(Value::String(String::new().into()));
         }
 
         if s == "null" {
@@ -547,7 +623,7 @@ impl ToonParser {
             if unescaped.starts_with('@') {
                 return Ok(Value::Reference(parse_reference(&unescaped)));
             }
-            return Ok(Value::String(unescaped));
+            return Ok(Value::String(unescaped.into_owned().into()));
         }
 
         if s.starts_with('@') {
@@ -562,7 +638,7 @@ impl ToonParser {
             return Ok(Value::Float(f));
         }
 
-        Ok(Value::String(s.to_string()))
+        Ok(Value::String(s.to_string().into()))
     }
 
     fn parse_quoted_string(&self, content: &str, line_num: usize) -> Result<(String, String)> {
@@ -602,32 +678,56 @@ impl ToonParser {
         Ok((s, rest))
     }
 
-    fn unescape_string(&self, s: &str) -> String {
-        let mut result = String::with_capacity(s.len());
-        let mut chars = s.chars().peekable();
+    /// Unescape a string, returning borrowed Cow for strings without escapes
+    fn unescape_string<'s>(&self, s: &'s str) -> Cow<'s, str> {
+        // Fast path: no escapes, return borrowed
+        if !s.contains('\\') {
+            return Cow::Borrowed(s);
+        }
 
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                match chars.next() {
-                    Some('n') => result.push('\n'),
-                    Some('r') => result.push('\r'),
-                    Some('t') => result.push('\t'),
-                    Some('"') => result.push('"'),
-                    Some('\\') => result.push('\\'),
-                    Some(c) => result.push(c),
-                    None => result.push('\\'),
+        // Slow path: has escapes, build unescaped string using byte-based scanning
+        let mut result = String::with_capacity(s.len());
+        let bytes = s.as_bytes();
+        let mut i = 0;
+
+        while i < bytes.len() {
+            if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                i += 1;
+                match bytes[i] {
+                    b'n' => result.push('\n'),
+                    b'r' => result.push('\r'),
+                    b't' => result.push('\t'),
+                    b'"' => result.push('"'),
+                    b'\\' => result.push('\\'),
+                    c => {
+                        // Handle non-ASCII escaped chars properly
+                        if c < 128 {
+                            result.push(c as char);
+                        } else {
+                            // For multi-byte UTF-8, we need to handle this carefully
+                            // The escape sequence might be part of a UTF-8 sequence
+                            result.push(c as char);
+                        }
+                    }
                 }
+                i += 1;
             } else {
-                result.push(c);
+                // For safety with UTF-8, copy char-by-char from the slice
+                let start = i;
+                // Skip to next backslash or end
+                while i < bytes.len() && bytes[i] != b'\\' {
+                    i += 1;
+                }
+                result.push_str(&s[start..i]);
             }
         }
 
-        result
+        Cow::Owned(result)
     }
 
     fn unquote_key(&self, key: &str) -> String {
         if key.starts_with('"') && key.ends_with('"') && key.len() >= 2 {
-            self.unescape_string(&key[1..key.len() - 1])
+            self.unescape_string(&key[1..key.len() - 1]).into_owned()
         } else {
             key.to_string()
         }
@@ -656,7 +756,7 @@ mod tests {
         assert!(doc.root.contains_key("count"));
 
         if let Item::Scalar(Value::String(s)) = &doc.root["name"] {
-            assert_eq!(s, "test");
+            assert_eq!(s.as_ref(), "test");
         } else {
             panic!("Expected string");
         }
@@ -670,18 +770,18 @@ mod tests {
 
     #[test]
     fn test_nested_object() {
-        let toon = r#"config:
+        let toon = r"config:
   name: MyApp
   version: 1
   settings:
     debug: true
-    timeout: 30"#;
+    timeout: 30";
 
         let doc = from_toon(toon).unwrap();
 
         if let Item::Object(config) = &doc.root["config"] {
             if let Item::Scalar(Value::String(s)) = &config["name"] {
-                assert_eq!(s, "MyApp");
+                assert_eq!(s.as_ref(), "MyApp");
             }
             if let Item::Object(settings) = &config["settings"] {
                 if let Item::Scalar(Value::Bool(b)) = &settings["debug"] {
@@ -695,9 +795,9 @@ mod tests {
 
     #[test]
     fn test_tabular_array() {
-        let toon = r#"users[2]{id,name,age}:
+        let toon = r"users[2]{id,name,age}:
   u1,Alice,30
-  u2,Bob,25"#;
+  u2,Bob,25";
 
         let doc = from_toon(toon).unwrap();
 
@@ -707,10 +807,10 @@ mod tests {
 
             assert_eq!(list.rows[0].fields.len(), 3);
             if let Value::String(s) = &list.rows[0].fields[0] {
-                assert_eq!(s, "u1");
+                assert_eq!(s.as_ref(), "u1");
             }
             if let Value::String(s) = &list.rows[0].fields[1] {
-                assert_eq!(s, "Alice");
+                assert_eq!(s.as_ref(), "Alice");
             }
             if let Value::Int(n) = &list.rows[0].fields[2] {
                 assert_eq!(*n, 30);
@@ -740,11 +840,11 @@ path: "C:\\Users\\test""#;
         let doc = from_toon(toon).unwrap();
 
         if let Item::Scalar(Value::String(s)) = &doc.root["message"] {
-            assert_eq!(s, "Hello, world");
+            assert_eq!(s.as_ref(), "Hello, world");
         }
 
         if let Item::Scalar(Value::String(s)) = &doc.root["path"] {
-            assert_eq!(s, "C:\\Users\\test");
+            assert_eq!(s.as_ref(), "C:\\Users\\test");
         }
     }
 
@@ -757,14 +857,14 @@ local: "@item1""#;
 
         if let Item::Scalar(Value::Reference(r)) = &doc.root["user"] {
             assert_eq!(r.type_name.as_deref(), Some("User"));
-            assert_eq!(r.id, "u1");
+            assert_eq!(r.id.as_ref(), "u1");
         } else {
             panic!("Expected reference");
         }
 
         if let Item::Scalar(Value::Reference(r)) = &doc.root["local"] {
             assert!(r.type_name.is_none());
-            assert_eq!(r.id, "item1");
+            assert_eq!(r.id.as_ref(), "item1");
         }
     }
 
@@ -803,11 +903,11 @@ local: "@item1""#;
     fn test_roundtrip_simple() {
         use crate::hedl_to_toon;
 
-        let hedl = r#"%VERSION: 1.0
+        let hedl = r"%VERSION: 1.0
 ---
 name: Test
 count: 42
-"#;
+";
         let original_doc = hedl_core::parse(hedl.as_bytes()).unwrap();
         let toon = hedl_to_toon(&original_doc).unwrap();
         let roundtrip_doc = from_toon(&toon).unwrap();

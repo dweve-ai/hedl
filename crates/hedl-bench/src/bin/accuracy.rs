@@ -105,8 +105,7 @@ fn parse_args() -> Args {
                         "openai" => Provider::OpenAI,
                         _ => {
                             eprintln!(
-                                "Unknown provider: {}. Use 'deepseek', 'mistral', or 'openai'",
-                                val
+                                "Unknown provider: {val}. Use 'deepseek', 'mistral', or 'openai'"
                             );
                             std::process::exit(1);
                         }
@@ -133,7 +132,7 @@ fn parse_args() -> Args {
                         "xml" => DataFormat::Xml,
                         "csv" => DataFormat::Csv,
                         _ => {
-                            eprintln!("Unknown format: {}. Use hedl/toon/json/yaml/xml/csv", val);
+                            eprintln!("Unknown format: {val}. Use hedl/toon/json/yaml/xml/csv");
                             std::process::exit(1);
                         }
                     };
@@ -170,7 +169,7 @@ fn parse_args() -> Args {
                 std::process::exit(0);
             }
             _ => {
-                eprintln!("Unknown argument: {}", arg);
+                eprintln!("Unknown argument: {arg}");
                 print_help();
                 std::process::exit(1);
             }
@@ -182,7 +181,7 @@ fn parse_args() -> Args {
 
 fn print_help() {
     println!(
-        r#"HEDL LLM Accuracy Testing
+        r"HEDL LLM Accuracy Testing
 
 USAGE:
     cargo run --package hedl-bench --bin accuracy [OPTIONS]
@@ -221,7 +220,7 @@ EXAMPLES:
 
     # Dry run to see test plan
     cargo run --package hedl-bench --bin accuracy -- --dry-run
-"#
+"
     );
 }
 
@@ -233,9 +232,10 @@ use std::sync::Arc;
 
 static HTTP_AGENT: Lazy<Arc<ureq::Agent>> = Lazy::new(|| {
     Arc::new(
-        ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_secs(60))
-            .build(),
+        ureq::Agent::config_builder()
+            .timeout_global(Some(std::time::Duration::from_secs(60)))
+            .build()
+            .into(),
     )
 });
 
@@ -245,7 +245,7 @@ static HTTP_AGENT: Lazy<Arc<ureq::Agent>> = Lazy::new(|| {
 /// and cached globally via `Lazy<Arc<ureq::Agent>>` for efficient concurrent requests.
 ///
 /// # Arguments
-/// * `provider` - The LLM provider (DeepSeek, Mistral, OpenAI)
+/// * `provider` - The LLM provider (`DeepSeek`, Mistral, `OpenAI`)
 /// * `model` - Model identifier
 /// * `api_key` - API authentication key
 /// * `prompt` - The prompt to send to the LLM
@@ -311,16 +311,17 @@ fn call_llm(
     };
 
     // P0 OPTIMIZATION: Use connection-pooled agent (no lock needed - Arc only)
-    let response = HTTP_AGENT
+    let mut response = HTTP_AGENT
         .post(&url)
-        .set("Authorization", &format!("Bearer {}", api_key))
-        .set("Content-Type", "application/json")
+        .header("Authorization", &format!("Bearer {api_key}"))
+        .header("Content-Type", "application/json")
         .send_json(&body)
-        .map_err(|e| format!("HTTP error: {}", e))?;
+        .map_err(|e| format!("HTTP error: {e}"))?;
 
     let json: serde_json::Value = response
-        .into_json()
-        .map_err(|e| format!("JSON parse error: {}", e))?;
+        .body_mut()
+        .read_json()
+        .map_err(|e| format!("JSON parse error: {e}"))?;
 
     let latency = start.elapsed().as_millis() as u64;
 
@@ -389,7 +390,7 @@ fn run_test(
                 question: question.prompt.clone(),
                 question_type: question.question_type,
                 expected: question.ground_truth.clone(),
-                actual: format!("ERROR: {}", e),
+                actual: format!("ERROR: {e}"),
                 correct: false,
                 format,
                 difficulty: dataset.difficulty,
@@ -770,9 +771,9 @@ fn create_format_pair_comparison(legacy_report: &AccuracyReport, report: &mut Be
             };
 
             let recommendation = if winner == fmt1 {
-                format!("Prefer {} for better overall performance", fmt1)
+                format!("Prefer {fmt1} for better overall performance")
             } else if winner == fmt2 {
-                format!("Prefer {} for better overall performance", fmt2)
+                format!("Prefer {fmt2} for better overall performance")
             } else if winner == "Tie" {
                 "Either format suitable".to_string()
             } else {
@@ -784,7 +785,7 @@ fn create_format_pair_comparison(legacy_report: &AccuracyReport, report: &mut Be
             };
 
             table.rows.push(vec![
-                TableCell::String(format!("{} vs {}", fmt1, fmt2)),
+                TableCell::String(format!("{fmt1} vs {fmt2}")),
                 TableCell::Float(acc_gap),
                 TableCell::Float(token_diff),
                 TableCell::Float(lat_diff),
@@ -883,7 +884,7 @@ fn create_question_type_ranking(legacy_report: &AccuracyReport, report: &mut Ben
             TableCell::String(qtype),
             TableCell::String("HEDL".to_string()),
             TableCell::String("N/A".to_string()),
-            TableCell::String(format!("{} questions", total)),
+            TableCell::String(format!("{total} questions")),
             TableCell::Float(acc),
         ]);
     }
@@ -933,15 +934,9 @@ fn create_difficulty_scaling_analysis(
             .iter()
             .find(|r| r.format == format && r.difficulty == "Hard");
 
-        let easy_acc = easy
-            .map(|r| (r.correct as f64 / r.total as f64) * 100.0)
-            .unwrap_or(0.0);
-        let medium_acc = medium
-            .map(|r| (r.correct as f64 / r.total as f64) * 100.0)
-            .unwrap_or(0.0);
-        let hard_acc = hard
-            .map(|r| (r.correct as f64 / r.total as f64) * 100.0)
-            .unwrap_or(0.0);
+        let easy_acc = easy.map_or(0.0, |r| (r.correct as f64 / r.total as f64) * 100.0);
+        let medium_acc = medium.map_or(0.0, |r| (r.correct as f64 / r.total as f64) * 100.0);
+        let hard_acc = hard.map_or(0.0, |r| (r.correct as f64 / r.total as f64) * 100.0);
 
         let easy_to_medium = medium_acc - easy_acc;
         let medium_to_hard = hard_acc - medium_acc;
@@ -1063,10 +1058,7 @@ fn create_token_efficiency_table(legacy_report: &AccuracyReport, report: &mut Be
             let json_acc = (json.correct as f64 / json.total as f64) * 100.0;
             let token_diff = ((tokens_per_q - json_tokens) / json_tokens) * 100.0;
             let acc_diff = accuracy_pct - json_acc;
-            (
-                format!("{:+.1}%", token_diff),
-                format!("{:+.1}pp", acc_diff),
-            )
+            (format!("{token_diff:+.1}%"), format!("{acc_diff:+.1}pp"))
         } else {
             ("N/A".to_string(), "N/A".to_string())
         };
@@ -1219,8 +1211,7 @@ fn generate_data_driven_insights(legacy_report: &AccuracyReport, report: &mut Be
                 category: "strength".to_string(),
                 title: "Superior Token Efficiency".to_string(),
                 description: format!(
-                    "HEDL achieves {:.1}x better accuracy-per-token than JSON ({:.2} vs {:.2})",
-                    efficiency_gain, hedl_acc_per_1k, json_acc_per_1k
+                    "HEDL achieves {efficiency_gain:.1}x better accuracy-per-token than JSON ({hedl_acc_per_1k:.2} vs {json_acc_per_1k:.2})"
                 ),
                 data_points: vec![
                     format!(
@@ -1243,10 +1234,7 @@ fn generate_data_driven_insights(legacy_report: &AccuracyReport, report: &mut Be
         if acc_gap > 5.0 {
             report.add_insight(Insight {
                 category: "weakness".to_string(),
-                title: format!(
-                    "Significant Accuracy Gap ({:.1}pp lower than JSON)",
-                    acc_gap
-                ),
+                title: format!("Significant Accuracy Gap ({acc_gap:.1}pp lower than JSON)"),
                 description: "HEDL underperforms JSON on LLM comprehension in this test"
                     .to_string(),
                 data_points: vec![
@@ -1287,8 +1275,7 @@ fn generate_data_driven_insights(legacy_report: &AccuracyReport, report: &mut Be
                 category: "recommendation".to_string(),
                 title: "Use HEDL for Cost-Sensitive Production".to_string(),
                 description: format!(
-                    "With {:.1}% token savings and only {:.1}pp accuracy loss, HEDL is ideal for high-volume applications",
-                    token_savings, acc_gap
+                    "With {token_savings:.1}% token savings and only {acc_gap:.1}pp accuracy loss, HEDL is ideal for high-volume applications"
                 ),
                 data_points: vec![
                     format!("Estimated cost savings: ~{:.0}% on token-based billing", token_savings),
@@ -1300,7 +1287,7 @@ fn generate_data_driven_insights(legacy_report: &AccuracyReport, report: &mut Be
             report.add_insight(Insight {
                 category: "recommendation".to_string(),
                 title: "Consider JSON for Accuracy-Critical Tasks".to_string(),
-                description: format!("The {:.1}pp accuracy gap may be too large for production use", acc_gap),
+                description: format!("The {acc_gap:.1}pp accuracy gap may be too large for production use"),
                 data_points: vec![
                     "HEDL's token savings may not justify the accuracy loss in this case".to_string(),
                     "Alternative: Use JSON for critical queries, HEDL for bulk/background processing".to_string(),
@@ -1372,7 +1359,7 @@ fn generate_data_driven_insights(legacy_report: &AccuracyReport, report: &mut Be
             description: "Specific query patterns show significantly reduced accuracy".to_string(),
             data_points: weak_types
                 .iter()
-                .map(|(t, acc, total)| format!("{}: {:.1}% ({} questions tested)", t, acc, total))
+                .map(|(t, acc, total)| format!("{t}: {acc:.1}% ({total} questions tested)"))
                 .collect(),
         });
     }
@@ -1403,12 +1390,12 @@ fn main() {
     println!("║           HEDL LLM Accuracy Testing Framework                  ║");
     println!("╠════════════════════════════════════════════════════════════════╣");
     println!("║ Provider: {:<54}║", args.provider);
-    println!("║ Model:    {:<54}║", model);
+    println!("║ Model:    {model:<54}║");
     println!(
         "║ Formats:  {:<54}║",
         args.formats
             .iter()
-            .map(|f| f.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
             .join(", ")
     );
@@ -1417,9 +1404,9 @@ fn main() {
     } else {
         format!("{} runs", args.runs)
     };
-    println!("║ Runs:     {:<54}║", runs_info);
+    println!("║ Runs:     {runs_info:<54}║");
     if let Some(max) = args.max_per_category {
-        println!("║ Max/Cat:  {:<54}║", max);
+        println!("║ Max/Cat:  {max:<54}║");
     }
     if args.dry_run {
         println!("║ Mode:     {:<54}║", "DRY RUN (no API calls)");
@@ -1430,18 +1417,15 @@ fn main() {
     // Check API key
     let api_key = if args.dry_run {
         "dry-run".to_string()
+    } else if let Ok(key) = env::var(args.provider.env_var()) {
+        key
     } else {
-        match env::var(args.provider.env_var()) {
-            Ok(key) => key,
-            Err(_) => {
-                eprintln!(
-                    "ERROR: {} environment variable not set.\n\
-                     Set it or use --dry-run to test without API calls.",
-                    args.provider.env_var()
-                );
-                std::process::exit(1);
-            }
-        }
+        eprintln!(
+            "ERROR: {} environment variable not set.\n\
+             Set it or use --dry-run to test without API calls.",
+            args.provider.env_var()
+        );
+        std::process::exit(1);
     };
 
     // Generate test datasets
@@ -1470,7 +1454,7 @@ fn main() {
         args.runs,
         total_tests / args.runs / args.formats.len(),
         if args.warmup {
-            format!(" + {} warmup", warmup_tests)
+            format!(" + {warmup_tests} warmup")
         } else {
             String::new()
         }
@@ -1507,7 +1491,7 @@ fn main() {
         if let Some(ds) = datasets.first() {
             if let Some(q) = ds.questions.first() {
                 for format in &args.formats {
-                    println!("=== {} PROMPT ===", format);
+                    println!("=== {format} PROMPT ===");
                     println!("{}", build_prompt(ds.data(*format), *format, q));
                     println!();
                 }
@@ -1554,7 +1538,7 @@ fn main() {
         };
 
         for format in &args.formats {
-            print!("  [{}] ", format);
+            print!("  [{format}] ");
             io::stdout().flush().unwrap();
 
             let mut format_correct = 0;
@@ -1608,8 +1592,8 @@ fn main() {
                 format_total += 1;
             }
 
-            let accuracy = format_correct as f64 / format_total as f64 * 100.0;
-            println!(" {}/{} ({:.1}%)", format_correct, format_total, accuracy);
+            let accuracy = f64::from(format_correct) / f64::from(format_total) * 100.0;
+            println!(" {format_correct}/{format_total} ({accuracy:.1}%)");
         }
         println!();
     }
@@ -1631,7 +1615,7 @@ fn main() {
     // For each format, calculate accuracy per run, then mean/std
     for (format, questions) in &format_questions {
         let n_questions = questions.len();
-        let n_runs = questions.first().map(|(_, r)| r.len()).unwrap_or(0);
+        let n_runs = questions.first().map_or(0, |(_, r)| r.len());
 
         if n_runs == 0 || n_questions == 0 {
             continue;
@@ -1733,8 +1717,7 @@ fn main() {
                 } else {
                     let acc = r.correct as f64 / r.total as f64 * 100.0;
                     println!(
-                        "{}     {:>5.1}% ± N/A           {:>5.0}       {:.2}",
-                        name, acc, tokens_per_q, acc_per_1k
+                        "{name}     {acc:>5.1}% ± N/A           {tokens_per_q:>5.0}       {acc_per_1k:.2}"
                     );
                 }
             } else {
@@ -1758,7 +1741,7 @@ fn main() {
             let toon_acc = toon.correct as f64 / toon.total as f64 * 100.0;
             let diff = hedl_acc - toon_acc;
             if diff > 0.0 {
-                println!("✓ HEDL outperforms TOON by {:.1} percentage points", diff);
+                println!("✓ HEDL outperforms TOON by {diff:.1} percentage points");
             } else if diff < 0.0 {
                 println!("✗ TOON outperforms HEDL by {:.1} percentage points", -diff);
             } else {
@@ -1768,7 +1751,7 @@ fn main() {
             let toon_tokens_per_q = toon.total_tokens as f64 / toon.total as f64;
             let toon_token_diff = (1.0 - hedl_tokens_per_q / toon_tokens_per_q) * 100.0;
             if toon_token_diff > 0.0 {
-                println!("✓ HEDL uses {:.1}% fewer tokens than TOON", toon_token_diff);
+                println!("✓ HEDL uses {toon_token_diff:.1}% fewer tokens than TOON");
             } else if toon_token_diff < 0.0 {
                 println!(
                     "✗ TOON uses {:.1}% fewer tokens than HEDL",
@@ -1782,7 +1765,7 @@ fn main() {
             let json_acc = json.correct as f64 / json.total as f64 * 100.0;
             let diff = hedl_acc - json_acc;
             if diff > 0.0 {
-                println!("✓ HEDL outperforms JSON by {:.1} percentage points", diff);
+                println!("✓ HEDL outperforms JSON by {diff:.1} percentage points");
             } else if diff < 0.0 {
                 println!("✗ JSON outperforms HEDL by {:.1} percentage points", -diff);
             } else {
@@ -1792,7 +1775,7 @@ fn main() {
             let json_tokens_per_q = json.total_tokens as f64 / json.total as f64;
             let json_token_diff = (1.0 - hedl_tokens_per_q / json_tokens_per_q) * 100.0;
             if json_token_diff > 0.0 {
-                println!("✓ HEDL uses {:.1}% fewer tokens than JSON", json_token_diff);
+                println!("✓ HEDL uses {json_token_diff:.1}% fewer tokens than JSON");
             } else if json_token_diff < 0.0 {
                 println!(
                     "✗ JSON uses {:.1}% fewer tokens than HEDL",
@@ -1825,7 +1808,7 @@ fn main() {
             continue;
         }
 
-        println!("{} datasets:", difficulty);
+        println!("{difficulty} datasets:");
 
         if let Some(hedl) = hedl_diff {
             let tokens_per_q = if hedl.total > 0 {
@@ -1833,7 +1816,7 @@ fn main() {
             } else {
                 0.0
             };
-            print!("  HEDL: {:.0} tokens/q", tokens_per_q);
+            print!("  HEDL: {tokens_per_q:.0} tokens/q");
 
             if let Some(toon) = toon_diff {
                 let toon_tpq = if toon.total > 0 {
@@ -1843,7 +1826,7 @@ fn main() {
                 };
                 let diff = (1.0 - tokens_per_q / toon_tpq) * 100.0;
                 if diff > 0.0 {
-                    print!(" ({:.1}% less than TOON)", diff);
+                    print!(" ({diff:.1}% less than TOON)");
                 } else if diff < 0.0 {
                     print!(" ({:.1}% more than TOON)", -diff);
                 }
@@ -1857,7 +1840,7 @@ fn main() {
             } else {
                 0.0
             };
-            println!("  TOON: {:.0} tokens/q", tokens_per_q);
+            println!("  TOON: {tokens_per_q:.0} tokens/q");
         }
 
         if let Some(json) = json_diff {
@@ -1866,7 +1849,7 @@ fn main() {
             } else {
                 0.0
             };
-            println!("  JSON: {:.0} tokens/q", tokens_per_q);
+            println!("  JSON: {tokens_per_q:.0} tokens/q");
         }
         println!();
     }
@@ -1878,8 +1861,7 @@ fn main() {
     // ========================================================================
 
     // Generate modern benchmark report with recommendations
-    let mut new_report =
-        BenchmarkReport::new(format!("HEDL LLM Accuracy Testing - {} Model", model));
+    let mut new_report = BenchmarkReport::new(format!("HEDL LLM Accuracy Testing - {model} Model"));
     new_report.set_timestamp();
 
     // Add comprehensive notes about the benchmark
@@ -2023,25 +2005,24 @@ fn main() {
 
     if let Some(max) = args.max_per_category {
         new_report.add_note(format!(
-            "Limited to {} questions per category for faster testing",
-            max
+            "Limited to {max} questions per category for faster testing"
         ));
     }
 
     // Export reports to target directory
     let target_dir = format!("{}/target", env!("CARGO_MANIFEST_DIR"));
-    let base_path = format!("{}/accuracy_report", target_dir);
+    let base_path = format!("{target_dir}/accuracy_report");
 
     let export_config = ExportConfig::all();
 
     match new_report.save_all(&base_path, &export_config) {
-        Ok(_) => {
+        Ok(()) => {
             println!("\n╔════════════════════════════════════════════════════════════════╗");
             println!("║                    REPORTS EXPORTED                            ║");
             println!("╚════════════════════════════════════════════════════════════════╝\n");
         }
         Err(e) => {
-            eprintln!("Warning: Failed to export some reports: {}", e);
+            eprintln!("Warning: Failed to export some reports: {e}");
         }
     }
 }

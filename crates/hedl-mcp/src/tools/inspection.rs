@@ -26,7 +26,7 @@ use hedl_core::{parse, Item, Node};
 use hedl_json::{to_json_value, ToJsonConfig};
 use serde_json::{json, Value as JsonValue};
 
-/// Execute hedl_query tool.
+/// Execute `hedl_query` tool.
 pub fn execute_hedl_query(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: QueryArgs = parse_args(args)?;
 
@@ -66,26 +66,28 @@ fn find_matching_entities(
 ) {
     match item {
         Item::List(list) => {
-            let type_matches = type_filter.as_ref().is_none_or(|t| &list.type_name == t);
+            let type_matches = type_filter.as_ref().map_or(true, |t| &list.type_name == t);
 
             for node in &list.rows {
-                let id_matches = id_filter.as_ref().is_none_or(|i| &node.id == i);
+                let id_matches = id_filter.as_ref().map_or(true, |i| &node.id == i);
 
                 if type_matches && id_matches {
                     matches.push(node_to_json(node, &list.schema, include_children));
                 }
 
                 // Search children
-                for children in node.children.values() {
-                    for child in children {
-                        find_matching_node(
-                            child,
-                            type_filter,
-                            id_filter,
-                            include_children,
-                            matches,
-                            &doc_schema_for_type(&child.type_name),
-                        );
+                if let Some(children_map) = node.children() {
+                    for children in children_map.values() {
+                        for child in children {
+                            find_matching_node(
+                                child,
+                                type_filter,
+                                id_filter,
+                                include_children,
+                                matches,
+                                &doc_schema_for_type(&child.type_name),
+                            );
+                        }
                     }
                 }
             }
@@ -107,28 +109,30 @@ fn find_matching_node(
     matches: &mut Vec<JsonValue>,
     schema: &[String],
 ) {
-    let type_matches = type_filter.as_ref().is_none_or(|t| &node.type_name == t);
-    let id_matches = id_filter.as_ref().is_none_or(|i| &node.id == i);
+    let type_matches = type_filter.as_ref().map_or(true, |t| &node.type_name == t);
+    let id_matches = id_filter.as_ref().map_or(true, |i| &node.id == i);
 
     if type_matches && id_matches {
         matches.push(node_to_json(node, schema, include_children));
     }
 
-    for children in node.children.values() {
-        for child in children {
-            find_matching_node(
-                child,
-                type_filter,
-                id_filter,
-                include_children,
-                matches,
-                &doc_schema_for_type(&child.type_name),
-            );
+    if let Some(children_map) = node.children() {
+        for children in children_map.values() {
+            for child in children {
+                find_matching_node(
+                    child,
+                    type_filter,
+                    id_filter,
+                    include_children,
+                    matches,
+                    &doc_schema_for_type(&child.type_name),
+                );
+            }
         }
     }
 }
 
-/// Execute hedl_stats tool.
+/// Execute `hedl_stats` tool.
 pub fn execute_hedl_stats(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: StatsArgs = parse_args(args)?;
 

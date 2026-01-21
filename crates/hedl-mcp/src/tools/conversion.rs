@@ -24,9 +24,10 @@ use crate::tools::json_utils::count_entities;
 use crate::tools::types::{ConvertFromArgs, ConvertToArgs, MAX_INPUT_SIZE};
 use hedl_core::parse;
 use hedl_json::{from_json_value, to_json_value, FromJsonConfig, ToJsonConfig};
+use hedl_xml::{from_xml, to_xml, FromXmlConfig, ToXmlConfig};
 use serde_json::{json, Value as JsonValue};
 
-/// Execute hedl_convert_to tool.
+/// Execute `hedl_convert_to` tool.
 pub fn execute_hedl_convert_to(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: ConvertToArgs = parse_args(args)?;
     let options = args.options.unwrap_or(json!({}));
@@ -40,7 +41,7 @@ pub fn execute_hedl_convert_to(args: Option<JsonValue>) -> McpResult<CallToolRes
         "json" => {
             let pretty = options
                 .get("pretty")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             let config = ToJsonConfig::default();
             let json_value = to_json_value(&doc, &config);
@@ -51,22 +52,45 @@ pub fn execute_hedl_convert_to(args: Option<JsonValue>) -> McpResult<CallToolRes
             }
         }
         "yaml" => hedl_yaml::hedl_to_yaml(&doc)
-            .map_err(|e| McpError::InvalidArguments(format!("YAML conversion failed: {}", e)))?,
+            .map_err(|e| McpError::InvalidArguments(format!("YAML conversion failed: {e}")))?,
+        "xml" => {
+            let pretty = options
+                .get("pretty")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true);
+            let include_metadata = options
+                .get("include_metadata")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true);
+            let root_element = options
+                .get("root_element")
+                .and_then(|v| v.as_str())
+                .unwrap_or("hedl")
+                .to_string();
+            let config = ToXmlConfig {
+                pretty,
+                include_metadata,
+                root_element,
+                ..Default::default()
+            };
+            to_xml(&doc, &config)
+                .map_err(|e| McpError::InvalidArguments(format!("XML conversion failed: {e}")))?
+        }
         "csv" => {
             let include_headers = options
                 .get("include_headers")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             let config = hedl_csv::ToCsvConfig {
                 include_headers,
                 ..Default::default()
             };
             hedl_csv::to_csv_with_config(&doc, config)
-                .map_err(|e| McpError::InvalidArguments(format!("CSV conversion failed: {}", e)))?
+                .map_err(|e| McpError::InvalidArguments(format!("CSV conversion failed: {e}")))?
         }
         "parquet" => {
             let bytes = hedl_parquet::to_parquet_bytes(&doc).map_err(|e| {
-                McpError::InvalidArguments(format!("Parquet conversion failed: {}", e))
+                McpError::InvalidArguments(format!("Parquet conversion failed: {e}"))
             })?;
             use base64::{engine::general_purpose::STANDARD, Engine as _};
             return Ok(CallToolResult {
@@ -82,11 +106,11 @@ pub fn execute_hedl_convert_to(args: Option<JsonValue>) -> McpResult<CallToolRes
         "cypher" => {
             let use_merge = options
                 .get("use_merge")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             let include_constraints = options
                 .get("include_constraints")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             let mut config = hedl_neo4j::ToCypherConfig::new();
             if !use_merge {
@@ -96,11 +120,11 @@ pub fn execute_hedl_convert_to(args: Option<JsonValue>) -> McpResult<CallToolRes
                 config = config.without_constraints();
             }
             hedl_neo4j::to_cypher(&doc, &config)
-                .map_err(|e| {
-                    McpError::InvalidArguments(format!("Cypher conversion failed: {}", e))
-                })?
-                .to_string()
+                .map_err(|e| McpError::InvalidArguments(format!("Cypher conversion failed: {e}")))?
+                .clone()
         }
+        "toon" => hedl_toon::hedl_to_toon(&doc)
+            .map_err(|e| McpError::InvalidArguments(format!("TOON conversion failed: {e}")))?,
         _ => {
             return Err(McpError::InvalidArguments(format!(
                 "Unknown format: {}",
@@ -115,7 +139,7 @@ pub fn execute_hedl_convert_to(args: Option<JsonValue>) -> McpResult<CallToolRes
     })
 }
 
-/// Execute hedl_convert_from tool.
+/// Execute `hedl_convert_from` tool.
 pub fn execute_hedl_convert_from(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: ConvertFromArgs = parse_args(args)?;
     let options = args.options.unwrap_or(json!({}));
@@ -126,13 +150,25 @@ pub fn execute_hedl_convert_from(args: Option<JsonValue>) -> McpResult<CallToolR
     let doc = match args.format.as_str() {
         "json" => {
             let json_value: JsonValue = serde_json::from_str(&args.content)
-                .map_err(|e| McpError::InvalidArguments(format!("Invalid JSON: {}", e)))?;
+                .map_err(|e| McpError::InvalidArguments(format!("Invalid JSON: {e}")))?;
             let config = FromJsonConfig::default();
             from_json_value(&json_value, &config)
-                .map_err(|e| McpError::InvalidArguments(format!("JSON conversion failed: {}", e)))?
+                .map_err(|e| McpError::InvalidArguments(format!("JSON conversion failed: {e}")))?
         }
         "yaml" => hedl_yaml::yaml_to_hedl(&args.content)
-            .map_err(|e| McpError::InvalidArguments(format!("YAML parse failed: {}", e)))?,
+            .map_err(|e| McpError::InvalidArguments(format!("YAML parse failed: {e}")))?,
+        "xml" => {
+            let infer_lists = options
+                .get("infer_lists")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true);
+            let config = FromXmlConfig {
+                infer_lists,
+                ..Default::default()
+            };
+            from_xml(&args.content, &config)
+                .map_err(|e| McpError::InvalidArguments(format!("XML parse failed: {e}")))?
+        }
         "csv" => {
             let type_name = options
                 .get("type_name")
@@ -154,20 +190,23 @@ pub fn execute_hedl_convert_from(args: Option<JsonValue>) -> McpResult<CallToolR
 
             let inferred_schema: Vec<String>;
             let schema_strs: Vec<&str> = if let Some(ref s) = schema_opt {
-                s.iter().map(|x| x.as_str()).collect()
+                s.iter().map(std::string::String::as_str).collect()
             } else {
                 let mut reader = csv::ReaderBuilder::new()
                     .has_headers(true)
                     .from_reader(args.content.as_bytes());
                 let headers = reader
                     .headers()
-                    .map_err(|e| McpError::InvalidArguments(format!("CSV parse error: {}", e)))?;
+                    .map_err(|e| McpError::InvalidArguments(format!("CSV parse error: {e}")))?;
                 inferred_schema = headers
                     .iter()
                     .filter(|h| *h != "id")
-                    .map(|h| h.to_string())
+                    .map(std::string::ToString::to_string)
                     .collect();
-                inferred_schema.iter().map(|s| s.as_str()).collect()
+                inferred_schema
+                    .iter()
+                    .map(std::string::String::as_str)
+                    .collect()
             };
 
             let config = hedl_csv::FromCsvConfig {
@@ -178,18 +217,25 @@ pub fn execute_hedl_convert_from(args: Option<JsonValue>) -> McpResult<CallToolR
                 infer_schema: true, // Enable auto-schema inference
                 sample_rows: 100,   // Default sample size
                 list_key: None,     // Use default pluralized list key
+                // Security limits - use defaults for trusted input
+                max_columns: hedl_csv::DEFAULT_MAX_COLUMNS,
+                max_cell_size: hedl_csv::DEFAULT_MAX_CELL_SIZE,
+                max_total_size: hedl_csv::DEFAULT_MAX_TOTAL_SIZE,
+                max_header_size: hedl_csv::DEFAULT_MAX_HEADER_SIZE,
             };
             hedl_csv::from_csv_with_config(&args.content, type_name, &schema_strs, config)
-                .map_err(|e| McpError::InvalidArguments(format!("CSV conversion failed: {}", e)))?
+                .map_err(|e| McpError::InvalidArguments(format!("CSV conversion failed: {e}")))?
         }
         "parquet" => {
             use base64::{engine::general_purpose::STANDARD, Engine as _};
             let bytes = STANDARD
                 .decode(&args.content)
-                .map_err(|e| McpError::InvalidArguments(format!("Invalid base64: {}", e)))?;
+                .map_err(|e| McpError::InvalidArguments(format!("Invalid base64: {e}")))?;
             hedl_parquet::from_parquet_bytes(&bytes)
-                .map_err(|e| McpError::InvalidArguments(format!("Parquet parse failed: {}", e)))?
+                .map_err(|e| McpError::InvalidArguments(format!("Parquet parse failed: {e}")))?
         }
+        "toon" => hedl_toon::toon_to_hedl(&args.content)
+            .map_err(|e| McpError::InvalidArguments(format!("TOON parse failed: {e}")))?,
         _ => {
             return Err(McpError::InvalidArguments(format!(
                 "Unknown format: {}",
@@ -201,7 +247,7 @@ pub fn execute_hedl_convert_from(args: Option<JsonValue>) -> McpResult<CallToolR
     // Canonicalize to HEDL output
     let c14n_config = hedl_c14n::CanonicalConfig::default();
     let hedl_output = hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
-        .map_err(|e| McpError::InvalidArguments(format!("Canonicalization failed: {}", e)))?;
+        .map_err(|e| McpError::InvalidArguments(format!("Canonicalization failed: {e}")))?;
 
     Ok(CallToolResult {
         content: vec![Content::Text {
@@ -436,5 +482,179 @@ mod tests {
         let args = json!({ "content": "test", "format": "invalid" });
         let result = execute_hedl_convert_from(Some(args));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_hedl_convert_to_toon() {
+        let hedl =
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let args = json!({ "hedl": hedl, "format": "toon" });
+        let result = execute_hedl_convert_to(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+
+        // Should contain TOON-like content
+        assert!(text.contains("users"));
+    }
+
+    #[test]
+    fn test_convert_from_toon() {
+        let toon = "name: test\ncount: 42\n";
+        let args = json!({ "content": toon, "format": "toon" });
+        let result = execute_hedl_convert_from(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+        let parsed: JsonValue = serde_json::from_str(text).unwrap();
+        assert!(parsed.get("hedl").is_some());
+    }
+
+    // ============ XML CONVERSION TESTS ============
+
+    #[test]
+    fn test_hedl_convert_to_xml() {
+        let hedl =
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+        let args = json!({ "hedl": hedl, "format": "xml" });
+        let result = execute_hedl_convert_to(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+
+        // Should be valid XML
+        assert!(text.contains("<?xml"));
+        assert!(text.contains("<hedl"));
+        assert!(text.contains("users"));
+    }
+
+    #[test]
+    fn test_hedl_convert_to_xml_compact() {
+        let hedl =
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let args = json!({ "hedl": hedl, "format": "xml", "options": { "pretty": false } });
+        let result = execute_hedl_convert_to(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+
+        // Compact XML should have fewer lines
+        assert!(text.contains("<?xml"));
+        assert!(text.contains("<hedl"));
+    }
+
+    #[test]
+    fn test_hedl_convert_to_xml_custom_root() {
+        let hedl = "%VERSION: 1.0\n---\nname: test\n";
+        let args =
+            json!({ "hedl": hedl, "format": "xml", "options": { "root_element": "custom" } });
+        let result = execute_hedl_convert_to(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+
+        assert!(text.contains("<custom"));
+        assert!(text.contains("</custom>"));
+    }
+
+    #[test]
+    fn test_convert_from_xml() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<hedl>
+  <name>test</name>
+  <value>42</value>
+</hedl>"#;
+        let args = json!({ "content": xml, "format": "xml" });
+        let result = execute_hedl_convert_from(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+        let parsed: JsonValue = serde_json::from_str(text).unwrap();
+        assert!(parsed.get("hedl").is_some());
+    }
+
+    #[test]
+    fn test_convert_from_xml_with_attributes() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<hedl>
+  <item id="123" name="test" active="true"/>
+</hedl>"#;
+        let args = json!({ "content": xml, "format": "xml" });
+        let result = execute_hedl_convert_from(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+        let parsed: JsonValue = serde_json::from_str(text).unwrap();
+        assert!(parsed.get("hedl").is_some());
+        // Should contain HEDL representation of the XML data
+        let hedl_output = parsed["hedl"].as_str().unwrap();
+        assert!(hedl_output.contains("item"));
+    }
+
+    #[test]
+    fn test_convert_from_xml_with_lists() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<hedl>
+  <user id="1"><name>Alice</name></user>
+  <user id="2"><name>Bob</name></user>
+</hedl>"#;
+        let args = json!({ "content": xml, "format": "xml", "options": { "infer_lists": true } });
+        let result = execute_hedl_convert_from(Some(args)).unwrap();
+
+        let text = match &result.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+        let parsed: JsonValue = serde_json::from_str(text).unwrap();
+        assert!(parsed.get("hedl").is_some());
+    }
+
+    #[test]
+    fn test_convert_from_invalid_xml() {
+        let xml = "not valid xml <broken";
+        let args = json!({ "content": xml, "format": "xml" });
+        let result = execute_hedl_convert_from(Some(args));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_xml_round_trip() {
+        let hedl = "%VERSION: 1.0\n---\nname: test\ncount: 42\n";
+
+        // Convert to XML
+        let args = json!({ "hedl": hedl, "format": "xml" });
+        let result = execute_hedl_convert_to(Some(args)).unwrap();
+        let xml = match &result.content[0] {
+            Content::Text { text } => text.clone(),
+            _ => panic!("Expected text content"),
+        };
+
+        // Convert back from XML
+        let args2 = json!({ "content": xml, "format": "xml" });
+        let result2 = execute_hedl_convert_from(Some(args2)).unwrap();
+        let text2 = match &result2.content[0] {
+            Content::Text { text } => text,
+            _ => panic!("Expected text content"),
+        };
+        let parsed2: JsonValue = serde_json::from_str(text2).unwrap();
+        assert!(parsed2.get("hedl").is_some());
+        // Verify content is preserved
+        let hedl_output = parsed2["hedl"].as_str().unwrap();
+        assert!(hedl_output.contains("name"));
+        assert!(hedl_output.contains("count"));
     }
 }

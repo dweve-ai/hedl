@@ -1,30 +1,76 @@
+# =============================================================================
+# HEDL Neo4j - crates/hedl-neo4j/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-neo4j"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
-description = "Bidirectional conversion between HEDL and Neo4j graph databases"
-keywords = ["hedl", "neo4j", "graph", "cypher", "database"]
-categories = ["database", "encoding", "data-structures"]
 
-[features]
-default = []
-# Enable integration tests that require a running Neo4j instance
-integration-tests = []
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL to/from Neo4j graph database conversion"
+documentation = "https://docs.rs/hedl-neo4j"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [dependencies]
 hedl-core = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+smallvec = { workspace = true }
 unicode-normalization = "0.1"
+dashmap = "6.1"
+rayon = "1.10"
+futures = "0.3"
+
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"], optional = true }
+neo4rs = { version = "0.9.0-rc", optional = true }
 
 [dev-dependencies]
+hedl-test = { workspace = true }
+criterion = { workspace = true }
+proptest = { workspace = true }
+smallvec = { workspace = true }
 neo4rs = "0.9.0-rc"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-proptest = "1.4"
 serial_test = "3"
-hedl-test = { workspace = true }
 
+[features]
+default = []
+async = ["tokio", "neo4rs"]
+integration-tests = []

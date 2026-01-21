@@ -22,7 +22,7 @@ The `hedl-neo4j` crate provides seamless bidirectional conversion between HEDL d
 ```toml
 # Cargo.toml
 [dependencies]
-hedl-neo4j = "1.0"
+hedl-neo4j = "1.2"
 ```
 
 ### Basic Usage

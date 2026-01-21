@@ -66,7 +66,7 @@
 //! ```no_run
 //! use hedl_cli::commands::validate;
 //!
-//! # fn main() -> Result<(), String> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Validate a HEDL file
 //! validate("example.hedl", false)?;
 //!
@@ -81,7 +81,7 @@
 //! ```no_run
 //! use hedl_cli::commands::{to_json, from_json};
 //!
-//! # fn main() -> Result<(), String> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Convert HEDL to pretty JSON
 //! to_json("data.hedl", Some("output.json"), false, true)?;
 //!
@@ -96,10 +96,11 @@
 //! ```no_run
 //! use hedl_cli::commands::batch_validate;
 //!
-//! # fn main() -> Result<(), String> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Validate multiple files in parallel
+//! // Args: patterns, strict, recursive, max_depth, parallel, verbose
 //! let files = vec!["file1.hedl".to_string(), "file2.hedl".to_string()];
-//! batch_validate(files, false, true, false)?;
+//! batch_validate(files, false, true, 10, true, false)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -124,7 +125,66 @@
 //! Errors are descriptive and include context like file paths and line numbers
 //! where applicable.
 
+#![cfg_attr(not(test), warn(missing_docs))]
 pub mod batch;
 pub mod cli;
 pub mod commands;
 pub mod error;
+pub mod file_discovery;
+
+use clap::{Command, CommandFactory, Parser};
+use cli::Commands;
+
+/// Shared CLI command structure for HEDL.
+///
+/// This struct provides a single source of truth for the CLI command structure,
+/// used by both the main binary and shell completion generation. It implements
+/// `CommandFactory` to allow programmatic access to the clap `Command` structure.
+///
+/// # Examples
+///
+/// ```no_run
+/// use clap::CommandFactory;
+/// use hedl_cli::CliCommand;
+///
+/// // Get the command for completion generation
+/// let mut cmd = CliCommand::command();
+/// ```
+#[derive(Parser)]
+#[command(name = "hedl")]
+#[command(
+    author,
+    version,
+    about = "HEDL - Hierarchical Entity Data Language toolkit",
+    long_about = None
+)]
+pub struct CliCommand {
+    /// The subcommand to execute.
+    #[command(subcommand)]
+    pub command: Commands,
+}
+
+/// Create a clap Command for shell completion generation.
+///
+/// This function provides a convenient way to get the complete command structure
+/// for generating shell completions. It uses the shared `CliCommand` struct to
+/// ensure consistency with the actual CLI.
+///
+/// # Returns
+///
+/// A clap `Command` instance configured with all subcommands and arguments.
+///
+/// # Examples
+///
+/// ```no_run
+/// use hedl_cli::create_cli_command;
+/// use clap_complete::{generate, shells::Bash};
+/// use std::io;
+///
+/// let mut cmd = create_cli_command();
+/// generate(Bash, &mut cmd, "hedl", &mut io::stdout());
+/// ```
+#[must_use]
+pub fn create_cli_command() -> Command {
+    CliCommand::command()
+}

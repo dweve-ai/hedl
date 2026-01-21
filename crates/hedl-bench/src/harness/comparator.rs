@@ -86,6 +86,7 @@ pub struct FormatComparison {
 /// # Returns
 ///
 /// Vector of comparisons for each benchmark.
+#[must_use]
 pub fn compare_to_baseline(results: &BenchmarkReport, baseline: &Baseline) -> Vec<Comparison> {
     let mut comparisons = Vec::new();
 
@@ -124,6 +125,7 @@ pub fn compare_to_baseline(results: &BenchmarkReport, baseline: &Baseline) -> Ve
 /// # Returns
 ///
 /// Format comparison summary.
+#[must_use]
 pub fn compare_formats(results: &[FormatResult]) -> FormatComparison {
     if results.is_empty() {
         return FormatComparison {
@@ -169,6 +171,7 @@ pub fn compare_formats(results: &[FormatResult]) -> FormatComparison {
 /// # Returns
 ///
 /// Vector of detected regressions.
+#[must_use]
 pub fn identify_regressions(comparisons: &[Comparison]) -> Vec<Regression> {
     comparisons
         .iter()

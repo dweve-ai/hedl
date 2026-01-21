@@ -94,12 +94,14 @@ fn add_count_hints_to_item(item: &mut hedl_core::Item) {
 }
 
 fn add_child_count_to_node(node: &mut hedl_core::Node) {
-    let total_children: usize = node.children.values().map(|v| v.len()).sum();
+    let total_children: usize = node.children().map(|c| c.values().map(|v| v.len()).sum()).unwrap_or(0);
     if total_children > 0 {
         node.child_count = Some(total_children);
-        for child_list in node.children.values_mut() {
-            for child_node in child_list {
-                add_child_count_to_node(child_node);
+        if let Some(children) = node.children_mut() {
+            for child_list in children.values_mut() {
+                for child_node in child_list {
+                    add_child_count_to_node(child_node);
+                }
             }
         }
     }

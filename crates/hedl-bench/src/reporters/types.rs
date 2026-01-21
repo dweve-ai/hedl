@@ -41,6 +41,7 @@ pub enum Severity {
 
 impl Severity {
     /// Returns the severity as a string.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
             Severity::Info => "info",
@@ -167,16 +168,19 @@ impl BenchmarkReport {
     }
 
     /// Returns the number of results.
+    #[must_use]
     pub fn result_count(&self) -> usize {
         self.results.len()
     }
 
     /// Returns whether any regressions were detected.
+    #[must_use]
     pub fn has_regressions(&self) -> bool {
         !self.analysis.regressions.is_empty()
     }
 
     /// Returns the number of high-severity recommendations.
+    #[must_use]
     pub fn high_priority_count(&self) -> usize {
         self.recommendations
             .iter()

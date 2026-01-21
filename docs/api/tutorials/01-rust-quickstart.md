@@ -14,10 +14,10 @@ Add HEDL to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hedl = "1.0"
+hedl = "1.2"
 
 # Optional features
-hedl = { version = "1.0", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
+hedl = { version = "1.2", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
 ```
 
 ## Your First HEDL Program
@@ -101,10 +101,10 @@ println!("Root items: {}", doc.root.len());
 ### With Parse Options
 
 ```rust
-use hedl::{parse_with_limits, ParseOptions, Limits};
+use hedl::{parse_with_limits, ParseOptions, Limits, ReferenceMode};
 
 let options = ParseOptions {
-    strict_refs: true,
+    reference_mode: ReferenceMode::Strict,
     limits: Limits {
         max_indent_depth: 20,
         max_total_keys: 5000,
@@ -185,6 +185,7 @@ use std::collections::BTreeMap;
 
 let mut doc = Document {
     version: (1, 0),
+    schema_versions: BTreeMap::new(),
     structs: BTreeMap::new(),
     aliases: BTreeMap::new(),
     nests: BTreeMap::new(),
@@ -192,7 +193,7 @@ let mut doc = Document {
 };
 
 // Add a simple scalar
-doc.root.insert("name".to_string(), Item::Scalar(Value::String("Test".to_string())));
+doc.root.insert("name".to_string(), Item::Scalar(Value::String("Test".into())));
 
 // Add a nested object
 let mut config = BTreeMap::new();
@@ -295,7 +296,7 @@ match parse(hedl_text) {
 ### Pattern Matching on Error Kind
 
 ```rust
-use hedl::{parse, parse_with_limits, ParseOptions, HedlError, HedlErrorKind};
+use hedl::{parse, parse_with_limits, ParseOptions, ReferenceMode, HedlError, HedlErrorKind};
 
 match parse(hedl_text) {
     Ok(doc) => { /* use doc */ }
@@ -308,7 +309,7 @@ match parse(hedl_text) {
                 eprintln!("Reference error: {}", e);
                 // Try lenient parsing
                 let options = ParseOptions {
-                    strict_refs: false,
+                    reference_mode: ReferenceMode::Lenient,
                     ..Default::default()
                 };
                 let doc = parse_with_limits(hedl_text.as_bytes(), options)?;
@@ -375,11 +376,13 @@ permissions:
     let doc = parse(hedl_text)?;
 
     // Extract users
+    // Note: node.id contains the first column (ID), node.fields contains the remaining columns
     let mut users = HashMap::new();
     if let Some(Item::List(matrix)) = doc.root.get("users") {
         for node in &matrix.rows {
-            if let [Value::String(id), Value::String(name), Value::String(email), Value::String(role)] = &node.fields[..] {
-                users.insert(id.clone(), (name.clone(), email.clone(), role.clone()));
+            // Schema is [id, name, email, role], so fields contains [name, email, role]
+            if let [Value::String(name), Value::String(email), Value::String(role)] = &node.fields[..] {
+                users.insert(node.id.clone(), (name.clone(), email.clone(), role.clone()));
             }
         }
     }
@@ -407,6 +410,7 @@ use std::collections::BTreeMap;
 
 let mut doc = Document {
     version: (1, 0),
+    schema_versions: BTreeMap::new(),
     structs: BTreeMap::new(),
     aliases: BTreeMap::new(),
     nests: BTreeMap::new(),
@@ -433,7 +437,7 @@ let parsed: Vec<_> = documents
 ### Memory Limits
 
 ```rust
-use hedl::{parse_with_limits, ParseOptions, Limits};
+use hedl::{parse_with_limits, ParseOptions, Limits, ReferenceMode};
 
 // For API responses (small documents)
 let api_limits = Limits {
@@ -443,7 +447,7 @@ let api_limits = Limits {
 };
 
 let options = ParseOptions {
-    strict_refs: true,
+    reference_mode: ReferenceMode::Strict,
     limits: api_limits,
 };
 ```

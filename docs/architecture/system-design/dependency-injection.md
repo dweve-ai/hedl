@@ -59,7 +59,12 @@ Configuration is injected via dedicated structs:
 // Actual structure from hedl-core/src/parser.rs
 pub struct ParseOptions {
     pub limits: Limits,
-    pub strict_refs: bool,
+    pub reference_mode: ReferenceMode,
+}
+
+pub enum ReferenceMode {
+    Strict,   // Unresolved references cause errors (default)
+    Lenient,  // Unresolved references are silently ignored
 }
 
 // Limits structure from hedl-core/src/limits.rs
@@ -80,7 +85,7 @@ impl Default for ParseOptions {
     fn default() -> Self {
         Self {
             limits: Limits::default(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         }
     }
 }
@@ -180,23 +185,21 @@ let json = hedl_json::to_json(&doc, &config)?;
 Simple cases use direct parameter injection:
 
 ```rust
-pub fn canonicalize(
+pub fn canonicalize_with_config(
     doc: &Document,
-    config: &C14nConfig,
-) -> Result<String> {
+    config: &CanonicalConfig,
+) -> Result<String, HedlError> {
     // Config injected as parameter
-    let indent = " ".repeat(config.indent);
     // ...
 }
 
 // Usage
-let config = C14nConfig {
-    indent: 4,
-    sort_keys: true,
-    quote_style: QuoteStyle::Minimal,
-};
+let config = CanonicalConfig::builder()
+    .sort_keys(true)
+    .quoting(QuotingStrategy::Minimal)
+    .build();
 
-let canonical = canonicalize(&doc, &config)?;
+let canonical = canonicalize_with_config(&doc, &config)?;
 ```
 
 ## Core Abstractions
@@ -299,8 +302,10 @@ impl DeepNestingRule {
                 Item::List(matrix) => {
                     for node in &matrix.rows {
                         // Check nested children in matrix rows
-                        for children in node.children.values() {
-                            // Matrix children follow NEST relationships
+                        if let Some(children_map) = node.children() {
+                            for children in children_map.values() {
+                                // Matrix children follow NEST relationships
+                            }
                         }
                     }
                 }
@@ -437,7 +442,7 @@ impl Environment {
                 .max_file_size(defaults::MAX_FILE_SIZE)
                 .max_total_keys(defaults::MAX_TOTAL_KEYS)
                 .max_depth(defaults::MAX_INDENT_DEPTH)
-                .strict(true)
+                .reference_mode(ReferenceMode::Strict)
                 .build(),
             json_config: ToJsonConfig::builder()
                 .pretty(false)  // Minified in production
@@ -452,7 +457,7 @@ impl Environment {
             name: "development".to_string(),
             parse_options: ParseOptions::builder()
                 .limits(Limits::unlimited())
-                .strict(false)
+                .reference_mode(ReferenceMode::Lenient)
                 .build(),
             json_config: ToJsonConfig::builder()
                 .pretty(true)
@@ -579,7 +584,7 @@ pub mod test_helpers {
         };
         ParseOptions::builder()
             .limits(limits)
-            .strict(true)
+            .reference_mode(ReferenceMode::Strict)
             .build()
     }
 
@@ -705,7 +710,7 @@ impl ParserMiddleware for LoggingMiddleware {
 }
 
 pub struct ValidationMiddleware {
-    strict: bool,
+    reference_mode: ReferenceMode,
 }
 
 impl ParserMiddleware for ValidationMiddleware {
@@ -714,7 +719,7 @@ impl ParserMiddleware for ValidationMiddleware {
     }
 
     fn after_parse(&self, doc: &Document) -> Result<()> {
-        if self.strict {
+        if self.reference_mode == ReferenceMode::Strict {
             validate(doc)?;
         }
         Ok(())
@@ -763,7 +768,7 @@ impl DecoratedParser {
 // Usage
 let parser = DecoratedParser::new(SyncParser)
     .with_middleware(LoggingMiddleware)
-    .with_middleware(ValidationMiddleware { strict: true });
+    .with_middleware(ValidationMiddleware { reference_mode: ReferenceMode::Strict });
 
 let doc = parser.parse(input.as_bytes(), &ParseOptions::default())?;
 ```
@@ -814,7 +819,7 @@ impl Default for ParseOptions {
     fn default() -> Self {
         Self {
             limits: Limits::default(),
-            strict_refs: true,
+            reference_mode: ReferenceMode::Strict,
         }
     }
 }
@@ -824,7 +829,7 @@ let doc = parse(input)?;
 
 // Or customize as needed
 let options = ParseOptions::builder()
-    .strict(false)
+    .reference_mode(ReferenceMode::Lenient)
     .build();
 let doc = parse_with_limits(input.as_bytes(), options)?;
 ```

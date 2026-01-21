@@ -23,6 +23,7 @@
 use hedl_core::lex::Span;
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_neo4j::{to_cypher, Neo4jError, ToCypherConfig};
+use smallvec::SmallVec;
 use std::collections::BTreeMap;
 
 #[test]
@@ -37,12 +38,12 @@ fn test_string_length_validation_in_conversion() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
-                    Value::String("x".repeat(2000)), // 2KB string
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
+                    Value::String("x".repeat(2000).into()), // 2KB string
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -50,6 +51,7 @@ fn test_string_length_validation_in_conversion() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -95,15 +97,15 @@ fn test_expression_string_length_validation() {
             rows: vec![Node {
                 type_name: "Calc".to_string(),
                 id: "c1".to_string(),
-                fields: vec![
-                    Value::String("c1".to_string()),
-                    Value::Expression(Expression::Literal {
+                fields: SmallVec::from_vec(vec![
+                    Value::String("c1".to_string().into()),
+                    Value::Expression(Box::new(Expression::Literal {
                         value: ExprLiteral::String(long_string),
                         span: Span::file_start(),
-                    }),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                    })),
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -111,6 +113,7 @@ fn test_expression_string_length_validation() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -145,12 +148,12 @@ fn test_untrusted_input_config() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
-                    Value::String("x".repeat(2_000_000)), // 2MB string
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
+                    Value::String("x".repeat(2_000_000).into()), // 2MB string
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -158,6 +161,7 @@ fn test_untrusted_input_config() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -186,12 +190,12 @@ fn test_no_string_length_limit() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
-                    Value::String("x".repeat(100_000)), // 100KB string
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
+                    Value::String("x".repeat(100_000).into()), // 100KB string
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -199,6 +203,7 @@ fn test_no_string_length_limit() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -228,14 +233,14 @@ fn test_multiple_strings_within_limit() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
-                    Value::String("Alice Smith".to_string()),
-                    Value::String("alice@example.com".to_string()),
-                    Value::String("Software engineer".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
+                    Value::String("Alice Smith".to_string().into()),
+                    Value::String("alice@example.com".to_string().into()),
+                    Value::String("Software engineer".to_string().into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -243,6 +248,7 @@ fn test_multiple_strings_within_limit() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -267,14 +273,14 @@ fn test_unicode_string_length_bytes() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
                     // Each emoji is 4 bytes in UTF-8
                     // 30 emojis = 120 bytes
-                    Value::String("🔥".repeat(30)),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                    Value::String("🔥".repeat(30).into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -282,6 +288,7 @@ fn test_unicode_string_length_bytes() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
@@ -311,12 +318,12 @@ fn test_empty_string_always_valid() {
             rows: vec![Node {
                 type_name: "User".to_string(),
                 id: "alice".to_string(),
-                fields: vec![
-                    Value::String("alice".to_string()),
-                    Value::String("".to_string()),
-                ],
-                children: BTreeMap::new(),
-                child_count: None,
+                fields: SmallVec::from_vec(vec![
+                    Value::String("alice".to_string().into()),
+                    Value::String(String::new().into()),
+                ]),
+                children: None,
+                child_count: 0,
             }],
             count_hint: None,
         }),
@@ -324,14 +331,16 @@ fn test_empty_string_always_valid() {
 
     let doc = Document {
         version: (1, 0),
+        schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
         nests: BTreeMap::new(),
         root,
     };
 
-    // Even with very strict limit, empty string should be OK
-    let config = ToCypherConfig::default().with_max_string_length(1);
+    // Even with strict limit (10 bytes), empty string property should be OK
+    // Note: limit must accommodate IDs like "alice" (5 bytes)
+    let config = ToCypherConfig::default().with_max_string_length(10);
     let result = to_cypher(&doc, &config);
     assert!(result.is_ok());
 }

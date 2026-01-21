@@ -19,8 +19,8 @@
 
 use crate::error::{clear_error, set_error};
 use crate::types::{
-    HedlDocument, HEDL_ERR_JSON, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET, HEDL_ERR_XML, HEDL_ERR_YAML,
-    HEDL_OK,
+    HedlDocument, HEDL_ERR_JSON, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET, HEDL_ERR_TOON, HEDL_ERR_XML,
+    HEDL_ERR_YAML, HEDL_OK,
 };
 use crate::utils::get_input_string;
 use std::os::raw::{c_char, c_int};
@@ -39,7 +39,7 @@ use std::slice;
 /// * `out_doc` - Pointer to store document handle
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn hedl_from_json(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("JSON parse error: {}", e);
+            let msg = format!("JSON parse error: {e}");
             set_error(&msg);
             *out_doc = ptr::null_mut();
             audit_call_failure("hedl_from_json", HEDL_ERR_JSON, &msg, duration);
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn hedl_from_json(
 /// * `out_doc` - Pointer to store document handle
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -180,7 +180,7 @@ pub unsafe extern "C" fn hedl_from_yaml(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("YAML parse error: {}", e);
+            let msg = format!("YAML parse error: {e}");
             set_error(&msg);
             *out_doc = ptr::null_mut();
             audit_call_failure("hedl_from_yaml", HEDL_ERR_YAML, &msg, duration);
@@ -201,7 +201,7 @@ pub unsafe extern "C" fn hedl_from_yaml(
 /// * `out_doc` - Pointer to store document handle
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -256,7 +256,7 @@ pub unsafe extern "C" fn hedl_from_xml(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("XML parse error: {}", e);
+            let msg = format!("XML parse error: {e}");
             set_error(&msg);
             *out_doc = ptr::null_mut();
             audit_call_failure("hedl_from_xml", HEDL_ERR_XML, &msg, duration);
@@ -277,7 +277,7 @@ pub unsafe extern "C" fn hedl_from_xml(
 /// * `out_doc` - Pointer to store document handle
 ///
 /// # Returns
-/// HEDL_OK on success, error code on failure.
+/// `HEDL_OK` on success, error code on failure.
 ///
 /// # Safety
 /// All pointers must be valid.
@@ -329,11 +329,95 @@ pub unsafe extern "C" fn hedl_from_parquet(
         }
         Err(e) => {
             let duration = start.elapsed();
-            let msg = format!("Parquet parse error: {}", e);
+            let msg = format!("Parquet parse error: {e}");
             set_error(&msg);
             *out_doc = ptr::null_mut();
             audit_call_failure("hedl_from_parquet", HEDL_ERR_PARQUET, &msg, duration);
             HEDL_ERR_PARQUET
+        }
+    }
+}
+
+// =============================================================================
+// TOON Conversion (requires "toon" feature)
+// =============================================================================
+
+/// Parse TOON into a HEDL document.
+///
+/// TOON (Typed Object Outline Notation) is an external format specification
+/// for human-readable data serialization.
+///
+/// # Arguments
+/// * `toon` - UTF-8 encoded TOON string
+/// * `toon_len` - Length of input in bytes, or -1 for null-terminated
+/// * `out_doc` - Pointer to store document handle
+///
+/// # Returns
+/// `HEDL_OK` on success, error code on failure.
+///
+/// # Safety
+/// All pointers must be valid.
+///
+/// # Feature
+/// Requires the "toon" feature to be enabled.
+#[cfg(feature = "toon")]
+#[no_mangle]
+pub unsafe extern "C" fn hedl_from_toon(
+    toon: *const c_char,
+    toon_len: c_int,
+    out_doc: *mut *mut HedlDocument,
+) -> c_int {
+    use crate::audit::{
+        audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer,
+    };
+    use std::time::Instant;
+
+    let start = Instant::now();
+    let toon_ptr_str = sanitize_pointer(toon);
+    let toon_len_str = toon_len.to_string();
+    audit_call_start(
+        "hedl_from_toon",
+        &[("toon_ptr", &toon_ptr_str), ("toon_len", &toon_len_str)],
+    );
+
+    clear_error();
+
+    if toon.is_null() || out_doc.is_null() {
+        let duration = start.elapsed();
+        set_error("Null pointer argument");
+        audit_call_failure(
+            "hedl_from_toon",
+            HEDL_ERR_NULL_PTR,
+            "NULL pointer",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    let toon_str = match get_input_string(toon, toon_len) {
+        Ok(s) => s,
+        Err(code) => {
+            let duration = start.elapsed();
+            let msg = crate::error::get_thread_local_error();
+            audit_call_failure("hedl_from_toon", code, &msg, duration);
+            return code;
+        }
+    };
+
+    match hedl_toon::toon_to_hedl(&toon_str) {
+        Ok(doc) => {
+            let handle = Box::new(HedlDocument { inner: doc });
+            *out_doc = Box::into_raw(handle);
+            audit_call_success("hedl_from_toon", start.elapsed());
+            HEDL_OK
+        }
+        Err(e) => {
+            let duration = start.elapsed();
+            let msg = format!("TOON parse error: {e}");
+            set_error(&msg);
+            *out_doc = ptr::null_mut();
+            audit_call_failure("hedl_from_toon", HEDL_ERR_TOON, &msg, duration);
+            HEDL_ERR_TOON
         }
     }
 }

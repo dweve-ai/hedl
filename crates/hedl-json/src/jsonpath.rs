@@ -15,14 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! JSONPath query support for HEDL documents
+//! `JSONPath` query support for HEDL documents
 //!
-//! This module provides JSONPath query functionality for HEDL documents,
-//! allowing efficient extraction of specific data using standard JSONPath syntax.
+//! This module provides `JSONPath` query functionality for HEDL documents,
+//! allowing efficient extraction of specific data using standard `JSONPath` syntax.
 //!
 //! # Features
 //!
-//! - **Standard JSONPath Syntax**: Full support for JSONPath expressions
+//! - **Standard `JSONPath` Syntax**: Full support for `JSONPath` expressions
 //! - **Efficient Queries**: Optimized query execution with minimal allocations
 //! - **Type-Safe Results**: Returns strongly-typed query results
 //! - **Error Handling**: Comprehensive error reporting for invalid queries
@@ -55,10 +55,10 @@ use thiserror::Error;
 
 use crate::{to_json_value, ToJsonConfig};
 
-/// Errors that can occur during JSONPath queries
+/// Errors that can occur during `JSONPath` queries
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum QueryError {
-    /// Invalid JSONPath expression
+    /// Invalid `JSONPath` expression
     #[error("Invalid JSONPath expression: {0}")]
     InvalidExpression(String),
 
@@ -71,10 +71,10 @@ pub enum QueryError {
     ExecutionError(String),
 }
 
-/// Result type for JSONPath queries
+/// Result type for `JSONPath` queries
 pub type QueryResult<T> = Result<T, QueryError>;
 
-/// Configuration for JSONPath queries
+/// Configuration for `JSONPath` queries
 #[derive(Debug, Clone)]
 pub struct QueryConfig {
     /// Include HEDL metadata in JSON conversion
@@ -107,16 +107,17 @@ impl From<&QueryConfig> for ToJsonConfig {
             include_metadata: config.include_metadata,
             flatten_lists: config.flatten_lists,
             include_children: config.include_children,
+            ascii_safe: false,
         }
     }
 }
 
-/// Query a HEDL document using JSONPath expression
+/// Query a HEDL document using `JSONPath` expression
 ///
 /// # Arguments
 ///
 /// * `doc` - The HEDL document to query
-/// * `path` - JSONPath expression (e.g., "$.users[*].name")
+/// * `path` - `JSONPath` expression (e.g., "$.users[*].name")
 /// * `config` - Query configuration
 ///
 /// # Returns
@@ -145,7 +146,7 @@ pub fn query(doc: &Document, path: &str, config: &QueryConfig) -> QueryResult<Ve
 
     // Parse JSONPath expression
     let json_path =
-        JsonPath::from_str(path).map_err(|e| QueryError::InvalidExpression(format!("{}", e)))?;
+        JsonPath::from_str(path).map_err(|e| QueryError::InvalidExpression(format!("{e}")))?;
 
     // Execute query
     let node_list = json_path.query(&json_value);
@@ -171,7 +172,7 @@ pub fn query(doc: &Document, path: &str, config: &QueryConfig) -> QueryResult<Ve
 /// # Arguments
 ///
 /// * `doc` - The HEDL document to query
-/// * `path` - JSONPath expression
+/// * `path` - `JSONPath` expression
 /// * `config` - Query configuration
 ///
 /// # Returns
@@ -209,7 +210,7 @@ pub fn query_first(
 /// # Arguments
 ///
 /// * `doc` - The HEDL document to query
-/// * `path` - JSONPath expression
+/// * `path` - `JSONPath` expression
 /// * `config` - Query configuration
 ///
 /// # Returns
@@ -244,18 +245,17 @@ pub fn query_single(doc: &Document, path: &str, config: &QueryConfig) -> QueryRe
         )),
         1 => Ok(results.into_iter().next().unwrap()),
         n => Err(QueryError::ExecutionError(format!(
-            "Query returned {} results, expected exactly 1",
-            n
+            "Query returned {n} results, expected exactly 1"
         ))),
     }
 }
 
-/// Check if a JSONPath query matches any elements in a HEDL document
+/// Check if a `JSONPath` query matches any elements in a HEDL document
 ///
 /// # Arguments
 ///
 /// * `doc` - The HEDL document to query
-/// * `path` - JSONPath expression
+/// * `path` - `JSONPath` expression
 /// * `config` - Query configuration
 ///
 /// # Returns
@@ -282,12 +282,12 @@ pub fn query_exists(doc: &Document, path: &str, config: &QueryConfig) -> QueryRe
     Ok(!results.is_empty())
 }
 
-/// Count the number of matches for a JSONPath query
+/// Count the number of matches for a `JSONPath` query
 ///
 /// # Arguments
 ///
 /// * `doc` - The HEDL document to query
-/// * `path` - JSONPath expression
+/// * `path` - `JSONPath` expression
 /// * `config` - Query configuration
 ///
 /// # Returns
@@ -314,7 +314,7 @@ pub fn query_count(doc: &Document, path: &str, config: &QueryConfig) -> QueryRes
     Ok(results.len())
 }
 
-/// Builder for constructing QueryConfig instances
+/// Builder for constructing `QueryConfig` instances
 #[derive(Debug, Default)]
 pub struct QueryConfigBuilder {
     include_metadata: bool,
@@ -324,36 +324,42 @@ pub struct QueryConfigBuilder {
 }
 
 impl QueryConfigBuilder {
-    /// Create a new QueryConfigBuilder
+    /// Create a new `QueryConfigBuilder`
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Include HEDL metadata in JSON conversion
+    #[must_use]
     pub fn include_metadata(mut self, value: bool) -> Self {
         self.include_metadata = value;
         self
     }
 
     /// Flatten matrix lists to plain arrays
+    #[must_use]
     pub fn flatten_lists(mut self, value: bool) -> Self {
         self.flatten_lists = value;
         self
     }
 
     /// Include children as nested arrays
+    #[must_use]
     pub fn include_children(mut self, value: bool) -> Self {
         self.include_children = value;
         self
     }
 
     /// Set maximum number of results (0 = unlimited)
+    #[must_use]
     pub fn max_results(mut self, value: usize) -> Self {
         self.max_results = value;
         self
     }
 
-    /// Build the QueryConfig
+    /// Build the `QueryConfig`
+    #[must_use]
     pub fn build(self) -> QueryConfig {
         QueryConfig {
             include_metadata: self.include_metadata,
@@ -398,9 +404,9 @@ mod tests {
                 }
                 (header_lines.join("\n"), body_lines.join("\n"))
             };
-            format!("%VERSION: 1.0\n{}\n---\n{}", header, body)
+            format!("%VERSION: 1.0\n{header}\n---\n{body}")
         } else {
-            format!("%VERSION: 1.0\n---\n{}", input)
+            format!("%VERSION: 1.0\n---\n{input}")
         };
         parse(hedl.as_bytes()).unwrap()
     }
@@ -592,7 +598,7 @@ mod tests {
     #[test]
     fn test_error_display() {
         let err = QueryError::InvalidExpression("test error".to_string());
-        let msg = format!("{}", err);
+        let msg = format!("{err}");
         assert!(msg.contains("Invalid JSONPath expression"));
         assert!(msg.contains("test error"));
     }
@@ -630,7 +636,7 @@ mod tests {
         let results = query(&doc, "$.*", &config).unwrap();
         assert_eq!(results.len(), 3);
 
-        let sum: i64 = results.iter().filter_map(|v| v.as_i64()).sum();
+        let sum: i64 = results.iter().filter_map(serde_json::Value::as_i64).sum();
         assert_eq!(sum, 6);
     }
 

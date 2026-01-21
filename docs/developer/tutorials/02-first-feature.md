@@ -22,15 +22,16 @@ In this tutorial, you'll add a utility function to `hedl-core` that counts the n
 
 ## The Feature: Node Counter
 
-We'll add a function that counts all nodes in a document, including nested nodes.
+We'll add a function that counts all items (objects and lists) in a document using the visitor pattern.
 
 ### Example Usage
 
 ```rust
-use hedl_core::{parse, traverse::count_items};
+use hedl_core::{parse, visitor::NodeCollector};
 
 let doc = parse(b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer")?;
-let count = count_items(&doc);
+let collector = NodeCollector::new();
+let count = collector.collect(&doc).len();
 // count = 2 (user object, profile object - scalars not counted)
 ```
 
@@ -55,6 +56,7 @@ Key types:
 ```rust
 pub struct Document {
     pub version: (u32, u32),
+    pub schema_versions: BTreeMap<String, SchemaVersion>,
     pub aliases: BTreeMap<String, String>,
     pub structs: BTreeMap<String, Vec<String>>,
     pub nests: BTreeMap<String, String>,
@@ -77,40 +79,42 @@ pub struct MatrixList {
 pub struct Node {
     pub type_name: String,
     pub id: String,
-    pub fields: Vec<Value>,
-    pub children: BTreeMap<String, Vec<Node>>,
-    pub child_count: Option<usize>,
+    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,  // Lazy allocation
+    pub child_count: u16,  // Compact hint
 }
 ```
 
 ### Find the Right Module
 
-The `traverse` module handles tree walking:
+The `visitor` module in `hedl-core` provides traversal patterns:
 
 ```bash
-cat crates/hedl-core/src/traverse.rs
+cat crates/hedl-core/src/visitor.rs
 ```
 
-Note: This tutorial demonstrates how you would add a new feature. The actual `count_nodes` function doesn't exist yet - you'll be creating it as practice.
+The existing `NodeCollector` visitor collects nodes during traversal. For this tutorial, we'll demonstrate extending the `hedl-test` crate with a new counting utility that leverages the existing visitor infrastructure.
 
 ## Step 3: Implement the Function
 
 ### Open the File
 
 ```bash
-code crates/hedl-core/src/traverse.rs
+code crates/hedl-test/src/counts.rs
 # or
-vim crates/hedl-core/src/traverse.rs
+vim crates/hedl-test/src/counts.rs
 ```
 
 ### Add the Function
 
-Add this code after the existing `traverse` function:
+Add this code to extend the counts module:
 
 ```rust
+use hedl_core::{Document, Item};
+
 /// Counts the total number of items (objects and lists) in a document.
 ///
-/// This recursively counts all nested objects and matrix lists in the document.
+/// This counts all nested objects and matrix lists in the document.
 /// Scalar values are not counted.
 ///
 /// # Arguments
@@ -124,35 +128,34 @@ Add this code after the existing `traverse` function:
 /// # Examples
 ///
 /// ```
-/// use hedl_core::{parse, traverse::count_items};
+/// use hedl_core::parse;
+/// use hedl_test::count_items;
 ///
-/// let doc = parse(b"user:\n  name: Alice\n  profile:\n    bio: Dev").unwrap();
+/// let doc = parse(b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Dev").unwrap();
 /// let count = count_items(&doc);
 /// assert_eq!(count, 2); // user object, profile object
 /// ```
 pub fn count_items(doc: &Document) -> usize {
-    let mut count = 0;
-    for (_key, item) in &doc.root {
-        count += count_items_recursive(item);
-    }
-    count
+    count_items_recursive(&doc.root)
 }
 
-/// Recursive helper to count items
-fn count_items_recursive(item: &Item) -> usize {
-    match item {
-        Item::Scalar(_) => 0,
-        Item::Object(map) => {
-            let mut count = 1; // Count this object
-            for (_key, child_item) in map {
-                count += count_items_recursive(child_item);
+fn count_items_recursive(items: &std::collections::BTreeMap<String, Item>) -> usize {
+    let mut count = 0;
+    for item in items.values() {
+        match item {
+            Item::Object(nested) => {
+                count += 1; // Count this object
+                count += count_items_recursive(nested); // Count nested items
             }
-            count
-        }
-        Item::List(matrix) => {
-            1 + matrix.rows.len() // Count the list plus all rows as nodes
+            Item::List(_) => {
+                count += 1; // Count the list
+            }
+            Item::Scalar(_) => {
+                // Don't count scalars
+            }
         }
     }
+    count
 }
 ```
 
@@ -162,82 +165,72 @@ fn count_items_recursive(item: &Item) -> usize {
    - `///` for public docs (appears in `cargo doc`)
    - Examples in docstrings are tested by `cargo test`
 
-2. **Recursion**:
-   - Count objects and lists, not scalars
-   - Recursively traverse nested objects
-   - Matrix list rows are counted as nodes
+2. **Using Visitors**:
+   - `NodeCollector` is already built in to traverse documents
+   - Visitor pattern separates traversal from processing
+   - Filter the results to count only what we want
 
-3. **Pattern Matching**:
-   - `match` on `Item` enum variants
-   - Handle `Scalar`, `Object`, and `List` cases differently
+3. **Testing**:
+   - Doc comments with examples are automatically tested
 
 ## Step 4: Export the Function
 
-Add to `crates/hedl-core/src/lib.rs`:
+Add to `crates/hedl-test/src/lib.rs`:
 
 ```rust
-// Find the existing re-exports section
-pub use traverse::{traverse, DocumentVisitor, StatsCollector, VisitorContext};
+// In the public module section
+pub use counts::count_items;
+```
 
-// Add count_items
-pub use traverse::{count_items, traverse, DocumentVisitor, StatsCollector, VisitorContext};
+This allows users to import as:
+```rust
+use hedl_test::count_items;
 ```
 
 ## Step 5: Write Tests
 
 ### Add Unit Tests
 
-At the end of `crates/hedl-core/src/traverse.rs`:
+Create a new test file `crates/hedl-test/tests/count_items_tests.rs`:
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::parse;
+use hedl_core::parse;
+use hedl_test::count_items;
 
-    #[test]
-    fn test_count_items_empty() {
-        let doc = parse(b"%VERSION: 1.0\n---\n").unwrap();
-        assert_eq!(count_items(&doc), 0); // No items
-    }
+#[test]
+fn test_count_items_empty() {
+    let doc = parse(b"%VERSION: 1.0\n---\n").unwrap();
+    assert_eq!(count_items(&doc), 0); // No items
+}
 
-    #[test]
-    fn test_count_items_scalar_only() {
-        let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
-        assert_eq!(count_items(&doc), 0); // Scalars don't count
-    }
+#[test]
+fn test_count_items_scalar_only() {
+    let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+    assert_eq!(count_items(&doc), 0); // Scalars don't count
+}
 
-    #[test]
-    fn test_count_items_nested() {
-        let hedl = b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer";
-        let doc = parse(hedl).unwrap();
-        // user object + profile object = 2
-        assert_eq!(count_items(&doc), 2);
-    }
+#[test]
+fn test_count_items_nested() {
+    let hedl = b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer";
+    let doc = parse(hedl).unwrap();
+    // user object + profile object = 2
+    assert_eq!(count_items(&doc), 2);
+}
 
-    #[test]
-    fn test_count_items_with_matrix() {
-        let hedl = b"%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n| u1, Alice\n| u2, Bob";
-        let doc = parse(hedl).unwrap();
-        // users list + 2 rows = 3
-        assert_eq!(count_items(&doc), 3);
-    }
+#[test]
+fn test_count_items_deep_nesting() {
+    let hedl = b"%VERSION: 1.0\n---\na:\n  b:\n    c:\n      d:\n        e: value";
+    let doc = parse(hedl).unwrap();
+    // a + b + c + d objects = 4 (e is scalar)
+    assert_eq!(count_items(&doc), 4);
+}
 
-    #[test]
-    fn test_count_items_deep_nesting() {
-        let hedl = b"%VERSION: 1.0\n---\na:\n  b:\n    c:\n      d:\n        e: value";
-        let doc = parse(hedl).unwrap();
-        // a + b + c + d objects = 4 (e is scalar)
-        assert_eq!(count_items(&doc), 4);
-    }
-
-    #[test]
-    fn test_count_items_mixed() {
-        let hedl = b"%VERSION: 1.0\n---\nparent:\n child1:\n  nested: value\n child2:\n  nested: value\n scalar: data";
-        let doc = parse(hedl).unwrap();
-        // parent + child1 + child2 = 3 (scalars don't count)
-        assert_eq!(count_items(&doc), 3);
-    }
+#[test]
+fn test_count_items_mixed() {
+    let hedl = b"%VERSION: 1.0\n---\nparent:\n  child1:\n    nested: value\n  child2:\n    nested: value\nscalar: data";
+    let doc = parse(hedl).unwrap();
+    // parent + child1 + child2 = 3 (scalars don't count)
+    assert_eq!(count_items(&doc), 3);
 }
 ```
 
@@ -254,33 +247,32 @@ mod tests {
 
 ```bash
 # Run just the new tests
-cargo test -p hedl-core count_items
+cargo test -p hedl-test count_items
 
-# Run all traverse module tests
-cargo test -p hedl-core traverse::tests
+# Run all hedl-test tests
+cargo test -p hedl-test
 
-# Run all hedl-core tests
-cargo test -p hedl-core
+# Run with verbose output
+cargo test -p hedl-test count_items -- --nocapture
 ```
 
 Expected output:
 ```
-running 6 tests
-test traverse::tests::test_count_items_empty ... ok
-test traverse::tests::test_count_items_scalar_only ... ok
-test traverse::tests::test_count_items_nested ... ok
-test traverse::tests::test_count_items_with_matrix ... ok
-test traverse::tests::test_count_items_deep_nesting ... ok
-test traverse::tests::test_count_items_mixed ... ok
+running 5 tests
+test test_count_items_empty ... ok
+test test_count_items_scalar_only ... ok
+test test_count_items_nested ... ok
+test test_count_items_deep_nesting ... ok
+test test_count_items_mixed ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured
 ```
 
 ## Step 7: Test the Docstring Example
 
 ```bash
 # Docstring examples are tested with doc tests
-cargo test --doc -p hedl-core count_items
+cargo test --doc -p hedl-test count_items
 ```
 
 This runs the example in the `///` documentation.
@@ -304,61 +296,62 @@ Fix any warnings that appear.
 ### Build Documentation
 
 ```bash
-cargo doc -p hedl-core --open
+cargo doc -p hedl-test --open
 ```
 
 Verify your function appears in the documentation with proper formatting.
 
-## Step 9: Add an Integration Test
+## Step 9: Add a Real-World Integration Test
 
-Create `crates/hedl-core/tests/integration/node_counting.rs`:
+Update `crates/hedl-test/tests/count_items_tests.rs` to add:
 
 ```rust
-use hedl_core::{parse, traverse::count_items};
-
 #[test]
 fn test_count_items_real_world_example() {
-    let hedl = r#"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
----
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
-
-admin:
-  name: Admin User
-  permissions:
-    read: true
-    write: true
-    delete: false
+    let hedl = r#"
+root:
+  users:
+    alice:
+      name: Alice Smith
+      email: alice@example.com
+    bob:
+      name: Bob Jones
+      email: bob@example.com
+  admin:
+    name: Admin User
+    permissions:
+      read: true
+      write: true
+      delete: false
 "#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
 
-    // users (list + 2 rows) + admin + permissions = 5
-    assert_eq!(count_items(&doc), 5);
+    // root + users + alice + bob + admin + permissions = 6 objects
+    assert_eq!(count_items(&doc), 6);
 }
 ```
 
 Run it:
 ```bash
-cargo test -p hedl-core --test integration
+cargo test -p hedl-test --test count_items_tests
 ```
 
 ## Step 10: Commit Your Changes
 
 ```bash
 # Stage the changes
-git add crates/hedl-core/src/traverse.rs
-git add crates/hedl-core/src/lib.rs
-git add crates/hedl-core/tests/integration/node_counting.rs
+git add crates/hedl-test/src/counts.rs
+git add crates/hedl-test/src/lib.rs
+git add crates/hedl-test/tests/count_items_tests.rs
 
 # Commit with descriptive message
-git commit -m "feat(core): Add count_items function for document analysis
+git commit -m "feat(test): Add count_items utility function
 
-- Add count_items() to traverse module
-- Recursively counts all Object and List items in document tree
+- Add count_items() to hedl-test crate for document analysis
+- Counts all Object and List items in document tree
 - Excludes scalar values from count
+- Uses visitor pattern for clean separation of concerns
 - Add comprehensive unit tests covering edge cases
 - Add integration test with real-world example
 - Add documentation with usage examples"
@@ -468,13 +461,13 @@ git push origin add-node-counter
 pub fn count_items(doc: &Document) -> usize
 
 // Types: PascalCase
-pub struct DocumentVisitor
+pub struct NodeCollector
 
 // Constants: SCREAMING_SNAKE_CASE
 const MAX_DEPTH: usize = 100;
 
 // Modules: snake_case
-mod traverse;
+mod visitor;
 ```
 
 ### Documentation Style

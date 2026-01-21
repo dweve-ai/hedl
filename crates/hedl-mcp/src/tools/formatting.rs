@@ -25,7 +25,7 @@ use hedl_core::parse;
 use hedl_json::{from_json_value, FromJsonConfig};
 use serde_json::{json, Value as JsonValue};
 
-/// Execute hedl_format tool.
+/// Execute `hedl_format` tool.
 pub fn execute_hedl_format(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: FormatArgs = parse_args(args)?;
 
@@ -38,7 +38,7 @@ pub fn execute_hedl_format(args: Option<JsonValue>) -> McpResult<CallToolResult>
     config.use_ditto = args.ditto;
 
     let formatted = hedl_c14n::canonicalize_with_config(&doc, &config)
-        .map_err(|e| McpError::InvalidArguments(format!("Format failed: {}", e)))?;
+        .map_err(|e| McpError::InvalidArguments(format!("Format failed: {e}")))?;
 
     Ok(CallToolResult {
         content: vec![Content::Text { text: formatted }],
@@ -46,7 +46,7 @@ pub fn execute_hedl_format(args: Option<JsonValue>) -> McpResult<CallToolResult>
     })
 }
 
-/// Execute hedl_optimize tool.
+/// Execute `hedl_optimize` tool.
 pub fn execute_hedl_optimize(args: Option<JsonValue>) -> McpResult<CallToolResult> {
     let args: OptimizeArgs = parse_args(args)?;
 
@@ -55,19 +55,19 @@ pub fn execute_hedl_optimize(args: Option<JsonValue>) -> McpResult<CallToolResul
 
     // Parse JSON
     let json_value: JsonValue = serde_json::from_str(&args.json)
-        .map_err(|e| McpError::InvalidArguments(format!("Invalid JSON: {}", e)))?;
+        .map_err(|e| McpError::InvalidArguments(format!("Invalid JSON: {e}")))?;
 
     // Convert to HEDL document
     let config = FromJsonConfig::default();
     let doc = from_json_value(&json_value, &config)
-        .map_err(|e| McpError::InvalidArguments(format!("Cannot convert JSON to HEDL: {}", e)))?;
+        .map_err(|e| McpError::InvalidArguments(format!("Cannot convert JSON to HEDL: {e}")))?;
 
     // Canonicalize with ditto optimization
     let mut c14n_config = hedl_c14n::CanonicalConfig::default();
     c14n_config.use_ditto = args.ditto;
 
     let hedl_output = hedl_c14n::canonicalize_with_config(&doc, &c14n_config)
-        .map_err(|e| McpError::InvalidArguments(format!("Canonicalization failed: {}", e)))?;
+        .map_err(|e| McpError::InvalidArguments(format!("Canonicalization failed: {e}")))?;
 
     // Calculate stats (can be negative if HEDL is larger)
     let json_tokens = estimate_tokens(&args.json);

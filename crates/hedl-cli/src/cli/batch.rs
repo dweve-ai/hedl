@@ -64,6 +64,24 @@ pub enum BatchCommands {
         /// Show verbose progress
         #[arg(short, long)]
         verbose: bool,
+
+        /// Use streaming mode for memory-efficient processing
+        ///
+        /// Streaming mode uses constant memory regardless of file size,
+        /// making it ideal for files > 100MB or memory-constrained environments.
+        #[arg(long)]
+        streaming: bool,
+
+        /// Automatically use streaming for files > 100MB
+        ///
+        /// Enables hybrid mode where large files use streaming and small files
+        /// use standard processing for optimal performance and memory usage.
+        #[arg(long)]
+        auto_streaming: bool,
+
+        /// Maximum number of files to process (unlimited if not specified)
+        #[arg(long)]
+        max_files: Option<usize>,
     },
 
     /// Batch format multiple HEDL files
@@ -98,6 +116,10 @@ pub enum BatchCommands {
         /// Show verbose progress
         #[arg(short, long)]
         verbose: bool,
+
+        /// Maximum number of files to process (unlimited if not specified)
+        #[arg(long)]
+        max_files: Option<usize>,
     },
 
     /// Batch lint multiple HEDL files
@@ -120,6 +142,10 @@ pub enum BatchCommands {
         /// Show verbose progress
         #[arg(short, long)]
         verbose: bool,
+
+        /// Maximum number of files to process (unlimited if not specified)
+        #[arg(long)]
+        max_files: Option<usize>,
     },
 }
 
@@ -141,14 +167,30 @@ impl BatchCommands {
     ///
     /// Batch commands automatically parallelize when beneficial. The `parallel`
     /// flag forces parallelization even for small file sets.
-    pub fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), crate::error::CliError> {
+        // Convert CLI max_files option: 0 means unlimited (None), >0 means limit
+        fn convert_max_files(max_files: Option<usize>) -> Option<Option<usize>> {
+            max_files.map(|n| if n == 0 { None } else { Some(n) })
+        }
+
         match self {
             BatchCommands::BatchValidate {
                 files,
                 strict,
                 parallel,
                 verbose,
-            } => commands::batch_validate(files, strict, parallel, verbose),
+                streaming: _,
+                auto_streaming: _,
+                max_files,
+            } => commands::batch_validate_with_config(
+                files,
+                strict,
+                false,
+                100,
+                parallel,
+                verbose,
+                convert_max_files(max_files),
+            ),
             BatchCommands::BatchFormat {
                 files,
                 output_dir,
@@ -157,21 +199,34 @@ impl BatchCommands {
                 with_counts,
                 parallel,
                 verbose,
-            } => commands::batch_format(
+                max_files,
+            } => commands::batch_format_with_config(
                 files,
                 output_dir,
                 check,
                 ditto,
                 with_counts,
+                false,
+                100,
                 parallel,
                 verbose,
+                convert_max_files(max_files),
             ),
             BatchCommands::BatchLint {
                 files,
                 warn_error,
                 parallel,
                 verbose,
-            } => commands::batch_lint(files, warn_error, parallel, verbose),
+                max_files,
+            } => commands::batch_lint_with_config(
+                files,
+                warn_error,
+                false,
+                100,
+                parallel,
+                verbose,
+                convert_max_files(max_files),
+            ),
         }
     }
 }

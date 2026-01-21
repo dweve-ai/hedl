@@ -57,9 +57,11 @@ user: @User:alice  # Error: User:alice not found
 
 **Solution**: Use lenient parsing or define the referenced entity:
 ```rust
-use hedl::parse_lenient;
+use hedl::{parse_with_limits, ParseOptions};
 
-let doc = parse_lenient(input)?;  // Unresolved refs become null
+// Use lenient_refs() to ignore unresolved references
+let opts = ParseOptions::builder().lenient_refs().build();
+let doc = parse_with_limits(input.as_bytes(), opts)?;
 ```
 
 #### `Schema` Error
@@ -184,8 +186,9 @@ let result = parse(input)
 #define HEDL_ERR_CSV        -9      // CSV conversion error
 #define HEDL_ERR_PARQUET    -10     // Parquet conversion error
 #define HEDL_ERR_LINT       -11     // Linting error
-#define HEDL_ERR_NEO4J      -12     // Neo4j conversion error
 ```
+
+> **Note**: Additional internal error codes (`HEDL_ERR_NEO4J` through `HEDL_ERR_INVALID_HANDLE`, codes -12 to -16) are defined in the Rust implementation but may not be exposed in the public C header. Check your header version for availability.
 
 #### Error Handling
 ```c
@@ -222,34 +225,25 @@ void* worker(void* arg) {
 
 ### WASM API (JavaScript/TypeScript)
 
-#### Exception Types
-```typescript
-class HedlError extends Error {
-    readonly kind: HedlErrorKind;
-    readonly line?: number;
-    readonly column?: number;
-}
-
-enum HedlErrorKind {
-    Syntax = "Syntax",
-    Reference = "Reference",
-    Struct = "Struct",
-    Validation = "Validation",
-    Conversion = "Conversion",
-    ResourceLimit = "ResourceLimit",
-}
-```
+All HEDL WASM functions throw standard JavaScript `Error` objects on failure. Parse errors include line information in the error message.
 
 #### Try-Catch Handling
 ```typescript
-import { parse, HedlError } from 'hedl-wasm';
+import { parse } from 'hedl-wasm';
 
 try {
     const doc = parse(hedlText);
     console.log(`Parsed ${doc.root.length} items`);
 } catch (error) {
-    if (error instanceof HedlError) {
-        console.error(`${error.kind} error at line ${error.line}: ${error.message}`);
+    if (error instanceof Error) {
+        // Parse errors include line info in message:
+        // "Parse error at line 5: unexpected token"
+        const lineMatch = error.message.match(/line (\d+)/i);
+        if (lineMatch) {
+            console.error(`Error at line ${lineMatch[1]}: ${error.message}`);
+        } else {
+            console.error(`Error: ${error.message}`);
+        }
     } else {
         console.error(`Unexpected error: ${error}`);
     }
@@ -344,7 +338,7 @@ let limits = Limits {
     ..Limits::default()
 };
 
-let options = ParseOptions { strict_refs: true, limits };
+let options = ParseOptions { reference_mode: ReferenceMode::Strict, limits };
 let doc = parse_with_limits(input.as_bytes(), options)?;
 ```
 
@@ -353,7 +347,7 @@ let doc = parse_with_limits(input.as_bytes(), options)?;
 Implement graceful error recovery:
 
 ```rust
-use hedl::{parse, parse_lenient, HedlErrorKind};
+use hedl::{parse, parse_with_limits, ParseOptions, HedlErrorKind};
 
 // Try strict parsing first
 match parse(input) {
@@ -361,7 +355,8 @@ match parse(input) {
     Err(e) if matches!(e.kind, HedlErrorKind::Reference) => {
         // Fall back to lenient parsing for reference errors
         eprintln!("Warning: Using lenient mode due to: {}", e.message);
-        parse_lenient(input)
+        let opts = ParseOptions::builder().lenient_refs().build();
+        parse_with_limits(input.as_bytes(), opts)
     }
     Err(e) => Err(e),
 }

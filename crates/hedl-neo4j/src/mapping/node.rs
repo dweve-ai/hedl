@@ -21,7 +21,7 @@ use hedl_core::{MatrixList, Node, Value};
 use std::collections::BTreeMap;
 
 use crate::config::{ObjectHandling, ToCypherConfig};
-use crate::cypher::CypherValue;
+use crate::cypher::{sanitize_string_value, validate_string_length, CypherValue};
 use crate::error::{Neo4jError, Result};
 use crate::mapping::value::value_to_cypher;
 
@@ -62,11 +62,13 @@ impl Neo4jNode {
     }
 
     /// Get a property value.
+    #[must_use]
     pub fn get_property(&self, name: &str) -> Option<&CypherValue> {
         self.properties.get(name)
     }
 
     /// Convert to a Cypher map representation.
+    #[must_use]
     pub fn to_cypher_map(&self, id_property: &str) -> CypherValue {
         let mut map = BTreeMap::new();
         map.insert(
@@ -78,9 +80,15 @@ impl Neo4jNode {
     }
 }
 
-/// Convert a HEDL Node to a Neo4jNode.
+/// Convert a HEDL Node to a `Neo4jNode`.
 pub fn node_to_neo4j(node: &Node, schema: &[String], config: &ToCypherConfig) -> Result<Neo4jNode> {
-    let mut neo4j_node = Neo4jNode::new(&node.type_name, &node.id);
+    // Security: Sanitize ID to filter dangerous Unicode characters
+    let sanitized_id = sanitize_string_value(&node.id);
+
+    // Security: Validate ID length before creating node
+    validate_string_length(&sanitized_id, "_hedl_id", config)?;
+
+    let mut neo4j_node = Neo4jNode::new(&node.type_name, sanitized_id);
 
     // Map fields according to schema columns
     for (i, field) in node.fields.iter().enumerate() {
@@ -112,7 +120,7 @@ pub fn node_to_neo4j(node: &Node, schema: &[String], config: &ToCypherConfig) ->
     Ok(neo4j_node)
 }
 
-/// Convert a MatrixList to a collection of Neo4jNodes.
+/// Convert a `MatrixList` to a collection of `Neo4jNodes`.
 pub fn matrix_list_to_nodes(list: &MatrixList, config: &ToCypherConfig) -> Result<Vec<Neo4jNode>> {
     if list.rows.is_empty() {
         return Err(Neo4jError::EmptyMatrixList(list.type_name.clone()));
@@ -129,6 +137,7 @@ pub fn matrix_list_to_nodes(list: &MatrixList, config: &ToCypherConfig) -> Resul
 }
 
 /// Extract reference fields from a node for relationship creation.
+#[must_use]
 pub fn extract_references(node: &Node, schema: &[String]) -> Vec<(String, hedl_core::Reference)> {
     let mut references = Vec::new();
 
@@ -202,7 +211,7 @@ pub fn neo4j_to_node(
     for (i, column) in schema.iter().enumerate() {
         if i == 0 {
             // First column is the ID
-            fields.push(Value::String(id.to_string()));
+            fields.push(Value::String(id.to_string().into()));
         } else if let Some(value) = properties.get(column) {
             fields.push(cypher_to_value(value)?);
         } else {
@@ -213,13 +222,14 @@ pub fn neo4j_to_node(
     Ok(Node {
         type_name: label.to_string(),
         id: id.to_string(),
-        fields,
-        children: BTreeMap::new(),
-        child_count: None,
+        fields: fields.into(),
+        children: None,
+        child_count: 0,
     })
 }
 
 /// Group Neo4j nodes by label.
+#[must_use]
 pub fn group_nodes_by_label(nodes: &[Neo4jNode]) -> BTreeMap<String, Vec<&Neo4jNode>> {
     let mut groups: BTreeMap<String, Vec<&Neo4jNode>> = BTreeMap::new();
 
@@ -231,6 +241,7 @@ pub fn group_nodes_by_label(nodes: &[Neo4jNode]) -> BTreeMap<String, Vec<&Neo4jN
 }
 
 /// Infer schema from Neo4j nodes with the same label.
+#[must_use]
 pub fn infer_schema_from_nodes(nodes: &[&Neo4jNode], id_property: &str) -> Vec<String> {
     let mut columns: Vec<String> = vec!["id".to_string()]; // ID is always first
 
@@ -251,6 +262,7 @@ pub fn infer_schema_from_nodes(nodes: &[&Neo4jNode], id_property: &str) -> Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use smallvec::SmallVec;
 
     #[test]
     fn test_neo4j_node_new() {
@@ -297,13 +309,13 @@ mod tests {
         let hedl_node = Node {
             type_name: "User".to_string(),
             id: "alice".to_string(),
-            fields: vec![
-                Value::String("alice".to_string()),
-                Value::String("Alice Smith".to_string()),
+            fields: SmallVec::from_vec(vec![
+                Value::String("alice".to_string().into()),
+                Value::String("Alice Smith".to_string().into()),
                 Value::Int(30),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         };
         let schema = vec!["id".to_string(), "name".to_string(), "age".to_string()];
         let config = ToCypherConfig::default();
@@ -324,16 +336,16 @@ mod tests {
         let hedl_node = Node {
             type_name: "Post".to_string(),
             id: "p1".to_string(),
-            fields: vec![
-                Value::String("p1".to_string()),
-                Value::String("Hello World".to_string()),
+            fields: SmallVec::from_vec(vec![
+                Value::String("p1".to_string().into()),
+                Value::String("Hello World".to_string().into()),
                 Value::Reference(hedl_core::Reference {
-                    type_name: Some("User".to_string()),
-                    id: "alice".to_string(),
+                    type_name: Some("User".to_string().into()),
+                    id: "alice".to_string().into(),
                 }),
-            ],
-            children: BTreeMap::new(),
-            child_count: None,
+            ]),
+            children: None,
+            child_count: 0,
         };
         let schema = vec![
             "id".to_string(),
@@ -344,7 +356,7 @@ mod tests {
         let refs = extract_references(&hedl_node, &schema);
         assert_eq!(refs.len(), 1);
         assert_eq!(refs[0].0, "author");
-        assert_eq!(refs[0].1.id, "alice");
+        assert_eq!(refs[0].1.id.as_ref(), "alice");
     }
 
     #[test]

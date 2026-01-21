@@ -90,7 +90,7 @@ pub unsafe extern "C" fn hedl_free_string(s: *mut c_char) {
 ///
 /// # Safety
 ///
-/// The pointer must have been returned by hedl_parse or hedl_from_*.
+/// The pointer must have been returned by `hedl_parse` or `hedl_from`_*.
 ///
 /// **Double-free protection:** If the pointer is NULL or the poison value,
 /// this function returns safely without attempting to free.
@@ -117,7 +117,7 @@ pub unsafe extern "C" fn hedl_free_document(doc: *mut HedlDocument) {
 ///
 /// # Safety
 ///
-/// The pointer must have been returned by hedl_lint.
+/// The pointer must have been returned by `hedl_lint`.
 ///
 /// **Double-free protection:** If the pointer is NULL or the poison value,
 /// this function returns safely without attempting to free.
@@ -158,13 +158,22 @@ pub unsafe extern "C" fn hedl_free_diagnostics(diag: *mut HedlDiagnostics) {
 /// - Pointers from other libraries
 /// - Incorrect length (MUST match the length returned by the allocating function)
 ///
-/// NULL pointers are safely ignored (when len is 0).
+/// NULL pointers are safely ignored.
+///
+/// # Note
+/// This function correctly handles:
+/// - NULL pointers (no-op, safe to call)
+/// - Non-NULL pointers with len == 0 (empty slice allocation, freed correctly)
 ///
 /// # Feature
 /// Always available, but only useful with "parquet" feature.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_free_bytes(data: *mut u8, len: usize) {
-    if !data.is_null() && len > 0 {
-        let _ = Vec::from_raw_parts(data, len, len);
+    if !data.is_null() {
+        // The allocation was created with Box::into_raw(bytes.into_boxed_slice()),
+        // so we must free with Box::from_raw on a slice pointer.
+        // Using Vec::from_raw_parts would cause allocator/layout mismatch UB.
+        let slice_ptr = std::ptr::slice_from_raw_parts_mut(data, len);
+        let _ = Box::from_raw(slice_ptr);
     }
 }

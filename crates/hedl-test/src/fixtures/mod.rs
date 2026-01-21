@@ -43,6 +43,7 @@ use crate::FixtureList;
 /// Returns all fixture functions for iteration.
 ///
 /// Useful for running the same test across all fixtures.
+#[must_use]
 pub fn all() -> FixtureList {
     vec![
         ("scalars", scalars),

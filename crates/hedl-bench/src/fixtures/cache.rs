@@ -32,6 +32,7 @@ pub struct FixtureCache {
 
 impl FixtureCache {
     /// Creates a new empty fixture cache.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cache: HashMap::new(),
@@ -39,11 +40,12 @@ impl FixtureCache {
     }
 
     /// Creates a cache preloaded with common fixtures.
+    #[must_use]
     pub fn preloaded() -> Self {
         let mut cache = Self::new();
         for name in &["small", "medium", "large"] {
             if let Ok(content) = super::loader::load_fixture(name) {
-                cache.cache.insert(name.to_string(), content);
+                cache.cache.insert((*name).to_string(), content);
             }
         }
         cache
@@ -75,6 +77,7 @@ impl FixtureCache {
     /// # Returns
     ///
     /// Optional reference to cached content.
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&String> {
         self.cache.get(name)
     }
@@ -95,18 +98,21 @@ impl FixtureCache {
     }
 
     /// Returns the number of cached fixtures.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.cache.len()
     }
 
     /// Returns true if cache is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.cache.is_empty()
     }
 
     /// Returns total size of cached data in bytes.
+    #[must_use]
     pub fn total_size(&self) -> usize {
-        self.cache.values().map(|s| s.len()).sum()
+        self.cache.values().map(std::string::String::len).sum()
     }
 
     /// Preloads multiple fixtures into cache.

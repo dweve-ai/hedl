@@ -20,6 +20,8 @@
 //! Provides registration and discovery of benchmarks with metadata
 //! for categorization, tagging, and coverage tracking.
 
+use crate::core::name_validation::validate_benchmark_name;
+use crate::error::Result;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
@@ -48,6 +50,7 @@ pub enum Category {
 
 impl Category {
     /// Returns the category as a string.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
             Category::Parsing => "parsing",
@@ -76,6 +79,7 @@ pub struct Coverage {
 
 impl Coverage {
     /// Creates new coverage information.
+    #[must_use]
     pub fn new(lines_covered: usize, total_lines: usize) -> Self {
         let percentage = if total_lines > 0 {
             (lines_covered as f64 / total_lines as f64) * 100.0
@@ -91,6 +95,7 @@ impl Coverage {
     }
 
     /// Returns whether coverage meets a threshold.
+    #[must_use]
     pub fn meets_threshold(&self, threshold: f64) -> bool {
         self.percentage >= threshold
     }
@@ -127,18 +132,21 @@ impl BenchmarkMetadata {
     }
 
     /// Adds multiple tags.
+    #[must_use]
     pub fn with_tags(mut self, tags: &[&str]) -> Self {
-        self.tags.extend(tags.iter().map(|s| s.to_string()));
+        self.tags.extend(tags.iter().map(|s| (*s).to_string()));
         self
     }
 
     /// Sets coverage information.
+    #[must_use]
     pub fn with_coverage(mut self, coverage: Coverage) -> Self {
         self.coverage = Some(coverage);
         self
     }
 
     /// Returns whether this benchmark has a specific tag.
+    #[must_use]
     pub fn has_tag(&self, tag: &str) -> bool {
         self.tags.iter().any(|t| t == tag)
     }
@@ -178,12 +186,14 @@ struct BenchmarkRegistry {
 ///     .with_tag("core")
 ///     .with_tag("performance");
 ///
-/// register_benchmark("parse_users", metadata);
+/// register_benchmark("parse_users", metadata).unwrap();
 /// ```
-pub fn register_benchmark(name: &str, metadata: BenchmarkMetadata) {
+pub fn register_benchmark(name: &str, metadata: BenchmarkMetadata) -> Result<()> {
+    validate_benchmark_name(name)?;
     let mut lock = REGISTRY.write().unwrap();
     let registry = lock.get_or_insert_with(BenchmarkRegistry::default);
     registry.benchmarks.insert(name.to_string(), metadata);
+    Ok(())
 }
 
 /// Discovers all registered benchmarks.
@@ -231,6 +241,7 @@ pub fn get_benchmark_metadata(name: &str) -> Option<BenchmarkMetadata> {
 /// # Returns
 ///
 /// Vector of benchmarks in the specified category.
+#[must_use]
 pub fn filter_by_category(category: Category) -> Vec<BenchmarkInfo> {
     discover_benchmarks()
         .into_iter()
@@ -247,6 +258,7 @@ pub fn filter_by_category(category: Category) -> Vec<BenchmarkInfo> {
 /// # Returns
 ///
 /// Vector of benchmarks with the specified tag.
+#[must_use]
 pub fn filter_by_tag(tag: &str) -> Vec<BenchmarkInfo> {
     discover_benchmarks()
         .into_iter()
@@ -296,7 +308,7 @@ mod tests {
         // Test basic registry
         clear_registry();
         let metadata = BenchmarkMetadata::new(Category::Parsing, "Parse test");
-        register_benchmark("test1", metadata);
+        register_benchmark("test1", metadata).unwrap();
         let benchmarks = discover_benchmarks();
         assert_eq!(benchmarks.len(), 1);
         assert_eq!(benchmarks[0].name, "test1");
@@ -306,15 +318,18 @@ mod tests {
         register_benchmark(
             "parse1",
             BenchmarkMetadata::new(Category::Parsing, "Parse 1"),
-        );
+        )
+        .unwrap();
         register_benchmark(
             "parse2",
             BenchmarkMetadata::new(Category::Parsing, "Parse 2"),
-        );
+        )
+        .unwrap();
         register_benchmark(
             "convert1",
             BenchmarkMetadata::new(Category::Conversion, "Convert 1"),
-        );
+        )
+        .unwrap();
         let parsing = filter_by_category(Category::Parsing);
         assert_eq!(parsing.len(), 2);
         let conversion = filter_by_category(Category::Conversion);
@@ -325,15 +340,18 @@ mod tests {
         register_benchmark(
             "bench1",
             BenchmarkMetadata::new(Category::Parsing, "Bench 1").with_tag("fast"),
-        );
+        )
+        .unwrap();
         register_benchmark(
             "bench2",
             BenchmarkMetadata::new(Category::Parsing, "Bench 2").with_tag("slow"),
-        );
+        )
+        .unwrap();
         register_benchmark(
             "bench3",
             BenchmarkMetadata::new(Category::Parsing, "Bench 3").with_tag("fast"),
-        );
+        )
+        .unwrap();
         let fast = filter_by_tag("fast");
         assert_eq!(fast.len(), 2);
 

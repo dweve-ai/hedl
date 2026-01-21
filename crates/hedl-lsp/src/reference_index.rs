@@ -66,6 +66,7 @@ pub struct RefLocation {
 
 impl RefLocation {
     /// Create a new reference location.
+    #[must_use]
     pub fn new(line: u32, start_char: u32, end_char: u32) -> Self {
         Self {
             line,
@@ -75,6 +76,7 @@ impl RefLocation {
     }
 
     /// Convert to LSP Range.
+    #[must_use]
     pub fn to_range(&self) -> Range {
         Range {
             start: Position {
@@ -92,6 +94,7 @@ impl RefLocation {
     ///
     /// Used when exact character positions are not available.
     /// Assumes a reasonable default width for the reference.
+    #[must_use]
     pub fn from_position(position: Position, estimated_width: u32) -> Self {
         Self {
             line: position.line,
@@ -111,7 +114,7 @@ pub struct ReferenceIndex {
     /// Used for "go to definition" feature
     definitions: HashMap<(String, String), RefLocation>,
 
-    /// Reference locations: reference_string -> vec of locations
+    /// Reference locations: `reference_string` -> vec of locations
     /// Used for "find all references" feature
     /// Keys include both qualified (@Type:id) and unqualified (@id) forms
     references: HashMap<String, Vec<RefLocation>>,
@@ -123,6 +126,7 @@ pub struct ReferenceIndex {
 
 impl ReferenceIndex {
     /// Create a new empty reference index.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -139,7 +143,7 @@ impl ReferenceIndex {
             .insert((type_name.clone(), id.clone()), location.clone());
 
         // Also add to location_to_ref for reverse lookup
-        let ref_str = format!("@{}:{}", type_name, id);
+        let ref_str = format!("@{type_name}:{id}");
         self.location_to_ref
             .entry(location.line)
             .or_default()
@@ -156,8 +160,8 @@ impl ReferenceIndex {
     pub fn add_reference(&mut self, type_name: Option<String>, id: String, location: RefLocation) {
         // Build reference strings
         let ref_str = match &type_name {
-            Some(t) => format!("@{}:{}", t, id),
-            None => format!("@{}", id),
+            Some(t) => format!("@{t}:{id}"),
+            None => format!("@{id}"),
         };
 
         // Add to reference index (qualified form)
@@ -167,7 +171,7 @@ impl ReferenceIndex {
             .push(location.clone());
 
         // Also index by just the ID for flexible lookup
-        let id_ref = format!("@{}", id);
+        let id_ref = format!("@{id}");
         if id_ref != ref_str {
             self.references
                 .entry(id_ref.clone())
@@ -191,6 +195,7 @@ impl ReferenceIndex {
     /// # Performance
     ///
     /// O(1) hash map lookup
+    #[must_use]
     pub fn find_definition(&self, type_name: &str, id: &str) -> Option<&RefLocation> {
         self.definitions
             .get(&(type_name.to_string(), id.to_string()))
@@ -209,11 +214,11 @@ impl ReferenceIndex {
     /// # Performance
     ///
     /// O(1) hash map lookup + O(k) where k is number of references (typically small)
+    #[must_use]
     pub fn find_references(&self, reference: &str) -> &[RefLocation] {
         self.references
             .get(reference)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+            .map_or(&[], std::vec::Vec::as_slice)
     }
 
     /// Find what reference is at a given position.
@@ -225,11 +230,13 @@ impl ReferenceIndex {
     /// # Performance
     ///
     /// O(1) hash map lookup + O(k) where k is number of references on that line (typically 1-2)
+    #[must_use]
     pub fn find_reference_at(&self, position: Position) -> Option<(&str, &RefLocation)> {
         let line_refs = self.location_to_ref.get(&position.line)?;
 
         for (ref_str, loc) in line_refs {
-            if position.character >= loc.start_char && position.character <= loc.end_char {
+            // Ranges are end-exclusive, so use < instead of <=
+            if position.character >= loc.start_char && position.character < loc.end_char {
                 return Some((ref_str.as_str(), loc));
             }
         }
@@ -265,18 +272,21 @@ impl ReferenceIndex {
     }
 
     /// Get the number of definitions in the index.
+    #[must_use]
     pub fn definition_count(&self) -> usize {
         self.definitions.len()
     }
 
     /// Get the number of unique reference strings in the index.
+    #[must_use]
     pub fn reference_string_count(&self) -> usize {
         self.references.len()
     }
 
     /// Get the total number of reference usages in the index.
+    #[must_use]
     pub fn total_reference_count(&self) -> usize {
-        self.references.values().map(|v| v.len()).sum()
+        self.references.values().map(std::vec::Vec::len).sum()
     }
 }
 

@@ -73,6 +73,7 @@
 //! - `parquet`: Parquet conversion (feature = "parquet")
 
 // Re-export core types
+#![cfg_attr(not(test), warn(missing_docs))]
 pub use hedl_core::{
     // Functions
     parse as core_parse,
@@ -89,6 +90,7 @@ pub use hedl_core::{
     Node,
     ParseOptions,
     Reference,
+    ReferenceMode,
     // Tensor type
     Tensor,
     Value,
@@ -249,7 +251,7 @@ pub fn parse(input: &str) -> Result<Document, HedlError> {
 #[inline]
 pub fn parse_lenient(input: &str) -> Result<Document, HedlError> {
     let options = ParseOptions {
-        strict_refs: false,
+        reference_mode: hedl_core::ReferenceMode::Lenient,
         ..Default::default()
     };
     parse_with_limits(input.as_bytes(), options)
@@ -298,7 +300,7 @@ pub fn canonicalize(doc: &Document) -> Result<String, HedlError> {
 #[inline]
 pub fn to_json(doc: &Document) -> Result<String, HedlError> {
     hedl_json::to_json(doc, &hedl_json::ToJsonConfig::default())
-        .map_err(|e| HedlError::syntax(format!("JSON conversion error: {}", e), 0))
+        .map_err(|e| HedlError::syntax(format!("JSON conversion error: {e}"), 0))
 }
 
 /// Convert JSON to a HEDL document.
@@ -314,7 +316,7 @@ pub fn to_json(doc: &Document) -> Result<String, HedlError> {
 #[inline]
 pub fn from_json(json: &str) -> Result<Document, HedlError> {
     hedl_json::from_json(json, &hedl_json::FromJsonConfig::default())
-        .map_err(|e| HedlError::syntax(format!("JSON conversion error: {}", e), 0))
+        .map_err(|e| HedlError::syntax(format!("JSON conversion error: {e}"), 0))
 }
 
 /// Lint a HEDL document for best practices.
@@ -331,6 +333,7 @@ pub fn from_json(json: &str) -> Result<Document, HedlError> {
 /// }
 /// ```
 #[inline]
+#[must_use]
 pub fn lint(doc: &Document) -> Vec<lint::Diagnostic> {
     hedl_lint::lint(doc)
 }
@@ -367,14 +370,14 @@ mod tests {
 
     #[test]
     fn test_parse_matrix_list() {
-        let input = r#"
+        let input = r"
 %VERSION: 1.0
 %STRUCT: User: [id,name]
 ---
 users: @User
   |alice,Alice
   |bob,Bob
-"#;
+";
         let doc = parse(input).unwrap();
         assert!(doc.structs.contains_key("User"));
     }

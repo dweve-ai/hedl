@@ -15,65 +15,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Cypher string escaping and identifier validation utilities.
+//! Cypher string escaping and transformation utilities.
 //!
 //! This module provides security-critical functions for preventing Cypher injection attacks
-//! by properly escaping strings, validating identifiers, and normalizing Unicode text.
+//! by properly escaping strings and transforming identifiers.
 
+use std::borrow::Cow;
+
+// Import Unicode and validation utilities from sibling modules
+use super::unicode::{is_dangerous_unicode, normalize_unicode, sanitize_identifier};
+use super::validate::{is_valid_identifier, validate_string_length};
 use crate::config::ToCypherConfig;
 use crate::error::{Neo4jError, Result};
-use std::borrow::Cow;
-use unicode_normalization::UnicodeNormalization;
-
-/// Validate string length against configuration limits.
-///
-/// This function is security-critical for preventing resource exhaustion attacks.
-/// It checks if a string exceeds the maximum allowed length for property values.
-///
-/// # Arguments
-///
-/// * `s` - The string to validate
-/// * `property` - The property name (for error reporting)
-/// * `config` - Configuration with max_string_length limit
-///
-/// # Returns
-///
-/// * `Ok(())` if the string is within limits
-/// * `Err(Neo4jError::StringLengthExceeded)` if the string exceeds the limit
-///
-/// # Security
-///
-/// This protection prevents:
-/// - Memory exhaustion from maliciously large strings
-/// - Database performance degradation
-/// - Query timeout issues
-///
-/// # Examples
-///
-/// ```
-/// # use hedl_neo4j::cypher::validate_string_length;
-/// # use hedl_neo4j::ToCypherConfig;
-/// let config = ToCypherConfig::default().with_max_string_length(1000);
-/// let result = validate_string_length("test", "name", &config);
-/// assert!(result.is_ok());
-///
-/// let huge_string = "x".repeat(10_000_000);
-/// let result = validate_string_length(&huge_string, "description", &config);
-/// assert!(result.is_err());
-/// ```
-pub fn validate_string_length(s: &str, property: &str, config: &ToCypherConfig) -> Result<()> {
-    if let Some(max_length) = config.max_string_length {
-        let length = s.len();
-        if length > max_length {
-            return Err(Neo4jError::StringLengthExceeded {
-                length,
-                max_length,
-                property: property.to_string(),
-            });
-        }
-    }
-    Ok(())
-}
 
 /// Check if a string needs escaping for Cypher queries.
 ///
@@ -118,6 +71,7 @@ fn needs_escaping(s: &str) -> bool {
 /// assert!(matches!(dirty, std::borrow::Cow::Owned(_)));
 /// assert_eq!(dirty, "it\\'s");
 /// ```
+#[must_use]
 pub fn escape_string(s: &str) -> Cow<'_, str> {
     // Fast path: check if escaping is needed
     if !needs_escaping(s) {
@@ -125,7 +79,8 @@ pub fn escape_string(s: &str) -> Cow<'_, str> {
     }
 
     // Slow path: allocate and escape
-    let mut escaped = String::with_capacity(s.len() + 10);
+    let capacity = s.len().saturating_add(10);
+    let mut escaped = String::with_capacity(capacity);
     for c in s.chars() {
         match c {
             '\\' => escaped.push_str("\\\\"),
@@ -142,109 +97,16 @@ pub fn escape_string(s: &str) -> Cow<'_, str> {
 }
 
 /// Quote a string value for Cypher with single quotes.
+#[must_use]
 pub fn quote_string(s: &str) -> String {
     format!("'{}'", escape_string(s))
-}
-
-/// Check if a string is a valid Cypher identifier.
-///
-/// Valid identifiers start with a letter or underscore, and contain only
-/// letters, digits, and underscores.
-pub fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-
-    let mut chars = s.chars();
-    // Safe: we just checked that s is not empty
-    let first = match chars.next() {
-        Some(c) => c,
-        None => return false,
-    };
-
-    if !first.is_ascii_alphabetic() && first != '_' {
-        return false;
-    }
-
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-/// Validate and return a Cypher identifier, or error if invalid.
-pub fn validate_identifier(s: &str) -> Result<&str> {
-    if is_valid_identifier(s) {
-        Ok(s)
-    } else {
-        Err(Neo4jError::InvalidIdentifier(s.to_string()))
-    }
-}
-
-/// Normalize a string to NFC (Canonical Composition) form.
-///
-/// This prevents homograph attacks where visually similar Unicode characters
-/// are used to bypass security checks. NFC normalization ensures that
-/// characters like "é" (U+00E9) and "é" (U+0065 U+0301) are treated identically.
-///
-/// # Security
-///
-/// Unicode normalization is essential for:
-/// - Preventing homograph attacks (e.g., Cyrillic 'а' vs Latin 'a')
-/// - Ensuring consistent property name handling
-/// - Avoiding duplicate keys that appear identical but have different byte representations
-///
-/// # Examples
-///
-/// ```
-/// # use hedl_neo4j::cypher::normalize_unicode;
-/// // These two strings look identical but have different representations
-/// let composed = "café";  // é is U+00E9
-/// let decomposed = "café"; // é is U+0065 + U+0301
-/// assert_eq!(normalize_unicode(composed), normalize_unicode(decomposed));
-/// ```
-pub fn normalize_unicode(s: &str) -> String {
-    s.nfc().collect()
-}
-
-/// Check if a character is dangerous Unicode that should be filtered.
-///
-/// This includes:
-/// - Control characters (C0 and C1 control codes)
-/// - Zero-width characters (ZWNJ, ZWJ, Zero-width space)
-/// - Directional formatting (LTR, RTL overrides and marks)
-/// - Other format characters that could be used for attacks
-fn is_dangerous_unicode(c: char) -> bool {
-    c.is_control()
-        || matches!(
-            c,
-            // Zero-width characters
-            '\u{200B}' // Zero-width space
-            | '\u{200C}' // Zero-width non-joiner
-            | '\u{200D}' // Zero-width joiner
-            | '\u{FEFF}' // Zero-width no-break space
-            // Directional formatting
-            | '\u{202A}' // Left-to-right embedding
-            | '\u{202B}' // Right-to-left embedding
-            | '\u{202C}' // Pop directional formatting
-            | '\u{202D}' // Left-to-right override
-            | '\u{202E}' // Right-to-left override
-            | '\u{2066}' // Left-to-right isolate
-            | '\u{2067}' // Right-to-left isolate
-            | '\u{2068}' // First strong isolate
-            | '\u{2069}' // Pop directional isolate
-            // Other potentially dangerous format characters
-            | '\u{00AD}' // Soft hyphen
-            | '\u{061C}' // Arabic letter mark
-            | '\u{180E}' // Mongolian vowel separator
-        )
 }
 
 /// Escape an identifier for Cypher using backticks if needed.
 ///
 /// This function applies multiple security layers:
 /// 1. Unicode normalization (NFC) to prevent homograph attacks
-/// 2. Dangerous character filtering to prevent:
-///    - Control characters (null bytes, newlines, etc.)
-///    - Zero-width characters (invisible text injection)
-///    - Directional formatting (RTL/LTR override attacks)
+/// 2. Dangerous character filtering (control chars, zero-width, directional)
 /// 3. Keyword detection to avoid Cypher reserved words
 /// 4. Backtick escaping for identifiers with special characters
 ///
@@ -265,15 +127,10 @@ fn is_dangerous_unicode(c: char) -> bool {
 /// assert_eq!(escape_identifier("123name"), "`123name`");
 /// assert_eq!(escape_identifier("MATCH"), "`MATCH`");
 /// ```
+#[must_use]
 pub fn escape_identifier(s: &str) -> String {
-    // Security Layer 1: Normalize Unicode to prevent homograph attacks
-    let normalized = normalize_unicode(s);
-
-    // Security Layer 2: Filter dangerous Unicode characters
-    let sanitized: String = normalized
-        .chars()
-        .filter(|c| !is_dangerous_unicode(*c))
-        .collect();
+    // Apply Unicode normalization and dangerous character filtering
+    let sanitized = sanitize_identifier(s);
 
     if is_valid_identifier(&sanitized) && !is_cypher_keyword(&sanitized) {
         sanitized
@@ -300,18 +157,13 @@ pub fn escape_identifier(s: &str) -> String {
 /// assert_eq!(escape_label("User"), ":User");
 /// assert_eq!(escape_label("My-Label"), ":`My-Label`");
 /// ```
+#[must_use]
 pub fn escape_label(s: &str) -> String {
-    // Security Layer 1: Normalize Unicode to prevent homograph attacks
-    let normalized = normalize_unicode(s);
-
-    // Security Layer 2: Filter dangerous Unicode characters
-    let sanitized: String = normalized
-        .chars()
-        .filter(|c| !is_dangerous_unicode(*c))
-        .collect();
+    // Apply Unicode normalization and dangerous character filtering
+    let sanitized = sanitize_identifier(s);
 
     if is_valid_identifier(&sanitized) && !is_cypher_keyword(&sanitized) {
-        format!(":{}", sanitized)
+        format!(":{sanitized}")
     } else {
         format!(":`{}`", sanitized.replace('`', "``"))
     }
@@ -335,18 +187,13 @@ pub fn escape_label(s: &str) -> String {
 /// assert_eq!(escape_relationship_type("KNOWS"), ":KNOWS");
 /// assert_eq!(escape_relationship_type("knows-about"), ":`knows-about`");
 /// ```
+#[must_use]
 pub fn escape_relationship_type(s: &str) -> String {
-    // Security Layer 1: Normalize Unicode to prevent homograph attacks
-    let normalized = normalize_unicode(s);
-
-    // Security Layer 2: Filter dangerous Unicode characters
-    let sanitized: String = normalized
-        .chars()
-        .filter(|c| !is_dangerous_unicode(*c))
-        .collect();
+    // Apply Unicode normalization and dangerous character filtering
+    let sanitized = sanitize_identifier(s);
 
     if is_valid_identifier(&sanitized) && !is_cypher_keyword(&sanitized) {
-        format!(":{}", sanitized)
+        format!(":{sanitized}")
     } else {
         format!(":`{}`", sanitized.replace('`', "``"))
     }
@@ -356,6 +203,7 @@ pub fn escape_relationship_type(s: &str) -> String {
 ///
 /// Replaces invalid characters with underscores and ensures the first
 /// character is valid.
+#[must_use]
 pub fn to_identifier(s: &str) -> String {
     if s.is_empty() {
         return "_".to_string();
@@ -392,9 +240,11 @@ pub fn to_identifier(s: &str) -> String {
     result
 }
 
-/// Convert a string to UPPER_SNAKE_CASE for relationship types.
+/// Convert a string to `UPPER_SNAKE_CASE` for relationship types.
+#[must_use]
 pub fn to_relationship_type(s: &str) -> String {
-    let mut result = String::with_capacity(s.len() + 5);
+    let capacity = s.len().saturating_add(5);
+    let mut result = String::with_capacity(capacity);
     let mut prev_lower = false;
 
     for c in s.chars() {
@@ -496,9 +346,146 @@ fn is_cypher_keyword(s: &str) -> bool {
     )
 }
 
+/// Validate and sanitize an ID for safe use in Neo4j queries.
+///
+/// This function validates IDs and removes dangerous Unicode characters while
+/// allowing special characters that can be safely escaped during Cypher generation.
+///
+/// # Validation Steps
+///
+/// 1. **Non-empty check**: IDs must have content
+/// 2. **Length check**: IDs must not exceed configured maximum
+/// 3. **Unicode normalization**: NFC form to prevent homograph attacks
+/// 4. **Dangerous character filtering**: Remove control chars, zero-width, directional formatting
+///
+/// # Security Model
+///
+/// Special characters like quotes, semicolons, and backslashes are **allowed** here.
+/// They are properly escaped by `escape_string`/`quote_string` when generating Cypher.
+/// Only dangerous Unicode characters (control chars, zero-width, directional formatting)
+/// are filtered because they cannot be safely escaped and could enable invisible attacks.
+///
+/// # Arguments
+///
+/// * `id` - The ID to validate
+/// * `context` - Context string for error messages (e.g., "node", "reference")
+/// * `config` - Configuration with validation settings
+///
+/// # Returns
+///
+/// * `Ok(String)` - The validated and sanitized ID
+/// * `Err(Neo4jError)` - If the ID is empty, too long, or contains only dangerous chars
+///
+/// # Security
+///
+/// This function prevents:
+/// - Homograph attacks via lookalike Unicode characters (NFC normalization)
+/// - Invisible character attacks via zero-width/control chars (filtered)
+/// - `DoS` via malformed query construction (length limits)
+///
+/// # Examples
+///
+/// ```
+/// # use hedl_neo4j::cypher::validate_id;
+/// # use hedl_neo4j::ToCypherConfig;
+/// let config = ToCypherConfig::default();
+///
+/// // Valid ID
+/// let id = validate_id("user_123", "node", &config)?;
+/// assert_eq!(id, "user_123");
+///
+/// // Dangerous Unicode removed/normalized
+/// let id = validate_id("admin\u{200B}", "node", &config)?;
+/// assert_eq!(id, "admin"); // Zero-width space filtered out
+///
+/// // Special characters allowed (will be escaped during Cypher generation)
+/// let id = validate_id("user'; DROP TABLE users;", "node", &config)?;
+/// assert_eq!(id, "user'; DROP TABLE users;"); // Quotes will be escaped as \' in output
+/// # Ok::<(), hedl_neo4j::error::Neo4jError>(())
+/// ```
+pub fn validate_id(id: &str, context: &str, config: &ToCypherConfig) -> Result<String> {
+    // Step 1: Check non-empty
+    if id.is_empty() {
+        return Err(Neo4jError::InvalidIdentifier(format!(
+            "empty ID in {context}"
+        )));
+    }
+
+    // Step 2: Check length limit
+    validate_string_length(id, &format!("{context} ID"), config)?;
+
+    // Step 3: Unicode normalization (NFC)
+    let normalized = normalize_unicode(id);
+
+    // Step 4: Filter dangerous Unicode characters
+    let sanitized: String = normalized
+        .chars()
+        .filter(|c| !is_dangerous_unicode(*c))
+        .collect();
+
+    // Check if filtering removed everything
+    if sanitized.is_empty() {
+        return Err(Neo4jError::InvalidIdentifier(format!(
+            "ID '{id}' contains only dangerous characters in {context}"
+        )));
+    }
+
+    // Step 5: Return the sanitized ID
+    // Note: Special characters like quotes, semicolons, and backslashes are ALLOWED here.
+    // They will be properly escaped by `escape_string`/`quote_string` when generating Cypher.
+    // The security model is: accept input, escape it properly during output generation.
+    // The dangerous Unicode characters (control chars, zero-width, directional) were already
+    // filtered in step 4. What remains can be safely escaped in Cypher string literals.
+
+    Ok(sanitized)
+}
+
+/// Validate an ID with strict identifier rules.
+///
+/// This is a stricter version that requires IDs to be valid Cypher identifiers
+/// (alphanumeric + underscore, starting with letter or underscore).
+///
+/// Use this for contexts where IDs must be used as unquoted identifiers.
+///
+/// # Examples
+///
+/// ```
+/// # use hedl_neo4j::cypher::validate_id_strict;
+/// # use hedl_neo4j::ToCypherConfig;
+/// let config = ToCypherConfig::default();
+///
+/// // Valid identifier
+/// assert!(validate_id_strict("user_123", "node", &config).is_ok());
+///
+/// // Invalid - starts with number
+/// assert!(validate_id_strict("123user", "node", &config).is_err());
+///
+/// // Invalid - contains space
+/// assert!(validate_id_strict("user name", "node", &config).is_err());
+/// # Ok::<(), hedl_neo4j::error::Neo4jError>(())
+/// ```
+pub fn validate_id_strict(id: &str, context: &str, config: &ToCypherConfig) -> Result<String> {
+    let sanitized = validate_id(id, context, config)?;
+
+    // Require valid identifier format
+    if !is_valid_identifier(&sanitized) {
+        return Err(Neo4jError::InvalidIdentifier(format!(
+            "ID '{id}' is not a valid Cypher identifier in {context}"
+        )));
+    }
+
+    Ok(sanitized)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::NEST_RELATIONSHIP_PREFIX;
+    use crate::cypher::unicode::normalize_unicode;
+
+    // ============================================================================
+    // Sanitize String Value Tests
+    // ============================================================================
 
     #[test]
     fn test_escape_string_basic() {
@@ -590,8 +577,7 @@ mod tests {
             let result = escape_string(case);
             assert!(
                 matches!(result, Cow::Borrowed(_)),
-                "Expected Borrowed for '{}' but got Owned",
-                case
+                "Expected Borrowed for '{case}' but got Owned"
             );
             assert_eq!(result.as_ref(), case);
         }
@@ -611,32 +597,10 @@ mod tests {
             let result = escape_string(input);
             assert!(
                 matches!(result, Cow::Owned(_)),
-                "Expected Owned for '{}' but got Borrowed",
-                input
+                "Expected Owned for '{input}' but got Borrowed"
             );
             assert_eq!(result.as_ref(), expected);
         }
-    }
-
-    #[test]
-    fn test_is_valid_identifier() {
-        assert!(is_valid_identifier("name"));
-        assert!(is_valid_identifier("_name"));
-        assert!(is_valid_identifier("name123"));
-        assert!(is_valid_identifier("_123"));
-        assert!(is_valid_identifier("Name"));
-
-        assert!(!is_valid_identifier(""));
-        assert!(!is_valid_identifier("123name"));
-        assert!(!is_valid_identifier("name-with-dash"));
-        assert!(!is_valid_identifier("name.with.dot"));
-        assert!(!is_valid_identifier("name with space"));
-    }
-
-    #[test]
-    fn test_validate_identifier() {
-        assert!(validate_identifier("valid_name").is_ok());
-        assert!(validate_identifier("123invalid").is_err());
     }
 
     #[test]
@@ -684,6 +648,12 @@ mod tests {
         assert_eq!(to_relationship_type("AuthoredBy"), "AUTHORED_BY");
         assert_eq!(to_relationship_type("has_posts"), "HAS_POSTS");
         assert_eq!(to_relationship_type("has-posts"), "HAS_POSTS");
+
+        // Add verification that the output matches the prefix
+        assert!(
+            to_relationship_type("has_posts").starts_with(NEST_RELATIONSHIP_PREFIX),
+            "Relationship type should match NEST prefix convention"
+        );
     }
 
     #[test]
@@ -697,62 +667,6 @@ mod tests {
         assert!(!is_cypher_keyword("User"));
         assert!(!is_cypher_keyword("name"));
         assert!(!is_cypher_keyword("custom"));
-    }
-
-    #[test]
-    fn test_normalize_unicode_basic() {
-        // ASCII strings should be unchanged
-        assert_eq!(normalize_unicode("hello"), "hello");
-        assert_eq!(normalize_unicode("test123"), "test123");
-    }
-
-    #[test]
-    fn test_normalize_unicode_composed_vs_decomposed() {
-        // NFC normalization: composed form (é as single character U+00E9)
-        let composed = "café";
-        // NFD form would be: c + a + f + e + combining acute accent (U+0301)
-        // But we normalize to NFC, so both should be identical
-        let normalized = normalize_unicode(composed);
-
-        // Verify it's in composed form (NFC)
-        assert_eq!(normalized, "café");
-        assert_eq!(normalized.chars().count(), 4); // c, a, f, é
-    }
-
-    #[test]
-    fn test_normalize_unicode_homograph_prevention() {
-        // Latin 'a' (U+0061)
-        let latin_a = "name";
-        // Cyrillic 'а' (U+0430) looks identical but is different
-        let cyrillic_a = "nаme"; // Second character is Cyrillic а
-
-        // They should NOT be equal (homograph attack prevention)
-        // But normalization preserves their distinctness
-        let norm_latin = normalize_unicode(latin_a);
-        let norm_cyrillic = normalize_unicode(cyrillic_a);
-
-        // Both are normalized, but they remain different
-        assert_ne!(norm_latin, norm_cyrillic);
-
-        // Verify Latin is still ASCII
-        assert!(norm_latin.is_ascii());
-        // Verify Cyrillic still contains non-ASCII
-        assert!(!norm_cyrillic.is_ascii());
-    }
-
-    #[test]
-    fn test_normalize_unicode_with_diacritics() {
-        // Various diacritical marks
-        let tests = vec![
-            ("naïve", "naïve"),   // i with diaeresis
-            ("résumé", "résumé"), // e with acute
-            ("über", "über"),     // u with umlaut
-            ("señor", "señor"),   // n with tilde
-        ];
-
-        for (input, expected) in tests {
-            assert_eq!(normalize_unicode(input), expected);
-        }
     }
 
     #[test]
@@ -846,6 +760,10 @@ mod tests {
         assert_eq!(escaped_zwj, "nametest");
     }
 
+    // ============================================================================
+    // Unicode Normalization Tests
+    // ============================================================================
+
     #[test]
     fn test_normalize_unicode_empty_string() {
         assert_eq!(normalize_unicode(""), "");
@@ -926,5 +844,319 @@ mod tests {
 
         let too_long = "café".repeat(11); // 55 bytes
         assert!(validate_string_length(&too_long, "text", &config).is_err());
+    }
+
+    // ============================================================================
+    // validate_id Tests
+    // ============================================================================
+
+    #[test]
+    fn test_validate_id_valid_ids() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Valid alphanumeric IDs
+        assert!(validate_id("user123", "test", &config).is_ok());
+        assert_eq!(validate_id("user123", "test", &config).unwrap(), "user123");
+
+        // Valid with underscore
+        assert!(validate_id("user_123", "test", &config).is_ok());
+        assert_eq!(
+            validate_id("user_123", "test", &config).unwrap(),
+            "user_123"
+        );
+
+        // Valid starting with underscore
+        assert!(validate_id("_internal", "test", &config).is_ok());
+
+        // Valid CamelCase
+        assert!(validate_id("CamelCase", "test", &config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_id_empty() {
+        let config = crate::config::ToCypherConfig::default();
+        let result = validate_id("", "test", &config);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("empty ID"));
+    }
+
+    #[test]
+    fn test_validate_id_cypher_injection_allowed_and_escaped() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // SQL/Cypher injection attempts - these are NOW ALLOWED
+        // The characters will be properly escaped during Cypher generation.
+        // validate_id only removes dangerous Unicode (control chars, zero-width, etc.),
+        // but allows characters like quotes and semicolons that can be safely escaped.
+        let injection_attempts = vec![
+            "user'; DROP TABLE users; --",
+            "admin' OR '1'='1",
+            "user\"; MATCH (n) DELETE n; //",
+            "user--comment",
+            "admin' OR 1=1 --",
+        ];
+
+        for attempt in injection_attempts {
+            let result = validate_id(attempt, "test", &config);
+            assert!(
+                result.is_ok(),
+                "Should accept ID with special chars (will be escaped): {attempt}"
+            );
+            // The returned value should be the same (no Unicode filtering needed here)
+            let sanitized = result.unwrap();
+            assert_eq!(sanitized, attempt);
+        }
+    }
+
+    #[test]
+    fn test_validate_id_dangerous_unicode() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Zero-width space - should be filtered out
+        let result = validate_id("admin\u{200B}", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "admin"); // Zero-width removed
+
+        // Zero-width non-joiner
+        let result = validate_id("user\u{200C}name", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "username");
+
+        // RTL override
+        let result = validate_id("admin\u{202E}", "test", &config);
+        assert!(result.is_ok());
+        let cleaned = result.unwrap();
+        assert!(!cleaned.contains('\u{202E}'));
+
+        // LTR override
+        let result = validate_id("admin\u{202D}", "test", &config);
+        assert!(result.is_ok());
+        let cleaned = result.unwrap();
+        assert!(!cleaned.contains('\u{202D}'));
+
+        // Zero-width joiner
+        let result = validate_id("name\u{200D}test", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "nametest");
+    }
+
+    #[test]
+    fn test_validate_id_control_characters() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Null byte
+        let result = validate_id("user\x00name", "test", &config);
+        assert!(result.is_ok());
+        let cleaned = result.unwrap();
+        assert!(!cleaned.contains('\x00'));
+
+        // Newline
+        let result = validate_id("user\nname", "test", &config);
+        assert!(result.is_ok());
+        let cleaned = result.unwrap();
+        assert!(!cleaned.contains('\n'));
+
+        // Tab
+        let result = validate_id("user\tname", "test", &config);
+        assert!(result.is_ok());
+        let cleaned = result.unwrap();
+        assert!(!cleaned.contains('\t'));
+
+        // Carriage return
+        let result = validate_id("user\rname", "test", &config);
+        assert!(result.is_ok());
+        let cleaned = result.unwrap();
+        assert!(!cleaned.contains('\r'));
+    }
+
+    #[test]
+    fn test_validate_id_unicode_normalization() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Composed vs decomposed Unicode should normalize to same
+        let composed = validate_id("café", "test", &config).unwrap();
+        let decomposed = validate_id("cafe\u{0301}", "test", &config).unwrap();
+        assert_eq!(composed, decomposed);
+    }
+
+    #[test]
+    fn test_validate_id_only_dangerous_chars() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // ID with only dangerous characters
+        let result = validate_id("\u{200B}\u{200C}\u{202E}", "test", &config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("only dangerous characters"));
+    }
+
+    #[test]
+    fn test_validate_id_length_limit() {
+        let config = crate::config::ToCypherConfig::default().with_max_string_length(100);
+
+        // Within limit
+        let short_id = "a".repeat(50);
+        assert!(validate_id(&short_id, "test", &config).is_ok());
+
+        // Exceeds limit
+        let long_id = "a".repeat(200);
+        let result = validate_id(&long_id, "test", &config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_id_with_spaces() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // IDs with spaces are allowed (will be escaped when used)
+        let result = validate_id("user name", "test", &config);
+        // Spaces are not dangerous characters, but they make it not a valid identifier
+        // Our validation allows this as long as it doesn't contain injection chars
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_id_with_numbers() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // ID starting with number
+        let result = validate_id("123user", "test", &config);
+        assert!(result.is_ok()); // Not a valid identifier but allowed for IDs
+
+        // All numbers
+        let result = validate_id("12345", "test", &config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_id_semicolon_allowed() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Semicolons are allowed - they will be escaped in Cypher output
+        let result = validate_id("user;name", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "user;name");
+    }
+
+    #[test]
+    fn test_validate_id_quotes_allowed() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Single quote - allowed, will be escaped as \'
+        let result = validate_id("user'name", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "user'name");
+
+        // Double quote - allowed, will be escaped as \"
+        let result = validate_id("user\"name", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "user\"name");
+    }
+
+    #[test]
+    fn test_validate_id_backslash_allowed() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Backslash - allowed, will be escaped as \\
+        let result = validate_id("user\\name", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "user\\name");
+    }
+
+    #[test]
+    fn test_validate_id_context_in_error() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Empty ID - context should appear in error message
+        let result = validate_id("", "node in User", &config);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("node in User"));
+
+        // Only-dangerous-chars ID - context should appear in error message
+        let result = validate_id("\u{200B}\u{200C}", "reference in Post.author", &config);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("reference in Post.author"));
+    }
+
+    // ============================================================================
+    // validate_id_strict Tests
+    // ============================================================================
+
+    #[test]
+    fn test_validate_id_strict_valid() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Valid identifiers
+        assert!(validate_id_strict("user123", "test", &config).is_ok());
+        assert!(validate_id_strict("user_123", "test", &config).is_ok());
+        assert!(validate_id_strict("_internal", "test", &config).is_ok());
+        assert!(validate_id_strict("CamelCase", "test", &config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_id_strict_starts_with_number() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Invalid - starts with number
+        let result = validate_id_strict("123user", "test", &config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("not a valid Cypher identifier"));
+    }
+
+    #[test]
+    fn test_validate_id_strict_with_spaces() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Invalid - contains space
+        let result = validate_id_strict("user name", "test", &config);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("not a valid Cypher identifier"));
+    }
+
+    #[test]
+    fn test_validate_id_strict_with_dash() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Invalid - contains dash (not in identifier char set)
+        let result = validate_id_strict("user-name", "test", &config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_id_strict_injection_attempts() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // All injection attempts should fail
+        let injection_attempts = vec![
+            "user'; DROP",
+            "admin' OR 1=1",
+            "user\"; DELETE",
+            "user--comment",
+        ];
+
+        for attempt in injection_attempts {
+            let result = validate_id_strict(attempt, "test", &config);
+            assert!(result.is_err(), "Should reject: {attempt}");
+        }
+    }
+
+    #[test]
+    fn test_validate_id_strict_dangerous_unicode() {
+        let config = crate::config::ToCypherConfig::default();
+
+        // Dangerous Unicode gets filtered, resulting in valid identifier
+        let result = validate_id_strict("admin\u{200B}", "test", &config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "admin");
     }
 }

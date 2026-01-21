@@ -84,7 +84,7 @@ All architecture documentation follows these conventions:
 
 - [User Guide](../../README.md) - Getting started with HEDL
 - [API Reference](https://docs.rs/hedl) - Complete API documentation
-- [Benchmark Reports](../../crates/hedl-bench/target/) - Performance analysis
+- [Performance Architecture](performance.md) - Performance analysis and benchmarks
 - [Security Guide](../developer/operations/security.md) - Security considerations and best practices
 
 ---

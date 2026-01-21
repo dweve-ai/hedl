@@ -25,7 +25,7 @@ use thiserror::Error;
 ///
 /// This limit protects against malicious documents with extremely deep nesting
 /// that could cause stack overflow. A depth of 100 is sufficient for any
-/// reasonable document while preventing DoS attacks.
+/// reasonable document while preventing `DoS` attacks.
 pub const MAX_NESTING_DEPTH: usize = 100;
 
 /// Errors that can occur during TOON conversion
@@ -62,7 +62,7 @@ pub enum ToonError {
     ///
     /// # Security
     ///
-    /// This protection prevents stack overflow DoS attacks by limiting
+    /// This protection prevents stack overflow `DoS` attacks by limiting
     /// recursion depth during document traversal.
     #[error("Maximum nesting depth exceeded: {depth} > {max}")]
     MaxDepthExceeded {
@@ -184,8 +184,8 @@ mod tests {
         };
         let msg = err.to_string();
         assert!(msg.contains("User"));
-        assert!(msg.contains("3"));
-        assert!(msg.contains("2"));
+        assert!(msg.contains('3'));
+        assert!(msg.contains('2'));
     }
 
     #[test]

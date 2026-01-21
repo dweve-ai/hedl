@@ -1,0 +1,32 @@
+name: Scheduled Maintenance
+
+on:
+  schedule:
+    # Run first day of January at 10am UTC
+    - cron: '0 10 1 1 *'
+
+jobs:
+  annual-unsafe-audit:
+    name: Annual Unsafe Code Audit Reminder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for unsafe code requiring re-audit
+        run: |
+          unsafe_count=$(rg "unsafe" crates/hedl-core/src --type rust -c 2>/dev/null | awk '{sum+=$1} END {print sum+0}')
+
+          if [ "$unsafe_count" -gt 0 ]; then
+            echo "::warning::Annual unsafe code audit required"
+            echo "Found $unsafe_count unsafe blocks in hedl-core"
+            echo "Please review each according to docs/unsafe-code-guidelines.md"
+            echo "Update audit dates in unsafe code inventory"
+          else
+            echo "✓ hedl-core maintains zero unsafe blocks - no audit needed"
+          fi
+
+      - name: Check dependency audits
+        run: |
+          cargo install cargo-audit
+          cargo audit --deny warnings

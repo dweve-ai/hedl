@@ -42,8 +42,8 @@ fn test_complete_round_trip() {
         "Record",
         "r1",
         vec![
-            Value::String("r1".to_string()),
-            Value::String("hello".to_string()),
+            Value::String("r1".to_string().into()),
+            Value::String("hello".to_string().into()),
             Value::Int(42),
             Value::Float(3.25),
             Value::Bool(true),
@@ -74,9 +74,9 @@ fn test_complete_round_trip() {
     let list2 = doc2.get("records").unwrap().as_list().unwrap();
     let row = &list2.rows[0];
 
-    assert_eq!(row.id, "r1");
-    assert_eq!(row.fields[0], Value::String("r1".to_string())); // ID field (stays string)
-    assert_eq!(row.fields[1], Value::String("hello".to_string()));
+    assert_eq!(&*row.id, "r1");
+    assert_eq!(row.fields[0], Value::String("r1".to_string().into())); // ID field (stays string)
+    assert_eq!(row.fields[1], Value::String("hello".to_string().into()));
     assert_eq!(row.fields[2], Value::Int(42));
     assert_eq!(row.fields[3], Value::Float(3.25));
     assert_eq!(row.fields[4], Value::Bool(true));
@@ -93,8 +93,8 @@ fn test_large_dataset() {
     for i in 0..1000 {
         list.add_row(Node::new(
             "Item",
-            format!("id_{}", i),
-            vec![Value::String(format!("id_{}", i)), Value::Int(i)],
+            format!("id_{i}"),
+            vec![Value::String(format!("id_{i}").into()), Value::Int(i)],
         ));
     }
 
@@ -107,13 +107,16 @@ fn test_large_dataset() {
     assert_eq!(list2.rows.len(), 1000);
 
     // Verify first and last
-    assert_eq!(list2.rows[0].id, "id_0");
-    assert_eq!(list2.rows[0].fields[0], Value::String("id_0".to_string())); // ID field
+    assert_eq!(&*list2.rows[0].id, "id_0");
+    assert_eq!(
+        list2.rows[0].fields[0],
+        Value::String("id_0".to_string().into())
+    ); // ID field
     assert_eq!(list2.rows[0].fields[1], Value::Int(0));
-    assert_eq!(list2.rows[999].id, "id_999");
+    assert_eq!(&*list2.rows[999].id, "id_999");
     assert_eq!(
         list2.rows[999].fields[0],
-        Value::String("id_999".to_string())
+        Value::String("id_999".to_string().into())
     ); // ID field
     assert_eq!(list2.rows[999].fields[1], Value::Int(999));
 }
@@ -134,17 +137,17 @@ Newline",A person with newline
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("Alice, Bob".to_string())
+        Value::String("Alice, Bob".to_string().into())
     );
     assert_eq!(list.rows[1].fields[0], Value::Int(2)); // ID field
     assert_eq!(
         list.rows[1].fields[1],
-        Value::String("Charlie \"The Great\"".to_string())
+        Value::String("Charlie \"The Great\"".to_string().into())
     );
     assert_eq!(list.rows[2].fields[0], Value::Int(3)); // ID field
     assert_eq!(
         list.rows[2].fields[1],
-        Value::String("Eve\nNewline".to_string())
+        Value::String("Eve\nNewline".to_string().into())
     );
 }
 
@@ -160,9 +163,9 @@ fn test_tsv_format() {
         "Data",
         "1",
         vec![
-            Value::String("1".to_string()),
-            Value::String("a".to_string()),
-            Value::String("b".to_string()),
+            Value::String("1".to_string().into()),
+            Value::String("a".to_string().into()),
+            Value::String("b".to_string().into()),
         ],
     ));
 
@@ -186,8 +189,14 @@ fn test_tsv_format() {
 
     let list2 = doc2.get("datas").unwrap().as_list().unwrap();
     assert_eq!(list2.rows[0].fields[0], Value::Int(1)); // ID field
-    assert_eq!(list2.rows[0].fields[1], Value::String("a".to_string()));
-    assert_eq!(list2.rows[0].fields[2], Value::String("b".to_string()));
+    assert_eq!(
+        list2.rows[0].fields[1],
+        Value::String("a".to_string().into())
+    );
+    assert_eq!(
+        list2.rows[0].fields[2],
+        Value::String("b".to_string().into())
+    );
 }
 
 #[test]
@@ -202,7 +211,10 @@ fn test_empty_values_and_null() {
     assert_eq!(list.rows[1].fields[0], Value::Int(2)); // ID field
     assert_eq!(list.rows[1].fields[1], Value::Null); // Tilde
     assert_eq!(list.rows[2].fields[0], Value::Int(3)); // ID field
-    assert_eq!(list.rows[2].fields[1], Value::String("null".to_string())); // String "null"
+    assert_eq!(
+        list.rows[2].fields[1],
+        Value::String("null".to_string().into())
+    ); // String "null"
 }
 
 #[test]
@@ -238,7 +250,7 @@ fn test_qualified_references() {
         "Link",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             Value::Reference(hedl_core::Reference::qualified("User", "alice")),
         ],
     ));
@@ -253,8 +265,8 @@ fn test_qualified_references() {
 
     assert_eq!(list2.rows[0].fields[0], Value::Int(1)); // ID field
     if let Value::Reference(ref r) = list2.rows[0].fields[1] {
-        assert_eq!(r.type_name, Some("User".to_string()));
-        assert_eq!(r.id, "alice");
+        assert_eq!(r.type_name.as_deref(), Some("User"));
+        assert_eq!(&*r.id, "alice");
     } else {
         panic!("Expected reference");
     }
@@ -269,7 +281,7 @@ fn test_expressions() {
         "Formula",
         "1",
         vec![
-            Value::String("1".to_string()),
+            Value::String("1".to_string().into()),
             expr_value("add(x, multiply(y, 2))"),
         ],
     ));
@@ -299,16 +311,16 @@ fn test_unicode_data() {
     assert_eq!(list.rows[0].fields[0], Value::Int(1)); // ID field
     assert_eq!(
         list.rows[0].fields[1],
-        Value::String("Hello 世界".to_string())
+        Value::String("Hello 世界".to_string().into())
     );
     assert_eq!(list.rows[1].fields[0], Value::Int(2)); // ID field
     assert_eq!(
         list.rows[1].fields[1],
-        Value::String("Привет мир".to_string())
+        Value::String("Привет мир".to_string().into())
     );
     assert_eq!(list.rows[2].fields[0], Value::Int(3)); // ID field
     assert_eq!(
         list.rows[2].fields[1],
-        Value::String("مرحبا العالم".to_string())
+        Value::String("مرحبا العالم".to_string().into())
     );
 }

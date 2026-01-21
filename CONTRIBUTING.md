@@ -129,7 +129,7 @@ cargo test
 
 Run tests for a specific crate:
 ```bash
-cargo test -p hedl-lex
+cargo test -p hedl-core
 ```
 
 Run tests with output:
@@ -139,12 +139,12 @@ cargo test -- --nocapture
 
 Run integration tests:
 ```bash
-cargo test --test '*'
+cargo test --workspace
 ```
 
 Run conformance tests:
 ```bash
-cargo test --test conformance
+cargo test -p hedl-core conformance
 ```
 
 ### Running Examples
@@ -266,6 +266,60 @@ If your changes affect parsing or output:
 - Ensure all existing conformance tests still pass
 - Update conformance documentation if needed
 
+## Security and Unsafe Code
+
+### Memory Safety Standards
+
+HEDL maintains strict memory safety through:
+- 100% safe Rust in hedl-core (zero unsafe blocks)
+- Comprehensive MIRI testing in CI
+- Property-based testing for safety invariants
+- Regular security audits
+
+### Adding Unsafe Code
+
+Unsafe code is strongly discouraged in hedl-core. If you believe unsafe is necessary:
+
+#### 1. Before Implementing
+
+- Open an issue describing the need
+- Provide benchmark data if performance-motivated
+- Discuss alternatives with maintainers
+- Get architectural approval
+
+#### 2. When Implementing
+
+- Follow guidelines in `docs/unsafe-code-guidelines.md`
+- Complete audit template in `.plan/security/unsafe-audit-template.md`
+- Write MIRI-validated tests
+- Add comprehensive safety comments
+
+#### 3. In Your PR
+
+- Link to audit document
+- Include benchmark results
+- Show MIRI test output
+- Request security review
+- Update unsafe code inventory
+
+### Security Testing
+
+All contributions must:
+- Pass MIRI undefined behavior checks
+- Pass clippy with `-D warnings`
+- Include property-based tests for new logic
+- Not introduce new unsafe code without approval
+- Address any security concerns raised in review
+
+### Reporting Security Issues
+
+If you discover a security vulnerability:
+- Do **not** create a public issue
+- Email security@dweve.com with details
+- Include steps to reproduce and potential impact
+- We will respond within 48 hours
+- Coordinate disclosure timeline with you
+
 ## Pull Request Process
 
 ### Before Submitting
@@ -354,7 +408,7 @@ We follow conventional commit format for clear, searchable history:
 
 The crate or component affected (optional but recommended):
 - `core`: hedl-core
-- `lex`: hedl-lex
+- `lex`: hedl-core lexer module
 - `json`: hedl-json
 - `cli`: hedl-cli
 - `test`: testing infrastructure
@@ -372,7 +426,7 @@ Closes #456
 ```
 
 ```
-fix(lex): handle Unicode whitespace in string literals
+fix(core): handle Unicode whitespace in string literals
 
 Previously, non-ASCII whitespace characters were incorrectly
 treated as string content. Now properly handles all Unicode
@@ -412,9 +466,9 @@ hedl/
 ├── crates/
 │   ├── hedl/           # Main library (re-exports all functionality)
 │   ├── hedl-core/      # Core types and data model
-│   ├── hedl-lex/       # Lexical analysis and tokenization
-│   ├── hedl-row/       # Matrix row parsing
-│   ├── hedl-tensor/    # Tensor literal parsing
+│   ├── hedl-stream/    # Streaming parser for large files
+│   ├── hedl-toon/      # TOON format conversion
+│   ├── hedl-mcp/       # Model Context Protocol server
 │   ├── hedl-c14n/      # Canonicalization
 │   ├── hedl-json/      # JSON conversion
 │   ├── hedl-yaml/      # YAML conversion
@@ -435,7 +489,7 @@ hedl/
 ### Key Crates
 
 - **hedl-core**: Core data structures (`Document`, `Object`, `Value`, etc.)
-- **hedl-lex**: Lexer and parser implementation
+- **hedl-stream**: Streaming parser for large files
 - **hedl-c14n**: Canonical form generation
 - **hedl-***: Format converters for various data formats
 

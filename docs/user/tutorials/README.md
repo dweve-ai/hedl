@@ -95,8 +95,8 @@ Once you've completed the tutorials:
 
 1. **Apply your knowledge** - Try converting your own data files
 2. **Explore concepts** - Read the [Concepts](../concepts/) guides for deeper understanding
-3. **Learn advanced techniques** - Check out the [How-To Guides](../how-to/) for specific tasks
-4. **Reference documentation** - Use the [CLI Reference](../reference/cli-commands.md) for detailed command information
+3. **Learn advanced techniques** - Check out the [Formats Guide](../formats.md) and [CLI Guide](../cli-guide.md) for specific tasks
+4. **Reference documentation** - Use the [CLI Guide](../cli-guide.md) for detailed command information
 
 ---
 

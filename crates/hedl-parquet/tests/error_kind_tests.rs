@@ -18,7 +18,7 @@
 //! Tests for error kind classification in hedl-parquet.
 //!
 //! This module verifies that file I/O errors are correctly classified as
-//! HedlErrorKind::IO rather than other error kinds.
+//! `HedlErrorKind::IO` rather than other error kinds.
 
 use hedl_core::{Document, HedlErrorKind, Item, MatrixList, Node, Value};
 use hedl_parquet::{from_parquet, to_parquet};
@@ -86,7 +86,7 @@ fn test_write_to_read_only_directory_returns_io_error() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(42)],
+        vec![Value::String("i1".to_string().into()), Value::Int(42)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -156,7 +156,7 @@ fn test_successful_write_and_read_no_io_error() {
     list.add_row(Node::new(
         "Item",
         "i1",
-        vec![Value::String("i1".to_string()), Value::Int(42)],
+        vec![Value::String("i1".to_string().into()), Value::Int(42)],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
 
@@ -201,16 +201,14 @@ fn test_io_error_messages_are_descriptive() {
 fn test_io_error_display_format() {
     let err = hedl_core::HedlError::io("Test I/O error message");
 
-    let display = format!("{}", err);
+    let display = format!("{err}");
 
     assert!(
         display.contains("IOError"),
-        "Display format should contain 'IOError': {}",
-        display
+        "Display format should contain 'IOError': {display}"
     );
     assert!(
         display.contains("Test I/O error message"),
-        "Display format should contain the message: {}",
-        display
+        "Display format should contain the message: {display}"
     );
 }

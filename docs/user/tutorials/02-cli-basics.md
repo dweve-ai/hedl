@@ -655,8 +655,8 @@ hedl format data.hedl | hedl validate - && echo "OK"
 You've mastered the core CLI commands! Continue your learning:
 
 - [Tutorial 3: Batch Processing](03-batch-processing.md) - Process multiple files efficiently
-- [How-To: Handle Errors](../how-to/handle-errors.md) - Deal with validation errors
-- [Reference: CLI Commands](../reference/cli-commands.md) - Complete command reference
+- [Troubleshooting](../troubleshooting.md) - Deal with validation errors
+- [CLI Guide](../cli-guide.md) - Complete command reference
 
 ---
 

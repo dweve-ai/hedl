@@ -40,7 +40,7 @@
 //! its role in reducing token usage.
 
 use crate::analysis::AnalyzedDocument;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Range};
 
 /// Get hover information for a position.
 ///
@@ -55,6 +55,7 @@ use tower_lsp::lsp_types::*;
 /// An optional `Hover` with markdown-formatted content and the range of
 /// the hovered element. Returns `None` if no hover information is available
 /// for the position.
+#[must_use]
 pub fn get_hover(analysis: &AnalyzedDocument, content: &str, position: Position) -> Option<Hover> {
     let lines: Vec<&str> = content.lines().collect();
     let line_num = position.line as usize;
@@ -100,7 +101,8 @@ pub fn get_hover(analysis: &AnalyzedDocument, content: &str, position: Position)
         // Could be a list key or type
         get_list_hover(analysis, line, &word)
     } else {
-        None
+        // Check if this is an entity ID in a definition
+        get_entity_id_hover(analysis, &word, line)
     }?;
 
     Some(Hover {
@@ -135,7 +137,7 @@ fn find_word_at(line: &str, pos: usize) -> Option<(String, usize, usize)> {
 
     // Find word boundaries
     let is_word_char =
-        |c: char| c.is_alphanumeric() || c == '_' || c == '@' || c == '$' || c == ':';
+        |c: char| c.is_alphanumeric() || c == '_' || c == '@' || c == '$' || c == ':' || c == '-';
 
     let mut start = pos;
     while start > 0 && is_word_char(chars[start - 1]) {
@@ -213,11 +215,11 @@ fn get_reference_hover(analysis: &AnalyzedDocument, reference: &str) -> Option<M
     };
 
     let title = match type_name {
-        Some(t) => format!("**Reference** `@{}:{}`", t, id),
-        None => format!("**Reference** `@{}`", id),
+        Some(t) => format!("**Reference** `@{t}:{id}`"),
+        None => format!("**Reference** `@{id}`"),
     };
 
-    let mut description = format!("{}\n\nPoints to entity with ID `{}`.", status, id);
+    let mut description = format!("{status}\n\nPoints to entity with ID `{id}`.");
 
     if let Some(t) = type_name {
         if let Some(schema) = analysis.get_schema(t) {
@@ -232,8 +234,8 @@ fn get_alias_hover(analysis: &AnalyzedDocument, alias_name: &str) -> Option<Mark
     let (value, line) = analysis.aliases.get(alias_name)?;
 
     Some(create_hover_content(
-        &format!("**Alias** `${}`", alias_name),
-        &format!("Expands to: `\"{}\"`\n\nDefined on line {}.", value, line),
+        &format!("**Alias** `${alias_name}`"),
+        &format!("Expands to: `\"{value}\"`\n\nDefined on line {line}."),
     ))
 }
 
@@ -242,8 +244,7 @@ fn get_type_hover(analysis: &AnalyzedDocument, type_name: &str) -> Option<Markup
     let entity_count = analysis
         .entities
         .get(type_name)
-        .map(|m| m.len())
-        .unwrap_or(0);
+        .map_or(0, std::collections::HashMap::len);
 
     let mut description = format!(
         "**Schema**: `[{}]`\n\n\
@@ -256,18 +257,18 @@ fn get_type_hover(analysis: &AnalyzedDocument, type_name: &str) -> Option<Markup
 
     // Add nest info
     if let Some((child, _)) = analysis.nests.get(type_name) {
-        description.push_str(&format!("\n\n**Nests**: `{}` children", child));
+        description.push_str(&format!("\n\n**Nests**: `{child}` children"));
     }
 
     Some(create_hover_content(
-        &format!("**Type** `{}`", type_name),
+        &format!("**Type** `{type_name}`"),
         &description,
     ))
 }
 
 fn get_list_hover(analysis: &AnalyzedDocument, line: &str, word: &str) -> Option<MarkupContent> {
     // Check if this is a list declaration like "users: @User"
-    if line.contains(&format!(": @{}", word)) {
+    if line.contains(&format!(": @{word}")) {
         return get_type_hover(analysis, word);
     }
 
@@ -278,9 +279,86 @@ fn is_type_name(word: &str, analysis: &AnalyzedDocument) -> bool {
     analysis.schemas.contains_key(word)
 }
 
+fn get_entity_id_hover(
+    analysis: &AnalyzedDocument,
+    word: &str,
+    line: &str,
+) -> Option<MarkupContent> {
+    // Only trigger entity ID hover when word is in the first column of a matrix row.
+    // This prevents false positives when the same word appears elsewhere (e.g., in values).
+
+    // Must be a matrix row (starts with |)
+    let trimmed = line.trim_start();
+    if !trimmed.starts_with('|') {
+        return None;
+    }
+
+    // Extract the first column (entity ID) from the row
+    let after_pipe = trimmed.strip_prefix('|')?;
+
+    // Skip row prefix like |5 or |[10]
+    let csv_start = if after_pipe.starts_with('[') {
+        // |[N] format
+        after_pipe.find(']').map_or(0, |i| i + 1)
+    } else if after_pipe
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_digit())
+    {
+        // |N format
+        after_pipe.chars().take_while(char::is_ascii_digit).count()
+    } else {
+        0
+    };
+
+    let csv_portion = &after_pipe[csv_start..];
+
+    // Parse to get first field (entity ID)
+    let first_field = match hedl_core::lex::parse_csv_row(csv_portion.trim()) {
+        Ok(fields) if !fields.is_empty() => fields[0].value.clone(),
+        _ => {
+            // Fallback: take content before first comma
+            csv_portion
+                .split(',')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        }
+    };
+
+    // Only show hover if word matches the first field (entity ID column)
+    if first_field.trim() != word && first_field.trim().trim_matches('"') != word {
+        return None;
+    }
+
+    // Check if this word appears as an entity ID in any type
+    for (type_name, entities) in &analysis.entities {
+        if entities.contains_key(word) {
+            // Found the entity, provide hover info
+            let description = if let Some(schema) = analysis.get_schema(type_name) {
+                format!(
+                    "Entity of type `{}`\n\n**Schema**: `[{}]`",
+                    type_name,
+                    schema.join(", ")
+                )
+            } else {
+                format!("Entity of type `{type_name}`")
+            };
+
+            return Some(create_hover_content(
+                &format!("**Entity ID** `{word}`"),
+                &format!("{description}\n\nThis is the entity definition."),
+            ));
+        }
+    }
+
+    None
+}
+
 fn create_hover_content(title: &str, description: &str) -> MarkupContent {
     MarkupContent {
         kind: MarkupKind::Markdown,
-        value: format!("{}\n\n---\n\n{}", title, description),
+        value: format!("{title}\n\n---\n\n{description}"),
     }
 }

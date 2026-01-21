@@ -35,7 +35,7 @@ use std::io::Read;
 ///   billions of rows, causing the application to allocate excessive memory and crash.
 /// - **Configurable**: The limit can be adjusted via `FromCsvConfig::max_rows` based on
 ///   deployment context and available resources.
-/// - **Trade-off**: Higher limits allow larger datasets but increase DoS risk.
+/// - **Trade-off**: Higher limits allow larger datasets but increase `DoS` risk.
 ///
 /// # Examples
 ///
@@ -52,6 +52,56 @@ use std::io::Read;
 /// };
 /// ```
 pub const DEFAULT_MAX_ROWS: usize = 1_000_000;
+
+/// Default maximum number of columns to prevent column bomb attacks.
+///
+/// This limit prevents Denial-of-Service attacks from CSV files with excessive columns.
+/// The default is 10,000 columns, which is generous but prevents abuse.
+///
+/// # Security Considerations
+///
+/// - **Column bomb**: Without a limit, attackers could provide CSV files with
+///   hundreds of thousands of columns, causing memory exhaustion and slow processing.
+/// - **Industry standards**: Excel limits to 16,384 columns, Google Sheets to 18,278.
+/// - **Trade-off**: Higher limits allow wider datasets but increase `DoS` risk.
+pub const DEFAULT_MAX_COLUMNS: usize = 10_000;
+
+/// Default maximum cell size in bytes to prevent cell bomb attacks.
+///
+/// This limit prevents Denial-of-Service attacks from CSV files with enormous cells.
+/// The default is 1MB per cell, which is reasonable for most legitimate use cases.
+///
+/// # Security Considerations
+///
+/// - **Cell bomb**: Without a limit, attackers could provide CSV files with
+///   gigabyte-sized cells, causing memory exhaustion.
+/// - **Cumulative effect**: Multiple large cells multiply the impact.
+/// - **Trade-off**: Higher limits allow larger text fields but increase `DoS` risk.
+pub const DEFAULT_MAX_CELL_SIZE: usize = 1_048_576; // 1MB
+
+/// Default maximum total CSV size in bytes to prevent decompression bombs.
+///
+/// This limit prevents Denial-of-Service attacks from compressed CSV files that
+/// decompress to enormous sizes. The default is 100MB.
+///
+/// # Security Considerations
+///
+/// - **Decompression bomb**: A 1MB gzipped file could decompress to 1GB+.
+/// - **Memory exhaustion**: Prevents attackers from filling server memory.
+/// - **Trade-off**: Higher limits allow larger datasets but increase `DoS` risk.
+pub const DEFAULT_MAX_TOTAL_SIZE: usize = 104_857_600; // 100MB
+
+/// Default maximum header size in bytes to prevent header bombs.
+///
+/// This limit prevents Denial-of-Service attacks from CSV files with enormous headers.
+/// The default is 1MB for the total header size.
+///
+/// # Security Considerations
+///
+/// - **Header bomb**: Prevents attackers from using huge column names.
+/// - **Per-column**: Also enforced per-column via `max_cell_size`.
+/// - **Trade-off**: Higher limits allow longer column names but increase `DoS` risk.
+pub const DEFAULT_MAX_HEADER_SIZE: usize = 1_048_576; // 1MB
 
 /// Configuration for CSV parsing.
 ///
@@ -153,7 +203,7 @@ pub struct FromCsvConfig {
     ///
     /// # Security Impact
     ///
-    /// - **DoS Protection**: Prevents attackers from causing memory exhaustion
+    /// - **`DoS` Protection**: Prevents attackers from causing memory exhaustion
     /// - **Memory Bound**: Limits worst-case memory usage to approximately
     ///   `max_rows × avg_row_size × columns`
     /// - **Recommended Values**:
@@ -266,6 +316,115 @@ pub struct FromCsvConfig {
     /// assert!(doc.get("MyCustomList").is_some());
     /// ```
     pub list_key: Option<String>,
+
+    /// Maximum number of columns allowed (default: 10,000).
+    ///
+    /// This security limit prevents "column bomb" attacks where malicious CSV files
+    /// contain excessive columns that cause memory exhaustion and slow processing.
+    ///
+    /// # Security Impact
+    ///
+    /// - **`DoS` Protection**: Prevents attackers from creating CSVs with 50,000+ columns
+    /// - **Memory Bound**: Limits worst-case memory usage for column metadata
+    /// - **Industry Comparison**: Excel (16,384), Google Sheets (18,278), `PostgreSQL` (~1,600)
+    /// - **Recommended Values**:
+    ///   - Web uploads: 1,000 - 10,000 columns
+    ///   - Internal processing: 10,000 - 50,000 columns
+    ///   - Scientific data: Adjust based on requirements
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hedl_csv::FromCsvConfig;
+    /// // For processing wide scientific datasets
+    /// let config = FromCsvConfig {
+    ///     max_columns: 50_000,
+    ///     ..Default::default()
+    /// };
+    /// ```
+    pub max_columns: usize,
+
+    /// Maximum size of a single cell in bytes (default: 1MB).
+    ///
+    /// This security limit prevents "cell bomb" attacks where malicious CSV files
+    /// contain enormous individual cells that cause memory exhaustion.
+    ///
+    /// # Security Impact
+    ///
+    /// - **`DoS` Protection**: Prevents attackers from using 10MB+ cells
+    /// - **Memory Bound**: Each cell is read into memory as a String
+    /// - **Cumulative**: Multiple large cells multiply the impact
+    /// - **Recommended Values**:
+    ///   - Web uploads: 64KB - 1MB
+    ///   - Internal processing: 1MB - 10MB
+    ///   - Text-heavy data: Adjust based on requirements
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hedl_csv::FromCsvConfig;
+    /// // For processing long text fields (e.g., descriptions, comments)
+    /// let config = FromCsvConfig {
+    ///     max_cell_size: 5_242_880, // 5MB
+    ///     ..Default::default()
+    /// };
+    /// ```
+    pub max_cell_size: usize,
+
+    /// Maximum total CSV size in bytes after decompression (default: 100MB).
+    ///
+    /// This security limit prevents "decompression bomb" attacks where compressed
+    /// CSV files decompress to enormous sizes. A 1MB gzipped file could decompress
+    /// to 1GB+, bypassing file size checks.
+    ///
+    /// # Security Impact
+    ///
+    /// - **`DoS` Protection**: Prevents decompression bombs
+    /// - **Memory Bound**: Tracks total bytes read during parsing
+    /// - **Transparent**: Works even if CSV library handles decompression
+    /// - **Recommended Values**:
+    ///   - Web uploads: 10MB - 100MB
+    ///   - Internal processing: 100MB - 1GB
+    ///   - Big data: Adjust based on available RAM
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hedl_csv::FromCsvConfig;
+    /// // For processing large datasets on high-memory servers
+    /// let config = FromCsvConfig {
+    ///     max_total_size: 1_073_741_824, // 1GB
+    ///     ..Default::default()
+    /// };
+    /// ```
+    pub max_total_size: usize,
+
+    /// Maximum size of header row in bytes (default: 1MB).
+    ///
+    /// This security limit prevents "header bomb" attacks where malicious CSV files
+    /// have enormous column names or excessive total header size.
+    ///
+    /// # Security Impact
+    ///
+    /// - **`DoS` Protection**: Prevents huge column names (e.g., 1MB per column)
+    /// - **Memory Bound**: Limits memory for header parsing
+    /// - **Combined with `max_columns`**: Total size = `column_count` × `avg_name_length`
+    /// - **Recommended Values**:
+    ///   - Web uploads: 64KB - 1MB
+    ///   - Internal processing: 1MB - 10MB
+    ///   - Verbose column naming: Adjust based on requirements
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hedl_csv::FromCsvConfig;
+    /// // For datasets with very descriptive column names
+    /// let config = FromCsvConfig {
+    ///     max_header_size: 5_242_880, // 5MB
+    ///     ..Default::default()
+    /// };
+    /// ```
+    pub max_header_size: usize,
 }
 
 impl Default for FromCsvConfig {
@@ -278,6 +437,82 @@ impl Default for FromCsvConfig {
             infer_schema: false,
             sample_rows: 100,
             list_key: None,
+            max_columns: DEFAULT_MAX_COLUMNS,
+            max_cell_size: DEFAULT_MAX_CELL_SIZE,
+            max_total_size: DEFAULT_MAX_TOTAL_SIZE,
+            max_header_size: DEFAULT_MAX_HEADER_SIZE,
+        }
+    }
+}
+
+impl FromCsvConfig {
+    /// Creates a config with NO security limits (use for trusted input only).
+    ///
+    /// # Security Warning
+    ///
+    /// This configuration disables ALL security limits. Only use this for:
+    /// - Trusted internal data sources
+    /// - Controlled batch processing environments
+    /// - Known-good CSV files
+    ///
+    /// **DO NOT** use this for:
+    /// - User uploads
+    /// - Web service inputs
+    /// - Untrusted data sources
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hedl_csv::FromCsvConfig;
+    /// // For internal batch processing with trusted data
+    /// let config = FromCsvConfig::unlimited();
+    /// ```
+    #[must_use]
+    pub fn unlimited() -> Self {
+        Self {
+            max_rows: usize::MAX,
+            max_columns: usize::MAX,
+            max_cell_size: usize::MAX,
+            max_total_size: usize::MAX,
+            max_header_size: usize::MAX,
+            ..Default::default()
+        }
+    }
+
+    /// Creates a config with strict limits for untrusted input.
+    ///
+    /// # Security
+    ///
+    /// This configuration provides stricter limits suitable for:
+    /// - Web service uploads
+    /// - User-submitted CSV files
+    /// - Untrusted data sources
+    /// - Rate-limited APIs
+    ///
+    /// # Limits
+    ///
+    /// - `max_rows`: 1,000,000 (same as default)
+    /// - `max_columns`: 1,000 (stricter than default 10,000)
+    /// - `max_cell_size`: 64KB (stricter than default 1MB)
+    /// - `max_total_size`: 10MB (stricter than default 100MB)
+    /// - `max_header_size`: 64KB (stricter than default 1MB)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use hedl_csv::FromCsvConfig;
+    /// // For user uploads in a web service
+    /// let config = FromCsvConfig::strict();
+    /// ```
+    #[must_use]
+    pub fn strict() -> Self {
+        Self {
+            max_rows: 1_000_000,
+            max_columns: 1_000,
+            max_cell_size: 65_536,
+            max_total_size: 10_485_760,
+            max_header_size: 65_536,
+            ..Default::default()
         }
     }
 }
@@ -367,12 +602,12 @@ impl Default for FromCsvConfig {
 ///
 /// let list = doc.get("items").unwrap().as_list().unwrap();
 /// let ref1 = list.rows[0].fields[1].as_reference().unwrap();
-/// assert_eq!(ref1.id, "user1");
+/// assert_eq!(&*ref1.id, "user1");
 /// assert_eq!(ref1.type_name, None); // Local reference
 ///
 /// let ref2 = list.rows[1].fields[1].as_reference().unwrap();
-/// assert_eq!(ref2.id, "alice");
-/// assert_eq!(ref2.type_name, Some("User".to_string())); // Qualified reference
+/// assert_eq!(&*ref2.id, "alice");
+/// assert_eq!(ref2.type_name.as_deref(), Some("User")); // Qualified reference
 /// ```
 ///
 /// # Performance
@@ -445,7 +680,7 @@ pub fn from_csv(csv: &str, type_name: &str, schema: &[&str]) -> Result<Document>
 /// let doc = from_csv_with_config(csv_data, "Person", &["name"], config).unwrap();
 ///
 /// let list = doc.get("persons").unwrap().as_list().unwrap();
-/// assert_eq!(list.rows[0].fields[1], Value::String("  Alice  ".to_string()));
+/// assert_eq!(list.rows[0].fields[1], Value::String("  Alice  ".to_string().into()));
 /// ```
 ///
 /// # See Also
@@ -642,7 +877,7 @@ fn infer_column_types(records: &[Vec<String>], sample_size: usize) -> Vec<Column
             let column_values = records
                 .iter()
                 .take(sample_count)
-                .filter_map(|row| row.get(col_idx).map(|s| s.as_str()));
+                .filter_map(|row| row.get(col_idx).map(std::string::String::as_str));
 
             infer_column_type(column_values)
         })
@@ -679,7 +914,7 @@ fn parse_csv_value_with_type(field: &str, col_type: ColumnType) -> Result<Value>
                 Ok(Value::Bool(false))
             } else {
                 // Fallback to string if not a valid bool
-                Ok(Value::String(field.to_string()))
+                Ok(Value::String(field.to_string().into()))
             }
         }
         ColumnType::Int => {
@@ -687,7 +922,7 @@ fn parse_csv_value_with_type(field: &str, col_type: ColumnType) -> Result<Value>
                 Ok(Value::Int(n))
             } else {
                 // Fallback to string if not a valid int
-                Ok(Value::String(field.to_string()))
+                Ok(Value::String(field.to_string().into()))
             }
         }
         ColumnType::Float => {
@@ -695,7 +930,7 @@ fn parse_csv_value_with_type(field: &str, col_type: ColumnType) -> Result<Value>
                 Ok(Value::Float(f))
             } else {
                 // Fallback to string if not a valid float
-                Ok(Value::String(field.to_string()))
+                Ok(Value::String(field.to_string().into()))
             }
         }
         ColumnType::String => {
@@ -703,6 +938,179 @@ fn parse_csv_value_with_type(field: &str, col_type: ColumnType) -> Result<Value>
             // (handles references, expressions, tensors, etc.)
             parse_csv_value(field)
         }
+    }
+}
+
+/// Validate CSV headers against security limits.
+///
+/// This function checks:
+/// - Column count does not exceed `max_columns`
+/// - Total header size does not exceed `max_header_size`
+/// - Individual column name size does not exceed `max_cell_size`
+///
+/// # Arguments
+///
+/// * `headers` - The CSV header record
+/// * `config` - Configuration containing security limits
+///
+/// # Returns
+///
+/// `Ok(())` if all checks pass, otherwise an error.
+fn validate_headers(headers: &csv::StringRecord, config: &FromCsvConfig) -> Result<()> {
+    // Check column count
+    let column_count = headers.len();
+    if column_count > config.max_columns {
+        return Err(CsvError::Security {
+            limit_type: "column count".to_string(),
+            limit: config.max_columns,
+            actual: column_count,
+            message: format!(
+                "CSV has {} columns, exceeds limit of {}",
+                column_count, config.max_columns
+            ),
+        });
+    }
+
+    // Check total header size
+    let header_size: usize = headers.iter().map(str::len).sum();
+    if header_size > config.max_header_size {
+        return Err(CsvError::Security {
+            limit_type: "header size".to_string(),
+            limit: config.max_header_size,
+            actual: header_size,
+            message: format!(
+                "CSV header size {} bytes, exceeds limit of {} bytes",
+                header_size, config.max_header_size
+            ),
+        });
+    }
+
+    // Check for individual column name size (prevent single huge name)
+    for (i, header) in headers.iter().enumerate() {
+        if header.len() > config.max_cell_size {
+            // Safely create preview by finding the last complete character before byte 100
+            let preview = if header.len() > 100 {
+                // Find the last character boundary before position 100
+                let mut preview_end = 100;
+                while !header.is_char_boundary(preview_end) && preview_end > 0 {
+                    preview_end -= 1;
+                }
+                format!("{}...", &header[..preview_end])
+            } else {
+                header.to_string()
+            };
+            return Err(CsvError::Security {
+                limit_type: "column name size".to_string(),
+                limit: config.max_cell_size,
+                actual: header.len(),
+                message: format!(
+                    "Column name '{}' at index {} is {} bytes, exceeds cell size limit of {} bytes",
+                    preview,
+                    i,
+                    header.len(),
+                    config.max_cell_size
+                ),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate a single cell against security limits.
+///
+/// This function checks that the cell size does not exceed `max_cell_size`.
+///
+/// # Arguments
+///
+/// * `cell` - The cell content to validate
+/// * `row` - Row number (1-based, for error messages)
+/// * `column` - Column index (0-based, for error messages)
+/// * `config` - Configuration containing security limits
+///
+/// # Returns
+///
+/// `Ok(())` if the cell is within limits, otherwise an error.
+fn validate_cell(cell: &str, row: usize, column: usize, config: &FromCsvConfig) -> Result<()> {
+    if cell.len() > config.max_cell_size {
+        // Safely create preview by finding the last complete character before byte 100
+        let preview = if cell.len() > 100 {
+            // Find the last character boundary before position 100
+            let mut preview_end = 100;
+            while !cell.is_char_boundary(preview_end) && preview_end > 0 {
+                preview_end -= 1;
+            }
+            format!("{}...", &cell[..preview_end])
+        } else {
+            cell.to_string()
+        };
+        return Err(CsvError::Security {
+            limit_type: "cell size".to_string(),
+            limit: config.max_cell_size,
+            actual: cell.len(),
+            message: format!(
+                "Cell at row {}, column {} is {} bytes, exceeds limit of {} bytes. Content preview: '{}'",
+                row,
+                column,
+                cell.len(),
+                config.max_cell_size,
+                preview
+            ),
+        });
+    }
+    Ok(())
+}
+
+/// Tracker for CSV size during parsing.
+///
+/// This struct tracks the total bytes read during CSV parsing to prevent
+/// decompression bomb attacks.
+struct CsvSizeTracker {
+    bytes_read: usize,
+    max_total_size: usize,
+}
+
+impl CsvSizeTracker {
+    /// Create a new size tracker with the specified maximum.
+    fn new(max_total_size: usize) -> Self {
+        Self {
+            bytes_read: 0,
+            max_total_size,
+        }
+    }
+
+    /// Track a record and check if the total size exceeds the limit.
+    ///
+    /// # Arguments
+    ///
+    /// * `record` - The CSV record to track
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if within limits, otherwise an error.
+    fn track_record(&mut self, record: &csv::StringRecord) -> Result<()> {
+        let record_size: usize = record.iter().map(str::len).sum();
+        self.bytes_read += record_size;
+
+        if self.bytes_read > self.max_total_size {
+            return Err(CsvError::Security {
+                limit_type: "total size".to_string(),
+                limit: self.max_total_size,
+                actual: self.bytes_read,
+                message: format!(
+                    "CSV total size {} bytes exceeds limit of {} bytes",
+                    self.bytes_read, self.max_total_size
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Get the current total bytes read.
+    #[allow(dead_code)]
+    fn bytes_read(&self) -> usize {
+        self.bytes_read
     }
 }
 
@@ -787,7 +1195,7 @@ pub fn from_csv_reader_with_config<R: Read>(
 
     // Create schema with 'id' column
     let mut full_schema = vec!["id".to_string()];
-    full_schema.extend(schema.iter().map(|s| s.to_string()));
+    full_schema.extend(schema.iter().map(|s| (*s).to_string()));
 
     // Register the struct type
     doc.structs
@@ -795,6 +1203,21 @@ pub fn from_csv_reader_with_config<R: Read>(
 
     // Create matrix list
     let mut matrix_list = MatrixList::new(type_name, full_schema.clone());
+
+    // VALIDATE HEADERS if has_headers is enabled
+    let headers = csv_reader.headers().map_err(|e| CsvError::ParseError {
+        line: 0,
+        message: e.to_string(),
+    })?;
+
+    validate_headers(headers, &config)?;
+
+    // Initialize size tracker
+    let mut size_tracker = CsvSizeTracker::new(config.max_total_size);
+
+    // Track header size
+    let header_size: usize = headers.iter().map(str::len).sum();
+    size_tracker.bytes_read += header_size;
 
     // If schema inference is enabled, collect records first
     let _inferred_types = if config.infer_schema {
@@ -818,8 +1241,19 @@ pub fn from_csv_reader_with_config<R: Read>(
                 continue;
             }
 
+            // VALIDATE TOTAL SIZE
+            size_tracker.track_record(&record)?;
+
+            // VALIDATE EACH CELL
+            for (col_idx, cell) in record.iter().enumerate() {
+                validate_cell(cell, record_idx + 1, col_idx, &config)?;
+            }
+
             // Convert StringRecord to Vec<String>
-            let row: Vec<String> = record.iter().map(|s| s.to_string()).collect();
+            let row: Vec<String> = record
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect();
             all_records.push(row);
         }
 
@@ -885,6 +1319,14 @@ pub fn from_csv_reader_with_config<R: Read>(
 
             if record.is_empty() {
                 continue;
+            }
+
+            // VALIDATE TOTAL SIZE
+            size_tracker.track_record(&record)?;
+
+            // VALIDATE EACH CELL
+            for (col_idx, cell) in record.iter().enumerate() {
+                validate_cell(cell, record_idx + 1, col_idx, &config)?;
             }
 
             // First column is the ID
@@ -980,9 +1422,9 @@ fn parse_csv_value(field: &str) -> Result<Value> {
     if trimmed.starts_with("$(") && trimmed.ends_with(')') {
         let expr = parse_expression_token(trimmed).map_err(|e| CsvError::ParseError {
             line: 0,
-            message: format!("Invalid expression: {}", e),
+            message: format!("Invalid expression: {e}"),
         })?;
-        return Ok(Value::Expression(expr));
+        return Ok(Value::Expression(Box::new(expr)));
     }
 
     // Try integer
@@ -998,13 +1440,13 @@ fn parse_csv_value(field: &str) -> Result<Value> {
     // Tensor literal (starts with '[' and ends with ']')
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
         if let Ok(tensor) = parse_tensor(trimmed) {
-            return Ok(Value::Tensor(tensor));
+            return Ok(Value::Tensor(Box::new(tensor)));
         }
         // If parsing fails, fall through to string
     }
 
     // Default to string
-    Ok(Value::String(field.to_string()))
+    Ok(Value::String(field.to_string().into()))
 }
 
 /// Parse a reference string (e.g., "@user1" or "@User:user1").
@@ -1019,7 +1461,7 @@ fn parse_reference(s: &str) -> Result<Value> {
         if type_name.is_empty() || id.is_empty() {
             return Err(CsvError::ParseError {
                 line: 0,
-                message: format!("Invalid reference format: {}", s),
+                message: format!("Invalid reference format: {s}"),
             });
         }
 
@@ -1059,7 +1501,7 @@ mod tests {
     #[test]
     fn test_from_csv_config_debug() {
         let config = FromCsvConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("FromCsvConfig"));
         assert!(debug.contains("delimiter"));
         assert!(debug.contains("has_headers"));
@@ -1076,6 +1518,10 @@ mod tests {
             infer_schema: false,
             sample_rows: 100,
             list_key: None,
+            max_columns: 5_000,
+            max_cell_size: 2_000_000,
+            max_total_size: 200_000_000,
+            max_header_size: 2_000_000,
         };
         let cloned = config.clone();
         assert_eq!(cloned.delimiter, b'\t');
@@ -1085,6 +1531,10 @@ mod tests {
         assert!(!cloned.infer_schema);
         assert_eq!(cloned.sample_rows, 100);
         assert_eq!(cloned.list_key, None);
+        assert_eq!(cloned.max_columns, 5_000);
+        assert_eq!(cloned.max_cell_size, 2_000_000);
+        assert_eq!(cloned.max_total_size, 200_000_000);
+        assert_eq!(cloned.max_header_size, 2_000_000);
     }
 
     #[test]
@@ -1097,6 +1547,10 @@ mod tests {
             infer_schema: true,
             sample_rows: 200,
             list_key: Some("custom".to_string()),
+            max_columns: 15_000,
+            max_cell_size: 3_000_000,
+            max_total_size: 300_000_000,
+            max_header_size: 3_000_000,
         };
         assert_eq!(config.delimiter, b';');
         assert!(config.has_headers);
@@ -1105,6 +1559,10 @@ mod tests {
         assert!(config.infer_schema);
         assert_eq!(config.sample_rows, 200);
         assert_eq!(config.list_key, Some("custom".to_string()));
+        assert_eq!(config.max_columns, 15_000);
+        assert_eq!(config.max_cell_size, 3_000_000);
+        assert_eq!(config.max_total_size, 300_000_000);
+        assert_eq!(config.max_header_size, 3_000_000);
     }
 
     #[test]
@@ -1113,7 +1571,7 @@ mod tests {
         let mut csv_data = String::from("id,value\n");
         let max_rows = 100;
         for i in 0..=max_rows {
-            csv_data.push_str(&format!("{},test{}\n", i, i));
+            csv_data.push_str(&format!("{i},test{i}\n"));
         }
 
         let config = FromCsvConfig {
@@ -1137,7 +1595,7 @@ mod tests {
         let mut csv_data = String::from("id,value\n");
         let max_rows = 100;
         for i in 0..(max_rows - 1) {
-            csv_data.push_str(&format!("{},test{}\n", i, i));
+            csv_data.push_str(&format!("{i},test{i}\n"));
         }
 
         let config = FromCsvConfig {
@@ -1179,7 +1637,7 @@ mod tests {
         assert_eq!(row1.id, "1");
         assert_eq!(row1.fields.len(), schema.len()); // schema includes ID
         assert_eq!(row1.fields[0], Value::Int(1)); // ID field
-        assert_eq!(row1.fields[1], Value::String("Alice".to_string()));
+        assert_eq!(row1.fields[1], Value::String("Alice".into()));
         assert_eq!(row1.fields[2], Value::Int(30));
         assert_eq!(row1.fields[3], Value::Bool(true));
 
@@ -1188,7 +1646,7 @@ mod tests {
         assert_eq!(row2.id, "2");
         assert_eq!(row2.fields.len(), schema.len()); // schema includes ID
         assert_eq!(row2.fields[0], Value::Int(2)); // ID field
-        assert_eq!(row2.fields[1], Value::String("Bob".to_string()));
+        assert_eq!(row2.fields[1], Value::String("Bob".into()));
         assert_eq!(row2.fields[2], Value::Int(25));
         assert_eq!(row2.fields[3], Value::Bool(false));
     }
@@ -1233,7 +1691,7 @@ mod tests {
         let item = doc.get("persons").unwrap();
         let list = item.as_list().unwrap();
         assert_eq!(list.rows.len(), 1);
-        assert_eq!(list.rows[0].fields[1], Value::String("Alice".to_string()));
+        assert_eq!(list.rows[0].fields[1], Value::String("Alice".into()));
     }
 
     #[test]
@@ -1335,7 +1793,7 @@ mod tests {
     fn test_parse_csv_value_string() {
         assert_eq!(
             parse_csv_value("hello").unwrap(),
-            Value::String("hello".to_string())
+            Value::String("hello".into())
         );
     }
 
@@ -1343,7 +1801,7 @@ mod tests {
     fn test_parse_csv_value_string_with_spaces() {
         assert_eq!(
             parse_csv_value("  hello world  ").unwrap(),
-            Value::String("  hello world  ".to_string())
+            Value::String("  hello world  ".into())
         );
     }
 
@@ -1382,7 +1840,7 @@ mod tests {
     fn test_parse_csv_value_reference_local() {
         let ref_val = parse_csv_value("@user1").unwrap();
         if let Value::Reference(r) = ref_val {
-            assert_eq!(r.id, "user1");
+            assert_eq!(&*r.id, "user1");
             assert_eq!(r.type_name, None);
         } else {
             panic!("Expected reference");
@@ -1393,8 +1851,8 @@ mod tests {
     fn test_parse_csv_value_reference_qualified() {
         let ref_val = parse_csv_value("@User:user1").unwrap();
         if let Value::Reference(r) = ref_val {
-            assert_eq!(r.id, "user1");
-            assert_eq!(r.type_name, Some("User".to_string()));
+            assert_eq!(&*r.id, "user1");
+            assert_eq!(r.type_name.as_deref(), Some("User"));
         } else {
             panic!("Expected reference");
         }
@@ -1404,7 +1862,7 @@ mod tests {
     fn test_parse_csv_value_reference_with_dashes() {
         let ref_val = parse_csv_value("@my-item-123").unwrap();
         if let Value::Reference(r) = ref_val {
-            assert_eq!(r.id, "my-item-123");
+            assert_eq!(&*r.id, "my-item-123");
         } else {
             panic!("Expected reference");
         }
@@ -1469,25 +1927,33 @@ mod tests {
     #[test]
     fn test_parse_csv_value_tensor_1d() {
         let val = parse_csv_value("[1, 2, 3]").unwrap();
-        if let Value::Tensor(Tensor::Array(arr)) = val {
-            assert_eq!(arr.len(), 3);
+        if let Value::Tensor(tensor) = val {
+            if let Tensor::Array(arr) = tensor.as_ref() {
+                assert_eq!(arr.len(), 3);
+            } else {
+                panic!("Expected tensor array");
+            }
         } else {
-            panic!("Expected tensor array");
+            panic!("Expected tensor");
         }
     }
 
     #[test]
     fn test_parse_csv_value_tensor_2d() {
         let val = parse_csv_value("[[1, 2], [3, 4]]").unwrap();
-        if let Value::Tensor(Tensor::Array(outer)) = val {
-            assert_eq!(outer.len(), 2);
-            if let Tensor::Array(inner) = &outer[0] {
-                assert_eq!(inner.len(), 2);
+        if let Value::Tensor(tensor) = val {
+            if let Tensor::Array(outer) = tensor.as_ref() {
+                assert_eq!(outer.len(), 2);
+                if let Tensor::Array(inner) = &outer[0] {
+                    assert_eq!(inner.len(), 2);
+                } else {
+                    panic!("Expected nested array");
+                }
             } else {
-                panic!("Expected nested array");
+                panic!("Expected tensor array");
             }
         } else {
-            panic!("Expected tensor array");
+            panic!("Expected tensor");
         }
     }
 
@@ -1496,7 +1962,7 @@ mod tests {
         // Empty tensors are not valid in HEDL (must have at least one element)
         // So "[]" falls through to being treated as a string
         let val = parse_csv_value("[]").unwrap();
-        assert_eq!(val, Value::String("[]".to_string()));
+        assert_eq!(val, Value::String("[]".into()));
     }
 
     // ==================== Error cases ====================
@@ -1530,7 +1996,7 @@ mod tests {
         let row = &list.rows[0];
 
         assert_eq!(row.fields[0], Value::Int(1)); // ID field
-        assert_eq!(row.fields[1], Value::String("Alice".to_string()));
+        assert_eq!(row.fields[1], Value::String("Alice".into()));
         assert_eq!(row.fields[2], Value::Int(30));
     }
 
@@ -1546,10 +2012,7 @@ mod tests {
         let item = doc.get("persons").unwrap();
         let list = item.as_list().unwrap();
         // With trim disabled, whitespace is preserved
-        assert_eq!(
-            list.rows[0].fields[1],
-            Value::String("  Alice  ".to_string())
-        );
+        assert_eq!(list.rows[0].fields[1], Value::String("  Alice  ".into()));
     }
 
     // ==================== from_csv_reader tests ====================
@@ -1602,10 +2065,7 @@ mod tests {
 
         let item = doc.get("persons").unwrap();
         let list = item.as_list().unwrap();
-        assert_eq!(
-            list.rows[0].fields[2],
-            Value::String("Hello, World".to_string())
-        );
+        assert_eq!(list.rows[0].fields[2], Value::String("Hello, World".into()));
     }
 
     #[test]
@@ -1617,7 +2077,7 @@ mod tests {
         let list = item.as_list().unwrap();
         assert_eq!(
             list.rows[0].fields[2],
-            Value::String("Line 1\nLine 2".to_string())
+            Value::String("Line 1\nLine 2".into())
         );
     }
 
@@ -1630,7 +2090,7 @@ mod tests {
         let list = item.as_list().unwrap();
         assert_eq!(
             list.rows[0].fields[1],
-            Value::String("Alice \"Bob\" Smith".to_string())
+            Value::String("Alice \"Bob\" Smith".into())
         );
     }
 
@@ -1643,10 +2103,7 @@ mod tests {
 
         let item = doc.get("persons").unwrap();
         let list = item.as_list().unwrap();
-        assert_eq!(
-            list.rows[0].fields[1],
-            Value::String("héllo 世界".to_string())
-        );
+        assert_eq!(list.rows[0].fields[1], Value::String("héllo 世界".into()));
     }
 
     #[test]
@@ -1657,7 +2114,7 @@ mod tests {
         let item = doc.get("persons").unwrap();
         let list = item.as_list().unwrap();
         assert_eq!(list.rows[0].id, "abc");
-        assert_eq!(list.rows[0].fields[0], Value::String("abc".to_string()));
+        assert_eq!(list.rows[0].fields[0], Value::String("abc".into()));
     }
 
     #[test]
@@ -1718,9 +2175,7 @@ mod tests {
 
             assert!(
                 doc.get(plural).is_some(),
-                "Failed to find {} for type {}",
-                plural,
-                type_name
+                "Failed to find {plural} for type {type_name}"
             );
         }
     }
@@ -1742,13 +2197,11 @@ mod tests {
                 list_key: Some(collective.to_string()),
                 ..Default::default()
             };
-            let doc = from_csv_with_config(&csv_data, type_name, &["value"], config).unwrap();
+            let doc = from_csv_with_config(csv_data, type_name, &["value"], config).unwrap();
 
             assert!(
                 doc.get(collective).is_some(),
-                "Failed to find {} for type {}",
-                collective,
-                type_name
+                "Failed to find {collective} for type {type_name}"
             );
         }
     }
@@ -1774,7 +2227,7 @@ mod tests {
         // Empty string is technically allowed as a key
         let csv_data = "id,value\n1,test\n";
         let config = FromCsvConfig {
-            list_key: Some("".to_string()),
+            list_key: Some(String::new()),
             ..Default::default()
         };
         let doc = from_csv_with_config(csv_data, "Item", &["value"], config).unwrap();
@@ -1927,6 +2380,10 @@ mod tests {
             infer_schema: false,
             sample_rows: 50,
             list_key: Some("people".to_string()),
+            max_columns: DEFAULT_MAX_COLUMNS,
+            max_cell_size: DEFAULT_MAX_CELL_SIZE,
+            max_total_size: DEFAULT_MAX_TOTAL_SIZE,
+            max_header_size: DEFAULT_MAX_HEADER_SIZE,
         };
         let cloned = config.clone();
         assert_eq!(cloned.list_key, Some("people".to_string()));
@@ -1938,8 +2395,186 @@ mod tests {
             list_key: Some("people".to_string()),
             ..Default::default()
         };
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("list_key"));
         assert!(debug.contains("people"));
+    }
+
+    // ==================== Security Limit Tests ====================
+
+    #[test]
+    fn test_from_csv_config_default_security_limits() {
+        let config = FromCsvConfig::default();
+        assert_eq!(config.max_columns, DEFAULT_MAX_COLUMNS);
+        assert_eq!(config.max_cell_size, DEFAULT_MAX_CELL_SIZE);
+        assert_eq!(config.max_total_size, DEFAULT_MAX_TOTAL_SIZE);
+        assert_eq!(config.max_header_size, DEFAULT_MAX_HEADER_SIZE);
+    }
+
+    #[test]
+    fn test_from_csv_config_clone_with_security_limits() {
+        let config = FromCsvConfig {
+            max_columns: 5_000,
+            max_cell_size: 2_000_000,
+            max_total_size: 200_000_000,
+            max_header_size: 2_000_000,
+            ..Default::default()
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.max_columns, 5_000);
+        assert_eq!(cloned.max_cell_size, 2_000_000);
+        assert_eq!(cloned.max_total_size, 200_000_000);
+        assert_eq!(cloned.max_header_size, 2_000_000);
+    }
+
+    #[test]
+    fn test_from_csv_config_unlimited() {
+        let config = FromCsvConfig::unlimited();
+        assert_eq!(config.max_rows, usize::MAX);
+        assert_eq!(config.max_columns, usize::MAX);
+        assert_eq!(config.max_cell_size, usize::MAX);
+        assert_eq!(config.max_total_size, usize::MAX);
+        assert_eq!(config.max_header_size, usize::MAX);
+    }
+
+    #[test]
+    fn test_from_csv_config_strict() {
+        let config = FromCsvConfig::strict();
+        assert_eq!(config.max_rows, 1_000_000);
+        assert_eq!(config.max_columns, 1_000);
+        assert_eq!(config.max_cell_size, 65_536);
+        assert_eq!(config.max_total_size, 10_485_760);
+        assert_eq!(config.max_header_size, 65_536);
+    }
+
+    #[test]
+    fn test_column_count_limit_enforcement() {
+        // Create CSV with 11,000 columns (exceeds default 10,000)
+        let mut csv = String::from("col0");
+        for i in 1..11_000 {
+            csv.push_str(&format!(",col{i}"));
+        }
+        csv.push('\n');
+        csv.push_str("a,");
+        csv.push_str(&"b,".repeat(10_999));
+        csv.push('b');
+
+        let result = from_csv_with_config(&csv, "Item", &[], FromCsvConfig::default());
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, CsvError::Security { .. }));
+        assert!(err.to_string().contains("exceeds limit"));
+    }
+
+    #[test]
+    fn test_cell_size_limit_enforcement() {
+        // Create CSV with 2MB cell (exceeds default 1MB)
+        let huge_cell = "x".repeat(2_000_000);
+        let csv = format!("id,data\n1,\"{huge_cell}\"\n");
+
+        let result = from_csv_with_config(&csv, "Item", &["data"], FromCsvConfig::default());
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, CsvError::Security { .. }));
+        // Check that the error message contains information about the limit
+        let err_msg = err.to_string();
+        assert!(err_msg.contains("exceeds limit") || err_msg.contains("Security"));
+    }
+
+    #[test]
+    fn test_total_size_limit_enforcement() {
+        // Create CSV with 110MB total data (exceeds default 100MB)
+        let mut csv = String::from("id,data\n");
+        let row_data = "x".repeat(100_000); // 100KB per row
+
+        for i in 0..1_100 {
+            csv.push_str(&format!("{i},\"{row_data}\"\n"));
+        }
+
+        let result = from_csv_with_config(&csv, "Item", &["data"], FromCsvConfig::default());
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, CsvError::Security { .. }));
+        assert!(err.to_string().contains("total size"));
+    }
+
+    #[test]
+    fn test_header_size_limit_enforcement() {
+        // Create CSV with 2MB total header size (exceeds default 1MB)
+        let mut csv = String::new();
+        for i in 0..20_000 {
+            if i > 0 {
+                csv.push(',');
+            }
+            csv.push_str(&format!("column_{i}_very_long_name_{i}"));
+        }
+        csv.push_str("\n1\n");
+
+        let result = from_csv_with_config(&csv, "Item", &[], FromCsvConfig::default());
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, CsvError::Security { .. }));
+        // Check that the error message contains information about the limit
+        let err_msg = err.to_string();
+        assert!(err_msg.contains("exceeds limit") || err_msg.contains("Security"));
+    }
+
+    #[test]
+    fn test_normal_csv_within_limits() {
+        // Normal CSV should work fine with default limits
+        let csv_data = "id,name,age\n1,Alice,30\n2,Bob,25\n";
+
+        let result = from_csv_with_config(
+            csv_data,
+            "Person",
+            &["name", "age"],
+            FromCsvConfig::default(),
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[allow(clippy::needless_borrow)]
+    fn test_unlimited_config_allows_large_csvs() {
+        // Verify that unlimited() config allows huge CSVs
+        let huge_cell = "x".repeat(10_000_000);
+        let csv = format!("id,data\n1,\"{huge_cell}\"\n");
+
+        let config = FromCsvConfig::unlimited();
+        let result = from_csv_with_config(&csv, "Item", &["data"], config);
+
+        // Should succeed
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[allow(clippy::needless_borrow)]
+    fn test_strict_config_blocks_large_cells() {
+        // Even a moderately large cell should fail with strict config
+        let csv = format!("id,data\n1,\"{}\"\n", "x".repeat(100_000));
+
+        let config = FromCsvConfig::strict();
+        let result = from_csv_with_config(&csv, "Item", &["data"], config);
+
+        // Should fail - 100KB exceeds strict 64KB limit
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), CsvError::Security { .. }));
+    }
+
+    #[test]
+    #[allow(clippy::needless_borrow)]
+    fn test_strict_config_allows_small_csvs() {
+        // Small CSV should work with strict config
+        let csv = "id,data\n1,small_data\n";
+
+        let config = FromCsvConfig::strict();
+        let result = from_csv_with_config(&csv, "Item", &["data"], config);
+
+        assert!(result.is_ok());
     }
 }

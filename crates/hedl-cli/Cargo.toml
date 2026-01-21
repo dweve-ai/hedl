@@ -1,34 +1,85 @@
+# =============================================================================
+# HEDL CLI - crates/hedl-cli/Cargo.toml
+# Open Source (Apache 2.0) Crate Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
 [package]
 name = "hedl-cli"
-version = "1.1.0"
-edition = "2021"
-description = "HEDL command-line interface"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
 license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+description = "HEDL command-line interface"
+documentation = "https://docs.rs/hedl-cli"
+readme = "README.md"
+
+publish = true
+
+include = [
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG*",
+    "src/**",
+    "tests/**",
+    "benches/**",
+    "examples/**",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "hedl"
 path = "src/main.rs"
 
 [dependencies]
-hedl-core.workspace = true
-hedl-c14n.workspace = true
-hedl-json.workspace = true
-hedl-yaml.workspace = true
-hedl-xml.workspace = true
-hedl-csv.workspace = true
-hedl-parquet.workspace = true
-hedl-toon.workspace = true
-hedl-lint.workspace = true
-clap.workspace = true
-clap_complete = "4.4"
-serde_json.workspace = true
-thiserror.workspace = true
-colored = "2.0"
-rayon = "1.8"
+hedl-core = { workspace = true }
+hedl-c14n = { workspace = true }
+hedl-json = { workspace = true }
+hedl-yaml = { workspace = true }
+hedl-xml = { workspace = true }
+hedl-csv = { workspace = true }
+hedl-parquet = { workspace = true }
+hedl-toon = { workspace = true }
+hedl-lint = { workspace = true }
+hedl-stream = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+colored = { workspace = true }
+rayon = { workspace = true }
+glob = { workspace = true }
+walkdir = { workspace = true }
+indicatif = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
-assert_cmd = "2.0"
-predicates = "3.0"
-tempfile = "3.0"
-criterion = { version = "0.5", features = ["html_reports"] }
-proptest = "1.4"
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+tempfile = { workspace = true }
+criterion = { workspace = true }
+proptest = { workspace = true }
+serial_test = { workspace = true }
+
+[features]
+default = []

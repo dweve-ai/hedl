@@ -76,6 +76,11 @@
 use crate::error::{StreamError, StreamResult};
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
+/// Simple memchr implementation - finds the first occurrence of a byte in a slice.
+fn memchr_byte(needle: u8, haystack: &[u8]) -> Option<usize> {
+    haystack.iter().position(|&b| b == needle)
+}
+
 /// Buffered async line reader with line number tracking.
 ///
 /// Reads input line-by-line asynchronously, automatically handling different line endings
@@ -139,10 +144,11 @@ pub struct AsyncLineReader<R: AsyncRead + Unpin> {
     line_number: usize,
     buffer: String,
     peeked: Option<(usize, String)>,
+    max_line_length: usize,
 }
 
 impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
-    /// Create a new async line reader with default buffer size (64KB).
+    /// Create a new async line reader with default buffer size (64KB) and max line length (1MB).
     ///
     /// # Examples
     ///
@@ -160,10 +166,11 @@ impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
             line_number: 0,
             buffer: String::new(),
             peeked: None,
+            max_line_length: 1_000_000,
         }
     }
 
-    /// Create an async line reader with a specific buffer capacity.
+    /// Create an async line reader with a specific buffer capacity and default max line length (1MB).
     ///
     /// # Parameters
     ///
@@ -189,6 +196,33 @@ impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
             line_number: 0,
             buffer: String::new(),
             peeked: None,
+            max_line_length: 1_000_000,
+        }
+    }
+
+    /// Create with a specific max line length.
+    pub fn with_max_length(reader: R, max_line_length: usize) -> Self {
+        Self {
+            reader: BufReader::new(reader),
+            line_number: 0,
+            buffer: String::new(),
+            peeked: None,
+            max_line_length,
+        }
+    }
+
+    /// Create with a specific buffer capacity and max line length.
+    pub fn with_capacity_and_max_length(
+        reader: R,
+        capacity: usize,
+        max_line_length: usize,
+    ) -> Self {
+        Self {
+            reader: BufReader::with_capacity(capacity, reader),
+            line_number: 0,
+            buffer: String::new(),
+            peeked: None,
+            max_line_length,
         }
     }
 
@@ -259,25 +293,7 @@ impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
             return Ok(Some(peeked));
         }
 
-        self.buffer.clear();
-
-        match self.reader.read_line(&mut self.buffer).await {
-            Ok(0) => Ok(None), // EOF
-            Ok(_) => {
-                self.line_number += 1;
-
-                // Remove trailing newline
-                if self.buffer.ends_with('\n') {
-                    self.buffer.pop();
-                    if self.buffer.ends_with('\r') {
-                        self.buffer.pop();
-                    }
-                }
-
-                Ok(Some((self.line_number, self.buffer.clone())))
-            }
-            Err(e) => Err(StreamError::Io(e)),
-        }
+        self.read_line_internal().await
     }
 
     /// Peek at the next line without consuming it.
@@ -351,21 +367,118 @@ impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
     async fn read_line_internal(&mut self) -> StreamResult<Option<(usize, String)>> {
         self.buffer.clear();
 
-        match self.reader.read_line(&mut self.buffer).await {
-            Ok(0) => Ok(None),
-            Ok(_) => {
-                self.line_number += 1;
+        loop {
+            // Read from BufReader's internal buffer (zero-copy)
+            let available = self.reader.fill_buf().await.map_err(StreamError::Io)?;
 
-                if self.buffer.ends_with('\n') {
-                    self.buffer.pop();
-                    if self.buffer.ends_with('\r') {
-                        self.buffer.pop();
-                    }
+            if available.is_empty() {
+                // EOF
+                if self.buffer.is_empty() {
+                    return Ok(None);
+                }
+                // Return partial line (no trailing newline)
+                self.line_number += 1;
+                return Ok(Some((self.line_number, self.buffer.clone())));
+            }
+
+            // Find newline in available data
+            if let Some(newline_pos) = memchr_byte(b'\n', available) {
+                // Check limit BEFORE appending
+                if self.buffer.len() + newline_pos > self.max_line_length {
+                    // CRITICAL: Consume the oversized line data to prevent infinite loop
+                    // Consume up to and including the newline character
+                    self.reader.consume(newline_pos + 1);
+                    let total_length = self.buffer.len() + newline_pos;
+                    self.line_number += 1;
+                    self.buffer.clear();
+                    return Err(StreamError::LineTooLong {
+                        line: self.line_number,
+                        length: total_length,
+                        limit: self.max_line_length,
+                    });
                 }
 
-                Ok(Some((self.line_number, self.buffer.clone())))
+                // Append up to newline (excluding the newline itself)
+                let mut line_end = newline_pos;
+
+                // Handle CRLF: if newline is preceded by CR, exclude it too
+                if newline_pos > 0 && available[newline_pos - 1] == b'\r' {
+                    line_end = newline_pos - 1;
+                }
+
+                let to_append = &available[..line_end];
+
+                // Validate UTF-8 before appending
+                let line_str =
+                    std::str::from_utf8(to_append).map_err(|e| StreamError::InvalidUtf8 {
+                        line: self.line_number + 1,
+                        error: e,
+                    })?;
+
+                self.buffer.push_str(line_str);
+
+                // Consume bytes including newline
+                self.reader.consume(newline_pos + 1);
+
+                self.line_number += 1;
+                return Ok(Some((self.line_number, self.buffer.clone())));
+            } else {
+                // No newline yet, check if adding entire buffer exceeds limit
+                if self.buffer.len() + available.len() > self.max_line_length {
+                    // CRITICAL: Consume all available data and skip to end of line
+                    // to prevent infinite loop on subsequent reads
+                    let accumulated = self.buffer.len() + available.len();
+                    let consumed = available.len();
+                    self.reader.consume(consumed);
+
+                    // Continue reading and discarding until we find the end of line
+                    self.skip_to_end_of_line().await?;
+
+                    self.line_number += 1;
+                    self.buffer.clear();
+                    return Err(StreamError::LineTooLong {
+                        line: self.line_number,
+                        length: accumulated,
+                        limit: self.max_line_length,
+                    });
+                }
+
+                // Validate UTF-8 before appending
+                let chunk_str =
+                    std::str::from_utf8(available).map_err(|e| StreamError::InvalidUtf8 {
+                        line: self.line_number + 1,
+                        error: e,
+                    })?;
+
+                // Append entire buffer and continue reading
+                self.buffer.push_str(chunk_str);
+
+                let len = available.len();
+                self.reader.consume(len);
             }
-            Err(e) => Err(StreamError::Io(e)),
+        }
+    }
+
+    /// Skip to end of line when handling oversized line errors.
+    /// Consumes data until a newline is found or EOF is reached.
+    async fn skip_to_end_of_line(&mut self) -> StreamResult<()> {
+        loop {
+            let available = self.reader.fill_buf().await.map_err(StreamError::Io)?;
+
+            if available.is_empty() {
+                // EOF reached, line is done
+                return Ok(());
+            }
+
+            if let Some(newline_pos) = memchr_byte(b'\n', available) {
+                // Found newline, consume up to and including it
+                self.reader.consume(newline_pos + 1);
+                return Ok(());
+            } else {
+                // No newline, consume all and continue
+                let len = available.len();
+                self.reader.consume(len);
+            }
         }
     }
 }
@@ -424,7 +537,7 @@ mod tests {
     async fn test_single_empty_line() {
         let input = "\n";
         let mut reader = AsyncLineReader::new(Cursor::new(input));
-        assert_eq!(reader.next_line().await.unwrap(), Some((1, "".to_string())));
+        assert_eq!(reader.next_line().await.unwrap(), Some((1, String::new())));
         assert_eq!(reader.next_line().await.unwrap(), None);
     }
 
@@ -557,7 +670,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_many_lines() {
-        let lines: Vec<String> = (0..1000).map(|i| format!("line{}", i)).collect();
+        let lines: Vec<String> = (0..1000).map(|i| format!("line{i}")).collect();
         let input = lines.join("\n");
         let mut reader = AsyncLineReader::new(Cursor::new(input));
 

@@ -21,7 +21,7 @@ use hedl::{canonicalize, lint, parse, to_json};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example HEDL document
-    let hedl_text = r#"
+    let hedl_text = r"
 %VERSION: 1.0
 %STRUCT: User: [id,name,email,role]
 ---
@@ -34,7 +34,7 @@ config:
   max_connections: 100
   timeout_ms: 5000
   debug: true
-"#;
+";
 
     println!("=== Parsing HEDL ===");
     let doc = parse(hedl_text)?;
@@ -44,12 +44,12 @@ config:
 
     println!("=== Canonicalization ===");
     let canonical = canonicalize(&doc)?;
-    println!("{}", canonical);
+    println!("{canonical}");
     println!();
 
     println!("=== JSON Conversion ===");
     let json = to_json(&doc)?;
-    println!("{}", json);
+    println!("{json}");
     println!();
 
     println!("=== Linting ===");
@@ -58,7 +58,7 @@ config:
         println!("No issues found!");
     } else {
         for diagnostic in &diagnostics {
-            println!("{}", diagnostic);
+            println!("{diagnostic}");
         }
     }
 
