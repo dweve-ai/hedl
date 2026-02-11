@@ -354,7 +354,7 @@ jobs:
         with:
           key: miri
       - name: Setup MIRI
-        run: cargo miri setup
+        run: cargo +nightly miri setup
       - name: Run MIRI on hedl-core (lib only)
         run: |
           cargo +nightly miri test -p hedl-core --lib --no-fail-fast
