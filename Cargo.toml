@@ -223,7 +223,7 @@ strip = "debuginfo"
 inherits = "release"
 lto = "fat"
 panic = "abort"
-debug = 1  # line-tables-only (MSRV 1.70 compatible)
+debug = "line-tables-only"  # MSRV 1.70+
 strip = "symbols"
 
 [profile.release-wasm]
