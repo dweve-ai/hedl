@@ -28,6 +28,31 @@ use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::time::Instant;
 
+/// Internal helper to safely obtain a reference to the inner document.
+///
+/// Returns `Ok(&inner)` when the pointer is valid, otherwise logs a failure and
+/// returns an appropriate error code.
+unsafe fn get_valid_doc_ref<'a>(
+    doc: *const HedlDocument,
+    op_name: &str,
+    start: Instant,
+) -> Result<&'a hedl_core::Document, c_int> {
+    if !is_valid_document_ptr(doc) {
+        let duration = start.elapsed();
+        set_error("Null or invalid document handle");
+        audit_call_failure(
+            op_name,
+            HEDL_ERR_NULL_PTR,
+            "Null or invalid document handle",
+            duration,
+        );
+        return Err(HEDL_ERR_NULL_PTR);
+    }
+
+    // SAFETY: Caller guarantees `doc` came from `hedl_parse` and has not been freed.
+    Ok(&(*doc).inner)
+}
+
 // =============================================================================
 // Canonicalization
 // =============================================================================
@@ -72,9 +97,12 @@ pub unsafe extern "C" fn hedl_canonicalize(
         return HEDL_ERR_NULL_PTR;
     }
 
-    // SAFETY: We validated the pointer is non-null and not poisoned.
-    // The document was allocated by Box::into_raw in hedl_parse.
-    let doc_ref = &(*doc).inner;
+    // SAFETY: We validated the pointer using `get_valid_doc_ref`, which also
+    // handles logging and error reporting on failure.
+    let doc_ref = match get_valid_doc_ref(doc, "hedl_canonicalize", start) {
+        Ok(doc_ref) => doc_ref,
+        Err(code) => return code,
+    };
 
     match hedl_c14n::canonicalize(doc_ref) {
         Ok(canonical) => {
