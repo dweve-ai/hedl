@@ -28,6 +28,7 @@ use super::span::{SourcePos, Span};
 
 /// A parsed expression from `$(...)`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Expression {
     /// A literal value: number, string, or boolean.
     Literal {
@@ -65,6 +66,7 @@ pub enum Expression {
 
 /// A literal value within an expression.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExprLiteral {
     /// Integer literal.
     Int(i64),

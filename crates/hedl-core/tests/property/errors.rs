@@ -62,7 +62,7 @@ proptest! {
         if result.is_err() {
             let err_msg = format!("{}", result.unwrap_err());
             prop_assert!(
-                err_msg.contains("VERSION") || err_msg.contains("version") || err_msg.contains("expected"),
+                err_msg.contains("VERSION") ||err_msg.contains("version") ||err_msg.contains("expected"),
                 "Error should mention VERSION: {}", err_msg
             );
         }
@@ -74,8 +74,8 @@ proptest! {
         major in "\\PC{0,10}",
         minor in "\\PC{0,10}"
     ) {
-        prop_assume!(!major.chars().all(|c| c.is_ascii_digit()));
-        prop_assume!(!minor.chars().all(|c| c.is_ascii_digit()));
+        prop_assume!(!major.chars().all(|c|c.is_ascii_digit()));
+        prop_assume!(!minor.chars().all(|c|c.is_ascii_digit()));
 
         let doc = format!("%VERSION: {major}.{minor}\n---\nvalue: 1\n");
 
@@ -91,7 +91,7 @@ proptest! {
         val2 in -100_i64..100
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n---\nobj:\n  {key}: {val1}\n  {key}: {val2}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nobj:\n {key}: {val1}\n {key}: {val2}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -100,22 +100,21 @@ proptest! {
         if let Err(e) = result {
             let err_msg = format!("{e}");
             prop_assert!(
-                err_msg.contains("duplicate") || err_msg.contains(&key) || err_msg.contains("Duplicate"),
+                err_msg.contains("duplicate") ||err_msg.contains(&key) ||err_msg.contains("Duplicate"),
                 "Error should mention duplicate or key name: {}", err_msg
             );
         }
     }
 
-    /// Property: Invalid indentation produces error.
+    /// Property: Valid 1-space indentation (any number of spaces = that level).
     #[test]
-    fn prop_invalid_indent_error(spaces in 1_usize..10) {
-        prop_assume!(spaces % 2 != 0); // Not a multiple of 2
-
+    fn prop_valid_one_space_indent(spaces in 1_usize..10) {
         let indent = " ".repeat(spaces);
-        let doc = format!("%VERSION: 1.0\n---\nobj:\n{indent}value: 1\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nobj:\n{indent}value: 1\n");
 
         let result = parse(doc.as_bytes());
-        // May succeed or fail depending on parser's lenience, but should not panic
+        // With 1-space indentation, all positive indent levels are valid
+        // Should not panic regardless
         if result.is_err() {
             let err_msg = format!("{}", result.unwrap_err());
             prop_assert!(!err_msg.is_empty(), "Error message should not be empty");
@@ -132,7 +131,7 @@ proptest! {
         prop_assume!(id != other_id);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{other_id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{other_id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -152,7 +151,7 @@ proptest! {
         id in "[a-z][a-z0-9_-]{1,30}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\n  | {id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n |{id}\n |{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -161,7 +160,7 @@ proptest! {
         if let Err(e) = result {
             let err_msg = format!("{e}");
             prop_assert!(
-                err_msg.contains("duplicate") || err_msg.contains(&id) || err_msg.contains("collision"),
+                err_msg.contains("duplicate") ||err_msg.contains(&id) ||err_msg.contains("collision"),
                 "Error should mention duplicate/collision: {}", err_msg
             );
         }
@@ -199,7 +198,7 @@ proptest! {
     #[test]
     fn prop_ditto_first_row_error(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, ^\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, value]\n---\nitems:@{type_name}\n |id1, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -220,7 +219,7 @@ proptest! {
         prop_assume!(defined_type != undefined_type);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {defined_type}: [id]\n---\nitems: @{undefined_type}\n  | id1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{defined_type}:[id]\n---\nitems:@{undefined_type}\n |id1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -237,11 +236,11 @@ proptest! {
     ) {
         prop_assume!(field_count != value_count);
 
-        let fields = (0..field_count).map(|i| format!("f{i}")).collect::<Vec<_>>().join(", ");
-        let values = (0..value_count).map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+        let fields = (0..field_count).map(|i|format!("f{i}")).collect::<Vec<_>>().join(", ");
+        let values = (0..value_count).map(|i|i.to_string()).collect::<Vec<_>>().join(", ");
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [{fields}]\n---\nitems: @{type_name}\n  | {values}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[{fields}]\n---\nitems:@{type_name}\n |{values}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -263,12 +262,12 @@ mod limit_violations {
         /// Property: Excessive nesting depth is handled.
         #[test]
         fn prop_deep_nesting_handled(depth in 100_usize..200) {
-            let mut doc = String::from("%VERSION: 1.0\n---\n");
+            let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
             for d in 0..depth {
-                let indent = "  ".repeat(d);
+                let indent = " ".repeat(d);
                 doc.push_str(&format!("{indent}level{d}:\n"));
             }
-            let indent = "  ".repeat(depth);
+            let indent = " ".repeat(depth);
             doc.push_str(&format!("{indent}value: 1\n"));
 
             let result = parse(doc.as_bytes());
@@ -283,7 +282,7 @@ mod limit_violations {
         #[test]
         fn prop_long_line_handled(length in 1000_usize..10000) {
             let long_value = "x".repeat(length);
-            let doc = format!("%VERSION: 1.0\n---\nvalue: {long_value}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {long_value}\n");
 
             let result = parse(doc.as_bytes());
             // Should either succeed or produce a clear error

@@ -18,7 +18,12 @@
 //! Security limits for HEDL parsing.
 
 use crate::error::{HedlError, HedlResult};
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
+
+#[cfg(target_arch = "wasm32")]
+use std::time::Duration;
 
 /// Configurable limits for parser security.
 ///
@@ -117,19 +122,31 @@ impl Limits {
 ///
 /// This structure tracks the start time of a parsing operation and provides
 /// a method to check whether the configured timeout has been exceeded.
+///
+/// On WASM targets, timeout checking is disabled since `std::time::Instant`
+/// is not available.
 #[derive(Debug, Clone, Copy)]
 pub struct TimeoutContext {
+    #[cfg(not(target_arch = "wasm32"))]
     start: Instant,
+    #[cfg(not(target_arch = "wasm32"))]
     timeout: Option<Duration>,
 }
 
 impl TimeoutContext {
     /// Create a new timeout context with the given timeout duration.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(timeout: Option<Duration>) -> Self {
         Self {
             start: Instant::now(),
             timeout,
         }
+    }
+
+    /// Create a new timeout context (no-op on WASM).
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(_timeout: Option<Duration>) -> Self {
+        Self {}
     }
 
     /// Check if timeout has been exceeded. Returns an error if timeout exceeded.
@@ -141,6 +158,8 @@ impl TimeoutContext {
     /// # Errors
     ///
     /// Returns a security error if the elapsed time exceeds the configured timeout.
+    /// On WASM targets, this always returns Ok.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn check_timeout(&self, line_num: usize) -> HedlResult<()> {
         if let Some(timeout) = self.timeout {
             let elapsed = self.start.elapsed();
@@ -155,6 +174,13 @@ impl TimeoutContext {
                 ));
             }
         }
+        Ok(())
+    }
+
+    /// Check if timeout has been exceeded (no-op on WASM).
+    #[cfg(target_arch = "wasm32")]
+    #[inline(always)]
+    pub fn check_timeout(&self, _line_num: usize) -> HedlResult<()> {
         Ok(())
     }
 }
@@ -285,23 +311,6 @@ pub trait TimeoutCheckExt<'a>: Iterator<Item = (usize, &'a str)> + Sized {
     /// ```
     fn with_timeout_check(self, timeout_ctx: &'a TimeoutContext) -> TimeoutCheckIterator<'a, Self> {
         TimeoutCheckIterator::new(self, timeout_ctx)
-    }
-
-    /// Add timeout checking with a custom check interval.
-    ///
-    /// # Arguments
-    ///
-    /// * `timeout_ctx` - The timeout context to check against
-    /// * `check_interval` - Number of iterations between checks
-    ///
-    /// Note: Available for performance-sensitive scenarios requiring custom check intervals.
-    #[allow(dead_code)]
-    fn with_timeout_check_interval(
-        self,
-        timeout_ctx: &'a TimeoutContext,
-        check_interval: usize,
-    ) -> TimeoutCheckIterator<'a, Self> {
-        TimeoutCheckIterator::with_interval(self, timeout_ctx, check_interval)
     }
 }
 
@@ -677,10 +686,7 @@ mod tests {
         let timeout_ctx = TimeoutContext::new(Some(Duration::from_secs(60)));
 
         // Use very small interval (check every iteration)
-        let count = lines
-            .iter()
-            .copied()
-            .with_timeout_check_interval(&timeout_ctx, 1)
+        let count = TimeoutCheckIterator::with_interval(lines.iter().copied(), &timeout_ctx, 1)
             .filter_map(Result::ok)
             .count();
         assert_eq!(count, 100);

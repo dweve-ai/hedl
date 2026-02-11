@@ -37,7 +37,7 @@ use crate::datasets::{generate_graph, generate_reference_heavy};
 #[must_use]
 pub fn generate_dag(nodes: usize, edges: usize) -> String {
     if nodes == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
     let edges_per_node = if nodes > 0 { (edges / nodes).max(1) } else { 1 };
@@ -59,12 +59,12 @@ pub fn generate_dag(nodes: usize, edges: usize) -> String {
 #[must_use]
 pub fn generate_linked_list(length: usize) -> String {
     if length == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Node: [id,value,next]\n");
-    doc.push_str("list: @Node\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:Node:[id,value,next]\n");
+    doc.push_str("list:@Node\n");
 
     for i in 0..length {
         let next_ref = if i < length - 1 {
@@ -137,15 +137,16 @@ pub fn generate_reference_graph(entity_count: usize) -> String {
 #[must_use]
 pub fn generate_bidirectional_graph(nodes: usize, edges_per_node: usize) -> String {
     if nodes == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Node: [id,name,edges]\n");
-    doc.push_str("graph: @Node\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:Node:[id,name,edges]\n");
+    doc.push_str("graph:@Node\n");
 
+    let mut edges = Vec::with_capacity(edges_per_node);
     for i in 0..nodes {
-        let mut edges = Vec::new();
+        edges.clear();
         for j in 1..=edges_per_node {
             let target = (i + j) % nodes;
             if target != i {
@@ -171,12 +172,12 @@ pub fn generate_bidirectional_graph(nodes: usize, edges_per_node: usize) -> Stri
 #[must_use]
 pub fn generate_tree_graph(nodes: usize) -> String {
     if nodes == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: TreeNode: [id,parent,children]\n");
-    doc.push_str("tree: @TreeNode\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:TreeNode:[id,parent,children]\n");
+    doc.push_str("tree:@TreeNode\n");
 
     // Root node
     doc.push_str("| 0, null, [");
@@ -220,8 +221,8 @@ mod tests {
     #[test]
     fn test_dag() {
         let doc = generate_dag(10, 20);
-        assert!(doc.contains("%VERSION: 1.0"));
-        assert!(doc.contains("%STRUCT:"));
+        assert!(doc.contains("%V:2.0"));
+        assert!(doc.contains("%S:"));
     }
 
     #[test]
@@ -234,7 +235,7 @@ mod tests {
     #[test]
     fn test_complex_graph() {
         let doc = generate_complex_graph(10, 0.5);
-        assert!(doc.contains("%VERSION: 1.0"));
+        assert!(doc.contains("%V:2.0"));
     }
 
     #[test]

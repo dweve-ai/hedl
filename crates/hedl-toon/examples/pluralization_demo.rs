@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_parent_child_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Child".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -118,7 +118,7 @@ fn create_parent_child_doc() -> Document {
 }
 
 fn create_team_person_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Person".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -174,7 +174,7 @@ fn create_team_person_doc() -> Document {
 }
 
 fn create_lab_mouse_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Mouse".to_string(),
         vec!["id".to_string(), "strain".to_string()],
@@ -219,7 +219,7 @@ fn create_lab_mouse_doc() -> Document {
 }
 
 fn create_mouth_tooth_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Tooth".to_string(),
         vec!["id".to_string(), "position".to_string()],
@@ -265,7 +265,7 @@ fn create_mouth_tooth_doc() -> Document {
 }
 
 fn create_garden_cactus_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Cactus".to_string(),
         vec!["id".to_string(), "species".to_string()],
@@ -322,7 +322,7 @@ fn create_garden_cactus_doc() -> Document {
 }
 
 fn create_order_item_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Item".to_string(),
         vec!["id".to_string(), "product".to_string()],

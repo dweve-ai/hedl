@@ -36,7 +36,7 @@ proptest! {
         lines in prop::collection::vec("[a-zA-Z0-9 ]{0,50}", 1..=10)
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: |\n  {}\n",
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: |\n  {}\n",
             lines.join("\n  ")
         );
 
@@ -59,7 +59,7 @@ proptest! {
     #[test]
     fn prop_single_line_block_string(content in "[a-zA-Z0-9 ]{1,50}") {
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: |\n  {content}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: |\n  {content}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -87,7 +87,7 @@ proptest! {
             .collect();
 
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: |\n  {}\n",
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: |\n  {}\n",
             lines.join("\n  ")
         );
 
@@ -121,7 +121,7 @@ proptest! {
         // HEDL uses quoted strings with \n for newlines, not YAML block strings
         let content = lines.join("\\n");
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: \"{content}\"\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"{content}\"\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -138,7 +138,7 @@ proptest! {
         let line = format!("{}{}", " ".repeat(spaces), content);
         // HEDL uses quoted strings, spaces are preserved
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: \"{line}\"\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"{line}\"\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -166,7 +166,7 @@ proptest! {
         let line = format!("{}{}", content, " ".repeat(spaces));
         // HEDL uses quoted strings, trailing spaces are preserved
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: \"{line}\"\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"{line}\"\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -193,7 +193,7 @@ proptest! {
             .collect();
 
         let doc = format!(
-            "%VERSION: 1.0\n---\ntext: |\n  {}\n",
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: |\n  {}\n",
             lines.join("\n  ")
         );
 
@@ -228,7 +228,7 @@ proptest! {
             // Escape the content properly for HEDL string
             let escaped = content.replace('\\', "\\\\").replace('"', "\\\"");
             let doc = format!(
-                "%VERSION: 1.0\n---\ntext: \"{escaped}\"\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"{escaped}\"\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -264,7 +264,7 @@ proptest! {
             // Escape the content properly for HEDL string
             let escaped = content.replace('\\', "\\\\").replace('"', "\\\"");
             let doc = format!(
-                "%VERSION: 1.0\n---\ntext: \"{escaped}\"\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"{escaped}\"\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -288,7 +288,7 @@ proptest! {
     /// Property: Empty block strings are handled.
     #[test]
     fn prop_empty_block_string(_seed in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\ntext: |\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: |\n";
 
         let result = parse(doc.as_bytes());
         // Should parse successfully or produce clear error
@@ -311,7 +311,7 @@ mod edge_cases {
         fn prop_block_string_tabs(content in "[a-zA-Z0-9]{1,30}") {
             let line = format!("{content}\t{content}");
             let doc = format!(
-                "%VERSION: 1.0\n---\ntext: |\n  {line}\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: |\n  {line}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -328,7 +328,7 @@ mod edge_cases {
             // HEDL uses quoted strings with \n escapes, not YAML block strings
             let joined = format!("{content}\\n{content}\\n{content}");
             let doc = format!(
-                "%VERSION: 1.0\n---\ntext: \"{joined}\"\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"{joined}\"\n"
             );
 
             let result = parse(doc.as_bytes());

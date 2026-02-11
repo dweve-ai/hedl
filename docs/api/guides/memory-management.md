@@ -329,7 +329,7 @@ mod tests {
         let initial = current_allocated();
 
         {
-            let doc = parse("%VERSION: 1.0\n---\nkey: value").unwrap();
+            let doc = parse("%V:2.0\n---\nkey: value").unwrap();
             let _json = hedl::json::to_json(&doc).unwrap();
         }
 

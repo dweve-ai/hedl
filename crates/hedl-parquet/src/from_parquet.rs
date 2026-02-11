@@ -49,8 +49,6 @@
 //! - Allows decoding row and column from single value
 //! - Not related to data position preservation
 //!
-//! See `POSITION_ENCODING.md` for detailed documentation.
-//!
 //! # Security Protections
 //!
 //! This module implements comprehensive security protections for reading untrusted
@@ -62,7 +60,7 @@
 //! - **Overflow protection**: Uses checked arithmetic for all size calculations
 //! - **Identifier validation**: Validates and sanitizes all metadata identifiers
 //!
-//! See `SECURITY.md` for detailed threat model and mitigation strategies.
+//! See the workspace root `SECURITY.md` for the detailed threat model.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -80,7 +78,6 @@ use parquet::arrow::ProjectionMask;
 use hedl_core::{Document, HedlError, HedlErrorKind, Item, MatrixList, Node, Value};
 
 use crate::config::{FromParquetConfig, NullIdHandling};
-use crate::predicate::{filter_batch, Predicate};
 
 /// Calculate optimal batch size based on schema characteristics.
 ///
@@ -330,7 +327,7 @@ fn read_batches(
     hedl_metadata: HedlMetadata,
     config: &FromParquetConfig,
 ) -> Result<Document, HedlError> {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut total_bytes = 0usize;
 
     // Read all record batches
@@ -354,81 +351,6 @@ fn read_batches(
         }
 
         convert_record_batch_to_hedl(&batch, &mut doc, &hedl_metadata, config)?;
-    }
-
-    // Validate unique IDs after all batches are processed (defense in depth)
-    for item in doc.root.values() {
-        if let Item::List(list) = item {
-            validate_unique_ids(&list.rows)?;
-        }
-    }
-
-    Ok(doc)
-}
-
-/// Read all record batches with optional in-memory predicate filtering.
-///
-/// This function is used when predicate pushdown is enabled. After row group
-/// selection (coarse filtering), this applies fine-grained row-level filtering
-/// to each batch.
-///
-/// # Arguments
-///
-/// * `arrow_reader` - Iterator over record batches from selected row groups
-/// * `hedl_metadata` - HEDL metadata extracted from the Parquet file
-/// * `predicate` - Optional predicate for row-level filtering
-/// * `config` - Configuration for handling edge cases like null IDs
-///
-/// # Performance
-///
-/// When a predicate is provided, rows that don't match are filtered out before
-/// being converted to HEDL, reducing memory usage and processing time.
-///
-/// Note: This function is available for predicate pushdown implementations.
-/// Currently, row group filtering via statistics is the primary optimization path.
-#[allow(dead_code)]
-fn read_batches_filtered(
-    arrow_reader: impl Iterator<Item = Result<RecordBatch, arrow::error::ArrowError>>,
-    hedl_metadata: HedlMetadata,
-    predicate: Option<&Predicate>,
-    config: &FromParquetConfig,
-) -> Result<Document, HedlError> {
-    let mut doc = Document::new((1, 0));
-    let mut total_bytes = 0usize;
-
-    // Read all record batches
-    for batch_result in arrow_reader {
-        let batch =
-            batch_result.map_err(|e| HedlError::io(format!("Failed to read record batch: {e}")))?;
-
-        // Security: Track decompressed data size to prevent decompression bombs
-        let batch_bytes = estimate_batch_size(&batch);
-        total_bytes = total_bytes
-            .checked_add(batch_bytes)
-            .ok_or_else(|| HedlError::security("decompressed size calculation overflow", 0))?;
-
-        if total_bytes > MAX_DECOMPRESSED_SIZE {
-            return Err(HedlError::security(
-                format!(
-                    "Decompressed size limit exceeded: {total_bytes} bytes (max: {MAX_DECOMPRESSED_SIZE} bytes)"
-                ),
-                0,
-            ));
-        }
-
-        // Apply in-memory filtering if a predicate is specified
-        let filtered_batch = if let Some(pred) = predicate {
-            let filtered = filter_batch(&batch, pred)?;
-            // Skip empty batches after filtering
-            if filtered.num_rows() == 0 {
-                continue;
-            }
-            filtered
-        } else {
-            batch
-        };
-
-        convert_record_batch_to_hedl(&filtered_batch, &mut doc, &hedl_metadata, config)?;
     }
 
     // Validate unique IDs after all batches are processed (defense in depth)
@@ -958,6 +880,11 @@ fn extract_value_from_array(
                 return Ok(parse_reference_string(s));
             }
 
+            // Try to detect lists (parentheses syntax)
+            if s.starts_with('(') && s.ends_with(')') {
+                return parse_list_string(s);
+            }
+
             Ok(Value::String(s.to_string().into()))
         }
         DataType::Dictionary(_, value_type) => {
@@ -973,6 +900,11 @@ fn extract_value_from_array(
                 // Try to detect references
                 if s.starts_with('@') {
                     return Ok(parse_reference_string(s));
+                }
+
+                // Try to detect lists (parentheses syntax)
+                if s.starts_with('(') && s.ends_with(')') {
+                    return parse_list_string(s);
                 }
 
                 Ok(Value::String(s.to_string().into()))
@@ -1017,6 +949,57 @@ fn parse_reference_string(s: &str) -> Value {
     } else {
         Value::Reference(hedl_core::Reference::local(without_at))
     }
+}
+
+/// Parse a list string (e.g., "(a, b, c)" or "()").
+///
+/// Parses a string representation of a list back into a `Value::List`.
+/// This provides basic parsing for round-trip support of lists through Parquet.
+///
+/// # Arguments
+///
+/// * `s` - The string to parse, should start with '(' and end with ')'
+///
+/// # Returns
+///
+/// A `Value::List` if parsing succeeds, or `Value::String` if it fails
+fn parse_list_string(s: &str) -> Result<Value, HedlError> {
+    // Strip parentheses
+    let inner = s.trim_start_matches('(').trim_end_matches(')').trim();
+
+    // Handle empty list
+    if inner.is_empty() {
+        return Ok(Value::List(Box::default()));
+    }
+
+    // Simple comma-separated parsing
+    // Note: This is a simplified parser that doesn't handle nested lists or escaped commas
+    let items: Vec<Value> = inner
+        .split(',')
+        .map(|item| {
+            let trimmed = item.trim();
+
+            // Try to parse as different types
+            if trimmed == "~" {
+                Value::Null
+            } else if trimmed == "true" {
+                Value::Bool(true)
+            } else if trimmed == "false" {
+                Value::Bool(false)
+            } else if let Ok(n) = trimmed.parse::<i64>() {
+                Value::Int(n)
+            } else if let Ok(f) = trimmed.parse::<f64>() {
+                Value::Float(f)
+            } else if trimmed.starts_with('@') {
+                parse_reference_string(trimmed)
+            } else {
+                // Default to string
+                Value::String(trimmed.to_string().into())
+            }
+        })
+        .collect();
+
+    Ok(Value::List(Box::new(items)))
 }
 
 /// Validate column names and map to indices for projection.

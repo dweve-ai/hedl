@@ -1,0 +1,4 @@
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+# MSRV is 1.70 (in Cargo.toml) but we develop with latest stable

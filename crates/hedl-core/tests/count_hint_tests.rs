@@ -26,6 +26,7 @@ fn test_struct_with_count_hint() {
 ---
 ";
     let doc = parse(input).unwrap();
+    // Parsing v1.0 content preserves the v1.0 version
     assert_eq!(doc.version, (1, 0));
     assert!(doc.structs.contains_key("Company"));
 }
@@ -67,10 +68,10 @@ fn test_list_count_hint_deprecated_syntax() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams(3): @Team
-  | t1, Alice
-  | t2, Bob
-  | t3, Carol
+teams(3):@Team
+ | t1, Alice
+ | t2, Bob
+ | t3, Carol
 ";
     let doc = parse(input).unwrap();
     // Count hint is parsed but not enforced (deprecated)
@@ -82,7 +83,7 @@ fn test_list_count_hint_zero_rejected() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams(0): @Team
+teams(0):@Team
 ";
     let result = parse(input);
     assert!(result.is_err());
@@ -95,12 +96,12 @@ fn test_both_contexts_in_same_document() {
 %STRUCT: Company (5): [id, name]
 %STRUCT: Division: [id, name]
 ---
-companies: @Company
-  | c1, Acme
-divisions(3): @Division
-  | d1, Engineering
-  | d2, Sales
-  | d3, Marketing
+companies:@Company
+ | c1, Acme
+divisions(3):@Division
+ | d1, Engineering
+ | d2, Sales
+ | d3, Marketing
 ";
     let doc = parse(input).unwrap();
     assert!(doc.structs.contains_key("Company"));
@@ -143,9 +144,9 @@ fn test_list_without_count_hint() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams: @Team
-  | t1, Alice
-  | t2, Bob
+teams:@Team
+ | t1, Alice
+ | t2, Bob
 ";
     let doc = parse(input).unwrap();
     assert!(doc.root.contains_key("teams"));
@@ -156,9 +157,9 @@ fn test_list_with_valid_count_hint() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams(2): @Team
-  | t1, Alice
-  | t2, Bob
+teams(2):@Team
+ | t1, Alice
+ | t2, Bob
 ";
     let doc = parse(input).unwrap();
     assert!(doc.root.contains_key("teams"));
@@ -191,7 +192,7 @@ fn test_list_unclosed_parenthesis_rejected() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams(10: @Team
+teams(10:@Team
 ";
     let result = parse(input);
     assert!(result.is_err());
@@ -203,7 +204,7 @@ fn test_list_invalid_count_format_rejected() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams(xyz): @Team
+teams(xyz):@Team
 ";
     let result = parse(input);
     assert!(result.is_err());

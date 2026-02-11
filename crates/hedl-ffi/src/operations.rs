@@ -19,11 +19,11 @@
 
 use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
 use crate::error::{clear_error, set_error};
+use crate::ffi_strings::allocate_output_string;
 use crate::memory::is_valid_document_ptr;
 use crate::types::{
     HedlDiagnostics, HedlDocument, HEDL_ERR_CANONICALIZE, HEDL_ERR_NULL_PTR, HEDL_OK,
 };
-use crate::utils::allocate_output_string;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::time::Instant;
@@ -72,6 +72,8 @@ pub unsafe extern "C" fn hedl_canonicalize(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
 
     match hedl_c14n::canonicalize(doc_ref) {
@@ -90,6 +92,7 @@ pub unsafe extern "C" fn hedl_canonicalize(
             let duration = start.elapsed();
             let msg = format!("Canonicalization error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_canonicalize", HEDL_ERR_CANONICALIZE, &msg, duration);
             HEDL_ERR_CANONICALIZE
@@ -141,10 +144,14 @@ pub unsafe extern "C" fn hedl_lint(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
     let diagnostics = hedl_lint::lint(doc_ref);
 
     let handle = Box::new(HedlDiagnostics { inner: diagnostics });
+    // SAFETY: We validated out_diag is non-null above.
+    // We write a valid pointer from Box::into_raw.
     *out_diag = Box::into_raw(handle);
     audit_call_success("hedl_lint", start.elapsed());
     HEDL_OK

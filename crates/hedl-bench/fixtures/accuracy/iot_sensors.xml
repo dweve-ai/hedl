@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iot_sensor_network>
+  <devices>
+    <device id="dev-001">
+      <name>Factory Floor Monitor</name>
+      <location>Building A, Floor 1</location>
+      <zone>zone-north</zone>
+      <ip_address>192.168.1.101</ip_address>
+      <firmware>v2.4.1</firmware>
+      <status>online</status>
+      <installed_date>2023-01-15</installed_date>
+    </device>
+    <device id="dev-002">
+      <name>Warehouse Controller</name>
+      <location>Building B, Floor 1</location>
+      <zone>zone-south</zone>
+      <ip_address>192.168.1.102</ip_address>
+      <firmware>v2.4.1</firmware>
+      <status>online</status>
+      <installed_date>2023-02-20</installed_date>
+    </device>
+    <device id="dev-003">
+      <name>HVAC Monitor</name>
+      <location>Building A, Roof</location>
+      <zone>zone-north</zone>
+      <ip_address>192.168.1.103</ip_address>
+      <firmware>v2.3.8</firmware>
+      <status>maintenance</status>
+      <installed_date>2022-11-10</installed_date>
+    </device>
+    <device id="dev-004">
+      <name>Assembly Line Unit</name>
+      <location>Building A, Floor 2</location>
+      <zone>zone-east</zone>
+      <ip_address>192.168.1.104</ip_address>
+      <firmware>v2.4.2</firmware>
+      <status>online</status>
+      <installed_date>2023-06-01</installed_date>
+    </device>
+    <device id="dev-005">
+      <name>Cold Storage Monitor</name>
+      <location>Building C, Floor 1</location>
+      <zone>zone-west</zone>
+      <ip_address>192.168.1.105</ip_address>
+      <firmware>v2.4.0</firmware>
+      <status>error</status>
+      <installed_date>2023-03-15</installed_date>
+    </device>
+  </devices>
+  <sensors>
+    <sensor id="s-001" device="dev-001">
+      <type>temperature</type>
+      <unit>Celsius</unit>
+      <min_threshold>15.0</min_threshold>
+      <max_threshold>35.0</max_threshold>
+      <calibration_date>2024-01-10</calibration_date>
+    </sensor>
+    <sensor id="s-002" device="dev-001">
+      <type>humidity</type>
+      <unit>Percent</unit>
+      <min_threshold>30.0</min_threshold>
+      <max_threshold>70.0</max_threshold>
+      <calibration_date>2024-01-10</calibration_date>
+    </sensor>
+    <sensor id="s-003" device="dev-001">
+      <type>pressure</type>
+      <unit>Pascal</unit>
+      <min_threshold>99000</min_threshold>
+      <max_threshold>103000</max_threshold>
+      <calibration_date>2024-01-10</calibration_date>
+    </sensor>
+    <sensor id="s-004" device="dev-002">
+      <type>temperature</type>
+      <unit>Celsius</unit>
+      <min_threshold>10.0</min_threshold>
+      <max_threshold>25.0</max_threshold>
+      <calibration_date>2024-01-12</calibration_date>
+    </sensor>
+    <sensor id="s-005" device="dev-002">
+      <type>humidity</type>
+      <unit>Percent</unit>
+      <min_threshold>40.0</min_threshold>
+      <max_threshold>80.0</max_threshold>
+      <calibration_date>2024-01-12</calibration_date>
+    </sensor>
+    <sensor id="s-006" device="dev-003">
+      <type>temperature</type>
+      <unit>Celsius</unit>
+      <min_threshold>-5.0</min_threshold>
+      <max_threshold>45.0</max_threshold>
+      <calibration_date>2023-12-05</calibration_date>
+    </sensor>
+    <sensor id="s-007" device="dev-003">
+      <type>fan_speed</type>
+      <unit>RPM</unit>
+      <min_threshold>500</min_threshold>
+      <max_threshold>3000</max_threshold>
+      <calibration_date>2023-12-05</calibration_date>
+    </sensor>
+    <sensor id="s-008" device="dev-004">
+      <type>vibration</type>
+      <unit>Millimeters</unit>
+      <min_threshold>0.0</min_threshold>
+      <max_threshold>2.5</max_threshold>
+      <calibration_date>2024-02-01</calibration_date>
+    </sensor>
+    <sensor id="s-009" device="dev-004">
+      <type>motor_temp</type>
+      <unit>Celsius</unit>
+      <min_threshold>20.0</min_threshold>
+      <max_threshold>80.0</max_threshold>
+      <calibration_date>2024-02-01</calibration_date>
+    </sensor>
+    <sensor id="s-010" device="dev-004">
+      <type>operational</type>
+      <unit>Boolean</unit>
+      <min_threshold>0</min_threshold>
+      <max_threshold>1</max_threshold>
+      <calibration_date>2024-02-01</calibration_date>
+    </sensor>
+    <sensor id="s-011" device="dev-005">
+      <type>temperature</type>
+      <unit>Celsius</unit>
+      <min_threshold>-25.0</min_threshold>
+      <max_threshold>-15.0</max_threshold>
+      <calibration_date>2024-01-20</calibration_date>
+    </sensor>
+    <sensor id="s-012" device="dev-005">
+      <type>door_open</type>
+      <unit>Boolean</unit>
+      <min_threshold>0</min_threshold>
+      <max_threshold>1</max_threshold>
+      <calibration_date>2024-01-20</calibration_date>
+    </sensor>
+  </sensors>
+  <readings>
+    <reading id="r-001" sensor="s-001"><timestamp>2024-06-15T08:00:00Z</timestamp><value>22.4</value><alert_level>none</alert_level></reading>
+    <reading id="r-002" sensor="s-001"><timestamp>2024-06-15T08:15:00Z</timestamp><value>22.6</value><alert_level>none</alert_level></reading>
+    <reading id="r-003" sensor="s-001"><timestamp>2024-06-15T08:30:00Z</timestamp><value>23.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-004" sensor="s-001"><timestamp>2024-06-15T08:45:00Z</timestamp><value>24.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-005" sensor="s-001"><timestamp>2024-06-15T09:00:00Z</timestamp><value>26.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-006" sensor="s-001"><timestamp>2024-06-15T09:15:00Z</timestamp><value>28.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-007" sensor="s-001"><timestamp>2024-06-15T09:30:00Z</timestamp><value>31.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-008" sensor="s-001"><timestamp>2024-06-15T09:45:00Z</timestamp><value>33.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-009" sensor="s-001"><timestamp>2024-06-15T10:00:00Z</timestamp><value>36.1</value><alert_level>warning</alert_level></reading>
+    <reading id="r-010" sensor="s-001"><timestamp>2024-06-15T10:15:00Z</timestamp><value>34.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-011" sensor="s-002"><timestamp>2024-06-15T08:00:00Z</timestamp><value>45.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-012" sensor="s-002"><timestamp>2024-06-15T08:15:00Z</timestamp><value>46.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-013" sensor="s-002"><timestamp>2024-06-15T08:30:00Z</timestamp><value>47.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-014" sensor="s-002"><timestamp>2024-06-15T08:45:00Z</timestamp><value>52.3</value><alert_level>none</alert_level></reading>
+    <reading id="r-015" sensor="s-002"><timestamp>2024-06-15T09:00:00Z</timestamp><value>58.9</value><alert_level>none</alert_level></reading>
+    <reading id="r-016" sensor="s-002"><timestamp>2024-06-15T09:15:00Z</timestamp><value>65.4</value><alert_level>none</alert_level></reading>
+    <reading id="r-017" sensor="s-002"><timestamp>2024-06-15T09:30:00Z</timestamp><value>71.2</value><alert_level>warning</alert_level></reading>
+    <reading id="r-018" sensor="s-002"><timestamp>2024-06-15T09:45:00Z</timestamp><value>68.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-019" sensor="s-002"><timestamp>2024-06-15T10:00:00Z</timestamp><value>62.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-020" sensor="s-002"><timestamp>2024-06-15T10:15:00Z</timestamp><value>55.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-021" sensor="s-004"><timestamp>2024-06-15T08:00:00Z</timestamp><value>18.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-022" sensor="s-004"><timestamp>2024-06-15T08:15:00Z</timestamp><value>18.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-023" sensor="s-004"><timestamp>2024-06-15T08:30:00Z</timestamp><value>19.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-024" sensor="s-004"><timestamp>2024-06-15T08:45:00Z</timestamp><value>19.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-025" sensor="s-004"><timestamp>2024-06-15T09:00:00Z</timestamp><value>20.4</value><alert_level>none</alert_level></reading>
+    <reading id="r-026" sensor="s-004"><timestamp>2024-06-15T09:15:00Z</timestamp><value>21.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-027" sensor="s-004"><timestamp>2024-06-15T09:30:00Z</timestamp><value>22.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-028" sensor="s-004"><timestamp>2024-06-15T09:45:00Z</timestamp><value>24.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-029" sensor="s-004"><timestamp>2024-06-15T10:00:00Z</timestamp><value>25.6</value><alert_level>warning</alert_level></reading>
+    <reading id="r-030" sensor="s-004"><timestamp>2024-06-15T10:15:00Z</timestamp><value>24.3</value><alert_level>none</alert_level></reading>
+    <reading id="r-031" sensor="s-008"><timestamp>2024-06-15T08:00:00Z</timestamp><value>0.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-032" sensor="s-008"><timestamp>2024-06-15T08:15:00Z</timestamp><value>0.9</value><alert_level>none</alert_level></reading>
+    <reading id="r-033" sensor="s-008"><timestamp>2024-06-15T08:30:00Z</timestamp><value>1.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-034" sensor="s-008"><timestamp>2024-06-15T08:45:00Z</timestamp><value>1.4</value><alert_level>none</alert_level></reading>
+    <reading id="r-035" sensor="s-008"><timestamp>2024-06-15T09:00:00Z</timestamp><value>1.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-036" sensor="s-008"><timestamp>2024-06-15T09:15:00Z</timestamp><value>2.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-037" sensor="s-008"><timestamp>2024-06-15T09:30:00Z</timestamp><value>2.6</value><alert_level>warning</alert_level></reading>
+    <reading id="r-038" sensor="s-008"><timestamp>2024-06-15T09:45:00Z</timestamp><value>2.9</value><alert_level>critical</alert_level></reading>
+    <reading id="r-039" sensor="s-008"><timestamp>2024-06-15T10:00:00Z</timestamp><value>1.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-040" sensor="s-008"><timestamp>2024-06-15T10:15:00Z</timestamp><value>1.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-041" sensor="s-011"><timestamp>2024-06-15T08:00:00Z</timestamp><value>-20.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-042" sensor="s-011"><timestamp>2024-06-15T08:15:00Z</timestamp><value>-20.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-043" sensor="s-011"><timestamp>2024-06-15T08:30:00Z</timestamp><value>-19.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-044" sensor="s-011"><timestamp>2024-06-15T08:45:00Z</timestamp><value>-18.9</value><alert_level>none</alert_level></reading>
+    <reading id="r-045" sensor="s-011"><timestamp>2024-06-15T09:00:00Z</timestamp><value>-17.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-046" sensor="s-011"><timestamp>2024-06-15T09:15:00Z</timestamp><value>-15.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-047" sensor="s-011"><timestamp>2024-06-15T09:30:00Z</timestamp><value>-14.2</value><alert_level>warning</alert_level></reading>
+    <reading id="r-048" sensor="s-011"><timestamp>2024-06-15T09:45:00Z</timestamp><value>-12.5</value><alert_level>critical</alert_level></reading>
+    <reading id="r-049" sensor="s-011"><timestamp>2024-06-15T10:00:00Z</timestamp><value>-16.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-050" sensor="s-011"><timestamp>2024-06-15T10:15:00Z</timestamp><value>-19.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-051" sensor="s-009"><timestamp>2024-06-15T08:00:00Z</timestamp><value>45.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-052" sensor="s-009"><timestamp>2024-06-15T08:15:00Z</timestamp><value>48.6</value><alert_level>none</alert_level></reading>
+    <reading id="r-053" sensor="s-009"><timestamp>2024-06-15T08:30:00Z</timestamp><value>52.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-054" sensor="s-009"><timestamp>2024-06-15T08:45:00Z</timestamp><value>58.4</value><alert_level>none</alert_level></reading>
+    <reading id="r-055" sensor="s-009"><timestamp>2024-06-15T09:00:00Z</timestamp><value>65.2</value><alert_level>none</alert_level></reading>
+    <reading id="r-056" sensor="s-009"><timestamp>2024-06-15T09:15:00Z</timestamp><value>72.8</value><alert_level>none</alert_level></reading>
+    <reading id="r-057" sensor="s-009"><timestamp>2024-06-15T09:30:00Z</timestamp><value>78.5</value><alert_level>none</alert_level></reading>
+    <reading id="r-058" sensor="s-009"><timestamp>2024-06-15T09:45:00Z</timestamp><value>82.3</value><alert_level>warning</alert_level></reading>
+    <reading id="r-059" sensor="s-009"><timestamp>2024-06-15T10:00:00Z</timestamp><value>75.1</value><alert_level>none</alert_level></reading>
+    <reading id="r-060" sensor="s-009"><timestamp>2024-06-15T10:15:00Z</timestamp><value>68.4</value><alert_level>none</alert_level></reading>
+  </readings>
+  <alerts>
+    <alert id="a-001" reading="r-009">
+      <message>Temperature exceeded 35.0C threshold</message>
+      <acknowledged>true</acknowledged>
+      <acknowledged_by>john.smith</acknowledged_by>
+    </alert>
+    <alert id="a-002" reading="r-017">
+      <message>Humidity exceeded 70.0% threshold</message>
+      <acknowledged>true</acknowledged>
+      <acknowledged_by>jane.doe</acknowledged_by>
+    </alert>
+    <alert id="a-003" reading="r-029">
+      <message>Temperature exceeded 25.0C threshold</message>
+      <acknowledged>false</acknowledged>
+      <acknowledged_by/>
+    </alert>
+    <alert id="a-004" reading="r-038">
+      <message>Vibration exceeded 2.5mm critical level</message>
+      <acknowledged>true</acknowledged>
+      <acknowledged_by>mike.wilson</acknowledged_by>
+    </alert>
+    <alert id="a-005" reading="r-048">
+      <message>Cold storage temperature above -15.0C</message>
+      <acknowledged>true</acknowledged>
+      <acknowledged_by>jane.doe</acknowledged_by>
+    </alert>
+    <alert id="a-006" reading="r-058">
+      <message>Motor temperature exceeded 80.0C threshold</message>
+      <acknowledged>false</acknowledged>
+      <acknowledged_by/>
+    </alert>
+  </alerts>
+</iot_sensor_network>

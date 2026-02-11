@@ -58,6 +58,7 @@ impl Rule for TypeMismatchRule {
                 Value::Tensor(_) => "tensor".to_string(),
                 Value::Reference(_) => "reference".to_string(),
                 Value::Expression(_) => "expression".to_string(),
+                Value::List(_) => "list".to_string(),
             }
         };
 

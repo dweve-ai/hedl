@@ -78,7 +78,7 @@ pub fn user_list() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
@@ -153,7 +153,7 @@ pub fn mixed_type_list() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
@@ -263,7 +263,7 @@ pub fn with_references() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
@@ -362,11 +362,14 @@ pub fn with_nest() -> Document {
         vec!["id".to_string(), "title".to_string()],
     );
 
-    let mut nests = BTreeMap::new();
-    nests.insert("User".to_string(), "Post".to_string());
+    let mut nests: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    nests
+        .entry("User".to_string())
+        .or_default()
+        .push("Post".to_string());
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
@@ -457,12 +460,18 @@ pub fn deep_nest() -> Document {
         vec!["id".to_string(), "name".to_string()],
     );
 
-    let mut nests = BTreeMap::new();
-    nests.insert("Organization".to_string(), "Department".to_string());
-    nests.insert("Department".to_string(), "Employee".to_string());
+    let mut nests: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    nests
+        .entry("Organization".to_string())
+        .or_default()
+        .push("Department".to_string());
+    nests
+        .entry("Department".to_string())
+        .or_default()
+        .push("Employee".to_string());
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,

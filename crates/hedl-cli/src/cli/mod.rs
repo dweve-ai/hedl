@@ -24,10 +24,10 @@
 //!
 //! Commands are organized into the following modules:
 //!
-//! - [`core`]: Core commands (validate, format, lint, inspect, stats)
-//! - [`conversion`]: Format conversion commands (JSON, YAML, XML, CSV, Parquet)
-//! - [`batch`]: Batch processing commands (batch-validate, batch-format, batch-lint)
-//! - [`utility`]: Utility commands (completion)
+//! - `core`: Core commands (validate, format, lint, inspect, stats)
+//! - `conversion`: Format conversion commands (JSON, YAML, XML, CSV, Parquet)
+//! - `batch`: Batch processing commands (batch-validate, batch-format, batch-lint)
+//! - `completion`: Shell completion generation
 //!
 //! # Design Principles
 //!
@@ -37,16 +37,16 @@
 //! - **Extensibility**: Easy to add new commands within existing categories
 
 mod batch;
+mod completion;
 mod conversion;
 mod core;
-mod utility;
 
 use clap::Subcommand;
 
 pub use batch::BatchCommands;
+pub use completion::CompletionCommands;
 pub use conversion::ConversionCommands;
 pub use core::CoreCommands;
-pub use utility::UtilityCommands;
 
 /// Top-level CLI commands enum.
 ///
@@ -62,7 +62,7 @@ pub use utility::UtilityCommands;
 /// ├── Core (validate, format, lint, inspect, stats)
 /// ├── Conversion (JSON, YAML, XML, CSV, Parquet)
 /// ├── Batch (batch-validate, batch-format, batch-lint)
-/// └── Utility (completion)
+/// └── Completion (shell completion generation)
 /// ```
 ///
 /// # Examples
@@ -91,9 +91,9 @@ pub enum Commands {
     #[command(flatten)]
     Batch(BatchCommands),
 
-    /// Utility commands (completion).
+    /// Shell completion generation.
     #[command(flatten)]
-    Utility(UtilityCommands),
+    Completion(CompletionCommands),
 }
 
 impl Commands {
@@ -118,7 +118,7 @@ impl Commands {
             Commands::Core(cmd) => cmd.execute(),
             Commands::Conversion(cmd) => cmd.execute(),
             Commands::Batch(cmd) => cmd.execute(),
-            Commands::Utility(cmd) => cmd.execute(),
+            Commands::Completion(cmd) => cmd.execute(),
         }
     }
 }

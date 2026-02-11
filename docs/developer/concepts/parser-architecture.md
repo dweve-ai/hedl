@@ -1,356 +1,507 @@
-# Parser Architecture
+# Parser Architecture: From Text to Understanding
 
-Deep dive into HEDL's parsing architecture and design decisions.
+Imagine you're reading a book. Your eyes scan characters. Your brain groups them into words. Words become sentences. Sentences become meaning. That journey from ink to understanding mirrors what a parser does with code.
 
-## Overview
-
-HEDL uses a **multi-stage parsing pipeline** with:
-- Lexical analysis (tokenization)
-- Indentation preprocessing
-- Recursive descent parsing
-- Two-pass reference resolution
-- Validation and limit enforcement
-
-## Parsing Pipeline
+HEDL's parser takes raw bytes and transforms them into a structured document. But it doesn't happen in one magical step. It's a carefully orchestrated pipeline where each stage builds on the previous one, each with its own responsibility, each with its own design decisions.
 
 ```mermaid
-graph TD
-    A[Raw Input Bytes] --> B[UTF-8 Validation]
-    B --> C[Line Splitting]
-    C --> D[Indentation Analysis]
-    D --> E[Header Parsing]
-    E --> F[Body Parsing]
-    F --> G[Reference Collection]
-    G --> H[Reference Resolution]
-    H --> I[Validation]
-    I --> J[Document AST]
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9'}}}%%
+flowchart TB
+    subgraph journey["🚀 THE PARSING JOURNEY"]
+        INPUT["📥 Raw Bytes"]
+        UTF8["✅ UTF-8 Validation"]
+        LINES["📏 Line Splitting"]
+        INDENT["📐 Indentation Analysis"]
+        HEADER["📋 Header Parsing"]
+        BODY["🌲 Body Parsing"]
+        COLLECT["🔍 Reference Collection"]
+        RESOLVE["🔗 Reference Resolution"]
+        VALIDATE["✔️ Validation"]
+        OUTPUT["📄 Document AST"]
 
-    style A fill:#f9f,stroke:#333
-    style J fill:#9f9,stroke:#333
+        INPUT --> UTF8 --> LINES --> INDENT --> HEADER --> BODY --> COLLECT --> RESOLVE --> VALIDATE --> OUTPUT
+    end
+
+    style INPUT fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style UTF8 fill:#fff3e0,stroke:#ef6c00
+    style LINES fill:#fff3e0,stroke:#ef6c00
+    style INDENT fill:#fff3e0,stroke:#ef6c00
+    style HEADER fill:#e8f5e9,stroke:#2e7d32
+    style BODY fill:#e8f5e9,stroke:#2e7d32
+    style COLLECT fill:#f3e5f5,stroke:#7b1fa2
+    style RESOLVE fill:#f3e5f5,stroke:#7b1fa2
+    style VALIDATE fill:#ffebee,stroke:#c62828
+    style OUTPUT fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
 ```
+
+---
 
 ## Stage 1: Preprocessing
 
-File: `crates/hedl-core/src/preprocess.rs`
+**Location:** `crates/hedl-core/src/preprocess.rs`
 
-### Purpose
+Before we can parse, we need clean input. The preprocessing stage handles the messy reality of bytes from the outside world.
 
-Convert raw bytes into structured lines with indentation information.
+### What Preprocessing Does
 
-### Implementation
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9'}}}%%
+flowchart TB
+    subgraph preprocess["⚙️ PREPROCESSING TASKS"]
+        S1["1️⃣ SIZE CHECK<br/><i>Is file too large?<br/>Default limit: 1 GB</i>"]
+        S2["2️⃣ UTF-8 VALIDATION<br/><i>Are bytes valid UTF-8?</i>"]
+        S3["3️⃣ BOM HANDLING<br/><i>Skip byte order mark<br/>if present</i>"]
+        S4["4️⃣ LINE ENDING NORMALIZATION<br/><i>CRLF → LF<br/>Reject bare CR</i>"]
+        S5["5️⃣ CONTROL CHARACTER CHECK<br/><i>Reject NUL, BEL, and<br/>other dangerous chars</i>"]
+        S6["6️⃣ LINE BOUNDARY ID<br/><i>Zero-copy: just record<br/>where lines start/end</i>"]
 
-The preprocessing functionality is in `crates/hedl-core/src/preprocess.rs`:
+        S1 --> S2 --> S3 --> S4 --> S5 --> S6
+    end
 
-```rust
-use crate::{HedlError, HedlResult, Limits};
-
-// The preprocess module provides utility functions:
-// - preprocess(input: &[u8], limits: &Limits) -> HedlResult<PreprocessedInput>
-// - is_blank_line(line: &str) -> bool
-// - is_comment_line(line: &str) -> bool
-
-// Preprocessing handles:
-// - UTF-8 validation
-// - BOM skipping
-// - CRLF normalization
-// - Bare CR rejection
-// - Control character validation
-// - Size and line length limits
-// - Line boundary identification (zero-copy)
-
-// Example conceptual flow:
-pub fn preprocess(input: &[u8], limits: &Limits) -> HedlResult<PreprocessedInput> {
-    // 1. Check file size limit
-    if input.len() > limits.max_file_size {
-        return Err(HedlError::security("file too large", 0));
-    }
-
-    // 2. Validate and decode UTF-8
-    let text = std::str::from_utf8(input)
-        .map_err(|e| HedlError::syntax(format!("invalid UTF-8 encoding: {}", e), 1))?;
-
-    // ... handle line endings, control characters, and offsets ...
-
-    Ok(preprocessed_input)
-}
+    style S1 fill:#e3f2fd,stroke:#1565c0
+    style S2 fill:#e3f2fd,stroke:#1565c0
+    style S3 fill:#fff3e0,stroke:#ef6c00
+    style S4 fill:#fff3e0,stroke:#ef6c00
+    style S5 fill:#ffebee,stroke:#c62828
+    style S6 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
 ```
 
-### Design Rationale
+### Why This Design?
 
-**Why preprocess indentation?**
-- Separates lexical analysis from parsing
-- Simplifies recursive descent parser
-- Enables better error messages (line numbers)
-- Allows indentation validation upfront
+**Separation of concerns**: By handling all the "dirty work" upfront, the rest of the parser can assume clean input. No UTF-8 edge cases. No weird line endings. Just text.
 
-**Why forbid tabs?**
-- Tabs are ambiguous (width varies)
-- Consistency in source files
-- Clear visual indentation
+**Fail fast**: If the input is malformed, we know immediately. No mysterious failures halfway through parsing.
+
+**Zero-copy where possible**: We don't copy the entire file into a new buffer. We just record where lines start and end, then work with slices into the original input.
+
+### The Tab Question
+
+HEDL forbids tabs for indentation. Why?
+
+Consider this code viewed in different editors:
+
+```
+# Editor with tab width 4:
+name:
+    value: 42
+
+# Same file in editor with tab width 8:
+name:
+        value: 42
+```
+
+Same bytes, different visual appearance. Tabs are ambiguous. They cause confusion. HEDL chooses clarity: one space per indentation level. Always. Everywhere.
+
+---
 
 ## Stage 2: Header Parsing
 
-File: `crates/hedl-core/src/header.rs`
+**Location:** `crates/hedl-core/src/header/`
 
-### Purpose
+The header contains metadata about the document: version, schemas, aliases, and nesting relationships. It lives above the `---` separator.
 
-Parse directives before the `---` separator.
+### Header Grammar
 
-### Grammar
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9'}}}%%
+graph TB
+    subgraph header["📋 HEADER DIRECTIVES"]
+        subgraph required["⚠️ Required"]
+            V["<code>%V:2.0</code><br/>Version declaration"]
+            NULL["<code>%NULL:~</code><br/>Null character"]
+            QUOTE["<code>%QUOTE:&quot;</code><br/>Quote character"]
+        end
 
+        subgraph optional["Optional"]
+            S["<code>%S:User:[id,name,email]</code><br/>Schema definition"]
+            A["<code>%A:active=true</code><br/>Alias definition"]
+            N["<code>%N:Post&gt;Comment</code><br/>Nesting relationship"]
+        end
+
+        SEP["<code>---</code><br/>Separator (required)"]
+        BODY["📄 (body starts here)"]
+    end
+
+    required --> optional --> SEP --> BODY
+
+    style required fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style optional fill:#e8f5e9,stroke:#2e7d32
+    style SEP fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
 ```
-header     ::= directive*
-directive  ::= VERSION | STRUCT | ALIAS | NEST
-VERSION    ::= '%VERSION:' major '.' minor
-STRUCT     ::= '%STRUCT:' TypeName ':' '[' column_list ']'
-ALIAS      ::= '%ALIAS:' %alias_name ':' "quoted_value"
-NEST       ::= '%NEST:' ParentType '>' ChildType
+
+### Why Separate Headers?
+
+**Schema-first**: Types are defined before they're used. When the body parser encounters `@User`, it already knows what a User looks like.
+
+**Fast metadata extraction**: Need to know the document's version without parsing the whole body? Just read the header.
+
+**Clear separation**: Metadata (how to interpret data) is separate from data (the actual content). No ambiguity.
+
+### Parsing Example
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
+%A:active=true
+---
 ```
 
-### Implementation
-
-The actual implementation is in `crates/hedl-core/src/header.rs`:
+After header parsing, the document metadata looks like:
 
 ```rust
-use crate::{Document, HedlError, HedlResult};
-
-// Header parsing is handled by parse_header() which is called by the main parser.
-// The header module contains logic for:
-// - parse_header() - main entry point for header parsing
-// - Directive parsing integrated with the parser
-
-// Directive utilities are in the lex module:
-// - lex::directives module for directive token handling
-// - Token validation functions in lex::tokens
+Document {
+    version: (1, 3),
+    null_char: '~',
+    quote_char: '"',
+    structs: {"User" → ["id", "name", "email"]},
+    aliases: {"active" → "true"},
+    nests: {},
+    root: {},  // Body not yet parsed
+}
 ```
 
-### Design Rationale
-
-**Why separate header from body?**
-- Clear separation of metadata and data
-- Allows schema definition before use
-- Simplifies parsing (know types upfront)
-- Enables fast schema extraction without parsing body
+---
 
 ## Stage 3: Recursive Descent Parsing
 
-File: `crates/hedl-core/src/parser.rs`
+**Location:** `crates/hedl-core/src/parser/`
 
-### Algorithm
+This is where the magic happens. The body of the document becomes a tree of nested objects, lists, and values.
 
-The parser implementation in `crates/hedl-core/src/parser.rs`:
+### What Is Recursive Descent?
 
-```rust
-// Main entry points in crates/hedl-core/src/parser.rs:
-pub fn parse(input: &[u8]) -> HedlResult<Document>
-pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Document>
+Imagine you're reading a nested outline:
 
-// Parsing flow:
-// 1. Preprocess input (UTF-8 validation, line splitting)
-// 2. Parse header directives into Document metadata
-// 3. Parse body into nested Item structures
-// 4. Register all node IDs for reference resolution
-// 5. Resolve and validate references
-
-// Key functions from lex module (crates/hedl-core/src/lex/):
-// - calculate_indent() - indentation analysis
-// - parse_csv_row() - CSV/matrix row parsing (from csv or row module)
-// - is_valid_key_token() - key validation
-// - is_valid_type_name() - type name validation
-// - strip_comment() - comment handling
+```
+user:
+ name: Alice
+ profile:
+  bio: Developer
+  skills:
+   - Rust
+   - Python
 ```
 
-### Recursive Descent Explained
+Your brain naturally processes this hierarchically:
+1. "user" is an object
+2. Inside it, "name" is a value, "profile" is another object
+3. Inside "profile", "bio" is a value, "skills" is a list
+4. And so on, recursively
 
-**What is recursive descent?**
+Recursive descent parsing mirrors this natural process. Each type of structure (object, list, value) has a function that parses it. These functions call each other as needed.
 
-A top-down parsing technique where:
-1. Each grammar rule becomes a parsing function
-2. Functions call each other recursively
-3. Backtracking is possible but not required
+### The Parse Tree
 
-**Example**:
+For this input:
 
-Input:
 ```hedl
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 user:
-  name: Alice
-  profile:
-    bio: Developer
+ name: Alice
+ profile:
+  bio: Developer
 ```
 
-Parse tree:
+The parser produces:
+
 ```
-parse_node("user")
-  ├─ parse_attribute("name", "Alice")
-  └─ parse_child_node("profile")
-      └─ parse_attribute("bio", "Developer")
+┌─────────────────────────────────────────────────────────────────┐
+│                    PARSE TREE                                   │
+│                                                                 │
+│  parse_document()                                               │
+│      │                                                          │
+│      └── parse_body()                                           │
+│              │                                                  │
+│              └── parse_object("user")                           │
+│                      │                                          │
+│                      ├── parse_key_value("name", "Alice")       │
+│                      │                                          │
+│                      └── parse_object("profile")                │
+│                              │                                  │
+│                              └── parse_key_value("bio",         │
+│                                                "Developer")     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Design Rationale
+### How Indentation Drives Structure
 
-**Why recursive descent?**
-- Natural fit for nested structures
-- Easy to understand and maintain
-- Good error recovery
-- Flexible for extensions
+In HEDL, indentation is syntax. The number of leading spaces determines nesting level.
 
-**Limitations**:
-- Stack depth limited (max nesting = 100)
-- Not suitable for left-recursive grammars (HEDL isn't)
-- Slower than table-driven parsers (acceptable trade-off)
+```
+Key insight: Every line's indentation tells you its relationship to surrounding lines.
+
+Same indentation as previous  → sibling
+More indentation than previous → child
+Less indentation than previous → end of current object, return to parent
+```
+
+### Why Recursive Descent?
+
+**Natural fit**: HEDL's nested structure matches recursive descent naturally. Objects contain objects contain objects. The recursion in the algorithm mirrors the recursion in the data.
+
+**Easy to understand**: Each grammar rule becomes a function. Want to know how objects are parsed? Read `parse_object()`.
+
+**Good error messages**: When something goes wrong, you know where you are in the structure. Error messages can say "expected value in object 'profile'" instead of just "syntax error".
+
+**Easy to extend**: Adding new syntax? Add a new parsing function and call it from the right place.
+
+### Limitations and Trade-offs
+
+**Stack depth**: Recursive parsing uses the call stack. Deeply nested documents could overflow. HEDL enforces a maximum nesting depth (default: 100 levels).
+
+**Not the fastest**: Table-driven parsers or state machines can be faster. But recursive descent is fast enough for HEDL's use cases, and the clarity is worth the small performance cost.
+
+---
 
 ## Stage 4: Reference Resolution
 
-File: `crates/hedl-core/src/reference.rs` (module exists)
+**Location:** `crates/hedl-core/src/reference.rs`
 
-### Two-Pass Algorithm
+References like `@User:alice` or `@alice` connect parts of the document. But when we first encounter a reference during parsing, we don't know if the target exists yet.
 
-The reference resolution system uses a type registry to track IDs and validate references:
+### The Two-Pass Solution
 
-**Pass 1: Register IDs**
-- Collect all node IDs from matrix lists
-- Build forward index (type → id → line number)
-- Build inverted index (id → list of types)
-- Detect duplicate IDs within same type
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TWO-PASS REFERENCE RESOLUTION                │
+│                                                                 │
+│  PASS 1: COLLECT IDs                                            │
+│  ─────────────────────                                          │
+│                                                                 │
+│  users:@User                                                    │
+│   |alice,Alice,alice@example.com   ──► Register: User:alice    │
+│   |bob,Bob,bob@example.com         ──► Register: User:bob      │
+│                                                                 │
+│  posts:@Post                                                    │
+│   |p1,Hello World,@alice           ──► Register: Post:p1       │
+│                                                                 │
+│  ID Registry after Pass 1:                                      │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ User:alice → line 4                                     │   │
+│  │ User:bob   → line 5                                     │   │
+│  │ Post:p1    → line 8                                     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  PASS 2: VALIDATE REFERENCES                                    │
+│  ────────────────────────────                                   │
+│                                                                 │
+│  For each reference found:                                      │
+│    @alice in Post:p1                                           │
+│      └── Is "alice" registered? No.                            │
+│      └── Is "User:alice" registered? Yes!                      │
+│      └── Reference resolved successfully.                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**Pass 2: Resolve References**
-- Validate all @Type:id qualified references
-- Validate all @id unqualified references
-- Check against type registry
-- Report unresolved references (if strict mode)
+### Why Two Passes?
 
-The actual implementation uses helper functions:
-- `register_node()` - register node IDs during parsing
-- `resolve_references()` - validate all references post-parse
+**Forward references**: HEDL allows references to things defined later in the document. In a single pass, you'd encounter `@alice` before seeing where `alice` is defined.
 
-### Design Rationale
+**Cleaner error handling**: If a reference doesn't resolve, you can report exactly which references are broken, not just "something went wrong".
 
-**Why two-pass?**
-- Forward references allowed (`@User:bob` before `bob: {}`)
-- Simpler parsing (don't need to backtrack)
-- Clear error messages for missing references
-- Enables validation phase
+**Simpler parsing**: The body parser doesn't need to track state about what's been defined. It just records references and moves on.
 
-**Alternative considered**: Single-pass with forward reference placeholders
-- Rejected: Complex, error-prone, harder to maintain
+### Unqualified vs Qualified References
+
+```hedl
+# Qualified: explicitly name the type
+author: @User:alice
+
+# Unqualified: context determines the type
+# In a matrix, searches current type
+posts:@Post
+ |p1,Hello,@p2    # @p2 means Post:p2
+
+# In key-value, must be unambiguous
+favorite: @alice  # Error if alice exists in multiple types
+```
+
+---
 
 ## Performance Characteristics
 
 ### Time Complexity
 
-| Stage | Complexity | Notes |
-|-------|-----------|-------|
-| UTF-8 validation | O(n) | Where n = byte count |
-| Preprocessing | O(n) | Linear scan of lines |
-| Header parsing | O(h) | h = header lines (small) |
-| Body parsing | O(n × d) | d = average depth (bounded) |
-| Reference resolution | O(n + r) | r = reference count |
-| **Overall** | **O(n)** | Linear in document size |
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TIME COMPLEXITY                              │
+│                                                                 │
+│  Stage                  │ Complexity │ Notes                    │
+│  ───────────────────────┼────────────┼────────────────────────  │
+│  UTF-8 validation       │ O(n)       │ n = byte count           │
+│  Preprocessing          │ O(n)       │ Linear scan              │
+│  Header parsing         │ O(h)       │ h = header lines (small) │
+│  Body parsing           │ O(n × d)   │ d = avg depth (bounded)  │
+│  Reference resolution   │ O(n + r)   │ r = reference count      │
+│  ───────────────────────┼────────────┼────────────────────────  │
+│  OVERALL                │ O(n)       │ Linear in document size  │
+│                                                                 │
+│  Since d and r are bounded by limits, the parser is linear.    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Space Complexity
 
-| Structure | Size | Notes |
-|-----------|------|-------|
-| Input buffer | O(n) | Original bytes |
-| Line array | O(n) | Preprocessed lines |
-| AST | O(n) | Parsed document |
-| ID map | O(k) | k = unique IDs (k ≪ n) |
-| **Peak memory** | **O(n)** | Linear in document size |
-
-## Error Recovery
-
-HEDL uses **fail-fast** error handling rather than error recovery:
-
-```rust
-use crate::{HedlError, HedlResult};
-
-/// Parse with default options (strict mode)
-pub fn parse(input: &[u8]) -> HedlResult<Document> {
-    parse_with_limits(input, ParseOptions::default())
-}
-
-/// Parse with lenient reference validation
-pub fn parse_lenient(input: &[u8]) -> HedlResult<Document> {
-    let options = ParseOptions::builder()
-        .reference_mode(ReferenceMode::Lenient)
-        .build();
-    parse_with_limits(input, options)
-}
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SPACE COMPLEXITY                             │
+│                                                                 │
+│  Structure          │ Size  │ Notes                             │
+│  ───────────────────┼───────┼─────────────────────────────────  │
+│  Input buffer       │ O(n)  │ Original bytes (not copied)       │
+│  Line array         │ O(l)  │ l = line count, just offsets     │
+│  AST                │ O(n)  │ Proportional to content          │
+│  ID registry        │ O(k)  │ k = unique IDs (typically k ≪ n) │
+│  ───────────────────┼───────┼─────────────────────────────────  │
+│  PEAK MEMORY        │ O(n)  │ Linear in document size          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Resource Limits
+### Real-World Numbers
 
-Enforced at parse time:
+From benchmarks on typical documents:
 
-```rust
-pub struct Limits {
-    pub max_file_size: usize,         // 1 GB default
-    pub max_line_length: usize,       // 1 MB default
-    pub max_indent_depth: usize,      // 50 default
-    pub max_nodes: usize,             // 10 million default
-    pub max_aliases: usize,           // 10,000 default
-    pub max_columns: usize,           // 100 default
-    pub max_nest_depth: usize,        // 100 default
-    pub max_block_string_size: usize, // 10 MB default
-    pub max_object_keys: usize,       // 10,000 per object
-    pub max_total_keys: usize,        // 10 million total
-}
-
-// Depth checking example (from parse_body function in parser.rs):
-if indent_info.level > limits.max_indent_depth {
-    return Err(HedlError::security(
-        format!(
-            "indent depth {} exceeds limit {}",
-            indent_info.level, limits.max_indent_depth
-        ),
-        line_num,
-    ));
-}
+```
+Document Size    │ Parse Time    │ Throughput
+─────────────────┼───────────────┼──────────────
+100 keys         │ ~230 μs       │ ~33 MiB/s
+500 keys         │ ~1.1 ms       │ ~34 MiB/s
+Nested (5p/2c)   │ ~41 μs        │ ~48 MiB/s
 ```
 
-**Why enforce limits?**
-- Prevent DoS attacks (malicious deeply nested documents)
-- Protect against resource exhaustion
-- Fail fast with clear errors
-
-## Comparison with Other Parsers
-
-| Parser Type | HEDL | JSON (serde_json) | YAML (serde_yaml) |
-|------------|------|-------------------|-------------------|
-| Algorithm | Recursive descent | State machine | Event-based |
-| Passes | 2 (parse + resolve) | 1 | 1 |
-| Memory | O(n) | O(n) | O(n) |
-| Speed | ~33-49 MiB/s | faster (simpler format) | slower (complex format) |
-| Error recovery | Limited | None | Limited |
-| Streaming | Optional | Yes (via serde) | Yes |
-
-Note: Speed comparison is approximate. Run `cargo bench` for current measurements.
-
-## Future Optimizations
-
-### Considered Improvements
-
-1. **SIMD String Scanning**: Use SIMD for whitespace skipping
-   - Speedup: ~2x for large documents
-   - Complexity: High (platform-specific)
-
-2. **Arena Allocation**: Single allocation for AST
-   - Speedup: ~20% (fewer allocations)
-   - Trade-off: Lifetimes more complex
-
-3. **Incremental Parsing**: Re-parse only changed nodes
-   - Use case: LSP editor integration
-   - Complexity: High (change tracking)
-
-## Related
-
-- [Zero-Copy Optimizations](zero-copy-optimizations.md)
-- API documentation: `cargo doc --package hedl-core --open`
-- Source code: `crates/hedl-core/src/`
+Run `cargo bench -p hedl-bench` for current measurements on your hardware.
 
 ---
 
-**Key Takeaway**: HEDL's parser prioritizes clarity and error messages over raw speed, making it ideal for human-authored data files.
+## Resource Limits
+
+Untrusted input is dangerous. A malicious document could:
+- Be gigabytes in size (memory exhaustion)
+- Have thousands of nesting levels (stack overflow)
+- Define millions of aliases (CPU exhaustion)
+
+HEDL enforces configurable limits:
+
+```rust
+pub struct Limits {
+    pub max_file_size: usize,         // Default: 1 GB
+    pub max_line_length: usize,       // Default: 1 MB
+    pub max_indent_depth: usize,      // Default: 50
+    pub max_nodes: usize,             // Default: 10 million
+    pub max_aliases: usize,           // Default: 10,000
+    pub max_columns: usize,           // Default: 100
+    pub max_nest_depth: usize,        // Default: 100
+    pub max_block_string_size: usize, // Default: 10 MB
+    pub max_object_keys: usize,       // Default: 10,000 per object
+    pub max_total_keys: usize,        // Default: 10 million total
+}
+```
+
+These limits are checked *during* parsing, not after. If a limit is exceeded, parsing stops immediately with a clear error.
+
+---
+
+## Error Handling Philosophy
+
+HEDL uses **fail-fast** error handling. When something is wrong, stop and report it clearly.
+
+```rust
+// Strict mode (default): all errors are fatal
+let doc = hedl::parse(input)?;
+
+// Lenient mode: unresolved references are warnings, not errors
+let options = ParseOptions::builder()
+    .reference_mode(ReferenceMode::Lenient)
+    .build();
+let doc = hedl::parse_with_limits(input, options)?;
+```
+
+### Why Fail-Fast?
+
+**Clarity**: When parsing fails, you get one clear error with an exact location. No cascading confusion from trying to continue after something went wrong.
+
+**Safety**: A partially-parsed document is a dangerous document. Better to reject it entirely than to work with corrupt data.
+
+**Debugging**: The first error is usually the root cause. Later errors often cascade from the first problem.
+
+---
+
+## Comparison with Other Parsers
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PARSER COMPARISON                            │
+│                                                                 │
+│                    │ HEDL        │ JSON         │ YAML          │
+│  ──────────────────┼─────────────┼──────────────┼───────────────│
+│  Algorithm         │ Recursive   │ State        │ Event-based   │
+│                    │ descent     │ machine      │               │
+│  ──────────────────┼─────────────┼──────────────┼───────────────│
+│  Passes            │ 2 (parse +  │ 1            │ 1             │
+│                    │ resolve)    │              │               │
+│  ──────────────────┼─────────────┼──────────────┼───────────────│
+│  Memory            │ O(n)        │ O(n)         │ O(n)          │
+│  ──────────────────┼─────────────┼──────────────┼───────────────│
+│  Speed             │ ~33-49 MiB/s│ faster       │ slower        │
+│                    │             │ (simpler)    │ (complex)     │
+│  ──────────────────┼─────────────┼──────────────┼───────────────│
+│  Error messages    │ Excellent   │ Basic        │ Good          │
+│  ──────────────────┼─────────────┼──────────────┼───────────────│
+│  Streaming         │ Optional    │ Yes          │ Yes           │
+│                    │ (hedl-stream│              │               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+HEDL isn't the fastest parser. But it's fast enough, and the trade-offs favor clarity and error handling over raw speed.
+
+---
+
+## Future Optimizations
+
+The architecture leaves room for improvement:
+
+### SIMD String Scanning
+
+Use SIMD instructions to find whitespace, newlines, and special characters. Could provide 2x speedup for large documents. Requires platform-specific code.
+
+### Arena Allocation
+
+Allocate the entire AST from a single arena. Reduces allocation overhead by ~20%. Makes lifetime management more complex.
+
+### Incremental Parsing
+
+Re-parse only what changed. Essential for LSP editor integration where users edit continuously. Requires significant infrastructure for change tracking.
+
+---
+
+## The Parser's Promise
+
+When you call `hedl::parse()`, you're making a request: "Take these bytes and make them meaningful." The parser's job is to either fulfill that request completely or refuse clearly.
+
+No half-parsed documents. No mysterious failures. No silent corruption.
+
+That's the parser architecture's promise: from raw bytes to structured truth, or a clear explanation of why that's not possible.
+
+---
+
+## Dive Deeper
+
+Ready to explore the code?
+
+1. **Preprocessing**: `crates/hedl-core/src/preprocess.rs`
+2. **Header parsing**: `crates/hedl-core/src/header/`
+3. **Body parsing**: `crates/hedl-core/src/parser/`
+4. **Reference resolution**: `crates/hedl-core/src/reference.rs`
+5. **Data structures**: `crates/hedl-core/src/document.rs`
+
+Run `cargo doc --package hedl-core --open` for API documentation.

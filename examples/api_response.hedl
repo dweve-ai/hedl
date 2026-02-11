@@ -1,0 +1,36 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# API response structure example
+# Shows how HEDL can represent REST API data
+%S:User:[id,username,email,verified]
+%S:Post:[id,title,author,likes,published]
+%S:Comment:[id,content,author,timestamp]
+%N:Post>Comment
+---
+status: 200
+message: success
+timestamp: 2024-02-01T10:30:00Z
+
+pagination:
+ page: 1
+ per_page: 10
+ total: 42
+ pages: 5
+
+user:@User
+ |u123,alice,alice@example.com,true
+
+posts:@Post
+ |p1,"Introduction to HEDL",@u123,156,true
+  @Comment#2:
+  |c1,"Great article!",@u456,2024-02-01T11:00:00Z
+  |c2,"Very informative",@u789,2024-02-01T11:15:00Z
+ |p2,"Binary Neural Networks Explained",@u123,243,true
+  @Comment#1:
+  |c3,"Thanks for sharing!",@u456,2024-02-01T12:00:00Z
+
+meta:
+ request_id: req-abc123
+ duration_ms: 45
+ cache_hit: false

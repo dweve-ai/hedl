@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 %STRUCT: Order: [id, amount, status]
 %NEST: User > Order
 ---
-users: @User
+users:@User
   | alice, Alice Smith, alice@example.com, true
     | order1, 100.00, shipped
     | order2, 50.00, pending

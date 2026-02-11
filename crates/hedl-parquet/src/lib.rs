@@ -70,7 +70,7 @@
 //! **Protection**: All size calculations use checked arithmetic (`checked_add`, etc.).
 //! Overflows produce clear security errors.
 //!
-//! For complete security documentation, see the `SECURITY.md` file in the crate root.
+//! For complete security documentation, see the `SECURITY.md` file in the workspace root.
 //!
 //! # Examples
 //!
@@ -81,7 +81,7 @@
 //! use hedl_parquet::to_parquet;
 //! use std::path::Path;
 //!
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document::new((2, 0));
 //! let mut matrix_list = MatrixList::new(
 //!     "User",
 //!     vec!["id".to_string(), "name".to_string(), "age".to_string()]
@@ -114,7 +114,7 @@
 //! use hedl_core::{Document, MatrixList, Node, Value, Item};
 //! use hedl_parquet::{to_parquet_bytes, from_parquet_bytes};
 //!
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document::new((2, 0));
 //! // ... populate document ...
 //!
 //! // Convert to Parquet bytes
@@ -159,7 +159,7 @@
 //! use parquet::basic::Compression;
 //! use std::path::Path;
 //!
-//! let doc = Document::new((1, 0));
+//! let doc = Document::new((2, 0));
 //! let config = ToParquetConfig {
 //!     compression: Compression::GZIP(Default::default()),
 //!     ..Default::default()
@@ -205,10 +205,12 @@
 #![cfg_attr(not(test), warn(missing_docs))]
 mod config;
 mod from_parquet;
+/// Predicate pushdown for Parquet.
 pub mod predicate;
 mod to_parquet;
 
 #[cfg(feature = "async-io")]
+/// Async Parquet I/O.
 pub mod async_io;
 
 // Re-export public API
@@ -230,7 +232,7 @@ mod integration_tests {
 
     #[test]
     fn test_round_trip_simple_matrix_list() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut matrix_list = MatrixList::new(
             "User",
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
@@ -271,7 +273,7 @@ mod integration_tests {
 
     #[test]
     fn test_round_trip_numeric_types() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut matrix_list = MatrixList::new(
             "Data",
             vec![
@@ -317,7 +319,7 @@ mod integration_tests {
 
     #[test]
     fn test_round_trip_with_nulls() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut matrix_list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
         let node1 = Node::new(
@@ -360,7 +362,7 @@ mod integration_tests {
 
     #[test]
     fn test_metadata_table_round_trip() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "version".to_string(),
             Item::Scalar(Value::String("1.0".to_string().into())),
@@ -379,7 +381,7 @@ mod integration_tests {
 
     #[test]
     fn test_references_preserved() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut matrix_list = MatrixList::new("Post", vec!["id".to_string(), "author".to_string()]);
 
         let node = Node::new(
@@ -415,7 +417,7 @@ mod integration_tests {
 
     #[test]
     fn test_empty_document() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let bytes = to_parquet_bytes(&doc).unwrap();
 
         // Should succeed even with empty document

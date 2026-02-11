@@ -137,23 +137,33 @@
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+/// Batch execution strategies for Neo4j write operations.
 pub mod batch_executor;
+/// Configuration types for Neo4j conversion operations.
 pub mod config;
+/// Constants used throughout the hedl-neo4j library.
 pub mod constants;
+/// Cypher query building utilities.
 pub mod cypher;
+/// Error types for hedl-neo4j conversions.
 pub mod error;
+/// Convert Neo4j records to HEDL documents.
 pub mod from_neo4j;
+/// Mapping between HEDL types and Neo4j graph structures.
 pub mod mapping;
+/// Safe arithmetic operations for hedl-neo4j.
+pub mod safe_arithmetic;
+/// Convert HEDL documents to Cypher queries.
 pub mod to_cypher;
-pub mod util;
 
-// Batching modules for transaction optimization
+/// Adaptive batching utilities for optimal memory and performance.
 pub mod batching;
-mod size_estimation;
 
+/// Batch read operations for efficient Neo4j queries.
 #[cfg(feature = "async")]
 pub mod batch_read;
 
+/// Async Neo4j client for executing HEDL operations.
 #[cfg(feature = "async")]
 pub mod async_client;
 

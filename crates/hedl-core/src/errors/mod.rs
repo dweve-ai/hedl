@@ -17,4 +17,5 @@
 
 //! Error handling utilities and centralized error messages.
 
+/// Centralized error message constants for HEDL parsing.
 pub mod messages;

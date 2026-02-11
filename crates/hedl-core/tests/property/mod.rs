@@ -41,12 +41,21 @@
 //! - **100,000+ test cases** generated per full test run
 //! - **Comprehensive invariant validation** for all core features
 
+/// Property-based tests for block string handling.
 pub mod block_strings;
+/// Property-based tests for boundary conditions and limits.
 pub mod boundaries;
+/// Property-based tests for ditto marker expansion.
 pub mod ditto;
+/// Property-based tests for error handling consistency.
 pub mod errors;
+/// Property-based tests for expression and reference handling.
 pub mod expressions;
+/// Property-based tests for NEST hierarchy semantics.
 pub mod nest;
+/// Property-based tests for reference resolution.
 pub mod references;
+/// Property-based tests for parse/serialize roundtrip preservation.
 pub mod roundtrip;
+/// Property-based tests for value type inference.
 pub mod value_inference;

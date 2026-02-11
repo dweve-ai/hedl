@@ -160,16 +160,16 @@ mod tests {
     #[test]
     fn test_load_fixture_fallback() {
         let content = load_fixture("small").unwrap();
-        assert!(content.contains("%VERSION: 1.0"));
+        assert!(content.contains("%V:2.0"));
     }
 
     #[test]
     fn test_generate_fallback_fixture() {
         let small = generate_fallback_fixture("small");
-        assert!(small.contains("%STRUCT: User"));
+        assert!(small.contains("%S:User"));
 
         let numeric = generate_fallback_fixture("50");
-        assert!(numeric.contains("%VERSION: 1.0"));
+        assert!(numeric.contains("%V:2.0"));
     }
 
     #[test]

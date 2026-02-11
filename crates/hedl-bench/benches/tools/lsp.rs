@@ -36,17 +36,14 @@ use tower_lsp::lsp_types::Position;
 
 /// Comprehensive LSP request result for detailed analysis
 #[derive(Clone)]
-#[allow(dead_code)]
 struct LSPRequestResult {
     request_type: String,
     latencies_ns: Vec<u64>,
     document_size_bytes: usize,
     memory_estimate_kb: f64,
     sla_target_ms: f64,
-    errors: usize,
     incremental: bool,
     cache_hit: bool,
-    concurrent_level: usize,
 }
 
 impl Default for LSPRequestResult {
@@ -57,10 +54,8 @@ impl Default for LSPRequestResult {
             document_size_bytes: 0,
             memory_estimate_kb: 0.0,
             sla_target_ms: 100.0,
-            errors: 0,
             incremental: false,
             cache_hit: false,
-            concurrent_level: 1,
         }
     }
 }
@@ -81,13 +76,6 @@ fn init_report() {
     });
     LSP_RESULTS.with(|r| {
         r.borrow_mut().clear();
-    });
-}
-
-#[allow(dead_code)] // Used for future incremental data collection
-fn add_lsp_result(result: LSPRequestResult) {
-    LSP_RESULTS.with(|r| {
-        r.borrow_mut().push(result);
     });
 }
 
@@ -117,10 +105,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
             document_size_bytes: content.len(),
             memory_estimate_kb: (content.len() as f64 * 2.0) / 1024.0,
             sla_target_ms: 100.0,
-            errors: 0,
             incremental: false,
             cache_hit: false,
-            concurrent_level: 1,
         });
     }
 
@@ -165,10 +151,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
             document_size_bytes: content.len(),
             memory_estimate_kb: 50.0,
             sla_target_ms: 100.0,
-            errors: 0,
             incremental: false,
             cache_hit: true,
-            concurrent_level: 1,
         });
     }
 
@@ -206,10 +190,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
             document_size_bytes: hover_content.len(),
             memory_estimate_kb: 10.0,
             sla_target_ms: 50.0,
-            errors: 0,
             incremental: false,
             cache_hit: true,
-            concurrent_level: 1,
         });
     }
 
@@ -231,10 +213,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
             document_size_bytes: sym_content.len(),
             memory_estimate_kb: (size as f64 * 0.5),
             sla_target_ms: 100.0,
-            errors: 0,
             incremental: false,
             cache_hit: true,
-            concurrent_level: 1,
         });
     }
 
@@ -257,10 +237,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
             document_size_bytes: ws_content.len(),
             memory_estimate_kb: 100.0,
             sla_target_ms: 200.0,
-            errors: 0,
             incremental: false,
             cache_hit: true,
-            concurrent_level: 1,
         });
     }
 
@@ -282,10 +260,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
             document_size_bytes: diag_content.len(),
             memory_estimate_kb: (size as f64 * 0.1),
             sla_target_ms: 100.0,
-            errors: 0,
             incremental: false,
             cache_hit: true,
-            concurrent_level: 1,
         });
     }
 
@@ -308,10 +284,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
                 document_size_bytes: fmt_content.len(),
                 memory_estimate_kb: (fmt_content.len() as f64 * 1.5) / 1024.0,
                 sla_target_ms: 200.0,
-                errors: 0,
                 incremental: false,
                 cache_hit: false,
-                concurrent_level: 1,
             });
         }
     }
@@ -333,10 +307,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
         document_size_bytes: ref_content.len(),
         memory_estimate_kb: 5.0,
         sla_target_ms: 10.0,
-        errors: 0,
         incremental: false,
         cache_hit: true,
-        concurrent_level: 1,
     });
 
     // Unqualified entity lookup
@@ -352,10 +324,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
         document_size_bytes: ref_content.len(),
         memory_estimate_kb: 5.0,
         sla_target_ms: 10.0,
-        errors: 0,
         incremental: false,
         cache_hit: true,
-        concurrent_level: 1,
     });
 
     // 9. Incremental analysis (cold vs warm)
@@ -374,10 +344,8 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
         document_size_bytes: inc_content.len(),
         memory_estimate_kb: (inc_content.len() as f64 * 2.0) / 1024.0,
         sla_target_ms: 100.0,
-        errors: 0,
         incremental: false,
         cache_hit: false,
-        concurrent_level: 1,
     });
 
     // Warm (re-analysis same content)
@@ -394,32 +362,11 @@ fn collect_lsp_results() -> Vec<LSPRequestResult> {
         document_size_bytes: inc_content.len(),
         memory_estimate_kb: (inc_content.len() as f64 * 1.5) / 1024.0,
         sla_target_ms: 50.0,
-        errors: 0,
         incremental: true,
         cache_hit: true,
-        concurrent_level: 1,
     });
 
     results
-}
-
-#[allow(dead_code)] // Reserved for future benchmark-time data collection
-fn add_perf_result(name: &str, time_ns: u64, iterations: u64, throughput_bytes: Option<u64>) {
-    REPORT.with(|r| {
-        if let Some(ref mut report) = *r.borrow_mut() {
-            report.add_perf(PerfResult {
-                name: name.to_string(),
-                iterations,
-                total_time_ns: time_ns,
-                throughput_bytes,
-                avg_time_ns: Some(time_ns / iterations),
-                throughput_mbs: throughput_bytes.map(|bytes| {
-                    let bytes_per_sec = (bytes as f64 * 1e9) / time_ns as f64;
-                    bytes_per_sec / 1_000_000.0
-                }),
-            });
-        }
-    });
 }
 
 fn export_reports() {
@@ -1782,8 +1729,23 @@ fn bench_lsp_summary(c: &mut Criterion) {
 
     println!("\n{}\n", "=".repeat(80));
 
-    // Benchmark baseline
-    group.bench_function("summary", |b| b.iter(|| 1 + 1));
+    // Benchmark report serialization - measures actual JSON report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "lsp_operations".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(8192),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = black_box(&sample_report).to_json().unwrap();
+            black_box(json)
+        })
+    });
+
     group.finish();
 }
 

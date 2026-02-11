@@ -25,11 +25,11 @@
 //!
 //! The system recognizes several distinct contexts:
 //!
-//! - **Header**: Header directives (%VERSION, %STRUCT, %ALIAS, %NEST)
+//! - **Header**: Header directives (%VERSION, %STRUCT, %ALIAS, %NEST, %MODE, %PROMPT)
 //! - **Reference**: Type names after @ symbol
 //! - **`ReferenceId`**: Entity IDs after @Type:
 //! - **`ListType`**: Type names in list declarations
-//! - **`MatrixCell`**: Values in matrix cells (ditto, null, booleans, references)
+//! - **`MatrixCell`**: Values in matrix cells (null, booleans, references, enum codes, ditto in pre-v2.0 only)
 //! - **Key**: Property keys in object notation
 //! - **Value**: Property values (aliases, type references)
 //!
@@ -37,13 +37,13 @@
 //!
 //! ```text
 //! %STRUCT U|         → Suggests STRUCT completion
-//! users: @U|         → Suggests User type
+//! users:@U|         → Suggests User type
 //! @User:|            → Suggests entity IDs for User type
 //! | alice | @U|      → Suggests references in matrix cell
 //! ```
 
 use crate::analysis::AnalyzedDocument;
-use crate::utils::safe_slice_to;
+use crate::utf_encoding::safe_slice_to;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, Position,
 };
@@ -75,6 +75,13 @@ pub enum CompletionContext {
         type_name: String,
         /// The column index (0-based).
         column_index: usize,
+    },
+    /// After @ at start of indented line (inline child list context).
+    InlineChildType {
+        /// Parent type name (from previous row).
+        parent_type: Option<String>,
+        /// Partially typed child type name, if any.
+        partial_type: Option<String>,
     },
     /// Key position in body.
     Key,
@@ -121,6 +128,16 @@ pub fn get_completions(
         } => {
             items.extend(matrix_cell_completions(analysis, &type_name, column_index));
         }
+        CompletionContext::InlineChildType {
+            parent_type,
+            partial_type,
+        } => {
+            items.extend(inline_child_type_completions(
+                analysis,
+                parent_type.as_deref(),
+                partial_type.as_deref(),
+            ));
+        }
         CompletionContext::Key => {
             items.extend(key_completions(analysis));
         }
@@ -155,7 +172,7 @@ pub fn determine_context_optimized(
     content: &str,
     position: Position,
 ) -> CompletionContext {
-    use crate::utils::utf16_col_to_byte_offset;
+    use crate::utf_encoding::utf16_col_to_byte_offset;
 
     let lines: Vec<&str> = content.lines().collect();
     let line_num = position.line as usize;
@@ -180,8 +197,50 @@ pub fn determine_context_optimized(
         lines[..line_num].iter().all(|l| *l != "---")
     };
 
-    if in_header && (prefix.trim().starts_with('%') || prefix.trim().is_empty()) {
-        return CompletionContext::Header;
+    if in_header {
+        let trimmed_prefix = prefix.trim();
+
+        if trimmed_prefix.starts_with('%') || trimmed_prefix.is_empty() {
+            return CompletionContext::Header;
+        }
+    }
+
+    // Check for inline child list context (indented @ at start of line)
+    // Pattern: "  @ChildType#N:|data" (inline child list syntax)
+    let trimmed_line = line.trim_start();
+    if trimmed_line.starts_with('@') {
+        let indent_level = line.len() - trimmed_line.len();
+
+        // Must be indented (inline children are nested under parent rows)
+        if indent_level > 0 {
+            // Check if cursor is before # or : - this is where we suggest child types
+            // Need to check the portion of the line up to cursor position
+            let prefix_from_at_start = if byte_offset > indent_level {
+                safe_slice_to(trimmed_line, byte_offset - indent_level)
+            } else {
+                ""
+            };
+
+            // If we're after @ but before # or :, suggest child types
+            if let Some(after_at_to_cursor) = prefix_from_at_start.strip_prefix('@') {
+                // Check if we haven't typed # or : yet
+                if !after_at_to_cursor.contains('#') && !after_at_to_cursor.contains(':') {
+                    // Extract parent type from previous less-indented line
+                    let parent_type = find_parent_type_for_inline_child(lines.clone(), line_num);
+
+                    let partial = if !after_at_to_cursor.is_empty() {
+                        Some(after_at_to_cursor.to_string())
+                    } else {
+                        None
+                    };
+
+                    return CompletionContext::InlineChildType {
+                        parent_type,
+                        partial_type: partial,
+                    };
+                }
+            }
+        }
     }
 
     // Check for matrix row FIRST (before reference check)
@@ -283,83 +342,47 @@ pub fn determine_context_optimized(
     }
 }
 
-/// Legacy `determine_context` for backwards compatibility (deprecated).
-///
-/// # Security
-///
-/// Uses safe string slicing to prevent UTF-8 boundary panics when the cursor
-/// position falls in the middle of a multi-byte character.
-#[allow(dead_code)]
-fn determine_context(content: &str, position: Position) -> CompletionContext {
-    let lines: Vec<&str> = content.lines().collect();
-    let line_num = position.line as usize;
+/// Find the parent type for an inline child list by looking backward
+/// for the most recent less-indented matrix row.
+fn find_parent_type_for_inline_child(lines: Vec<&str>, current_line: usize) -> Option<String> {
+    let current_line_content = lines.get(current_line)?;
+    let current_indent = current_line_content.len() - current_line_content.trim_start().len();
 
-    if line_num >= lines.len() {
-        return CompletionContext::Unknown;
-    }
+    // Search backwards for a matrix row at less indentation (parent row)
+    for i in (0..current_line).rev() {
+        let line = lines[i];
+        let trimmed = line.trim_start();
 
-    let line = lines[line_num];
-    let char_pos = position.character as usize;
+        // Skip empty lines and comments
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
 
-    // Security: Use safe slicing to prevent UTF-8 boundary panics
-    let prefix = safe_slice_to(line, char_pos);
+        let line_indent = line.len() - line.trim_start().len();
 
-    // Check if we're in header (before ---)
-    let in_header = lines[..line_num].iter().all(|l| *l != "---");
+        // Must be at less indentation to be a parent
+        if line_indent >= current_indent {
+            continue;
+        }
 
-    if in_header && (prefix.trim().starts_with('%') || prefix.trim().is_empty()) {
-        return CompletionContext::Header;
-    }
-
-    // Check for reference context
-    if let Some(at_pos) = prefix.rfind('@') {
-        let after_at = &prefix[at_pos + 1..];
-
-        if let Some(colon_pos) = after_at.rfind(':') {
-            // After @Type:
-            let type_name = after_at[..colon_pos].to_string();
-            return CompletionContext::ReferenceId { type_name };
-        } else {
-            // After @ but before :
-            let partial = if after_at.is_empty() {
-                None
-            } else {
-                Some(after_at.to_string())
-            };
-            return CompletionContext::Reference {
-                partial_type: partial,
-            };
+        // Check if it's a matrix row (starts with |)
+        if trimmed.starts_with('|') {
+            // This is the parent row - find its list declaration to get the type
+            let parent_type = find_active_list_type(lines.clone(), i);
+            if !parent_type.is_empty() {
+                return Some(parent_type);
+            }
         }
     }
 
-    // Check for list type context
-    if prefix.contains(':') && prefix.trim_end().ends_with('@') {
-        return CompletionContext::ListType;
-    }
-
-    // Check for matrix row
-    if line.trim_start().starts_with('|') {
-        // Find which cell we're in
-        let pipe_count = prefix.matches('|').count();
-        return CompletionContext::MatrixCell {
-            type_name: find_active_list_type(lines, line_num),
-            column_index: pipe_count.saturating_sub(1),
-        };
-    }
-
-    // Check for key vs value position
-    if prefix.contains(':') {
-        CompletionContext::Value
-    } else {
-        CompletionContext::Key
-    }
+    None
 }
 
 fn find_active_list_type(lines: Vec<&str>, current_line: usize) -> String {
     // Look backwards to find the list declaration for the current row.
-    // Key insight: List declarations (e.g., "users: @User") are at a LOWER
-    // indentation level than their rows (e.g., "  | alice, Alice").
-    // The declaration is the parent, rows are children indented under it.
+    // Key insight: List declarations (e.g., "users:@User") are at a LOWER
+    // indentation level than their rows (e.g., "  | alice, Alice") OR at the
+    // same level for top-level lists (e.g., "products:@Product" followed by "|p01,...").
 
     let current_line_content = match lines.get(current_line) {
         Some(line) => *line,
@@ -368,7 +391,7 @@ fn find_active_list_type(lines: Vec<&str>, current_line: usize) -> String {
 
     let current_indent = current_line_content.len() - current_line_content.trim_start().len();
 
-    // Search backwards for a list declaration at less indentation
+    // Search backwards for a list declaration at less or equal indentation
     for i in (0..current_line).rev() {
         let line = lines[i];
         let trimmed = line.trim();
@@ -380,15 +403,14 @@ fn find_active_list_type(lines: Vec<&str>, current_line: usize) -> String {
 
         let line_indent = line.len() - line.trim_start().len();
 
-        // Declaration must be at LESS indentation than the row (it's the parent)
-        if line_indent >= current_indent {
-            // Same or more indentation: could be a sibling row or nested content
-            // Keep searching backwards
+        // Declaration must be at LESS or EQUAL indentation than the row
+        if line_indent > current_indent {
+            // More indentation: this is nested content, skip
             continue;
         }
 
-        // Found a line at less indentation - check if it's a list declaration
-        if trimmed.contains(": @") {
+        // Found a line at less or equal indentation - check if it's a list declaration
+        if trimmed.contains(":@") || trimmed.contains(": @") {
             // Extract the type name after @
             if let Some(at_pos) = trimmed.find('@') {
                 let rest = &trimmed[at_pos + 1..];
@@ -399,10 +421,9 @@ fn find_active_list_type(lines: Vec<&str>, current_line: usize) -> String {
             }
         }
 
-        // Found a non-declaration line at less indentation
-        // This could be a parent node - keep searching to find the actual declaration
-        // But if we hit the root level (indent 0) without finding a declaration, stop
-        if line_indent == 0 && !trimmed.contains(": @") {
+        // If we found a line at less indentation that's not a list declaration,
+        // we've gone too far up the hierarchy
+        if line_indent < current_indent {
             break;
         }
     }
@@ -442,25 +463,113 @@ fn count_columns_quote_aware(s: &str) -> usize {
 
 fn header_completions() -> Vec<CompletionItem> {
     vec![
+        // v2.0 compact directives (recommended)
+        CompletionItem {
+            label: "%V:2.0".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("v2.0 version (compact, recommended)".to_string()),
+            insert_text: Some("%V:2.0".to_string()),
+            insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+            documentation: Some(Documentation::String(
+                "HEDL v2.0 version directive. Required as first line.\n\n\
+                 v2.0 uses 1-space indentation and requires %NULL: and %QUOTE: directives."
+                    .to_string(),
+            )),
+            ..Default::default()
+        },
+        CompletionItem {
+            label: "%NULL:~".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("Null character (v2.0 required)".to_string()),
+            insert_text: Some("%NULL:~".to_string()),
+            insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+            documentation: Some(Documentation::String(
+                "Defines the null literal character. Required in v2.0.\n\n\
+                 Common choice: ~ (tilde)"
+                    .to_string(),
+            )),
+            ..Default::default()
+        },
+        CompletionItem {
+            label: "%QUOTE:\"".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("Quote character (v2.0 required)".to_string()),
+            insert_text: Some("%QUOTE:\"".to_string()),
+            insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+            documentation: Some(Documentation::String(
+                "Defines the quote character for strings. Required in v2.0.\n\n\
+                 Common choice: \" (double quote)"
+                    .to_string(),
+            )),
+            ..Default::default()
+        },
+        CompletionItem {
+            label: "%S:".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("Schema definition (v2.0 compact)".to_string()),
+            insert_text: Some("%S:${1:TypeName}:[${2:id},${3:field}]".to_string()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            documentation: Some(Documentation::String(
+                "Compact schema definition (v2.0).\n\n\
+                 Example: %S:User:[id,name,email]\n\n\
+                 First column is always the ID."
+                    .to_string(),
+            )),
+            ..Default::default()
+        },
+        CompletionItem {
+            label: "%N:".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("Nesting relationship (v2.0 compact)".to_string()),
+            insert_text: Some("%N:${1:Parent}>${2:Child}".to_string()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            documentation: Some(Documentation::String(
+                "Compact nesting declaration (v2.0).\n\n\
+                 Example: %N:Task>Comment\n\n\
+                 Declares a parent-child relationship for hierarchical data."
+                    .to_string(),
+            )),
+            ..Default::default()
+        },
+        CompletionItem {
+            label: "%C:".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("Count hint (v2.0)".to_string()),
+            insert_text: Some("%C:${1:Type}.total=${2:N}".to_string()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            documentation: Some(Documentation::String(
+                "Declared count for a type (v2.0). Authoritative for counting questions.\n\n\
+                 Examples:\n\
+                 - %C:User.total=100\n\
+                 - %C:User.status:active=80,inactive=20"
+                    .to_string(),
+            )),
+            ..Default::default()
+        },
+        // Legacy verbose directives
         CompletionItem {
             label: "%VERSION".to_string(),
             kind: Some(CompletionItemKind::KEYWORD),
-            detail: Some("HEDL version declaration".to_string()),
-            insert_text: Some("%VERSION 1.0".to_string()),
+            detail: Some("Version declaration (legacy)".to_string()),
+            insert_text: Some("%VERSION: 1.2".to_string()),
             insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
             documentation: Some(Documentation::String(
-                "Declares the HEDL version. Required as first directive.".to_string(),
+                "Legacy verbose version directive.\n\n\
+                 Consider using %V:2.0 for new documents."
+                    .to_string(),
             )),
             ..Default::default()
         },
         CompletionItem {
             label: "%STRUCT".to_string(),
             kind: Some(CompletionItemKind::KEYWORD),
-            detail: Some("Schema definition".to_string()),
-            insert_text: Some("%STRUCT ${1:TypeName}[${2:id}, ${3:field}]".to_string()),
+            detail: Some("Schema definition (legacy)".to_string()),
+            insert_text: Some("%STRUCT: ${1:TypeName}: [${2:id}, ${3:field}]".to_string()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             documentation: Some(Documentation::String(
-                "Defines a schema for a typed list. First column is always the ID.".to_string(),
+                "Legacy verbose schema definition.\n\n\
+                 Consider using %S: for v2.0 documents."
+                    .to_string(),
             )),
             ..Default::default()
         },
@@ -468,7 +577,7 @@ fn header_completions() -> Vec<CompletionItem> {
             label: "%ALIAS".to_string(),
             kind: Some(CompletionItemKind::KEYWORD),
             detail: Some("Alias definition".to_string()),
-            insert_text: Some("%ALIAS ${1:short} = \"${2:long value}\"".to_string()),
+            insert_text: Some("%ALIAS: ${1:short} = \"${2:long value}\"".to_string()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             documentation: Some(Documentation::String(
                 "Defines an alias for repeated values.".to_string(),
@@ -478,11 +587,13 @@ fn header_completions() -> Vec<CompletionItem> {
         CompletionItem {
             label: "%NEST".to_string(),
             kind: Some(CompletionItemKind::KEYWORD),
-            detail: Some("Nesting relationship".to_string()),
-            insert_text: Some("%NEST ${1:Parent} > ${2:Child}".to_string()),
+            detail: Some("Nesting relationship (legacy)".to_string()),
+            insert_text: Some("%NEST: ${1:Parent} > ${2:Child}".to_string()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             documentation: Some(Documentation::String(
-                "Declares a parent-child nesting relationship for hierarchical data.".to_string(),
+                "Legacy verbose nesting declaration.\n\n\
+                 Consider using %N: for v2.0 documents."
+                    .to_string(),
             )),
             ..Default::default()
         },
@@ -592,17 +703,19 @@ fn matrix_cell_completions(
         }
     }
 
-    // Add ditto marker
-    items.push(CompletionItem {
-        label: "^".to_string(),
-        kind: Some(CompletionItemKind::OPERATOR),
-        detail: Some("Ditto - repeat previous row's value".to_string()),
-        documentation: Some(Documentation::String(
-            "The ditto operator (^) repeats the value from the same column in the previous row."
-                .to_string(),
-        )),
-        ..Default::default()
-    });
+    // Add ditto marker (only for pre-v2.0 documents)
+    if analysis.ditto_allowed() {
+        items.push(CompletionItem {
+            label: "^".to_string(),
+            kind: Some(CompletionItemKind::OPERATOR),
+            detail: Some("Ditto - repeat previous row's value".to_string()),
+            documentation: Some(Documentation::String(
+                "The ditto operator (^) repeats the value from the same column in the previous row."
+                    .to_string(),
+            )),
+            ..Default::default()
+        });
+    }
 
     // Add common scalar values
     items.push(CompletionItem {
@@ -658,7 +771,7 @@ fn key_completions(analysis: &AnalyzedDocument) -> Vec<CompletionItem> {
             label: type_name.to_lowercase(),
             kind: Some(CompletionItemKind::PROPERTY),
             detail: Some(format!("List of {type_name} entities")),
-            insert_text: Some(format!("{}: @{}", type_name.to_lowercase(), type_name)),
+            insert_text: Some(format!("{}:@{}", type_name.to_lowercase(), type_name)),
             insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
             ..Default::default()
         });
@@ -688,6 +801,55 @@ fn value_completions(analysis: &AnalyzedDocument) -> Vec<CompletionItem> {
             kind: Some(CompletionItemKind::CLASS),
             detail: Some("Start a typed list".to_string()),
             insert_text: Some(format!("@{type_name}")),
+            ..Default::default()
+        });
+    }
+
+    items
+}
+
+fn inline_child_type_completions(
+    analysis: &AnalyzedDocument,
+    parent_type: Option<&str>,
+    partial: Option<&str>,
+) -> Vec<CompletionItem> {
+    let mut items = Vec::new();
+
+    // Get valid child types for the parent from NEST declarations
+    let valid_child_types: Vec<String> = if let Some(parent) = parent_type {
+        // Get all children for this parent
+        if let Some(children) = analysis.nests.get(parent) {
+            children.iter().map(|(child, _)| child.clone()).collect()
+        } else {
+            Vec::new()
+        }
+    } else {
+        // No parent type found, suggest all types
+        analysis.get_type_names()
+    };
+
+    for child_type in valid_child_types {
+        // Apply partial filter
+        if let Some(p) = partial {
+            if !child_type.to_lowercase().starts_with(&p.to_lowercase()) {
+                continue;
+            }
+        }
+
+        let schema = analysis.get_schema(&child_type);
+        let detail = schema.map(|cols| format!("Schema: [{}]", cols.join(", ")));
+
+        items.push(CompletionItem {
+            label: child_type.clone(),
+            kind: Some(CompletionItemKind::CLASS),
+            detail: detail.clone(),
+            insert_text: Some(format!("{child_type}#${{1:N}}:|${{2:data}}")),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            documentation: Some(Documentation::String(format!(
+                "Inline child list syntax (v2.0)\n\n\
+                 Style guideline: keep N <= 10 for readability.\n\n\
+                 Use expanded format for more:\n  @{child_type}#N:\n  |row1\n  |row2"
+            ))),
             ..Default::default()
         });
     }

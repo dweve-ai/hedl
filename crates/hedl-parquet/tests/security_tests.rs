@@ -330,7 +330,7 @@ fn create_highly_compressed_parquet() -> Vec<u8> {
 /// Create a Parquet file with the specified number of rows.
 /// Each row contains multiple columns to increase decompressed size.
 fn create_large_decompressed_data(num_rows: usize) -> Vec<u8> {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Item",
         vec![
@@ -489,7 +489,7 @@ fn create_parquet_with_malicious_metadata() -> Vec<u8> {
 
 /// Create a moderate-sized document for testing.
 fn create_moderate_document(num_rows: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Item",
         vec!["id".to_string(), "name".to_string(), "value".to_string()],
@@ -514,7 +514,7 @@ fn create_moderate_document(num_rows: usize) -> Document {
 
 /// Create a document with very large metadata values.
 fn create_document_with_large_metadata() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create a large string value (1 MB)
     let large_string = "x".repeat(1024 * 1024);

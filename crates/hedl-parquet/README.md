@@ -1,8 +1,8 @@
 # hedl-parquet
 
-**Bidirectional HEDL ↔ Apache Parquet conversion—columnar storage for analytics workloads with compression and efficient querying.**
+**Bidirectional HEDL ↔ Apache Parquet conversion -columnar storage for analytics workloads with compression and efficient querying.**
 
-Analytics systems need columnar storage. Parquet is the standard for big data workflows—Spark, Presto, Athena, BigQuery all consume it. But converting HEDL documents to Parquet shouldn't lose type information or structural semantics. Reading Parquet files back to HEDL for transformation and validation shouldn't require custom schemas.
+Analytics systems need columnar storage. Parquet is the standard for big data workflows -Spark, Presto, Athena, BigQuery all consume it. But converting HEDL documents to Parquet shouldn't lose type information or structural semantics. Reading Parquet files back to HEDL for transformation and validation shouldn't require custom schemas.
 
 `hedl-parquet` provides bidirectional conversion between HEDL and Apache Parquet via Arrow 57.0 integration. Export HEDL entity lists as columnar Parquet tables with automatic schema generation and type mapping. Choose compression algorithms (SNAPPY/GZIP/ZSTD/UNCOMPRESSED) for storage optimization. Import Parquet files back to HEDL with full schema preservation and metadata roundtrip. Security-hardened with decompression bomb protection and column count limits.
 
@@ -25,7 +25,7 @@ Comprehensive Parquet integration with Apache Arrow:
 
 ```toml
 [dependencies]
-hedl-parquet = "1.2"
+hedl-parquet = "2.0"
 ```
 
 ## Basic Usage
@@ -40,13 +40,13 @@ use hedl_parquet::to_parquet;
 use std::path::Path;
 
 let doc = parse(br#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, age, email, active]
+%V:2.0
+%S:User:[id, name, age, email, active]
 ---
 users: @User
-  | alice, Alice Smith, 30, alice@example.com, true
-  | bob, Bob Jones, 25, bob@example.com, true
-  | carol, Carol White, 35, carol@example.com, false
+ | alice, Alice Smith, 30, alice@example.com, true
+ | bob, Bob Jones, 25, bob@example.com, true
+ | carol, Carol White, 35, carol@example.com, false
 "#)?;
 
 to_parquet(&doc, Path::new("users.parquet"))?;
@@ -178,10 +178,10 @@ Value::Expression("$(1+2)") → 3 (Int64)
 
 ## Schema Generation
 
-Automatic Arrow schema from HEDL %STRUCT:
+Automatic Arrow schema from HEDL %S directive:
 
 ```hedl
-%STRUCT: Product: [id, name, price, stock, discontinued]
+%S:Product:[id, name, price, stock, discontinued]
 ```
 
 **Generated Arrow Schema**:
@@ -195,7 +195,7 @@ Schema {
     Field { name: "discontinued", data_type: Boolean, nullable: true },
   ],
   metadata: {
-    "hedl.version": "1.0",
+    "hedl.version": "2.0",
     "hedl.struct.Product": "[id, name, price, stock, discontinued]"
   }
 }
@@ -295,9 +295,9 @@ Sequential processing guarantees insertion order:
 
 ```hedl
 users: @User
-  | alice, Alice       # Row 0
-  | bob, Bob           # Row 1
-  | carol, Carol       # Row 2
+ | alice, Alice       # Row 0
+ | bob, Bob           # Row 1
+ | carol, Carol       # Row 2
 ```
 
 **Parquet Order**: Row 0, 1, 2 (same as HEDL)
@@ -379,7 +379,7 @@ match to_parquet(&doc, Path::new("output.parquet")) {
 
 **Streaming Writes**: Buffers entire entity list before writing. For streaming, write in batches to multiple files.
 
-**Predicate Pushdown**: No query optimization—reads entire file. For selective queries, use query engines (Spark, Presto) on generated Parquet.
+**Predicate Pushdown**: No query optimization -reads entire file. For selective queries, use query engines (Spark, Presto) on generated Parquet.
 
 **Schema Evolution**: No automatic schema migration. For evolving schemas, handle versioning externally.
 
@@ -399,7 +399,7 @@ match to_parquet(&doc, Path::new("output.parquet")) {
 
 ## Dependencies
 
-- `hedl-core` 1.2 - Core HEDL implementation
+- `hedl-core` 2.0 - Core HEDL implementation
 - `arrow` 57.0 - Apache Arrow columnar format
 - `parquet` 57.0 - Apache Parquet file format
 - `thiserror` 1.0 - Error type definitions

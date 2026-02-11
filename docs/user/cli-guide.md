@@ -1,1052 +1,1078 @@
-# HEDL CLI Reference Guide
+# The HEDL Command Line: Your Swiss Army Knife
 
-Complete reference for all HEDL command-line interface commands, options, and usage patterns.
+You've just finished writing a HEDL document. Now what?
 
-## Table of Contents
+Maybe you want to check if it's valid. Maybe you want to convert it to JSON for an API. Maybe you want to see how much smaller it is than the equivalent YAML. Maybe you want to format it so your team's diffs are clean.
 
-1. [Overview](#overview)
-2. [Global Options](#global-options)
-3. [Core Commands](#core-commands)
-4. [Conversion Commands](#conversion-commands)
-5. [Batch Commands](#batch-commands)
-6. [Utility Commands](#utility-commands)
-7. [Exit Codes](#exit-codes)
-8. [Environment Variables](#environment-variables)
-9. [Advanced Usage](#advanced-usage)
+The `hedl` command-line tool does all of this and more. It's the bridge between your HEDL files and everything else: other formats, other systems, other workflows.
 
-## Overview
+This guide will take you through every command, every option, every pattern. By the end, you'll be able to wield the CLI like a pro, building pipelines that validate, transform, and export your data exactly where it needs to go.
 
-The HEDL CLI provides a comprehensive toolkit for working with HEDL files:
+---
+
+## Getting Oriented
+
+The CLI follows a simple pattern:
 
 ```bash
-hedl <COMMAND> [OPTIONS] <ARGS>
+hedl <command> [options] <arguments>
 ```
 
-### Quick Command Reference
+Every command has `--help`:
 
 ```bash
-# Core operations
-hedl validate <FILE>          # Validate HEDL syntax
-hedl format <FILE>            # Format to canonical form
-hedl lint <FILE>              # Check best practices
-hedl inspect <FILE>           # Show internal structure
-hedl stats <FILE>             # Compare format sizes
-
-# Format conversion
-hedl to-json <FILE>           # Convert to JSON
-hedl from-json <FILE>         # Convert from JSON
-hedl to-yaml <FILE>           # Convert to YAML
-hedl from-yaml <FILE>         # Convert from YAML
-hedl to-xml <FILE>            # Convert to XML
-hedl from-xml <FILE>          # Convert from XML
-hedl to-csv <FILE>            # Convert to CSV
-hedl from-csv <FILE>          # Convert from CSV
-hedl to-parquet <FILE>        # Convert to Parquet
-hedl from-parquet <FILE>      # Convert from Parquet
-hedl to-toon <FILE>           # Convert to TOON
-hedl from-toon <FILE>         # Convert from TOON
-
-# Batch operations
-hedl batch-validate <FILES>...   # Validate multiple files
-hedl batch-format <FILES>...     # Format multiple files
-hedl batch-lint <FILES>...       # Lint multiple files
-
-# Utilities
-hedl completion <SHELL>       # Generate shell completions
+hedl --help              # All commands
+hedl validate --help     # Specific command help
+hedl to-json --help      # Another command
 ```
 
-## Global Options
-
-These options work with all commands:
-
-### Help and Version
+And there's always `--version` if you need to check what you're running:
 
 ```bash
-# Show help
-hedl --help
-hedl <command> --help
-
-# Show version
 hedl --version
+# hedl-cli 2.0.0
 ```
 
-### Common Patterns
+At its core, the CLI organizes around three kinds of operations:
 
-All commands support these common patterns:
+**Core operations** work with HEDL files directly: validation, formatting, linting, inspection, statistics.
+
+**Conversion operations** transform HEDL to and from other formats: JSON, YAML, XML, CSV, Parquet, TOON.
+
+**Batch operations** process multiple files at once: batch-validate, batch-format, batch-lint.
+
+Let's explore each category deeply, starting with the operations you'll use most often.
+
+---
+
+## Core Operations: Working with HEDL Files
+
+These commands operate on HEDL files without converting them to other formats.
+
+### Validation: Is My Document Correct?
+
+The `validate` command checks that your HEDL file is syntactically correct and internally consistent.
 
 ```bash
-# Read from file
-hedl <command> file.hedl
-
-# Write to stdout (default)
-hedl <command> file.hedl
-
-# Write to file
-hedl <command> file.hedl -o output.hedl
-hedl <command> file.hedl --output output.hedl
+hedl validate document.hedl
 ```
 
-**Note**: Stdin input (`-`) is not currently supported. All commands require file paths.
+If the file is valid, you see:
 
-## Core Commands
-
-### validate
-
-Validate HEDL file syntax and structure.
-
-**Usage:**
-```bash
-hedl validate [OPTIONS] <FILE>
+```
+✓ document.hedl is valid
 ```
 
-**Arguments:**
-- `<FILE>`: Path to HEDL file
+If there's a problem, you get a detailed error:
 
-**Options:**
-- `-s, --strict`: Strict mode (fail on any error)
+```
+Error: Parse error at line 15, column 8: expected ',' or end of row
+  |
+15|  |alice,Alice Chen,alice@example.com
+  |                     ^
+  = note: Did you mean to add a comma after "Chen"?
+```
 
-**Examples:**
+The error tells you exactly where the problem is and often suggests a fix.
+
+**When to validate:**
+
+Run validation often. After writing. Before committing. In your CI pipeline. Catching errors early saves debugging time later.
+
 ```bash
-# Validate a file
+# Quick check while editing
 hedl validate data.hedl
 
-# Strict validation
-hedl validate data.hedl --strict
+# Fail fast in scripts
+hedl validate data.hedl || exit 1
 
-# Validate in a script
-if hedl validate data.hedl; then
-  echo "Valid!"
-else
-  echo "Invalid!" >&2
+# In a pre-commit hook
+if ! hedl validate "$file"; then
+  echo "Invalid HEDL: $file" >&2
   exit 1
 fi
 ```
 
-**Exit Codes:**
-- `0`: File is valid
-- `1`: File is invalid or error occurred
+**Strict mode** makes validation even more rigorous:
 
-**Output:**
-```
-✓ data.hedl is valid
+```bash
+hedl validate document.hedl --strict
 ```
 
-Or on error:
-```
-Error: Parse error at line 5, column 12: unexpected token
-```
+In strict mode, any ambiguity or edge case that might be accepted normally becomes an error. Use this when you want to be extra sure your document is clean.
+
+**What validation checks:**
+
+Validation catches more than syntax errors. It verifies:
+
+1. **Syntax correctness.** The document follows HEDL grammar.
+2. **Schema compliance.** Every row in a matrix list has the right number of columns.
+3. **Reference integrity.** Every `@id` reference points to an entity that exists.
+4. **ID uniqueness.** No duplicate IDs within the same entity collection.
+5. **Structure validity.** Nesting levels, indentation, required headers.
+
+A valid document is one you can trust. All the pieces fit together. No broken links. No missing data.
 
 ---
 
-### format
+### Formatting: One True Style
 
-Format HEDL file to canonical form (standardized spacing, ordering).
+The `format` command transforms your HEDL into canonical form. Every developer's file looks the same after formatting.
 
-**Usage:**
-```bash
-hedl format [OPTIONS] <FILE>
-```
-
-**Arguments:**
-- `<FILE>`: Path to HEDL file
-
-**Options:**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-- `-c, --check`: Check only (exit 1 if not canonical)
-- `--ditto`: Use ditto optimization for repeated values (default: true). Use `--no-ditto` or `--ditto false` to disable.
-- `--with-counts`: Automatically add count hints to all matrix lists
-
-**Examples:**
 ```bash
 # Format to stdout
-hedl format messy.hedl
+hedl format document.hedl
 
-# Format to new file
-hedl format messy.hedl -o clean.hedl
+# Format to a new file
+hedl format document.hedl -o formatted.hedl
 
-# Format to output directory (batch)
-hedl batch-format *.hedl --output-dir clean/
-
-# Format to new file
-hedl format messy.hedl -o clean.hedl
-
-# Check if file is canonical (CI/CD)
-hedl format data.hedl --check
-
-# Format with count hints
-hedl format data.hedl --with-counts -o optimized.hedl
-
-# Format without ditto optimization
-hedl format data.hedl --no-ditto -o formatted.hedl
+# Format in place (careful: overwrites the original)
+hedl format document.hedl -o document.hedl
 ```
 
-**What It Does:**
-- Standardizes indentation (2 spaces)
-- Removes trailing whitespace
-- Normalizes line endings
-- Orders fields consistently
-- Preserves semantic meaning
-- Optionally applies ditto (^) optimization for repeated values
-- Optionally adds count hints to matrix lists
+**What formatting does:**
 
-**Before:**
+Formatting applies HEDL's canonicalization rules:
+
+- One-space indentation per level
+- No spaces after commas
+- Unix line endings (LF)
+- No trailing whitespace
+- Single trailing newline
+
+**Before formatting:**
+
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | u1,   Alice
-    | u2, Bob
+users:@User
+   |u1,Alice,alice@example.com
+  |u2,Bob,bob@example.com
 ```
 
-**After:**
+**After formatting:**
+
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | u1, Alice
-  | u2, Bob
+users:@User
+ |u1,Alice,alice@example.com
+ |u2,Bob,bob@example.com
+```
+
+Clean, consistent, diffable.
+
+**Checking without modifying:**
+
+The `--check` flag verifies whether a file is already canonical without changing it:
+
+```bash
+hedl format document.hedl --check
+```
+
+If canonical: exit code 0, no output.
+If not canonical: exit code 1, shows what would change.
+
+This is perfect for CI:
+
+```yaml
+# In your GitHub Actions workflow
+- name: Check formatting
+  run: hedl format --check *.hedl
+```
+
+**Adding count hints:**
+
+The `--with-counts` flag automatically adds count hints to matrix lists:
+
+```bash
+hedl format document.hedl --with-counts -o optimized.hedl
+```
+
+Count hints tell LLMs how many rows to expect, improving comprehension without requiring them to count:
+
+```hedl
+# Before
+users:@User
+ |u1,Alice
+ |u2,Bob
+ |u3,Carol
+
+# After --with-counts
+users:@User#3
+ |u1,Alice
+ |u2,Bob
+ |u3,Carol
 ```
 
 ---
 
-### lint
+### Linting: Beyond Correctness
 
-Check HEDL file for best practices and potential issues.
+A document can be valid yet still have issues. Unused schemas. Inconsistent naming. Empty lists that might indicate a mistake.
 
-**Usage:**
+The `lint` command catches these:
+
 ```bash
-hedl lint [OPTIONS] <FILE>
+hedl lint document.hedl
 ```
 
-**Arguments:**
-- `<FILE>`: Path to HEDL file
+Output:
 
-**Options:**
-- `-f, --format <FORMAT>`: Output format: `text` or `json` (default: text)
-- `-W, --warn-error`: Treat warnings as errors
-
-**Examples:**
-```bash
-# Lint a file
-hedl lint data.hedl
-
-# Lint a file with JSON output
-hedl lint data.hedl --format json
-
-# Output as JSON (for CI/CD integration)
-hedl lint data.hedl --format json
-
-# Fail on warnings (strict mode)
-hedl lint data.hedl --warn-error
 ```
+Linting document.hedl...
 
-**Checks:**
-- Unused entity types (`unused-schema`)
-- Inconsistent naming conventions (`id-naming`)
-- Empty matrix lists (`empty-list`)
-- Unqualified references in Key-Value pairs (`unqualified-kv-ref`)
-- Suspicious patterns
+Warning [unused-schema] (line 4): Schema 'Product' is defined but never used
+  %S:Product:[sku,name,price]
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Consider: Remove this schema or add a matrix list that uses it
 
-**Output:**
-```
-Linting data.hedl...
+Warning [short-id] (line 12): ID 'a' is very short
+  |a,Alice Chen,alice@example.com
+   ^
+  Consider: Use a more descriptive ID like 'alice' or 'user_alice'
 
-Warning (line 5): Schema 'Product' is defined but never used
-Warning (line 12): ID 'a' is very short, consider a more descriptive name
-Info (line 20): Matrix list 'users' is empty
+Info [empty-list] (line 20): Matrix list 'pending_orders' is empty
+  This might be intentional, but verify this is expected.
 
 3 issues found (0 errors, 2 warnings, 1 info)
 ```
 
+**What the linter checks:**
+
+The linter looks for patterns that suggest problems:
+
+- **unused-schema**: A schema is declared but no entity uses it. Often a leftover from editing.
+- **short-id**: IDs like "a" or "1" are valid but often indicate you meant something more descriptive.
+- **empty-list**: An empty matrix list might be intentional (no orders yet) or might indicate missing data.
+- **inconsistent-naming**: Mixing camelCase and snake_case in the same document.
+- **unqualified-kv-ref**: A reference that could be ambiguous in certain contexts.
+
+**Output formats:**
+
+For CI integration, you might want JSON output:
+
+```bash
+hedl lint document.hedl --format json
+```
+
+Returns structured JSON you can parse programmatically:
+
+```json
+{
+  "file": "document.hedl",
+  "issues": [
+    {
+      "severity": "warning",
+      "rule": "unused-schema",
+      "line": 4,
+      "message": "Schema 'Product' is defined but never used"
+    }
+  ]
+}
+```
+
+**Failing on warnings:**
+
+By default, lint exits 0 even with warnings. To be strict:
+
+```bash
+hedl lint document.hedl --warn-error
+```
+
+Now any warning causes exit code 1. Useful for enforcing clean documents in CI.
+
 ---
 
-### inspect
+### Inspection: Looking Inside
 
-Display the internal parsed structure (useful for debugging).
+The `inspect` command shows you the parsed structure of a HEDL document:
 
-**Usage:**
 ```bash
-hedl inspect [OPTIONS] <FILE>
+hedl inspect document.hedl
 ```
 
-**Arguments:**
-- `<FILE>`: Path to HEDL file
+Output:
 
-**Options:**
-- `-v, --verbose`: Show detailed internal structure
-
-**Examples:**
-```bash
-# Inspect structure
-hedl inspect data.hedl
-
-# Create a test file and inspect
-hedl inspect test.hedl
-
-# Show verbose internal details
-hedl inspect data.hedl --verbose
-```
-
-**Output:**
 ```
 Document {
-  version: "1.0",
+  version: (1, 3),
+  null_symbol: "~",
+  quote_char: '"',
+  schemas: [
+    Schema { name: "User", columns: ["id", "name", "email"] }
+  ],
   root: Object {
     fields: [
       Field {
-        key: "name",
-        value: String("Alice")
+        key: "users",
+        type_annotation: Some("User"),
+        value: MatrixList [
+          Row { values: ["u1", "Alice", "alice@example.com"] },
+          Row { values: ["u2", "Bob", "bob@example.com"] }
+        ]
       }
     ]
   }
 }
 ```
 
+**When to use inspection:**
+
+Inspection is a debugging tool. Use it when:
+
+- You want to see how the parser interprets your document
+- You're debugging a complex structure
+- You need to understand type inference decisions
+- You're troubleshooting a conversion that produces unexpected results
+
+For even more detail:
+
+```bash
+hedl inspect document.hedl --verbose
+```
+
+This shows internal span information, memory layout, and other implementation details.
+
 ---
 
-### stats
+### Statistics: Measuring Efficiency
 
-Show size and token statistics comparing HEDL to other formats.
+The `stats` command shows you how HEDL compares to other formats:
 
-**Usage:**
 ```bash
-hedl stats [OPTIONS] <FILE>
+hedl stats document.hedl --tokens
 ```
 
-**Arguments:**
-- `<FILE>`: Path to HEDL file
+Output:
 
-**Options:**
-- `-t, --tokens`: Show estimated token counts for LLM context
+```
+Format Comparison for 'document.hedl':
 
-**Examples:**
-```bash
-# Show statistics
-hedl stats data.hedl
+Sizes:
+  HEDL:         2,458 bytes   (baseline)
+  JSON:         3,841 bytes   (+56%)
+  JSON pretty:  5,124 bytes   (+108%)
+  YAML:         4,105 bytes   (+67%)
+  XML:          6,287 bytes   (+156%)
+  CSV:          1,987 bytes   (-19%)
+  Parquet:        892 bytes   (-64%)
 
-# Show with token counts
-hedl stats data.hedl --tokens
+Token Estimates (for LLM context):
+  HEDL:         615 tokens    (baseline)
+  JSON:         960 tokens    (+56%, +345 tokens)
+  JSON pretty:  1,281 tokens  (+108%, +666 tokens)
+  YAML:         1,026 tokens  (+67%, +411 tokens)
+  XML:          1,572 tokens  (+156%, +957 tokens)
 
-# Compare multiple files
-for f in *.hedl; do echo "$f:"; hedl stats "$f" --tokens; echo; done
+Token Savings:
+  vs JSON:      345 tokens saved per request
+  vs YAML:      411 tokens saved per request
+  vs XML:       957 tokens saved per request
+
+Cost Impact (at $3/million tokens):
+  Single request savings: ~$0.001
+  1,000 requests/day:     ~$1.04/day
+  Monthly (30K requests): ~$31.05
 ```
 
-**Output:**
-```
-Format Comparison for data.hedl:
+This command answers the question: "Is HEDL actually smaller?" Yes. Usually significantly.
 
-  HEDL:      245 bytes,    62 tokens (baseline)
-  JSON:      512 bytes,   156 tokens (+109%, +94 tokens)
-  YAML:      398 bytes,   118 tokens (+62%, +56 tokens)
-  XML:       687 bytes,   203 tokens (+180%, +141 tokens)
-  CSV:       189 bytes,    48 tokens (-23%, -14 tokens)
-  Parquet:    98 bytes,   N/A        (-60%)
+**When to use stats:**
 
-Token Efficiency:
-  - 60% fewer tokens than JSON
-  - 47% fewer tokens than YAML
-  - 69% fewer tokens than XML
-  - CSV not applicable (tabular format)
+Use stats when:
 
-Recommendations:
-  ✓ HEDL is optimal for LLM context windows
-  ✓ Consider Parquet for analytics (smallest binary)
-  ✓ Use CSV for simple tabular exports
-```
+- Justifying HEDL adoption to your team
+- Estimating cost savings for LLM workloads
+- Choosing between formats for a specific use case
+- Understanding the token economics of your data
 
-## Conversion Commands
+---
 
-### to-json
+## Conversion Commands: Bridging Formats
 
-Convert HEDL to JSON format.
+HEDL is a hub. Data flows in from various sources, gets validated and structured in HEDL, then flows out to wherever it needs to go.
 
-**Usage:**
-```bash
-hedl to-json [OPTIONS] <FILE>
-```
+### To JSON and From JSON
 
-**Arguments:**
-- `<FILE>`: Path to HEDL file
+JSON is everywhere. APIs, databases, configuration files. Converting between HEDL and JSON is probably your most common operation.
 
-**Options:**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-- `--pretty`: Pretty-print with indentation
-- `--metadata`: Include HEDL metadata in output
+**HEDL to JSON:**
 
-**Examples:**
 ```bash
 # Compact JSON to stdout
-hedl to-json data.hedl
+hedl to-json document.hedl
 
 # Pretty-printed JSON
-hedl to-json data.hedl --pretty
-
-# Include metadata
-hedl to-json data.hedl --metadata --pretty
+hedl to-json document.hedl --pretty
 
 # Save to file
-hedl to-json data.hedl --pretty -o output.json
+hedl to-json document.hedl --pretty -o output.json
 
-# Pipeline usage
-hedl to-json data.hedl | jq '.users[] | select(.age > 30)'
+# Include HEDL metadata (schemas, types)
+hedl to-json document.hedl --metadata --pretty -o output.json
 ```
 
----
+The `--pretty` flag adds indentation for readability. The `--metadata` flag preserves HEDL information so you can convert back without losing structure.
 
-### from-json
+**JSON to HEDL:**
 
-Convert JSON to HEDL format.
-
-**Usage:**
-```bash
-hedl from-json [OPTIONS] <FILE>
-```
-
-**Arguments:**
-- `<FILE>`: Path to JSON file (file path required)
-
-**Options:**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-
-**Examples:**
 ```bash
 # Basic conversion
 hedl from-json data.json
 
 # Save to file
 hedl from-json data.json -o data.hedl
-
-# Save to file
-hedl from-json data.json -o users.hedl
 ```
+
+When converting from JSON, HEDL analyzes the structure and infers schemas where possible. Arrays of objects with consistent fields become matrix lists. Nested structures become nested entities.
+
+**Real-world example: API response compression**
+
+```bash
+# Fetch API data, convert to HEDL for LLM context
+curl -s https://api.example.com/users | \
+  hedl from-json - -o users.hedl
+
+# Check the savings
+hedl stats users.hedl --tokens
+```
+
+If that API returns 10,000 users, you just cut your token usage by 50%+.
 
 ---
 
-### to-yaml / from-yaml
+### To YAML and From YAML
 
-Convert between HEDL and YAML formats.
+YAML is popular for configuration files. HEDL converts cleanly to and from YAML.
 
-**Usage:**
-```bash
-hedl to-yaml [OPTIONS] <FILE>
-hedl from-yaml [OPTIONS] <FILE>
-```
-
-**Arguments:**
-- `<FILE>`: Path to file (file path required)
-
-**Options:**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-
-**Examples:**
 ```bash
 # HEDL to YAML
 hedl to-yaml config.hedl -o config.yaml
 
 # YAML to HEDL
 hedl from-yaml config.yaml -o config.hedl
+```
 
-# Convert JSON to YAML via HEDL
-hedl from-json data.json -o temp.hedl && hedl to-yaml temp.hedl -o data.yaml
+**Why convert YAML to HEDL?**
+
+If your YAML configuration has repetitive structures (lists of servers, lists of rules), HEDL will be more compact. Plus, HEDL's validation catches errors that YAML's loose typing misses.
+
+```bash
+# Validate a YAML config by converting to HEDL and back
+hedl from-yaml config.yaml | hedl validate -
+# If validation passes, the config structure is sound
 ```
 
 ---
 
-### to-xml / from-xml
+### To XML and From XML
 
-Convert between HEDL and XML formats.
+XML is verbose, but some systems require it. HEDL can bridge the gap.
 
-**Usage:**
 ```bash
-hedl to-xml [OPTIONS] <FILE>
-hedl from-xml [OPTIONS] <FILE>
-```
+# HEDL to compact XML
+hedl to-xml document.hedl
 
-**Arguments:**
-- `<FILE>`: Path to file (file path required)
-
-**Options (to-xml):**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-- `-p, --pretty`: Pretty-print with indentation
-
-**Options (from-xml):**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-
-**Examples:**
-```bash
-# HEDL to XML (compact)
-hedl to-xml data.hedl
-
-# HEDL to XML (pretty-printed)
-hedl to-xml data.hedl --pretty -o output.xml
+# HEDL to pretty XML
+hedl to-xml document.hedl --pretty -o output.xml
 
 # XML to HEDL
 hedl from-xml data.xml -o data.hedl
 ```
 
----
+**The XML size contrast is dramatic:**
 
-### to-csv / from-csv
-
-Convert between HEDL and CSV formats.
-
-**Usage:**
 ```bash
-hedl to-csv [OPTIONS] <FILE>
-hedl from-csv [OPTIONS] <FILE>
+hedl stats document.hedl --tokens
+# XML is typically 150-200% larger than HEDL
 ```
 
-**Arguments:**
-- `<FILE>`: Path to file (file path required)
+If you're sending context to an LLM and the source is XML, converting to HEDL first is almost always worthwhile.
 
-**Options (to-csv):**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-- `--headers`: Include header row (default: true). Use `--no-headers` to exclude header row.
+---
 
-**Options (from-csv):**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-- `-t, --type-name <NAME>`: Type name for the matrix list (default: `Row`)
+### To CSV and From CSV
 
-**Examples:**
+CSV is the universal tabular format. Spreadsheets, databases, analytics tools all speak CSV.
+
+**HEDL to CSV:**
+
 ```bash
-# HEDL to CSV (with headers by default)
-hedl to-csv data.hedl -o output.csv
+# With headers (default)
+hedl to-csv document.hedl -o output.csv
 
-# HEDL to CSV (without headers)
-hedl to-csv data.hedl --no-headers -o output.csv
+# Without headers
+hedl to-csv document.hedl --no-headers -o output.csv
+```
 
-# CSV to HEDL (uses type name 'Row' by default)
+HEDL exports the first (or main) matrix list as CSV. The schema columns become CSV headers.
+
+**CSV to HEDL:**
+
+```bash
+# Basic conversion (uses 'Row' as schema name)
 hedl from-csv data.csv -o data.hedl
 
-# CSV to HEDL (custom type name)
+# Custom schema name
 hedl from-csv users.csv -t User -o users.hedl
 ```
 
----
+The `-t` (or `--type-name`) flag specifies what to call the schema. This matters for readability and for references if you later add relationships.
 
-### to-parquet / from-parquet
+**CSV workflow example:**
 
-Convert between HEDL and Apache Parquet formats.
-
-**Usage:**
 ```bash
-hedl to-parquet <FILE> -o <OUTPUT>
-hedl from-parquet [OPTIONS] <FILE>
+# Get data from a spreadsheet, validate it, make it LLM-ready
+hedl from-csv exported_data.csv -t DataRow -o data.hedl
+hedl validate data.hedl
+hedl stats data.hedl --tokens
 ```
 
-**Arguments:**
-- `<FILE>`: Path to file
+---
 
-**Options (to-parquet):**
-- `-o, --output <FILE>`: Output Parquet file path (required)
+### To Parquet and From Parquet
 
-**Options (from-parquet):**
-- `-o, --output <FILE>`: Output file path (default: stdout)
+Apache Parquet is the columnar format for big data. Analytics platforms, data warehouses, Spark, DuckDB all use Parquet.
 
-**Examples:**
+**HEDL to Parquet:**
+
 ```bash
-# HEDL to Parquet
-hedl to-parquet data.hedl -o output.parquet
+# Parquet output requires a file path
+hedl to-parquet document.hedl -o output.parquet
+```
 
-# Parquet to HEDL (stdout)
-hedl from-parquet data.parquet
+Parquet is binary, so you can't pipe it to stdout. Always specify an output file.
 
-# Parquet to HEDL (file)
+**Parquet to HEDL:**
+
+```bash
+# Convert back
 hedl from-parquet data.parquet -o data.hedl
 
-# CSV → HEDL → Parquet
-hedl from-csv data.csv -o data.hedl && hedl to-parquet data.hedl -o data.parquet
+# Or to stdout for piping
+hedl from-parquet data.parquet
 ```
 
-**Note:** Parquet output requires a file path (cannot write to stdout).
+**Why Parquet?**
 
-### to-toon
+Parquet is extremely efficient for columnar data. It's often 60-80% smaller than HEDL and has built-in compression. Use it for:
 
-Convert HEDL to TOON (Token-Oriented Object Notation) format.
+- Long-term storage
+- Analytics workloads
+- Data warehouse imports
+- Archival
 
-**Usage:**
-```bash
-hedl to-toon [OPTIONS] <FILE>
-```
+Use HEDL for:
 
-**Arguments:**
-- `<FILE>`: Path to HEDL file
+- Human readability
+- LLM context
+- Validation and editing
+- Version control
 
-**Options:**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-
-**Examples:**
-```bash
-# HEDL to TOON
-hedl to-toon data.hedl
-
-# Save to file
-hedl to-toon data.hedl -o data.toon
-
-# Convert JSON to TOON via HEDL
-hedl from-json data.json -o temp.hedl && hedl to-toon temp.hedl
-```
+The typical flow is: source data → HEDL (validate, edit, review) → Parquet (store, analyze).
 
 ---
 
-### from-toon
+### To TOON and From TOON
 
-Convert TOON to HEDL format.
+TOON (Token-Oriented Object Notation) is another token-efficient format. HEDL can convert to and from it.
 
-**Usage:**
 ```bash
-hedl from-toon [OPTIONS] <FILE>
-```
+# HEDL to TOON
+hedl to-toon document.hedl -o output.toon
 
-**Arguments:**
-- `<FILE>`: Path to TOON file (file path required)
-
-**Options:**
-- `-o, --output <FILE>`: Output file path (default: stdout)
-
-**Examples:**
-```bash
 # TOON to HEDL
-hedl from-toon data.toon
-
-# Save to file
-hedl from-toon data.toon -o data.hedl
-
-# Convert TOON to HEDL
 hedl from-toon data.toon -o data.hedl
 ```
 
-## Batch Commands
+TOON has its own optimizations. Depending on your data shape, one might be more efficient than the other. Use `stats` to compare.
 
-Process multiple files in parallel.
+---
 
-### batch-validate
+## Batch Operations: Processing at Scale
 
-Validate multiple HEDL files.
+When you have more than a handful of files, batch commands become essential.
 
-**Usage:**
+### Batch Validate
+
+Validate every HEDL file in your project:
+
 ```bash
-hedl batch-validate [OPTIONS] <FILES>...
-```
-
-**Arguments:**
-- `<FILES>...`: Input file paths (supports glob patterns)
-
-**Options:**
-- `-s, --strict`: Strict mode (fail on any error)
-- `-p, --parallel`: Force parallel processing
-- `-v, --verbose`: Show verbose progress
-- `--streaming`: Use streaming mode for memory-efficient processing (currently reserved for future use)
-- `--auto-streaming`: Automatically use streaming for files > 100MB (currently reserved for future use)
-- `--max-files <N>`: Maximum number of files to process (unlimited if not specified)
-
-**Examples:**
-```bash
-# Validate all HEDL files in current directory
+# All files in current directory
 hedl batch-validate *.hedl
 
-# Validate recursively (shell glob)
+# Multiple directories
 hedl batch-validate data/*.hedl config/*.hedl
 
-# With strict mode
-hedl batch-validate *.hedl --strict
-
-# Verbose output
-hedl batch-validate *.hedl --verbose
+# With verbose progress
+hedl batch-validate data/*.hedl --verbose
 ```
 
-**Output:**
+Output:
+
 ```
-Validating 15 files...
+Validating 47 files...
 
 ✓ data/users.hedl
 ✓ data/products.hedl
-✗ data/orders.hedl: Parse error at line 23
+✗ data/orders.hedl: Parse error at line 23: unexpected token
+✓ data/inventory.hedl
 ✓ config/settings.hedl
+... (42 more)
 
-Results: 14 valid, 1 invalid
+Results: 46 valid, 1 invalid
+Total time: 0.3s (156 files/second)
 ```
 
-**Exit Code:**
-- `0`: All files valid
-- `1`: One or more files invalid
+Batch validation runs files in parallel. On a multi-core machine, you'll process hundreds of files per second.
+
+**Options:**
+
+```bash
+# Strict mode
+hedl batch-validate *.hedl --strict
+
+# Limit number of files (useful for testing)
+hedl batch-validate *.hedl --max-files 10
+
+# Explicit parallelism
+hedl batch-validate *.hedl --parallel
+```
+
+**In CI pipelines:**
+
+```yaml
+- name: Validate all HEDL files
+  run: hedl batch-validate **/*.hedl
+```
+
+Exit code is 0 only if all files pass. One failure fails the build.
 
 ---
 
-### batch-format
+### Batch Format
 
-Format multiple HEDL files.
+Format all files to canonical form:
 
-**Usage:**
 ```bash
-hedl batch-format [OPTIONS] <FILES>...
-```
-
-**Arguments:**
-- `<FILES>...`: Input file paths (supports glob patterns)
-
-**Options:**
-- `-o, --output-dir <DIR>`: Output directory for formatted files
-- `-c, --check`: Check only (exit 1 if not canonical)
-- `--ditto`: Use ditto optimization for repeated values (default: true). Use `--no-ditto` or `--ditto false` to disable.
-- `--with-counts`: Automatically add count hints to all matrix lists
-- `-p, --parallel`: Force parallel processing
-- `-v, --verbose`: Show verbose progress
-- `--max-files <N>`: Maximum number of files to process (unlimited if not specified)
-
-**Examples:**
-```bash
-# Check if files are canonical
+# Check if files need formatting (dry run)
 hedl batch-format *.hedl --check
 
-# Format to output directory
+# Format to an output directory
 hedl batch-format src/*.hedl --output-dir formatted/
 
-# Format with verbose output
-hedl batch-format *.hedl --output-dir out/ --verbose
-
 # Format with count hints
-hedl batch-format *.hedl --output-dir out/ --with-counts
+hedl batch-format *.hedl --output-dir formatted/ --with-counts
 ```
 
-**Safety:**
-- Use `--check` to verify formatting without modifying
-- Use `--output-dir` to write to a separate directory
+The `--check` flag is crucial for CI. It verifies formatting without modifying files:
+
+```yaml
+- name: Check formatting
+  run: hedl batch-format **/*.hedl --check
+```
+
+If any file isn't canonical, the check fails, and developers know to run the formatter locally.
 
 ---
 
-### batch-lint
+### Batch Lint
 
-Lint multiple HEDL files.
+Run the linter across your entire codebase:
 
-**Usage:**
 ```bash
-hedl batch-lint [OPTIONS] <FILES>...
-```
-
-**Arguments:**
-- `<FILES>...`: Input file paths (supports glob patterns)
-
-**Options:**
-- `-W, --warn-error`: Treat warnings as errors
-- `-p, --parallel`: Force parallel processing
-- `-v, --verbose`: Show verbose progress
-- `--max-files <N>`: Maximum number of files to process (unlimited if not specified)
-
-**Examples:**
-```bash
-# Lint all HEDL files
+# Lint everything
 hedl batch-lint *.hedl
 
-# Lint with verbose output
+# Verbose output
 hedl batch-lint *.hedl --verbose
 
-# Treat warnings as errors (CI/CD)
+# Fail on warnings
 hedl batch-lint *.hedl --warn-error
 ```
 
-**Output:**
-```
-Linting 10 files...
+Output:
 
-data/users.hedl: 3 issues (0 errors, 2 warnings, 1 info)
-data/products.hedl: ✓ No issues
-config/settings.hedl: 1 issue (0 errors, 1 warning, 0 info)
-
-Summary: 4 total issues across 2 files
 ```
+Linting 47 files...
+
+data/users.hedl: ✓ No issues
+data/products.hedl: 2 warnings
+data/orders.hedl: ✓ No issues
+config/settings.hedl: 1 info
+
+Summary: 3 issues (0 errors, 2 warnings, 1 info) across 47 files
+```
+
+---
 
 ## Utility Commands
 
-### completion
+### Shell Completion
 
-Generate shell completion scripts.
+Type `hedl to-` and press Tab. The shell shows you `to-json`, `to-yaml`, `to-xml`, and more. This is shell completion, and it makes the CLI much faster to use.
 
-**Usage:**
+**Generate completions for your shell:**
+
 ```bash
-hedl completion [OPTIONS] <SHELL>
-```
-
-**Arguments:**
-- `<SHELL>`: Shell type (`bash`, `zsh`, `fish`, `powershell`, `elvish`)
-
-**Options:**
-- `-i, --install`: Print installation instructions instead of generating script
-
-**Examples:**
-```bash
-# Show installation instructions
+# See installation instructions
 hedl completion bash --install
 
-# Bash
+# Generate the script
 hedl completion bash > ~/.local/share/bash-completion/completions/hedl
-source ~/.bashrc
 
-# Zsh
+# For Zsh
 hedl completion zsh > ~/.zfunc/_hedl
-# Add to ~/.zshrc: fpath=(~/.zfunc $fpath)
 
-# Fish
+# For Fish
 hedl completion fish > ~/.config/fish/completions/hedl.fish
 
-# PowerShell
+# For PowerShell
 hedl completion powershell >> $PROFILE
 
-# Elvish
+# For Elvish
 hedl completion elvish > ~/.elvish/lib/hedl.elv
 ```
 
-**Features:**
-- Command name completion
-- Option completion
-- File path completion
-- Context-aware suggestions
+After installing, restart your shell or source the config file. Now Tab-completion works everywhere.
 
-## Exit Codes
+---
 
-All HEDL commands use standard exit codes:
+## Exit Codes and Scripting
+
+HEDL commands use standard exit codes:
 
 | Code | Meaning |
 |------|---------|
-| `0` | Success |
-| `1` | Error (parse error, invalid input, I/O error) |
+| 0 | Success |
+| 1 | Error (parse error, invalid input, I/O error, check failed) |
 
-**Usage in scripts:**
+This makes scripting straightforward:
+
 ```bash
 #!/bin/bash
 set -e  # Exit on any error
 
-hedl validate data.hedl || {
+# Validate first
+hedl validate data.hedl
+
+# Only convert if valid
+hedl to-json data.hedl --pretty -o output.json
+
+echo "Done!"
+```
+
+**Conditional execution:**
+
+```bash
+# Run only if validation passes
+hedl validate data.hedl && hedl to-json data.hedl -o output.json
+
+# Handle failure explicitly
+if ! hedl validate data.hedl; then
   echo "Validation failed!" >&2
   exit 1
-}
-
-hedl to-json data.hedl -o output.json
-echo "Success!"
+fi
 ```
+
+---
 
 ## Environment Variables
 
 ### HEDL_MAX_FILE_SIZE
 
-Maximum file size to process (in bytes).
+Controls the maximum file size the CLI will process. Default is 1 GB.
 
-**Default:** `1073741824` (1 GB)
-
-**Usage:**
 ```bash
-# Allow processing of 5GB files
+# Allow 5 GB files
 export HEDL_MAX_FILE_SIZE=5368709120
 
-# Process large file
-hedl validate large_file.hedl
+# Process a huge file
+hedl validate huge_data.hedl
 
 # One-time override
-HEDL_MAX_FILE_SIZE=10737418240 hedl validate huge_file.hedl
+HEDL_MAX_FILE_SIZE=10737418240 hedl validate even_bigger.hedl
 ```
 
-**Security Note:** This limit prevents out-of-memory (OOM) attacks. Set carefully based on available RAM.
+This limit is a safety measure. Processing a 100 GB file would exhaust memory. Set the limit based on your available RAM and expected file sizes.
 
-## Advanced Usage
+### RAYON_NUM_THREADS
 
-### Multi-Step Processing
-
-Process files through multiple stages:
+Controls parallelism for batch operations:
 
 ```bash
-# Validate, format, and convert
-hedl validate data.hedl && \
-  hedl format data.hedl -o formatted.hedl && \
-  hedl to-json formatted.hedl --pretty -o output.json
+# Use 4 threads
+export RAYON_NUM_THREADS=4
+hedl batch-validate *.hedl
 
-# Multi-format conversion
-hedl from-csv data.csv -t DataRow -o data.hedl && \
-  hedl format data.hedl -o formatted.hedl && \
-  hedl to-parquet formatted.hedl -o data.parquet
-
-# Download, convert, lint, and export
-curl -s https://api.example.com/data -o data.json && \
-  hedl from-json data.json -o data.hedl && \
-  hedl lint data.hedl && \
-  hedl to-yaml data.hedl -o config.yaml
+# Or inline
+RAYON_NUM_THREADS=8 hedl batch-format *.hedl --output-dir formatted/
 ```
 
-### Batch Processing Scripts
+By default, batch operations use all available CPU cores.
 
-**Validate all files before processing:**
+---
+
+## Real-World Workflows
+
+Let's put it all together with complete workflow examples.
+
+### Workflow 1: Daily Data Import
+
+You receive CSV exports daily. Convert them to HEDL for validation, then to Parquet for the data warehouse.
+
 ```bash
 #!/bin/bash
-set -e
+# daily_import.sh
 
-echo "Validating all HEDL files..."
-if ! hedl batch-validate data/*.hedl; then
+set -euo pipefail
+
+DATE=$(date +%Y-%m-%d)
+INPUT_DIR="incoming"
+HEDL_DIR="processed/hedl"
+PARQUET_DIR="warehouse"
+
+echo "[$DATE] Starting daily import..."
+
+# Convert CSVs to HEDL
+for csv in "$INPUT_DIR"/*.csv; do
+  base=$(basename "$csv" .csv)
+  echo "Converting $csv..."
+  hedl from-csv "$csv" -t "${base^}" -o "$HEDL_DIR/${base}.hedl"
+done
+
+# Validate all HEDL files
+echo "Validating..."
+hedl batch-validate "$HEDL_DIR"/*.hedl --strict || {
   echo "Validation failed!" >&2
   exit 1
-fi
-
-echo "Converting to JSON..."
-for f in data/*.hedl; do
-  hedl to-json "$f" --pretty -o "json/${f%.hedl}.json"
-done
-
-echo "Done!"
-```
-
-**Multi-format export:**
-```bash
-#!/bin/bash
-# export_all.sh - Export HEDL to multiple formats
-
-INPUT="$1"
-BASE="${INPUT%.hedl}"
-
-hedl to-json "$INPUT" --pretty -o "${BASE}.json"
-hedl to-yaml "$INPUT" -o "${BASE}.yaml"
-hedl to-xml "$INPUT" --pretty -o "${BASE}.xml"
-hedl to-csv "$INPUT" -o "${BASE}.csv"
-hedl to-parquet "$INPUT" -o "${BASE}.parquet"
-
-echo "Exported $INPUT to 5 formats"
-```
-
-### Error Handling
-
-**Robust error handling:**
-```bash
-#!/bin/bash
-
-convert_file() {
-  local input="$1"
-  local output="$2"
-
-  if [ ! -f "$input" ]; then
-    echo "Error: File not found: $input" >&2
-    return 1
-  fi
-
-  if ! hedl validate "$input" 2>/dev/null; then
-    echo "Error: Invalid HEDL: $input" >&2
-    return 1
-  fi
-
-  if ! hedl to-json "$input" --pretty -o "$output"; then
-    echo "Error: Conversion failed: $input -> $output" >&2
-    return 1
-  fi
-
-  echo "Success: $input -> $output"
-  return 0
 }
 
-# Process files
-for file in *.hedl; do
-  convert_file "$file" "${file%.hedl}.json" || true
+# Format for cleanliness
+hedl batch-format "$HEDL_DIR"/*.hedl --output-dir "$HEDL_DIR/"
+
+# Export to Parquet for warehouse
+echo "Exporting to Parquet..."
+for hedl in "$HEDL_DIR"/*.hedl; do
+  base=$(basename "$hedl" .hedl)
+  hedl to-parquet "$hedl" -o "$PARQUET_DIR/${base}_${DATE}.parquet"
 done
+
+echo "[$DATE] Import complete!"
 ```
 
-### Performance Optimization
+### Workflow 2: Pre-Commit Quality Gate
 
-**Parallel processing:**
-```bash
-# Use GNU parallel for maximum throughput
-ls *.json | parallel -j 8 'hedl from-json {} -o {.}.hedl'
+Ensure all HEDL files are valid and formatted before committing.
 
-# Batch commands use parallelism by default
-hedl batch-format *.hedl --output-dir formatted/  # Already parallel
-
-# Control parallelism via RAYON_NUM_THREADS
-export RAYON_NUM_THREADS=4
-hedl batch-validate "**/*.hedl"
-```
-
-**Memory optimization:**
-```bash
-# Process large files with streaming (future feature)
-# Current: Adjust max file size
-export HEDL_MAX_FILE_SIZE=5368709120  # 5GB
-
-# Split large files before processing
-split -l 100000 huge.csv chunk_
-for chunk in chunk_*; do
-  hedl from-csv "$chunk" -o temp.hedl && cat temp.hedl >> combined.hedl
-done
-```
-
-### Integration Examples
-
-**Git Pre-commit Hook:**
 ```bash
 #!/bin/bash
 # .git/hooks/pre-commit
 
-echo "Validating HEDL files..."
-if ! hedl batch-validate data/*.hedl --parallel; then
-  echo "❌ Commit rejected: Invalid HEDL files" >&2
+# Find staged HEDL files
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep '\.hedl$' || true)
+
+if [ -z "$staged" ]; then
+  exit 0  # No HEDL files staged
+fi
+
+echo "Checking HEDL files..."
+
+# Validate
+if ! echo "$staged" | xargs hedl batch-validate; then
+  echo "❌ Validation failed. Fix errors before committing." >&2
   exit 1
 fi
 
-echo "✅ All HEDL files valid"
+# Check formatting
+if ! echo "$staged" | xargs hedl batch-format --check; then
+  echo "❌ Files not in canonical format." >&2
+  echo "Run: hedl format <file> for each file and re-stage." >&2
+  exit 1
+fi
+
+# Lint (warnings allowed, just report)
+echo "$staged" | xargs hedl batch-lint
+
+echo "✅ All HEDL files look good!"
 ```
 
-**CI/CD Pipeline (GitHub Actions):**
-```yaml
-name: Validate HEDL
+### Workflow 3: Multi-Format Export
 
-on: [push, pull_request]
+Export a single HEDL file to every format for different consumers.
 
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Install HEDL
-        run: cargo install hedl-cli
-      - name: Validate
-        run: hedl batch-validate **/*.hedl
-      - name: Lint
-        run: hedl batch-lint **/*.hedl
-```
-
-**Data Processing Pipeline:**
 ```bash
 #!/bin/bash
-# ETL pipeline: CSV → HEDL → Validation → Parquet
+# export_all.sh <input.hedl>
 
-set -euo pipefail
+INPUT="$1"
+BASE="${INPUT%.hedl}"
 
-INPUT_DIR="input"
-OUTPUT_DIR="output"
-HEDL_DIR="temp/hedl"
+hedl validate "$INPUT" || exit 1
 
-mkdir -p "$HEDL_DIR" "$OUTPUT_DIR"
+echo "Exporting $INPUT to multiple formats..."
 
-# Extract: CSV to HEDL
-echo "Converting CSV to HEDL..."
-for csv in "$INPUT_DIR"/*.csv; do
-  base=$(basename "$csv" .csv)
-  hedl from-csv "$csv" -o "$HEDL_DIR/${base}.hedl"
-done
+# JSON for APIs
+hedl to-json "$INPUT" --pretty -o "${BASE}.json"
 
-# Transform: Validate and lint
-echo "Validating HEDL files..."
-hedl batch-validate $HEDL_DIR/*.hedl
-hedl batch-lint $HEDL_DIR/*.hedl
+# YAML for configs
+hedl to-yaml "$INPUT" -o "${BASE}.yaml"
 
-# Load: Convert to Parquet
-echo "Converting to Parquet..."
-for hedl in "$HEDL_DIR"/*.hedl; do
-  base=$(basename "$hedl" .hedl)
-  hedl to-parquet "$hedl" -o "$OUTPUT_DIR/${base}.parquet"
-done
+# XML for legacy systems
+hedl to-xml "$INPUT" --pretty -o "${BASE}.xml"
 
-echo "Pipeline complete!"
+# CSV for spreadsheets
+hedl to-csv "$INPUT" -o "${BASE}.csv"
+
+# Parquet for analytics
+hedl to-parquet "$INPUT" -o "${BASE}.parquet"
+
+# TOON for comparison
+hedl to-toon "$INPUT" -o "${BASE}.toon"
+
+echo "Created 6 formats from $INPUT"
+ls -la "${BASE}".*
+```
+
+### Workflow 4: LLM Context Optimization
+
+Prepare data for LLM consumption with maximum efficiency.
+
+```bash
+#!/bin/bash
+# optimize_for_llm.sh <input>
+
+INPUT="$1"
+OUTPUT="${INPUT%.json}.hedl"
+
+echo "Optimizing $INPUT for LLM context..."
+
+# Convert from JSON (or detect format)
+if [[ "$INPUT" == *.json ]]; then
+  hedl from-json "$INPUT" -o "$OUTPUT"
+elif [[ "$INPUT" == *.yaml ]]; then
+  hedl from-yaml "$INPUT" -o "$OUTPUT"
+elif [[ "$INPUT" == *.csv ]]; then
+  hedl from-csv "$INPUT" -t Data -o "$OUTPUT"
+else
+  echo "Unknown format: $INPUT" >&2
+  exit 1
+fi
+
+# Format with count hints
+hedl format "$OUTPUT" --with-counts -o "$OUTPUT"
+
+# Show the savings
+echo ""
+echo "Optimization results:"
+hedl stats "$OUTPUT" --tokens
+
+echo ""
+echo "Optimized file: $OUTPUT"
 ```
 
 ---
 
-**Need help?** Use `hedl <command> --help` for detailed command information, or check the [Troubleshooting Guide](troubleshooting.md) for common issues.
+## Troubleshooting Common Issues
+
+**"File not found" errors:**
+
+The CLI requires file paths, not stdin. Use:
+
+```bash
+# Correct
+hedl validate data.hedl
+
+# Not supported currently
+cat data.hedl | hedl validate -
+```
+
+**"Parse error: unexpected token":**
+
+Run `hedl inspect` to see how the parser interpreted your file. Often the issue is a missing comma, unquoted string with special characters, or indentation problem.
+
+**"Reference not found":**
+
+The referenced entity doesn't exist. Check:
+1. Is the ID spelled correctly?
+2. Is the entity defined before or after? (Both should work.)
+3. Does the entity with that ID actually exist?
+
+**Large file processing:**
+
+If you hit memory limits:
+
+```bash
+export HEDL_MAX_FILE_SIZE=5368709120  # 5 GB
+hedl validate huge_file.hedl
+```
+
+---
+
+## Quick Reference
+
+**Core commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `validate` | Check syntax and structure |
+| `format` | Canonicalize formatting |
+| `lint` | Check best practices |
+| `inspect` | Show parsed structure |
+| `stats` | Compare format sizes |
+
+**Conversion commands:**
+
+| Command | Direction |
+|---------|-----------|
+| `to-json` / `from-json` | HEDL ↔ JSON |
+| `to-yaml` / `from-yaml` | HEDL ↔ YAML |
+| `to-xml` / `from-xml` | HEDL ↔ XML |
+| `to-csv` / `from-csv` | HEDL ↔ CSV |
+| `to-parquet` / `from-parquet` | HEDL ↔ Parquet |
+| `to-toon` / `from-toon` | HEDL ↔ TOON |
+
+**Batch commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `batch-validate` | Validate multiple files |
+| `batch-format` | Format multiple files |
+| `batch-lint` | Lint multiple files |
+
+**Common options:**
+
+| Option | Meaning |
+|--------|---------|
+| `-o, --output` | Output file path |
+| `--check` | Verify without modifying |
+| `--pretty` | Human-readable output |
+| `--verbose` | Detailed progress |
+| `--strict` | Fail on any issue |
+
+---
+
+## What's Next?
+
+You now know the CLI inside and out. Here's where to go deeper:
+
+**[Formats Guide](formats.md)** covers each format conversion in detail: what converts, what doesn't, edge cases, and best practices.
+
+**[Examples](examples.md)** shows real-world patterns you can adapt: data pipelines, API compression, configuration management.
+
+**[Troubleshooting](troubleshooting.md)** helps when things go wrong.
+
+Or just start using the CLI. The best way to learn is by doing. Pick a data file you work with regularly, convert it to HEDL, and see what happens.
+
+```bash
+hedl from-json your_data.json | hedl stats - --tokens
+```
+
+The numbers will speak for themselves.

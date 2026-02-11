@@ -1,11 +1,16 @@
-%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,content]
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,content]
+%N:User>Post
+%C:User.total=2
+%C:Post.total=3
 ---
-users: @User
-  |[2] u1,Alice
-    |p1,Hello world
-    |p2,Second post
-  |[1] u2,Bob
-    |p3,Hi there
+users:@User
+ |u1,Alice
+  @Post#2:
+  |p1,Hello world
+  |p2,Second post
+ |u2,Bob
+  @Post#1:|p3,Hi there

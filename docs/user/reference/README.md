@@ -63,25 +63,25 @@ hedl batch-validate *.hedl --parallel
 
 ### Common Options
 
-| Option | Description |
+| Option |Description |
 |--------|-------------|
-| `-o, --output` | Output file path |
-| `--pretty` | Pretty-print output |
-| `--parallel` | Enable parallel processing |
-| `--help` | Show help |
+| `-o, --output` |Output file path |
+| `--pretty` |Pretty-print output |
+| `--parallel` |Enable parallel processing |
+| `--help` |Show help |
 
 ### Exit Codes
 
-| Code | Meaning |
+| Code |Meaning |
 |------|---------|
-| `0` | Success |
-| `1` | Validation error, command failure, or invalid arguments |
+| `0` |Success |
+| `1` |Validation error, command failure, or invalid arguments |
 
 ### Environment Variables
 
-| Variable | Default | Description |
+| Variable |Default |Description |
 |----------|---------|-------------|
-| `HEDL_MAX_FILE_SIZE` | 1GB | Maximum file size |
+| `HEDL_MAX_FILE_SIZE` |1GB |Maximum file size |
 
 ### Configuration Files
 

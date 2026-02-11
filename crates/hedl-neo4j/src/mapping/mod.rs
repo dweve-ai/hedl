@@ -20,8 +20,11 @@
 //! This module provides types and functions for converting between
 //! HEDL documents and Neo4j nodes and relationships.
 
+/// Mapping between HEDL nodes and Neo4j nodes.
 pub mod node;
+/// Reference to relationship mapping.
 pub mod reference;
+/// Mapping between HEDL values and Cypher values.
 pub mod value;
 
 pub use node::{

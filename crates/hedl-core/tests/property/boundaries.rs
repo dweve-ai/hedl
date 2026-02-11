@@ -47,7 +47,7 @@ proptest! {
         ];
 
         for value in test_cases {
-            let doc = format!("%VERSION: 1.0\n---\nvalue: {value}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {value}\n");
             let result = parse(doc.as_bytes());
 
             prop_assert!(result.is_ok(),
@@ -76,7 +76,7 @@ proptest! {
         ];
 
         for value in test_cases {
-            let doc = format!("%VERSION: 1.0\n---\nvalue: {value}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {value}\n");
             let result = parse(doc.as_bytes());
 
             prop_assert!(result.is_ok(),
@@ -104,7 +104,7 @@ proptest! {
         ];
 
         for (input, expect_int, expect_float) in test_cases {
-            let doc = format!("%VERSION: 1.0\n---\nvalue: {input}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {input}\n");
             let result = parse(doc.as_bytes());
 
             prop_assert!(result.is_ok(), "Failed to parse '{}': {:?}", input, result.err());
@@ -113,7 +113,7 @@ proptest! {
             let val = parsed.get("value").unwrap().as_scalar().unwrap();
 
             if expect_int {
-                prop_assert!(val.as_int().is_some() || val.as_float().is_some(),
+                prop_assert!(val.as_int().is_some() ||val.as_float().is_some(),
                     "Zero '{}' should parse as number", input);
             }
             if expect_float {
@@ -126,7 +126,7 @@ proptest! {
     /// Property: Empty strings are handled correctly.
     #[test]
     fn prop_empty_string_handled(_seed in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\nvalue: \"\"\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: \"\"\n";
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse empty string: {:?}", result.err());
@@ -139,7 +139,7 @@ proptest! {
     /// Property: Single-space strings are preserved.
     #[test]
     fn prop_single_space_preserved(_seed in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\nvalue: \" \"\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: \" \"\n";
 
         let result = parse(doc.as_bytes());
         if result.is_ok() {
@@ -157,14 +157,14 @@ proptest! {
     /// Property: Nesting up to depth 10 succeeds.
     #[test]
     fn prop_moderate_nesting_succeeds(depth in 1_usize..10) {
-        let mut doc = String::from("%VERSION: 1.0\n---\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
         for d in 0..depth {
-            let indent = "  ".repeat(d);
+            let indent = " ".repeat(d);
             doc.push_str(&format!("{indent}level{d}:\n"));
         }
 
-        let indent = "  ".repeat(depth);
+        let indent = " ".repeat(depth);
         doc.push_str(&format!("{indent}value: 42\n"));
 
         let result = parse(doc.as_bytes());
@@ -176,18 +176,18 @@ proptest! {
     fn prop_wide_schema_handled(column_count in 5_usize..50) {
         // First field must be 'id' for the identifier column
         let fields = std::iter::once("id".to_string())
-            .chain((1..column_count).map(|i| format!("field{i}")))
+            .chain((1..column_count).map(|i|format!("field{i}")))
             .collect::<Vec<_>>()
             .join(", ");
 
         // First value must be a string identifier
         let values = std::iter::once("item0".to_string())
-            .chain((1..column_count).map(|i| i.to_string()))
+            .chain((1..column_count).map(|i|i.to_string()))
             .collect::<Vec<_>>()
             .join(", ");
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [{fields}]\n---\nitems: @T\n  | {values}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[{fields}]\n---\nitems:@T\n |{values}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -202,10 +202,10 @@ proptest! {
     /// Property: Many object keys are handled.
     #[test]
     fn prop_many_object_keys(key_count in 10_usize..100) {
-        let mut doc = String::from("%VERSION: 1.0\n---\nobj:\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nobj:\n");
 
         for i in 0..key_count {
-            doc.push_str(&format!("  key{i}: {i}\n"));
+            doc.push_str(&format!(" key{i}: {i}\n"));
         }
 
         let result = parse(doc.as_bytes());
@@ -220,7 +220,7 @@ proptest! {
     /// Property: Empty objects parse correctly.
     #[test]
     fn prop_empty_object_parses(_seed in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\nobj:\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nobj:\n";
 
         let result = parse(doc.as_bytes());
         if result.is_ok() {
@@ -237,7 +237,7 @@ proptest! {
     #[test]
     fn prop_empty_list_parses(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -252,7 +252,7 @@ proptest! {
     #[test]
     fn prop_single_row_list(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | id1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n |id1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -269,18 +269,18 @@ proptest! {
         let column_count = 100;
         // First field must be 'id' for the identifier column
         let fields = std::iter::once("id".to_string())
-            .chain((1..column_count).map(|i| format!("f{i}")))
+            .chain((1..column_count).map(|i|format!("f{i}")))
             .collect::<Vec<_>>()
             .join(", ");
 
         // First value must be a string identifier
         let values = std::iter::once("row0".to_string())
-            .chain((1..column_count).map(|_| "0".to_string()))
+            .chain((1..column_count).map(|_|"0".to_string()))
             .collect::<Vec<_>>()
             .join(", ");
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [{fields}]\n---\nitems: @T\n  | {values}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[{fields}]\n---\nitems:@T\n |{values}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -294,7 +294,7 @@ proptest! {
         let long_id = format!("{id_prefix}{id_suffix}");
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n  | {long_id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id]\n---\nitems:@T\n |{long_id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -309,11 +309,11 @@ proptest! {
     /// Property: Many aliases (up to 100) are supported.
     #[test]
     fn prop_many_aliases_supported(alias_count in 10_usize..100) {
-        let mut doc = String::from("%VERSION: 1.0\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
 
-        // HEDL alias syntax: %ALIAS: %key: "value"
+        // HEDL v2.0 alias syntax: %A:%key:"value"
         for i in 0..alias_count {
-            doc.push_str(&format!("%ALIAS: %alias{i}: \"value{i}\"\n"));
+            doc.push_str(&format!("%A:%alias{i}:\"value{i}\"\n"));
         }
 
         doc.push_str("---\nvalue: 1\n");
@@ -338,7 +338,7 @@ proptest! {
         ];
 
         for content in test_cases {
-            let doc = format!("%VERSION: 1.0\n---\nvalue: {content}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {content}\n");
             let result = parse(doc.as_bytes());
 
             prop_assert!(result.is_ok(),
@@ -357,26 +357,26 @@ mod nest_boundaries {
         /// Property: NEST hierarchy with moderate depth works.
         #[test]
         fn prop_nest_depth_moderate(depth in 2_usize..5) {
-            let types: Vec<String> = (0..depth).map(|i| format!("Type{i}")).collect();
+            let types: Vec<String> = (0..depth).map(|i|format!("Type{i}")).collect();
 
-            let mut doc = String::from("%VERSION: 1.0\n");
+            let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
 
             for t in &types {
-                doc.push_str(&format!("%STRUCT: {t}: [id]\n"));
+                doc.push_str(&format!("%S:{t}:[id]\n"));
             }
 
             for i in 0..types.len()-1 {
-                doc.push_str(&format!("%NEST: {} > {}\n", types[i], types[i+1]));
+                doc.push_str(&format!("%N:{}>{}\n", types[i], types[i+1]));
             }
 
             // Start with root type
-            doc.push_str(&format!("---\nroot: @{}\n  | root0\n", types[0]));
+            doc.push_str(&format!("---\nroot:@{}\n |root0\n", types[0]));
 
             // Child rows are simply indented further, no @Type needed
             // Each level needs one more indent than the parent
             for i in 1..depth {
-                let indent = "  ".repeat(i + 1);
-                doc.push_str(&format!("{indent}| child{i}\n"));
+                let indent = " ".repeat(i + 1);
+                doc.push_str(&format!("{indent}|child{i}\n"));
             }
 
             let result = parse(doc.as_bytes());
@@ -393,7 +393,7 @@ mod nest_boundaries {
             prop_assume!(parent_type != child_type);
 
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type}: [id]\n%NEST: {parent_type} > {child_type}\n---\nparents: @{parent_type}\n  | parent1\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type}:[id]\n%N:{parent_type}>{child_type}\n---\nparents:@{parent_type}\n |parent1\n"
             );
 
             let result = parse(doc.as_bytes());

@@ -94,11 +94,11 @@ impl AtomicInstant {
     }
 
     fn store(&self, instant: Instant) {
-        *self.inner.write().unwrap() = instant;
+        *self.inner.write().expect("lock not poisoned") = instant;
     }
 
     fn load(&self) -> Instant {
-        *self.inner.read().unwrap()
+        *self.inner.read().expect("lock not poisoned")
     }
 }
 
@@ -109,7 +109,7 @@ impl Clone for AtomicInstant {
 }
 
 /// Session manager for tracking and validating sessions.
-pub struct SessionManager {
+pub struct SessionRegistry {
     /// Active sessions.
     sessions: Arc<DashMap<SessionId, Session>>,
 
@@ -117,7 +117,7 @@ pub struct SessionManager {
     config: SessionConfig,
 }
 
-impl SessionManager {
+impl SessionRegistry {
     /// Create a new session manager.
     ///
     /// # Arguments
@@ -247,7 +247,7 @@ impl SessionManager {
     }
 }
 
-impl Default for SessionManager {
+impl Default for SessionRegistry {
     fn default() -> Self {
         Self::new(SessionConfig::default())
     }
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_session_create_and_validate() {
-        let manager = SessionManager::new(SessionConfig::default());
+        let manager = SessionRegistry::new(SessionConfig::default());
 
         let metadata = ClientMetadata {
             client_id: "test-client".to_string(),
@@ -281,7 +281,7 @@ mod tests {
             ..Default::default()
         };
 
-        let manager = SessionManager::new(config);
+        let manager = SessionRegistry::new(config);
 
         let metadata = ClientMetadata {
             client_id: "test-client".to_string(),
@@ -305,7 +305,7 @@ mod tests {
             ..Default::default()
         };
 
-        let manager = SessionManager::new(config);
+        let manager = SessionRegistry::new(config);
 
         let metadata = ClientMetadata {
             client_id: "test-client".to_string(),
@@ -329,7 +329,7 @@ mod tests {
             ..Default::default()
         };
 
-        let manager = SessionManager::new(config);
+        let manager = SessionRegistry::new(config);
 
         let metadata = ClientMetadata {
             client_id: "test-client".to_string(),
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_session_end() {
-        let manager = SessionManager::new(SessionConfig::default());
+        let manager = SessionRegistry::new(SessionConfig::default());
 
         let metadata = ClientMetadata {
             client_id: "test-client".to_string(),
@@ -379,7 +379,7 @@ mod tests {
             ..Default::default()
         };
 
-        let manager = SessionManager::new(config);
+        let manager = SessionRegistry::new(config);
 
         let metadata = ClientMetadata {
             client_id: "test-client".to_string(),

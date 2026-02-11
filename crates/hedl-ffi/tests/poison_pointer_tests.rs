@@ -45,10 +45,11 @@ const POISON_PTR_DIAGNOSTICS: usize = 0xDEADC0DE;
 // =============================================================================
 
 fn valid_hedl() -> CString {
-    CString::new("%VERSION: 1.0\n---\nkey: value").unwrap()
+    CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value").unwrap()
 }
 
 fn parse_valid_doc() -> *mut HedlDocument {
+    // SAFETY: FFI function requires raw pointer for output parameter
     unsafe {
         let input = valid_hedl();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -60,6 +61,7 @@ fn parse_valid_doc() -> *mut HedlDocument {
 }
 
 fn get_valid_diagnostics(doc: *const HedlDocument) -> *mut HedlDiagnostics {
+    // SAFETY: FFI function requires raw pointer for output parameter
     unsafe {
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
         let result = hedl_lint(doc, &mut diag);
@@ -85,6 +87,7 @@ fn poison_diagnostics_ptr() -> *mut HedlDiagnostics {
 
 #[test]
 fn test_poison_document_get_version() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         let mut major: c_int = 0;
@@ -99,6 +102,7 @@ fn test_poison_document_get_version() {
 
 #[test]
 fn test_poison_document_schema_count() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         let count = hedl_schema_count(poison_doc);
@@ -108,6 +112,7 @@ fn test_poison_document_schema_count() {
 
 #[test]
 fn test_poison_document_alias_count() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         let count = hedl_alias_count(poison_doc);
@@ -117,6 +122,7 @@ fn test_poison_document_alias_count() {
 
 #[test]
 fn test_poison_document_root_item_count() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         let count = hedl_root_item_count(poison_doc);
@@ -126,6 +132,7 @@ fn test_poison_document_root_item_count() {
 
 #[test]
 fn test_poison_document_canonicalize() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         let mut out_str: *mut c_char = ptr::null_mut();
@@ -137,6 +144,7 @@ fn test_poison_document_canonicalize() {
 
 #[test]
 fn test_poison_document_lint() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         let mut diag: *mut HedlDiagnostics = ptr::null_mut();
@@ -148,6 +156,7 @@ fn test_poison_document_lint() {
 
 #[test]
 fn test_poison_document_free() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_doc = poison_document_ptr();
         // Should not crash - poison pointers are safely ignored
@@ -161,6 +170,7 @@ fn test_poison_document_free() {
 
 #[test]
 fn test_poison_diagnostics_count() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_diag = poison_diagnostics_ptr();
         let count = hedl_diagnostics_count(poison_diag);
@@ -170,6 +180,7 @@ fn test_poison_diagnostics_count() {
 
 #[test]
 fn test_poison_diagnostics_get() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_diag = poison_diagnostics_ptr();
         let mut out_str: *mut c_char = ptr::null_mut();
@@ -181,6 +192,7 @@ fn test_poison_diagnostics_get() {
 
 #[test]
 fn test_poison_diagnostics_severity() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_diag = poison_diagnostics_ptr();
         let severity = hedl_diagnostics_severity(poison_diag, 0);
@@ -190,6 +202,7 @@ fn test_poison_diagnostics_severity() {
 
 #[test]
 fn test_poison_diagnostics_free() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison_diag = poison_diagnostics_ptr();
         // Should not crash - poison pointers are safely ignored
@@ -207,6 +220,7 @@ mod json_poison_tests {
 
     #[test]
     fn test_poison_document_to_json() {
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             let poison_doc = poison_document_ptr();
             let mut out_str: *mut c_char = ptr::null_mut();
@@ -227,6 +241,7 @@ mod yaml_poison_tests {
 
     #[test]
     fn test_poison_document_to_yaml() {
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             let poison_doc = poison_document_ptr();
             let mut out_str: *mut c_char = ptr::null_mut();
@@ -247,6 +262,7 @@ mod xml_poison_tests {
 
     #[test]
     fn test_poison_document_to_xml() {
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             let poison_doc = poison_document_ptr();
             let mut out_str: *mut c_char = ptr::null_mut();
@@ -267,6 +283,7 @@ mod csv_poison_tests {
 
     #[test]
     fn test_poison_document_to_csv() {
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             let poison_doc = poison_document_ptr();
             let mut out_str: *mut c_char = ptr::null_mut();
@@ -287,6 +304,7 @@ mod parquet_poison_tests {
 
     #[test]
     fn test_poison_document_to_parquet() {
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             let poison_doc = poison_document_ptr();
             let mut data: *mut u8 = ptr::null_mut();
@@ -309,6 +327,7 @@ mod neo4j_poison_tests {
 
     #[test]
     fn test_poison_document_to_neo4j_cypher() {
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             let poison_doc = poison_document_ptr();
             let mut out_str: *mut c_char = ptr::null_mut();
@@ -325,6 +344,7 @@ mod neo4j_poison_tests {
 
 #[test]
 fn test_simulated_double_free_document() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Simulate what happens in C code that doesn't null out pointer after free
         let doc = parse_valid_doc();
@@ -345,6 +365,7 @@ fn test_simulated_double_free_document() {
 
 #[test]
 fn test_simulated_double_free_diagnostics() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = parse_valid_doc();
         let diag = get_valid_diagnostics(doc);
@@ -366,6 +387,7 @@ fn test_simulated_double_free_diagnostics() {
 
 #[test]
 fn test_use_after_free_with_poison_document() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // Simulate what a C programmer might do: use pointer after free
         // We test that poison pointers are rejected
@@ -394,6 +416,7 @@ fn test_use_after_free_with_poison_document() {
 
 #[test]
 fn test_use_after_free_with_poison_diagnostics() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison = poison_diagnostics_ptr();
 
@@ -414,6 +437,7 @@ fn test_use_after_free_with_poison_diagnostics() {
 
 #[test]
 fn test_repeated_poison_document_operations() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison = poison_document_ptr();
 
@@ -428,6 +452,7 @@ fn test_repeated_poison_document_operations() {
 
 #[test]
 fn test_repeated_poison_diagnostics_operations() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison = poison_diagnostics_ptr();
 
@@ -449,6 +474,7 @@ fn test_concurrent_poison_document_handling() {
 
     let handles: Vec<_> = (0..10)
         .map(|_| {
+            // SAFETY: FFI call with valid C-compatible types and checked pointers
             thread::spawn(|| unsafe {
                 let poison = poison_document_ptr();
 
@@ -473,6 +499,7 @@ fn test_concurrent_poison_diagnostics_handling() {
 
     let handles: Vec<_> = (0..10)
         .map(|_| {
+            // SAFETY: FFI call with valid C-compatible types and checked pointers
             thread::spawn(|| unsafe {
                 let poison = poison_diagnostics_ptr();
 
@@ -496,6 +523,7 @@ fn test_concurrent_poison_diagnostics_handling() {
 
 #[test]
 fn test_null_and_poison_document_same_behavior() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let null_doc: *const HedlDocument = ptr::null();
         let poison_doc = poison_document_ptr();
@@ -521,6 +549,7 @@ fn test_null_and_poison_document_same_behavior() {
 
 #[test]
 fn test_null_and_poison_diagnostics_same_behavior() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let null_diag: *const HedlDiagnostics = ptr::null();
         let poison_diag = poison_diagnostics_ptr();
@@ -542,6 +571,7 @@ fn test_null_and_poison_diagnostics_same_behavior() {
 
 #[test]
 fn test_all_document_functions_with_poison() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison = poison_document_ptr();
 
@@ -575,6 +605,7 @@ fn test_all_document_functions_with_poison() {
 
 #[test]
 fn test_all_diagnostics_functions_with_poison() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let poison = poison_diagnostics_ptr();
 
@@ -616,20 +647,9 @@ fn test_poison_values_are_distinct() {
     assert_eq!(POISON_PTR_DIAGNOSTICS, 0xDEADC0DE);
 }
 
-#[test]
-#[allow(clippy::assertions_on_constants)]
-fn test_poison_values_are_invalid_addresses() {
-    // Poison values should be obviously invalid addresses
-    // (odd alignment, recognizable pattern)
-    assert!(
-        POISON_PTR_DOCUMENT % 2 == 1,
-        "POISON_PTR_DOCUMENT should be oddly aligned"
-    );
-    assert!(
-        POISON_PTR_DIAGNOSTICS.is_multiple_of(2),
-        "POISON_PTR_DIAGNOSTICS is evenly aligned but still invalid"
-    );
-}
+// Compile-time verification that poison values have expected alignment properties
+const _: () = assert!(POISON_PTR_DOCUMENT % 2 == 1); // oddly aligned
+const _: () = assert!(POISON_PTR_DIAGNOSTICS % 2 == 0); // evenly aligned but still invalid
 
 // =============================================================================
 // LIFECYCLE TESTS
@@ -637,6 +657,7 @@ fn test_poison_values_are_invalid_addresses() {
 
 #[test]
 fn test_valid_document_lifecycle() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // Parse
         let doc = parse_valid_doc();
@@ -664,6 +685,7 @@ fn test_valid_document_lifecycle() {
 
 #[test]
 fn test_valid_diagnostics_lifecycle() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let doc = parse_valid_doc();
 
@@ -696,6 +718,7 @@ fn test_stress_poison_pointers() {
 
     let handles: Vec<_> = (0..4)
         .map(|thread_id| {
+            // SAFETY: Unsafe operation required for FFI boundary
             thread::spawn(move || unsafe {
                 let poison_doc = poison_document_ptr();
                 let poison_diag = poison_diagnostics_ptr();

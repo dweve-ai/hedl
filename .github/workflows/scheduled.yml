@@ -9,6 +9,7 @@ jobs:
   annual-unsafe-audit:
     name: Annual Unsafe Code Audit Reminder
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,5 +29,5 @@ jobs:
 
       - name: Check dependency audits
         run: |
-          cargo install cargo-audit
+          cargo install cargo-audit --locked
           cargo audit --deny warnings

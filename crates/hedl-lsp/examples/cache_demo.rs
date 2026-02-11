@@ -56,7 +56,7 @@ async fn main() {
                 language_id: "hedl".to_string(),
                 version: 1,
                 text: format!(
-                    "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | user{i}, User {i}\n"
+                    "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |user{i}, User {i}\n"
                 ),
             },
         };
@@ -80,7 +80,7 @@ async fn main() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: format!("%VERSION: 1.0\n---\nvalue: {i}\n"),
+                text: format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {i}\n"),
             },
         };
         server.did_open(params).await;
@@ -108,7 +108,7 @@ async fn main() {
         content_changes: vec![TextDocumentContentChangeEvent {
             range: None,
             range_length: None,
-            text: "%VERSION: 1.0\n---\nvalue: 14 (modified)\n".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: 14 (modified)\n".to_string(),
         }],
     };
     server.did_change(change_params).await;
@@ -142,7 +142,7 @@ async fn main() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: format!("%VERSION: 1.0\n---\nvalue: {i}\n"),
+                text: format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {i}\n"),
             },
         };
         server.did_open(params).await;

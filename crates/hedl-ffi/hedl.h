@@ -63,7 +63,9 @@
  * #include <stdlib.h>
  *
  * int main() {
- *     const char* hedl_source = "%VERSION: 1.0
+ *     const char* hedl_source = "%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 name: Alice
 age: 30

@@ -23,7 +23,7 @@ pub fn canonicalize(doc: &Document) -> Result<String, HedlError>
 ```rust
 use hedl::{parse, canonicalize};
 
-let doc = parse("%VERSION: 1.0\n---\nb: 2\na: 1")?;
+let doc = parse("%V:2.0\n---\nb: 2\na: 1")?;
 let canonical = canonicalize(&doc)?;
 // Keys sorted: a before b
 ```
@@ -53,7 +53,6 @@ use hedl::c14n::{canonicalize_with_config, CanonicalConfig, QuotingStrategy};
 
 let config = CanonicalConfig::new()
     .with_quoting(QuotingStrategy::Minimal)
-    .with_ditto(true)
     .with_sort_keys(true);
 
 let canonical = canonicalize_with_config(&doc, &config)?;
@@ -66,13 +65,13 @@ Count hints are automatically managed during canonicalization for matrix lists. 
 ```rust
 use hedl_c14n::add_count_hints;
 
-let mut doc = hedl::parse("%VERSION: 1.0\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob")?;
+let mut doc = hedl::parse("%V:2.0\n---\nusers:@User\n |alice,Alice\n |bob,Bob")?;
 
 // Add count hints to all matrix lists
 add_count_hints(&mut doc);
 
 let canonical = hedl::canonicalize(&doc)?;
-// Output includes count: users: @User[2]
+// Output includes count: users:@User[2]
 ```
 
 For most use cases, count hints are handled automatically during serialization. The `add_count_hints()` function is available directly from `hedl-c14n` crate if needed.
@@ -98,7 +97,7 @@ pub fn to_json(doc: &Document) -> Result<String, HedlError>
 ```rust
 use hedl::{parse, to_json};
 
-let doc = parse("%VERSION: 1.0\n---\nkey: value")?;
+let doc = parse("%V:2.0\n---\nkey: value")?;
 let json = to_json(&doc)?;
 // JSON output includes the key-value pair
 ```
@@ -490,7 +489,6 @@ pub enum SurrogatePolicy {
 ```rust
 pub struct CanonicalConfig {
     pub quoting: QuotingStrategy,  // String quoting strategy
-    pub use_ditto: bool,           // Use ditto optimization in matrix rows
     pub sort_keys: bool,           // Sort object keys alphabetically
     pub inline_schemas: bool,      // Use inline schemas vs header directives
 }

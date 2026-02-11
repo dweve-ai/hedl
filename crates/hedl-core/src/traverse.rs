@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_traverse_empty_document() {
-        let hedl = "%VERSION: 1.0\n---\n";
+        let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
         let doc = parse(hedl.as_bytes()).unwrap();
 
         let mut stats = StatsCollector::default();
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_traverse_scalars() {
-        let hedl = "%VERSION: 1.0\n---\nname: Test\ncount: 42\n";
+        let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: Test\ncount: 42\n";
         let doc = parse(hedl.as_bytes()).unwrap();
 
         let mut stats = StatsCollector::default();
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_traverse_nested_objects() {
-        let hedl = "%VERSION: 1.0\n---\nouter:\n  inner:\n    value: 42\n";
+        let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nouter:\n inner:\n  value: 42\n";
         let doc = parse(hedl.as_bytes()).unwrap();
 
         let mut stats = StatsCollector::default();
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_traverse_list() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\n";
         let doc = parse(hedl.as_bytes()).unwrap();
 
         let mut stats = StatsCollector::default();
@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_traverse_nested_nodes() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id]\n%STRUCT: Post: [id]\n%NEST: User > Post\n---\nusers: @User\n  | alice\n    | post1\n    | post2\n";
+        let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n%S:Post:[id]\n%N:User>Post\n---\nusers:@User\n |alice\n  |post1\n  |post2\n";
         let doc = parse(hedl.as_bytes()).unwrap();
 
         let mut stats = StatsCollector::default();
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_visitor_context_path() {
-        let hedl = "%VERSION: 1.0\n---\na:\n  b:\n    c: 42\n";
+        let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na:\n b:\n  c: 42\n";
         let doc = parse(hedl.as_bytes()).unwrap();
 
         struct PathCollector {

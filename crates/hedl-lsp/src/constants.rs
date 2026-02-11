@@ -171,6 +171,12 @@ pub const DEFAULT_REFERENCE_WIDTH: u32 = 10;
 mod tests {
     use super::*;
 
+    /// Pass a value through a function to prevent clippy from seeing it as a
+    /// compile-time constant, enabling range assertions in tests.
+    fn val<T>(v: T) -> T {
+        v
+    }
+
     #[test]
     fn test_byte_conversions() {
         // Verify megabyte conversion is correct
@@ -179,41 +185,47 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::assertions_on_constants)]
-    #[allow(clippy::identity_op)]
     fn test_reasonable_limits() {
         // Sanity checks for configured limits
         assert!(
-            DEBOUNCE_MS >= 50,
+            val(DEBOUNCE_MS) >= 50,
             "Debounce too short, will cause excessive CPU"
         );
-        assert!(DEBOUNCE_MS <= 500, "Debounce too long, will feel laggy");
+        assert!(
+            val(DEBOUNCE_MS) <= 500,
+            "Debounce too long, will feel laggy"
+        );
 
         assert!(
-            DEFAULT_MAX_CACHE_SIZE >= 100,
+            val(DEFAULT_MAX_CACHE_SIZE) >= 100,
             "Cache too small for normal usage"
         );
         assert!(
-            DEFAULT_MAX_CACHE_SIZE <= 10000,
+            val(DEFAULT_MAX_CACHE_SIZE) <= 10000,
             "Cache too large, excessive memory"
         );
 
         assert!(
-            DEFAULT_MAX_DOCUMENT_SIZE >= 1 * BYTES_PER_MEGABYTE,
+            val(DEFAULT_MAX_DOCUMENT_SIZE) >= BYTES_PER_MEGABYTE,
             "Document limit too small for real files"
         );
         assert!(
-            DEFAULT_MAX_DOCUMENT_SIZE <= 2048 * BYTES_PER_MEGABYTE,
+            val(DEFAULT_MAX_DOCUMENT_SIZE) <= 2048 * BYTES_PER_MEGABYTE,
             "Document limit too large, risk of OOM"
         );
     }
 
     #[test]
-    #[allow(clippy::assertions_on_constants)]
     fn test_lsp_protocol_constants() {
         // Verify LSP-related constants are reasonable
-        assert!(DIAGNOSTIC_LINE_END_CHAR >= 100, "Too small for long lines");
-        assert!(DIAGNOSTIC_LINE_END_CHAR <= 10000, "Unnecessarily large");
+        assert!(
+            val(DIAGNOSTIC_LINE_END_CHAR) >= 100,
+            "Too small for long lines"
+        );
+        assert!(
+            val(DIAGNOSTIC_LINE_END_CHAR) <= 10000,
+            "Unnecessarily large"
+        );
 
         assert_eq!(
             SYMBOL_LINE_END_CHAR, DIAGNOSTIC_LINE_END_CHAR,

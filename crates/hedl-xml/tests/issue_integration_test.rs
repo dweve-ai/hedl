@@ -75,7 +75,7 @@ fn test_all_issues_comprehensive_integration() {
 
     // ISSUE 2 & 3 FIX: Proper schema for children and no duplication
     // Create a document with nested children that have complex schemas
-    let mut test_doc = Document::new((1, 0));
+    let mut test_doc = Document::new((2, 0));
 
     // Register schemas with multiple fields
     test_doc.structs.insert(
@@ -336,7 +336,7 @@ fn test_issue1_namespace_edge_cases() {
 /// Test proper schema usage in deeply nested hierarchies
 #[test]
 fn test_issue2_deep_nesting_with_schemas() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Register 4 levels of schemas
     for level in 1..=4 {
@@ -441,7 +441,7 @@ fn test_issue2_deep_nesting_with_schemas() {
 /// Test `use_attributes` with complex mixed scenarios
 #[test]
 fn test_issue3_no_duplication_comprehensive() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.structs.insert(
         "Record".to_string(),

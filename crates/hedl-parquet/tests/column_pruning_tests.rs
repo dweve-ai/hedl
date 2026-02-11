@@ -7,11 +7,7 @@
 // Comprehensive tests for column pruning / projection pushdown functionality.
 // Tests the ability to read only specific columns from Parquet files for
 // performance optimization on wide tables.
-
-// Allow approximate float constants in tests - these are intentional test values
-#![allow(clippy::approx_constant)]
 // Allow single_match for proptest tuple destructuring patterns
-#![allow(clippy::single_match)]
 
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_parquet::{
@@ -26,7 +22,7 @@ use proptest::prelude::*;
 
 /// Create a test document with a specified number of columns and rows.
 fn create_wide_table_document(num_columns: usize, num_rows: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Build schema: id, col_1, col_2, ..., col_N
     let mut schema = vec!["id".to_string()];
@@ -58,7 +54,7 @@ fn create_wide_table_document(num_columns: usize, num_rows: usize) -> Document {
 
 /// Create a document with specific column types for testing type preservation.
 fn create_typed_document() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let schema = vec![
         "id".to_string(),
@@ -77,7 +73,7 @@ fn create_typed_document() -> Document {
         vec![
             Value::String("row1".to_string().into()),
             Value::Int(42),
-            Value::Float(3.14159),
+            Value::Float(4.56789),
             Value::Bool(true),
             Value::String("hello".to_string().into()),
             Value::Int(100),
@@ -90,7 +86,7 @@ fn create_typed_document() -> Document {
         vec![
             Value::String("row2".to_string().into()),
             Value::Int(-999),
-            Value::Float(-2.71828),
+            Value::Float(-5.67891),
             Value::Bool(false),
             Value::String("world".to_string().into()),
             Value::Null,
@@ -512,7 +508,7 @@ fn test_select_preserves_bool_type() {
 
 #[test]
 fn test_select_from_empty_table() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "name".to_string(), "value".to_string()];
     let matrix_list = MatrixList::new("EmptyTable", schema.clone());
     doc.root.insert("data".to_string(), Item::List(matrix_list));
@@ -636,12 +632,10 @@ proptest! {
             let default_result = from_parquet_bytes(&bytes);
 
             // Both should succeed or both should fail
-            match (select_result, default_result) {
-                (Ok(sel), Ok(def)) => {
-                    // Should have same root key count
-                    prop_assert_eq!(sel.root.len(), def.root.len());
-                }
-                _ => {} // Both failing is acceptable for edge cases
+            // (Both failing is acceptable for edge cases)
+            if let (Ok(sel), Ok(def)) = (select_result, default_result) {
+                // Should have same root key count
+                prop_assert_eq!(sel.root.len(), def.root.len());
             }
         }
     }
@@ -711,7 +705,7 @@ fn test_repeated_selection_consistency() {
 
 #[test]
 fn test_single_row_single_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("Tiny", schema.clone());
     matrix_list.add_row(Node::new(

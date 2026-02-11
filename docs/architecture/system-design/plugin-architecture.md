@@ -916,7 +916,7 @@ impl Plugin for CustomPlugin {
             version: "1.0.0".to_string(),
             author: "Developer".to_string(),
             description: "Custom plugin".to_string(),
-            hedl_version_requirement: "^1.0".to_string(),
+            hedl_version_requirement: "^2.0".to_string(),
         }
     }
 }

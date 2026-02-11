@@ -1,18 +1,18 @@
 # Python SDK Documentation
 
-Python bindings for HEDL (if/when available).
+Python bindings for HEDL via the FFI library.
 
 ## Status
 
-Python bindings for HEDL are planned but not yet implemented. This page documents the intended API.
+Python bindings are available in `bindings/python/`. They wrap the C FFI library to provide a native Python API.
 
-## Planned Installation
+## Installation
 
 ```bash
 pip install hedl-python
 ```
 
-## Planned API
+## API
 
 ### Basic Usage
 
@@ -76,9 +76,9 @@ def process_document(doc: Document) -> Dict[str, Any]:
     return result
 ```
 
-## Alternative: FFI via ctypes
+## Low-Level: FFI via ctypes
 
-Until Python bindings are available, you can use the FFI library via ctypes:
+For direct FFI access without the Python wrapper, you can use ctypes:
 
 ```python
 from ctypes import *
@@ -463,4 +463,4 @@ Interested in creating Python bindings? See:
 
 - [FFI API Reference](../ffi-api.md) - C interface
 - [C/C++ SDK](c-cpp.md) - FFI examples
-- [GitHub Issues](https://github.com/dweve/hedl/issues) - Request Python bindings
+- [GitHub Issues](https://github.com/dweve-ai/hedl/issues) - Request Python bindings

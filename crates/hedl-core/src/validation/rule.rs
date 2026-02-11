@@ -133,7 +133,7 @@ pub trait Rule: Send + Sync {
     /// Check if this rule supports automatic fixes.
     ///
     /// Default implementation returns false. Override to true if the rule
-    /// can provide [`DiagnosticFix`] suggestions.
+    /// can provide [`super::DiagnosticFix`] suggestions.
     fn supports_auto_fix(&self) -> bool {
         false
     }

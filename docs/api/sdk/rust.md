@@ -8,13 +8,13 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-hedl = "1.2"
+hedl = "2.0"
 
 # With all features
-hedl = { version = "1.2", features = ["all-formats"] }
+hedl = { version = "2.0", features = ["all-formats"] }
 
 # Selective features
-hedl = { version = "1.2", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
+hedl = { version = "2.0", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
 ```
 
 ## Quick Start
@@ -24,7 +24,7 @@ use hedl::{parse, to_json, canonicalize};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse HEDL
-    let doc = parse("%VERSION: 1.0\n---\nkey: value")?;
+    let doc = parse("%V:2.0\n---\nkey: value")?;
 
     // Convert to JSON
     let json = to_json(&doc)?;
@@ -137,11 +137,13 @@ match value.as_int() {
 use hedl::{parse, Item};
 
 let doc = parse(r#"
-%VERSION: 1.0
-%STRUCT: User: [id,name,email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice, alice@example.com
+users:@User
+ |alice,Alice, alice@example.com
 "#)?;
 
 for (key, item) in &doc.root {
@@ -184,7 +186,6 @@ use hedl::c14n::{CanonicalConfig, QuotingStrategy, canonicalize_with_config};
 
 // Build custom canonicalization config
 let config = CanonicalConfig::builder()
-    .use_ditto(true)
     .sort_keys(true)
     .quoting(QuotingStrategy::Minimal)
     .inline_schemas(false)
@@ -302,7 +303,6 @@ use hedl::c14n::{CanonicalConfig, QuotingStrategy, canonicalize_with_config};
 // Using builder pattern
 let config = CanonicalConfig::builder()
     .quoting(QuotingStrategy::Minimal)
-    .use_ditto(true)
     .sort_keys(true)
     .build();
 
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip() {
-        let input = "%VERSION: 1.0\n---\nkey: value";
+        let input = "%V:2.0\n---\nkey: value";
         let doc = parse(input).unwrap();
         let json = to_json(&doc).unwrap();
         assert!(json.contains("\"key\""));

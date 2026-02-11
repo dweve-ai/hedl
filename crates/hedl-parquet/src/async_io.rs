@@ -191,7 +191,7 @@ pub async fn from_parquet_bytes_with_config_async(
 /// use hedl_parquet::async_io::to_parquet_async;
 /// use std::path::Path;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// to_parquet_async(&doc, Path::new("output.parquet")).await.unwrap();
 /// # }
 /// ```
@@ -211,7 +211,7 @@ pub async fn to_parquet_async(doc: &Document, path: &Path) -> Result<(), HedlErr
 /// use hedl_parquet::ToParquetConfig;
 /// use std::path::Path;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let config = ToParquetConfig::default();
 /// to_parquet_with_config_async(&doc, Path::new("output.parquet"), &config).await.unwrap();
 /// # }
@@ -250,7 +250,7 @@ pub async fn to_parquet_with_config_async(
 /// use hedl_core::Document;
 /// use hedl_parquet::async_io::to_parquet_bytes_async;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let bytes = to_parquet_bytes_async(&doc).await.unwrap();
 /// # }
 /// ```
@@ -272,7 +272,7 @@ pub async fn to_parquet_bytes_async(doc: &Document) -> Result<Vec<u8>, HedlError
 /// use hedl_parquet::async_io::to_parquet_bytes_with_config_async;
 /// use hedl_parquet::ToParquetConfig;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let config = ToParquetConfig::default();
 /// let bytes = to_parquet_bytes_with_config_async(&doc, &config).await.unwrap();
 /// # }
@@ -299,7 +299,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_roundtrip_async() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("TestEntity", vec!["id".to_string(), "name".to_string()]);
         list.rows.push(Node::new(
             "TestEntity",
@@ -324,7 +324,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bytes_roundtrip_async() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
         list.rows.push(Node::new(
             "Item",

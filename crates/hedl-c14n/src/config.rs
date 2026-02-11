@@ -71,7 +71,7 @@ pub enum QuotingStrategy {
 /// // Default configuration (SPEC-compliant canonical form)
 /// let config = CanonicalConfig::default();
 /// assert_eq!(config.quoting, QuotingStrategy::Minimal);
-/// assert!(config.use_ditto);
+/// assert!(!config.use_ditto);
 /// assert!(config.sort_keys);
 /// assert!(!config.inline_schemas);
 ///
@@ -109,7 +109,7 @@ pub struct CanonicalConfig {
     /// |bob,^,^           # engineer,NYC repeated
     /// ```
     ///
-    /// Default: `true`
+    /// Default: `false` (ditto forbidden in v2.0)
     pub use_ditto: bool,
 
     /// Sort object keys alphabetically.
@@ -126,13 +126,13 @@ pub struct CanonicalConfig {
     /// ```text
     /// %STRUCT: User: [id,name,role]
     /// ---
-    /// users: @User
+    /// users:@User
     /// ```
     ///
     /// When `true` (inline schemas):
     /// ```text
     /// ---
-    /// users: @User[id,name,role]
+    /// users:@User[id,name,role]
     /// ```
     ///
     /// Default: `false` (use header directives for canonical form)
@@ -143,7 +143,7 @@ impl Default for CanonicalConfig {
     fn default() -> Self {
         Self {
             quoting: QuotingStrategy::Minimal,
-            use_ditto: true,
+            use_ditto: false,
             sort_keys: true,
             // Per SPEC Section 13.2: canonical form includes %STRUCT directives
             inline_schemas: false,
@@ -255,7 +255,7 @@ impl CanonicalConfigBuilder {
     ///
     /// All settings are initialized to their defaults (SPEC-compliant canonical form):
     /// - `quoting`: `Minimal`
-    /// - `use_ditto`: `true`
+    /// - `use_ditto`: `false`
     /// - `sort_keys`: `true`
     /// - `inline_schemas`: `false`
     ///
@@ -272,7 +272,7 @@ impl CanonicalConfigBuilder {
     pub fn new() -> Self {
         Self {
             quoting: QuotingStrategy::Minimal,
-            use_ditto: true,
+            use_ditto: false,
             sort_keys: true,
             inline_schemas: false,
         }
@@ -356,13 +356,13 @@ impl CanonicalConfigBuilder {
     /// ```text
     /// %STRUCT: User: [id,name,role]
     /// ---
-    /// users: @User
+    /// users:@User
     /// ```
     ///
     /// When `true` (inline schemas):
     /// ```text
     /// ---
-    /// users: @User[id,name,role]
+    /// users:@User[id,name,role]
     /// ```
     ///
     /// # Arguments
@@ -463,7 +463,7 @@ mod tests {
     fn test_canonical_config_default() {
         let config = CanonicalConfig::default();
         assert_eq!(config.quoting, QuotingStrategy::Minimal);
-        assert!(config.use_ditto);
+        assert!(!config.use_ditto);
         assert!(config.sort_keys);
         assert!(!config.inline_schemas);
     }
@@ -552,7 +552,7 @@ mod tests {
         let builder = CanonicalConfigBuilder::new();
         let config = builder.build();
         assert_eq!(config.quoting, QuotingStrategy::Minimal);
-        assert!(config.use_ditto);
+        assert!(!config.use_ditto);
         assert!(config.sort_keys);
         assert!(!config.inline_schemas);
     }
@@ -743,7 +743,7 @@ mod tests {
             .build();
 
         assert_eq!(config.quoting, QuotingStrategy::Always); // Changed
-        assert!(config.use_ditto); // Still default
+        assert!(!config.use_ditto); // Still default
         assert!(config.sort_keys); // Still default
         assert!(!config.inline_schemas); // Still default
     }
@@ -753,7 +753,7 @@ mod tests {
         // Builder should produce canonical form by default
         let config = CanonicalConfig::builder().build();
         assert_eq!(config.quoting, QuotingStrategy::Minimal);
-        assert!(config.use_ditto); // Canonical: enabled
+        assert!(!config.use_ditto); // Canonical: disabled
         assert!(config.sort_keys); // Canonical: enabled
         assert!(!config.inline_schemas); // Canonical: disabled (use header directives)
     }

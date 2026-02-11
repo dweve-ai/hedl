@@ -107,7 +107,7 @@ fn test_count_references_blog() {
 
 #[test]
 fn test_count_references_in_scalar_root() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.root.insert(
         "ref1".to_string(),
@@ -260,7 +260,7 @@ fn test_count_nodes_only_counts_list_nodes() {
 
 #[test]
 fn test_count_references_ignores_non_reference_values() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.root.insert(
         "name".to_string(),

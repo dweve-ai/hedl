@@ -9,7 +9,7 @@
 use hedl_lsp::analysis::AnalyzedDocument;
 use hedl_lsp::completion::get_completions;
 use hedl_lsp::document_manager::{
-    DocumentManager, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE,
+    DocumentCache, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE,
 };
 use hedl_lsp::hover::get_hover;
 use hedl_lsp::reference_index::{RefLocation, ReferenceIndex};
@@ -353,7 +353,7 @@ fn test_ref_location_from_position() {
 
 #[test]
 fn test_document_manager_defaults() {
-    let manager = DocumentManager::new(DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE);
+    let manager = DocumentCache::new(DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE);
 
     assert_eq!(manager.max_cache_size(), DEFAULT_MAX_CACHE_SIZE);
     assert_eq!(manager.max_document_size(), DEFAULT_MAX_DOCUMENT_SIZE);
@@ -361,7 +361,7 @@ fn test_document_manager_defaults() {
 
 #[test]
 fn test_document_manager_get_state() {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Get state for non-existent document
@@ -376,7 +376,7 @@ fn test_document_manager_get_state() {
 
 #[test]
 fn test_document_manager_is_dirty() {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Non-existent document should not be dirty
@@ -393,7 +393,7 @@ fn test_document_manager_is_dirty() {
 
 #[test]
 fn test_document_manager_mark_clean() {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     manager.insert_or_update(&uri, "%VERSION 1.0\n---");
@@ -408,7 +408,7 @@ fn test_document_manager_mark_clean() {
 fn test_document_manager_update_analysis() {
     use std::sync::Arc;
 
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     manager.insert_or_update(&uri, "%VERSION 1.0\n---");
@@ -422,7 +422,7 @@ fn test_document_manager_update_analysis() {
 
 #[test]
 fn test_document_manager_all_uris() {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
 
     let uri1 = Url::parse("file:///test1.hedl").unwrap();
     let uri2 = Url::parse("file:///test2.hedl").unwrap();
@@ -436,7 +436,7 @@ fn test_document_manager_all_uris() {
 
 #[test]
 fn test_document_manager_clear() {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
 
     for i in 0..3 {
         let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
@@ -452,7 +452,7 @@ fn test_document_manager_clear() {
 
 #[test]
 fn test_document_manager_remove_nonexistent() {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+    let manager = DocumentCache::new(10, 1024 * 1024);
     let uri = Url::parse("file:///nonexistent.hedl").unwrap();
 
     assert!(!manager.remove(&uri));
@@ -464,7 +464,7 @@ fn test_document_manager_remove_nonexistent() {
 
 #[test]
 fn test_utf16_col_to_byte_offset_overflow() {
-    use hedl_lsp::utils::utf16_col_to_byte_offset;
+    use hedl_lsp::utf_encoding::utf16_col_to_byte_offset;
 
     let line = "Hello";
     // Position beyond line length
@@ -474,7 +474,7 @@ fn test_utf16_col_to_byte_offset_overflow() {
 
 #[test]
 fn test_lsp_position_to_byte_offset_overflow() {
-    use hedl_lsp::utils::lsp_position_to_byte_offset;
+    use hedl_lsp::utf_encoding::lsp_position_to_byte_offset;
 
     let content = "Line 1\nLine 2";
     let position = Position {
@@ -488,7 +488,7 @@ fn test_lsp_position_to_byte_offset_overflow() {
 
 #[test]
 fn test_get_line_and_byte_offset_overflow() {
-    use hedl_lsp::utils::get_line_and_byte_offset;
+    use hedl_lsp::utf_encoding::get_line_and_byte_offset;
 
     let content = "Line 1\nLine 2";
     let position = Position {

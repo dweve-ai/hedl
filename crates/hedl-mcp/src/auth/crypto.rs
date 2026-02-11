@@ -146,8 +146,6 @@ impl Default for ApiKeyHasher {
 /// Credential store for encrypting sensitive data at rest.
 pub struct CredentialStore {
     cipher: ChaCha20Poly1305,
-    #[allow(dead_code)]
-    salt: [u8; 32],
 }
 
 impl CredentialStore {
@@ -177,7 +175,7 @@ impl CredentialStore {
         use zeroize::Zeroize;
         key.zeroize();
 
-        Ok(Self { cipher, salt })
+        Ok(Self { cipher })
     }
 
     /// Encrypt plaintext data.

@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Row operations benchmarks.
 //!
 //! Measures HEDL row-wise processing performance for tabular data.
@@ -81,7 +79,7 @@ struct RowResult {
     extraction_times_ns: Vec<u64>,
     streaming_times_ns: Vec<u64>,
     memory_usage_kb: usize,
-    fields_per_row: usize,
+    _fields_per_row: usize,
     bytes_per_row: f64,
     is_wide: bool,
     batch_size: usize,
@@ -163,7 +161,7 @@ fn record_result(result: RowResult) {
     });
 }
 
-#[allow(dead_code)] // Used for future incremental data collection
+#[cfg(feature = "database-comparison")]
 fn record_db_comparison(comparison: DatabaseComparison) {
     DB_COMPARISONS.with(|r| {
         r.borrow_mut().push(comparison);
@@ -296,13 +294,15 @@ fn bench_row_parsing(c: &mut Criterion) {
         );
 
         // Collect result with actual measurements
-        let mut result = RowResult::default();
-        result.dataset = format!("parse_{size}");
-        result.row_count = size;
-        result.column_count = 5;
-        result.input_size_bytes = hedl.len();
-        result.fields_per_row = 5;
-        result.bytes_per_row = hedl.len() as f64 / size as f64;
+        let mut result = RowResult {
+            dataset: format!("parse_{size}"),
+            row_count: size,
+            column_count: 5,
+            input_size_bytes: hedl.len(),
+            _fields_per_row: 5,
+            bytes_per_row: hedl.len() as f64 / size as f64,
+            ..Default::default()
+        };
 
         // Measure parsing times
         let mut times = Vec::new();
@@ -398,14 +398,16 @@ fn bench_wide_rows(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = RowResult::default();
-        result.dataset = format!("wide_{col_count}_cols");
-        result.row_count = row_count;
-        result.column_count = col_count;
-        result.input_size_bytes = hedl.len();
-        result.fields_per_row = col_count;
-        result.bytes_per_row = hedl.len() as f64 / row_count as f64;
-        result.is_wide = col_count > 20;
+        let mut result = RowResult {
+            dataset: format!("wide_{col_count}_cols"),
+            row_count,
+            column_count: col_count,
+            input_size_bytes: hedl.len(),
+            _fields_per_row: col_count,
+            bytes_per_row: hedl.len() as f64 / row_count as f64,
+            is_wide: col_count > 20,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -499,11 +501,13 @@ fn bench_parallel_rows(c: &mut Criterion) {
             avg_time * thread_count as f64 / 1.5
         };
 
-        let mut result = RowResult::default();
-        result.dataset = format!("parallel_{thread_count}_threads");
-        result.row_count = size;
-        result.thread_count = thread_count;
-        result.parsing_times_ns = times;
+        let mut result = RowResult {
+            dataset: format!("parallel_{thread_count}_threads"),
+            row_count: size,
+            thread_count,
+            parsing_times_ns: times,
+            ..Default::default()
+        };
         result.parallel_speedup = if avg_time > 0.0 {
             baseline_time / avg_time
         } else {
@@ -549,13 +553,15 @@ fn bench_index_operations(c: &mut Criterion) {
 
         let index_mem = hash_index.capacity() * std::mem::size_of::<(usize, usize)>() / 1024;
 
-        let mut result = RowResult::default();
-        result.dataset = format!("index_{index_type}");
-        result.row_count = size;
-        result.index_type = index_type.to_string();
-        result.index_build_time_ns = build_time;
-        result.index_query_time_ns = query_avg;
-        result.index_memory_kb = index_mem;
+        let result = RowResult {
+            dataset: format!("index_{index_type}"),
+            row_count: size,
+            index_type: index_type.to_string(),
+            index_build_time_ns: build_time,
+            index_query_time_ns: query_avg,
+            index_memory_kb: index_mem,
+            ..Default::default()
+        };
 
         record_result(result);
     }
@@ -583,13 +589,15 @@ fn bench_index_operations(c: &mut Criterion) {
         // BTree memory estimation
         let index_mem = size * std::mem::size_of::<(usize, usize)>() * 2 / 1024; // Rough estimate
 
-        let mut result = RowResult::default();
-        result.dataset = format!("index_{index_type}");
-        result.row_count = size;
-        result.index_type = index_type.to_string();
-        result.index_build_time_ns = build_time;
-        result.index_query_time_ns = query_avg;
-        result.index_memory_kb = index_mem;
+        let result = RowResult {
+            dataset: format!("index_{index_type}"),
+            row_count: size,
+            index_type: index_type.to_string(),
+            index_build_time_ns: build_time,
+            index_query_time_ns: query_avg,
+            index_memory_kb: index_mem,
+            ..Default::default()
+        };
 
         record_result(result);
     }
@@ -689,8 +697,21 @@ fn bench_database_comparisons(c: &mut Criterion) {
         });
     }
 
-    // TODO: Add DuckDB, Polars, Arrow comparisons
-    // These would follow the same pattern
+    // Note: DuckDB, Polars, and Arrow comparisons not implemented
+    //
+    // These frameworks require additional dependencies and setup:
+    // - DuckDB: Requires duckdb crate and SQL query construction
+    // - Polars: Requires polars crate and DataFrame API
+    // - Arrow: Requires arrow crate and RecordBatch API
+    //
+    // Adding these comparisons would significantly increase:
+    // 1. Compilation time (large dependencies)
+    // 2. Binary size
+    // 3. Maintenance burden (API changes across versions)
+    //
+    // The SQLite comparison provides adequate baseline for relational database
+    // comparison. For comprehensive benchmarking against columnar formats,
+    // consider a dedicated benchmark suite with feature flags for each framework.
 
     group.finish();
 }
@@ -716,11 +737,13 @@ fn bench_row_extraction(c: &mut Criterion) {
             });
         });
 
-        let mut result = RowResult::default();
-        result.dataset = format!("extract_{size}");
-        result.row_count = size;
-        result.column_count = 5;
-        result.input_size_bytes = hedl.len();
+        let mut result = RowResult {
+            dataset: format!("extract_{size}"),
+            row_count: size,
+            column_count: 5,
+            input_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -762,11 +785,13 @@ fn bench_streaming_vs_parse(c: &mut Criterion) {
             });
         });
 
-        let mut result = RowResult::default();
-        result.dataset = format!("stream_vs_parse_{size}");
-        result.row_count = size;
-        result.column_count = 5;
-        result.input_size_bytes = hedl.len();
+        let mut result = RowResult {
+            dataset: format!("stream_vs_parse_{size}"),
+            row_count: size,
+            column_count: 5,
+            input_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         // Measure streaming
         let mut streaming_times = Vec::new();
@@ -817,13 +842,15 @@ fn bench_row_memory(c: &mut Criterion) {
             std::mem::size_of_val(&doc) + doc.root.len() * std::mem::size_of::<hedl_core::Item>();
         let ratio = doc_size as f64 / bytes as f64;
 
-        let mut result = RowResult::default();
-        result.dataset = format!("memory_{size}");
-        result.row_count = size;
-        result.column_count = 5;
-        result.input_size_bytes = bytes;
-        result.memory_usage_kb = doc_size / 1024;
-        result.bytes_per_row = bytes as f64 / size as f64;
+        let result = RowResult {
+            dataset: format!("memory_{size}"),
+            row_count: size,
+            column_count: 5,
+            input_size_bytes: bytes,
+            memory_usage_kb: doc_size / 1024,
+            bytes_per_row: bytes as f64 / size as f64,
+            ..Default::default()
+        };
 
         record_result(result);
 
@@ -863,12 +890,14 @@ fn bench_batch_operations(c: &mut Criterion) {
             },
         );
 
-        let mut result = RowResult::default();
-        result.dataset = format!("batch_{batch_size}");
-        result.row_count = total_rows;
-        result.column_count = 5;
-        result.input_size_bytes = hedl.len();
-        result.batch_size = batch_size;
+        let mut result = RowResult {
+            dataset: format!("batch_{batch_size}"),
+            row_count: total_rows,
+            column_count: 5,
+            input_size_bytes: hedl.len(),
+            batch_size,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {

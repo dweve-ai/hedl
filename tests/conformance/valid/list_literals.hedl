@@ -1,0 +1,9 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Item:[id,tags,scores]
+---
+items:@Item
+ |i1,(admin,editor,viewer),(5,4,3)
+ |i2,(),(1)
+ |i3,(single),(10,20,30)

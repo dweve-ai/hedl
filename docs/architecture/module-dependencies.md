@@ -147,10 +147,10 @@ graph TB
 
 ## Dependency Matrix
 
-| Crate | Core | hedl | C14N | JSON | YAML | XML | CSV | TOON | Parquet | Neo4j | Lint | Stream | Test | Bench |
+| Crate |Core |hedl |C14N |JSON |YAML |XML |CSV |TOON |Parquet |Neo4j |Lint |Stream |Test |Bench |
 |-------|------|------|------|------|------|-----|-----|------|---------|-------|------|--------|------|-------|
 | **hedl-core** | - | | | | | | | | | | | | | |
-| **hedl** | ✓ | - | ✓ | ✓ | opt | opt | opt | | opt | opt | ✓ | | | |
+| **hedl** | ✓ | - | ✓ | ✓ |opt |opt |opt | |opt |opt | ✓ | | | |
 | **hedl-c14n** | ✓ | | - | | | | | | | | | | | |
 | **hedl-json** | ✓ | | | - | | | | | | | | | | |
 | **hedl-yaml** | ✓ | | | | - | | | | | | | | | |
@@ -345,7 +345,7 @@ pub mod yaml {
 **Configuration**:
 ```toml
 [workspace.package]
-version = "1.0.0"
+version = "2.0.0"
 
 [package]
 version.workspace = true
@@ -368,17 +368,17 @@ version.workspace = true
 
 ## Dependency Metrics
 
-| Metric | Value |
+| Metric |Value |
 |--------|-------|
-| **Total Crates** | 19 |
-| **Core Crates** | 1 (hedl-core) |
-| **Zero Internal Dependencies** | 1 (hedl-core) |
-| **Single Internal Dependency** | 10 (all formats + c14n + lint + stream) |
-| **Multi Internal Dependencies** | 8 (hedl, CLI, LSP, MCP, FFI, WASM, test, bench) |
-| **External Dependencies (core)** | 3 required + 1 optional |
+| **Total Crates** |19 |
+| **Core Crates** |1 (hedl-core) |
+| **Zero Internal Dependencies** |1 (hedl-core) |
+| **Single Internal Dependency** |10 (all formats + c14n + lint + stream) |
+| **Multi Internal Dependencies** |8 (hedl, CLI, LSP, MCP, FFI, WASM, test, bench) |
+| **External Dependencies (core)** |3 required + 1 optional |
 | **External Dependencies (total)** | ~15 unique |
-| **Max Dependency Depth** | 2 (app → hedl → core) |
-| **Circular Dependencies** | 0 |
+| **Max Dependency Depth** |2 (app → hedl → core) |
+| **Circular Dependencies** |0 |
 
 ## Compilation Order
 

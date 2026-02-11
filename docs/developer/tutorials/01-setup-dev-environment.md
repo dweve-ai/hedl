@@ -25,7 +25,7 @@ This tutorial walks you through setting up everything you need to develop HEDL:
 ### Linux and macOS
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |sh
 ```
 
 Follow the prompts and choose the default installation.

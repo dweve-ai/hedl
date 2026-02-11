@@ -11,7 +11,7 @@
 #include <stdio.h>
 
 int main() {
-    const char* hedl = "%VERSION: 1.0\n---\nkey: value\0";
+    const char* hedl = "%V:2.0\n---\nkey: value\0";
     HedlDocument* doc = NULL;
 
     // Parse document
@@ -51,12 +51,12 @@ gcc -o example example.c -lhedl_ffi
 
 All memory allocated by HEDL functions **MUST** be freed with the corresponding `hedl_free_*` function:
 
-| Allocated By | Free With |
+ |Allocated By |Free With |
 |--------------|-----------|
-| `hedl_parse()` | `hedl_free_document()` |
-| `hedl_to_json()`, `hedl_canonicalize()`, etc. | `hedl_free_string()` |
-| `hedl_to_parquet()` | `hedl_free_bytes()` |
-| `hedl_lint()` | `hedl_free_diagnostics()` |
+ |`hedl_parse()` | `hedl_free_document()` |
+ |`hedl_to_json()`, `hedl_canonicalize()`, etc. | `hedl_free_string()` |
+ |`hedl_to_parquet()` | `hedl_free_bytes()` |
+ |`hedl_lint()` | `hedl_free_diagnostics()` |
 
 ### UNDEFINED BEHAVIOR WARNING
 
@@ -914,7 +914,7 @@ hedl.hedl_free_document.argtypes = [ctypes.c_void_p]
 hedl.hedl_get_last_error.restype = ctypes.c_char_p
 
 # Parse HEDL
-input_str = b"%VERSION: 1.0\n---\nkey: value"
+input_str = b"%V:2.0\n---\nkey: value"
 doc = ctypes.c_void_p()
 result = hedl.hedl_parse(input_str, -1, 0, ctypes.byref(doc))
 
@@ -945,7 +945,7 @@ import (
 )
 
 func main() {
-    input := C.CString("%VERSION: 1.0\n---\nkey: value")
+    input := C.CString("%V:2.0\n---\nkey: value")
     defer C.free(unsafe.Pointer(input))
 
     var doc *C.HedlDocument
@@ -979,7 +979,7 @@ module HedlFFI
 end
 
 doc_ptr = FFI::MemoryPointer.new(:pointer)
-result = HedlFFI.hedl_parse("%VERSION: 1.0\n---\nkey: value", -1, 0, doc_ptr)
+result = HedlFFI.hedl_parse("%V:2.0\n---\nkey: value", -1, 0, doc_ptr)
 
 if result != 0
   puts "Error: #{HedlFFI.hedl_get_last_error}"
@@ -1286,10 +1286,10 @@ void hedl_async_free(struct HedlAsyncOp* op);
 
 ### Environment Variables
 
-| Variable | Default | Description |
+ |Variable |Default |Description |
 |----------|---------|-------------|
-| `HEDL_ASYNC_THREADS` | Number of CPUs | Thread pool size |
-| `HEDL_ASYNC_QUEUE_SIZE` | 1000 | Maximum queued operations |
+ |`HEDL_ASYNC_THREADS` |Number of CPUs |Thread pool size |
+ |`HEDL_ASYNC_QUEUE_SIZE` |1000 |Maximum queued operations |
 
 ---
 

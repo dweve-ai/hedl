@@ -1,0 +1,282 @@
+{
+  "difficulty": "medium",
+  "questions": [
+    {
+      "id": "iot-1",
+      "type": "Aggregation",
+      "prompt": "How many devices are there in total?",
+      "ground_truth": "5",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 5' comment"
+    },
+    {
+      "id": "iot-2",
+      "type": "Aggregation",
+      "prompt": "How many sensors are there in total?",
+      "ground_truth": "12",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 12' comment"
+    },
+    {
+      "id": "iot-3",
+      "type": "Aggregation",
+      "prompt": "How many readings are recorded?",
+      "ground_truth": "60",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 60' comment"
+    },
+    {
+      "id": "iot-4",
+      "type": "Aggregation",
+      "prompt": "How many alerts are there?",
+      "ground_truth": "6",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 6' comment"
+    },
+    {
+      "id": "iot-5",
+      "type": "Filtering",
+      "prompt": "Which device is in an error state? Give the device name.",
+      "ground_truth": "Cold Storage Monitor",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-6",
+      "type": "Filtering",
+      "prompt": "Which device is in maintenance mode? Give the device name.",
+      "ground_truth": "HVAC Monitor",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-7",
+      "type": "FieldRetrieval",
+      "prompt": "What is the IP address of the Factory Floor Monitor?",
+      "ground_truth": "192.168.1.101",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-8",
+      "type": "FieldRetrieval",
+      "prompt": "What firmware version is the Assembly Line Unit running?",
+      "ground_truth": "v2.4.2",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-9",
+      "type": "Filtering",
+      "prompt": "How many sensors are attached to dev-001?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "s-001, s-002, s-003 all reference dev-001"
+    },
+    {
+      "id": "iot-10",
+      "type": "Filtering",
+      "prompt": "How many sensors are attached to dev-004?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "s-008, s-009, s-010 reference dev-004"
+    },
+    {
+      "id": "iot-11",
+      "type": "FieldRetrieval",
+      "prompt": "What is the maximum threshold for sensor s-001?",
+      "ground_truth": "35.0",
+      "answer_type": "Number"
+    },
+    {
+      "id": "iot-12",
+      "type": "FieldRetrieval",
+      "prompt": "What is the minimum threshold for the cold storage temperature sensor (s-011)?",
+      "ground_truth": "-25.0",
+      "answer_type": "Number"
+    },
+    {
+      "id": "iot-13",
+      "type": "FieldRetrieval",
+      "prompt": "What unit does sensor s-007 measure in?",
+      "ground_truth": "RPM",
+      "answer_type": "String",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "iot-14",
+      "type": "Filtering",
+      "prompt": "How many readings have alert level 'Warning'?",
+      "ground_truth": "6",
+      "answer_type": "Integer",
+      "notes": "r-009, r-017, r-029, r-037, r-047, r-058"
+    },
+    {
+      "id": "iot-15",
+      "type": "Filtering",
+      "prompt": "How many readings have alert level 'Critical'?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "r-038, r-048"
+    },
+    {
+      "id": "iot-16",
+      "type": "FieldRetrieval",
+      "prompt": "What was the temperature reading at 2024-06-15T09:45:00Z for sensor s-001?",
+      "ground_truth": "33.8",
+      "answer_type": "Number",
+      "notes": "r-008"
+    },
+    {
+      "id": "iot-17",
+      "type": "FieldRetrieval",
+      "prompt": "What was the highest temperature recorded by sensor s-001?",
+      "ground_truth": "36.1",
+      "answer_type": "Number",
+      "notes": "r-009 at 10:00:00Z"
+    },
+    {
+      "id": "iot-18",
+      "type": "FieldRetrieval",
+      "prompt": "What was the vibration reading that triggered the critical alert?",
+      "ground_truth": "2.9",
+      "answer_type": "Number",
+      "notes": "r-038 has crit alert with value 2.9"
+    },
+    {
+      "id": "iot-19",
+      "type": "FieldRetrieval",
+      "prompt": "Who acknowledged alert a-004?",
+      "ground_truth": "mike.wilson",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-20",
+      "type": "Filtering",
+      "prompt": "How many alerts are still unacknowledged?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "a-003, a-006 have acknowledged=false"
+    },
+    {
+      "id": "iot-21",
+      "type": "FieldRetrieval",
+      "prompt": "Which sensor does reading r-038 belong to? Give the sensor ID.",
+      "ground_truth": "s-008",
+      "answer_type": "String",
+      "notes": "HEDL shows @Sensor:s-008 for r-031 through r-040 via ditto"
+    },
+    {
+      "id": "iot-22",
+      "type": "FieldRetrieval",
+      "prompt": "Which device does sensor s-008 belong to? Give the device ID.",
+      "ground_truth": "dev-004",
+      "answer_type": "String",
+      "notes": "HEDL shows @Device:dev-004"
+    },
+    {
+      "id": "iot-23",
+      "type": "FieldRetrieval",
+      "prompt": "Reading r-048 triggered an alert. Which sensor recorded this reading? Give the sensor ID.",
+      "ground_truth": "s-011",
+      "answer_type": "String",
+      "notes": "r-048 is under s-011 readings via ditto"
+    },
+    {
+      "id": "iot-24",
+      "type": "FieldRetrieval",
+      "prompt": "Alert a-005 references a reading. What was the value of that reading?",
+      "ground_truth": "-12.5",
+      "answer_type": "Number",
+      "notes": "a-005 -> r-048 -> value -12.5"
+    },
+    {
+      "id": "iot-25",
+      "type": "FieldRetrieval",
+      "prompt": "In the Device schema, what is the 4th field?",
+      "ground_truth": "zone",
+      "answer_type": "String",
+      "notes": "HEDL %STRUCT: Device: [id, name, location, zone, ...]"
+    },
+    {
+      "id": "iot-26",
+      "type": "Aggregation",
+      "prompt": "How many fields does the Sensor schema have?",
+      "ground_truth": "6",
+      "ground_truth_by_format": {
+        "json": "7",
+        "yaml": "7",
+        "xml": "7",
+        "toon": "7",
+        "csv": "7"
+      },
+      "answer_type": "Integer",
+      "notes": "HEDL: 6 fields (device implicit via nesting). JSON/YAML/XML/TOON/CSV: 7 fields (includes explicit device field)"
+    },
+    {
+      "id": "iot-27",
+      "type": "FieldRetrieval",
+      "prompt": "What is the status of device dev-003 (HVAC Monitor)?",
+      "ground_truth": "maintenance",
+      "answer_type": "String",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "iot-28",
+      "type": "FieldRetrieval",
+      "prompt": "What is the alert level for reading r-038?",
+      "ground_truth": "critical",
+      "answer_type": "String",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "iot-29",
+      "type": "FieldRetrieval",
+      "prompt": "What unit does sensor s-002 measure in?",
+      "ground_truth": "Percent",
+      "answer_type": "String",
+      "notes": "Direct field lookup - humidity sensor"
+    },
+    {
+      "id": "iot-30",
+      "type": "Filtering",
+      "prompt": "Which zone has the most devices? Give the zone name.",
+      "ground_truth": "zone-north",
+      "answer_type": "String",
+      "notes": "zone-north has dev-001 and dev-003"
+    },
+    {
+      "id": "iot-31",
+      "type": "FieldRetrieval",
+      "prompt": "When was sensor s-006 last calibrated?",
+      "ground_truth": "2023-12-05",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-32",
+      "type": "Filtering",
+      "prompt": "How many temperature sensors are there?",
+      "ground_truth": "4",
+      "answer_type": "Integer",
+      "notes": "s-001, s-004, s-006, s-011 have type=temperature"
+    },
+    {
+      "id": "iot-33",
+      "type": "FieldRetrieval",
+      "prompt": "What type of sensor is s-010?",
+      "ground_truth": "operational",
+      "answer_type": "String"
+    },
+    {
+      "id": "iot-34",
+      "type": "FieldRetrieval",
+      "prompt": "Which reading triggered alert a-002? Give the reading ID.",
+      "ground_truth": "r-017",
+      "answer_type": "String",
+      "notes": "HEDL shows @Reading:r-017"
+    },
+    {
+      "id": "iot-35",
+      "type": "FieldRetrieval",
+      "prompt": "What is the message for alert a-004?",
+      "ground_truth": "Vibration exceeded 2.5mm critical level",
+      "answer_type": "String"
+    }
+  ]
+}

@@ -25,7 +25,7 @@
 //! - Parquet roundtrip (planned)
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use hedl_bench::helpers::measure_throughput_ns;
+use hedl_bench::benchmark_utilities::measure_throughput_ns;
 use hedl_bench::{
     generate_blog, generate_orders, generate_products, generate_users, sizes, BenchmarkReport,
     CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -34,6 +34,9 @@ use hedl_json::{from_json, to_json, FromJsonConfig, ToJsonConfig};
 use hedl_xml::{from_xml, to_xml, FromXmlConfig, ToXmlConfig};
 use hedl_yaml::{from_yaml, to_yaml, FromYamlConfig, ToYamlConfig};
 use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::Path;
 use std::sync::Once;
 use std::time::Instant;
 
@@ -313,12 +316,296 @@ fn bench_chained_roundtrip(c: &mut Criterion) {
 }
 
 // ============================================================================
+// Fixture Verification (Real Fidelity Testing)
+// ============================================================================
+
+/// Result of verifying a fixture conversion
+#[derive(Clone, Debug)]
+struct FixtureVerificationResult {
+    fixture_name: String,
+    format: String,
+    hedl_bytes: usize,
+    fields_total: usize,
+    fields_matched: usize,
+    fields_mismatched: usize,
+    mismatch_details: Vec<String>,
+    conversion_time_ns: u64,
+}
+
+thread_local! {
+    static FIXTURE_RESULTS: RefCell<Vec<FixtureVerificationResult>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Compare two JSON values recursively, returning (matched_count, total_count, mismatches)
+fn compare_json_values(
+    expected: &serde_json::Value,
+    actual: &serde_json::Value,
+    path: &str,
+) -> (usize, usize, Vec<String>) {
+    use serde_json::Value;
+
+    match (expected, actual) {
+        (Value::Object(exp_map), Value::Object(act_map)) => {
+            let mut matched = 0;
+            let mut total = 0;
+            let mut mismatches = Vec::new();
+
+            // Check all expected keys
+            for (key, exp_val) in exp_map {
+                let new_path = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", path, key)
+                };
+
+                if let Some(act_val) = act_map.get(key) {
+                    let (m, t, mut mm) = compare_json_values(exp_val, act_val, &new_path);
+                    matched += m;
+                    total += t;
+                    mismatches.append(&mut mm);
+                } else {
+                    total += 1;
+                    mismatches.push(format!("Missing key: {}", new_path));
+                }
+            }
+
+            // Check for extra keys in actual
+            for key in act_map.keys() {
+                if !exp_map.contains_key(key) {
+                    let new_path = if path.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{}.{}", path, key)
+                    };
+                    mismatches.push(format!("Extra key: {}", new_path));
+                }
+            }
+
+            (matched, total, mismatches)
+        }
+        (Value::Array(exp_arr), Value::Array(act_arr)) => {
+            let mut matched = 0;
+            let mut total = 0;
+            let mut mismatches = Vec::new();
+
+            if exp_arr.len() != act_arr.len() {
+                mismatches.push(format!(
+                    "{}: array length mismatch (expected {}, got {})",
+                    path,
+                    exp_arr.len(),
+                    act_arr.len()
+                ));
+            }
+
+            for (i, (exp_val, act_val)) in exp_arr.iter().zip(act_arr.iter()).enumerate() {
+                let new_path = format!("{}[{}]", path, i);
+                let (m, t, mut mm) = compare_json_values(exp_val, act_val, &new_path);
+                matched += m;
+                total += t;
+                mismatches.append(&mut mm);
+            }
+
+            (matched, total, mismatches)
+        }
+        (Value::Number(exp_n), Value::Number(act_n)) => {
+            // Compare numbers with tolerance for floating point
+            let exp_f = exp_n.as_f64().unwrap_or(0.0);
+            let act_f = act_n.as_f64().unwrap_or(0.0);
+            if (exp_f - act_f).abs() < 0.0001 || exp_n == act_n {
+                (1, 1, vec![])
+            } else {
+                (0, 1, vec![format!("{}: {} != {}", path, exp_n, act_n)])
+            }
+        }
+        (Value::String(exp_s), Value::String(act_s)) => {
+            if exp_s == act_s {
+                (1, 1, vec![])
+            } else {
+                (
+                    0,
+                    1,
+                    vec![format!("{}: \"{}\" != \"{}\"", path, exp_s, act_s)],
+                )
+            }
+        }
+        (Value::Bool(exp_b), Value::Bool(act_b)) => {
+            if exp_b == act_b {
+                (1, 1, vec![])
+            } else {
+                (0, 1, vec![format!("{}: {} != {}", path, exp_b, act_b)])
+            }
+        }
+        (Value::Null, Value::Null) => (1, 1, vec![]),
+        _ => {
+            // Type mismatch
+            (
+                0,
+                1,
+                vec![format!(
+                    "{}: type mismatch (expected {:?}, got {:?})",
+                    path,
+                    std::mem::discriminant(expected),
+                    std::mem::discriminant(actual)
+                )],
+            )
+        }
+    }
+}
+
+/// Normalize JSON for comparison: sort object keys recursively
+fn normalize_json(value: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+
+    match value {
+        Value::Object(map) => {
+            let sorted: BTreeMap<String, Value> = map
+                .iter()
+                .map(|(k, v)| (k.clone(), normalize_json(v)))
+                .collect();
+            Value::Object(sorted.into_iter().collect())
+        }
+        Value::Array(arr) => Value::Array(arr.iter().map(normalize_json).collect()),
+        other => other.clone(),
+    }
+}
+
+fn bench_fixture_verification(c: &mut Criterion) {
+    init_report();
+    let mut group = c.benchmark_group("fixture_verification");
+
+    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/accuracy");
+
+    // Fixtures to verify (name without extension)
+    let fixture_names = [
+        "ecommerce_orders",
+        "blog_platform",
+        "financial_transactions",
+    ];
+
+    for fixture_name in &fixture_names {
+        let hedl_path = fixtures_dir.join(format!("{}.hedl", fixture_name));
+        let json_path = fixtures_dir.join(format!("{}.json", fixture_name));
+
+        // Skip if files don't exist
+        if !hedl_path.exists() || !json_path.exists() {
+            eprintln!("Skipping {}: missing files", fixture_name);
+            continue;
+        }
+
+        // Load fixtures (READ-ONLY)
+        let hedl_content = fs::read_to_string(&hedl_path).expect("Failed to read HEDL fixture");
+        let expected_json = fs::read_to_string(&json_path).expect("Failed to read JSON fixture");
+
+        // Parse HEDL
+        let doc = match hedl_core::parse(hedl_content.as_bytes()) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Failed to parse {}.hedl: {}", fixture_name, e);
+                continue;
+            }
+        };
+
+        // Benchmark: HEDL → JSON conversion
+        let fixture_name_owned = fixture_name.to_string();
+        group.throughput(Throughput::Bytes(hedl_content.len() as u64));
+        group.bench_function(format!("{}_to_json", fixture_name), |b| {
+            b.iter(|| {
+                let json = to_json(&doc, &ToJsonConfig::default()).unwrap();
+                std::hint::black_box(json)
+            });
+        });
+
+        // Verify conversion correctness
+        let start = Instant::now();
+        let converted_json = to_json(&doc, &ToJsonConfig::default()).expect("Conversion failed");
+        let conversion_time = start.elapsed().as_nanos() as u64;
+
+        // Parse both JSONs for comparison
+        let expected_value: serde_json::Value =
+            serde_json::from_str(&expected_json).expect("Failed to parse expected JSON");
+        let converted_value: serde_json::Value =
+            serde_json::from_str(&converted_json).expect("Failed to parse converted JSON");
+
+        // Normalize and compare
+        let expected_normalized = normalize_json(&expected_value);
+        let converted_normalized = normalize_json(&converted_value);
+
+        let (matched, total, mismatches) =
+            compare_json_values(&expected_normalized, &converted_normalized, "");
+
+        let result = FixtureVerificationResult {
+            fixture_name: fixture_name_owned,
+            format: "JSON".to_string(),
+            hedl_bytes: hedl_content.len(),
+            fields_total: total,
+            fields_matched: matched,
+            fields_mismatched: mismatches.len(),
+            mismatch_details: mismatches.into_iter().take(10).collect(), // Limit details
+            conversion_time_ns: conversion_time,
+        };
+
+        // Store result
+        FIXTURE_RESULTS.with(|r| {
+            r.borrow_mut().push(result.clone());
+        });
+
+        // Print immediate feedback
+        let fidelity_pct = if total > 0 {
+            (matched as f64 / total as f64) * 100.0
+        } else {
+            100.0
+        };
+        println!(
+            "\n[{}] JSON fidelity: {:.1}% ({}/{} fields)",
+            fixture_name, fidelity_pct, matched, total
+        );
+        if result.fields_mismatched > 0 {
+            println!("  Mismatches ({}):", result.fields_mismatched);
+            for detail in &result.mismatch_details {
+                println!("    - {}", detail);
+            }
+        }
+    }
+
+    group.finish();
+
+    // Record performance metrics
+    FIXTURE_RESULTS.with(|r| {
+        for result in r.borrow().iter() {
+            add_perf(
+                &format!("fixture_verify_{}", result.fixture_name),
+                1,
+                result.conversion_time_ns,
+                Some(result.hedl_bytes as u64),
+            );
+        }
+    });
+}
+
+// ============================================================================
 // Report Export
 // ============================================================================
 
 fn bench_export(c: &mut Criterion) {
     let mut group = c.benchmark_group("export");
-    group.bench_function("finalize", |b| b.iter(|| 1 + 1));
+
+    // Benchmark report serialization - measures actual roundtrip report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "roundtrip_test".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(2048),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = std::hint::black_box(&sample_report).to_json().unwrap();
+            std::hint::black_box(json)
+        })
+    });
+
     group.finish();
 
     REPORT.with(|r| {
@@ -534,41 +821,61 @@ fn bench_export(c: &mut Criterion) {
             report.custom_tables.push(complexity_table);
 
             // ========================================================================
-            // TABLE 4: Fidelity Verification Results
+            // TABLE 4: Fidelity Verification Results (FROM ACTUAL FIXTURE TESTS)
             // ========================================================================
             let mut fidelity_table = CustomTable {
-                title: "Roundtrip Fidelity Verification".to_string(),
+                title: "Fixture Fidelity Verification (ACTUAL RESULTS)".to_string(),
                 headers: vec![
+                    "Fixture".to_string(),
                     "Format".to_string(),
-                    "Dataset".to_string(),
-                    "Data Loss".to_string(),
-                    "Type Preservation".to_string(),
-                    "Structure Preserved".to_string(),
+                    "Fields Total".to_string(),
+                    "Fields Matched".to_string(),
+                    "Mismatches".to_string(),
                     "Fidelity Score".to_string(),
+                    "Status".to_string(),
                 ],
                 rows: vec![],
                 footer: None,
             };
 
-            // All tested roundtrips
-            let roundtrips = vec![
-                ("JSON", "Users", "None", "100%", "Yes", "100%"),
-                ("JSON", "Blog", "None", "100%", "Yes", "100%"),
-                ("YAML", "Products", "None", "100%", "Yes", "100%"),
-                ("YAML", "Orders", "None", "100%", "Yes", "100%"),
-                ("XML", "Users", "None", "100%", "Yes", "100%"),
-                ("XML", "Blog", "None", "100%", "Yes", "100%"),
-                ("Chained", "Multi-format", "None", "100%", "Yes", "100%"),
-            ];
+            // Use actual fixture verification results
+            FIXTURE_RESULTS.with(|r| {
+                for result in r.borrow().iter() {
+                    let fidelity_pct = if result.fields_total > 0 {
+                        (result.fields_matched as f64 / result.fields_total as f64) * 100.0
+                    } else {
+                        100.0
+                    };
+                    let status = if result.fields_mismatched == 0 {
+                        "PASS"
+                    } else if fidelity_pct >= 95.0 {
+                        "WARN"
+                    } else {
+                        "FAIL"
+                    };
 
-            for (format, dataset, loss, types, structure, score) in roundtrips {
+                    fidelity_table.rows.push(vec![
+                        TableCell::String(result.fixture_name.clone()),
+                        TableCell::String(result.format.clone()),
+                        TableCell::Integer(result.fields_total as i64),
+                        TableCell::Integer(result.fields_matched as i64),
+                        TableCell::Integer(result.fields_mismatched as i64),
+                        TableCell::String(format!("{:.1}%", fidelity_pct)),
+                        TableCell::String(status.to_string()),
+                    ]);
+                }
+            });
+
+            // If no fixture results, add a note
+            if fidelity_table.rows.is_empty() {
                 fidelity_table.rows.push(vec![
-                    TableCell::String(format.to_string()),
-                    TableCell::String(dataset.to_string()),
-                    TableCell::String(loss.to_string()),
-                    TableCell::String(types.to_string()),
-                    TableCell::String(structure.to_string()),
-                    TableCell::String(score.to_string()),
+                    TableCell::String("No fixtures tested".to_string()),
+                    TableCell::String("-".to_string()),
+                    TableCell::Integer(0),
+                    TableCell::Integer(0),
+                    TableCell::Integer(0),
+                    TableCell::String("N/A".to_string()),
+                    TableCell::String("SKIP".to_string()),
                 ]);
             }
 
@@ -601,7 +908,7 @@ fn bench_export(c: &mut Criterion) {
                     TableCell::Integer(chained_time),
                     TableCell::Integer(per_conversion),
                     TableCell::String("Minimal".to_string()),
-                    TableCell::String("100%".to_string()),
+                    TableCell::String("Not fixture-verified".to_string()),
                 ]);
             }
 
@@ -679,7 +986,7 @@ fn bench_export(c: &mut Criterion) {
                 ("Enterprise Data Exchange", "XML", "Schema validation, namespaces", "High", "Use when required"),
                 ("Multi-system Pipeline", "Chained", "Flexible format adaptation", "Variable", "Use HEDL as hub"),
                 ("Real-time Streaming", "JSON", "Lowest latency, smallest overhead", "Very Low", "Best choice"),
-                ("Data Archival", "All Formats", "Perfect fidelity maintained", "N/A", "Any format safe"),
+                ("Data Archival", "All Formats", "Fidelity verified via fixtures", "N/A", "Verify with tests"),
             ];
 
             for (scenario, format, reason, latency, recommendation) in scenarios {
@@ -982,17 +1289,66 @@ fn bench_export(c: &mut Criterion) {
             // Add comprehensive insights
             // ========================================================================
 
-            // INSIGHT 1: Strengths
-            report.insights.push(Insight {
-                category: "strength".to_string(),
-                title: "Perfect Data Fidelity Across All Formats".to_string(),
-                description: "All tested roundtrip conversions maintain 100% data integrity with no loss of information.".to_string(),
-                data_points: vec![
-                    "JSON roundtrip: 100% fidelity verified".to_string(),
-                    "YAML roundtrip: 100% fidelity verified".to_string(),
-                    "XML roundtrip: 100% fidelity verified".to_string(),
-                    "Chained conversions: 100% fidelity maintained".to_string(),
-                ],
+            // INSIGHT 1: Fidelity Results (FROM ACTUAL FIXTURE TESTS)
+            FIXTURE_RESULTS.with(|r| {
+                let results = r.borrow();
+                let total_fixtures = results.len();
+                let passed = results.iter().filter(|r| r.fields_mismatched == 0).count();
+                let total_fields: usize = results.iter().map(|r| r.fields_total).sum();
+                let matched_fields: usize = results.iter().map(|r| r.fields_matched).sum();
+                let overall_fidelity = if total_fields > 0 {
+                    (matched_fields as f64 / total_fields as f64) * 100.0
+                } else {
+                    0.0
+                };
+
+                let category = if passed == total_fixtures && total_fixtures > 0 {
+                    "strength"
+                } else if overall_fidelity >= 95.0 {
+                    "finding"
+                } else {
+                    "weakness"
+                };
+
+                let title = if passed == total_fixtures && total_fixtures > 0 {
+                    "Perfect Data Fidelity Verified Against Fixtures"
+                } else {
+                    "Fidelity Issues Detected in Fixture Tests"
+                };
+
+                let mut data_points: Vec<String> = results
+                    .iter()
+                    .map(|r| {
+                        let pct = if r.fields_total > 0 {
+                            (r.fields_matched as f64 / r.fields_total as f64) * 100.0
+                        } else {
+                            100.0
+                        };
+                        format!(
+                            "{} ({}): {:.1}% fidelity ({}/{} fields)",
+                            r.fixture_name, r.format, pct, r.fields_matched, r.fields_total
+                        )
+                    })
+                    .collect();
+
+                if total_fixtures > 0 {
+                    data_points.push(format!(
+                        "Overall: {:.1}% fidelity across {} fixtures",
+                        overall_fidelity, total_fixtures
+                    ));
+                } else {
+                    data_points.push("No fixture tests were run".to_string());
+                }
+
+                report.insights.push(Insight {
+                    category: category.to_string(),
+                    title: title.to_string(),
+                    description: format!(
+                        "Tested {} fixtures against their manually-created format counterparts.",
+                        total_fixtures
+                    ),
+                    data_points,
+                });
             });
 
             // INSIGHT 2: Strengths
@@ -1150,6 +1506,7 @@ criterion_group!(
     bench_roundtrip_xml_users,
     bench_roundtrip_xml_nested,
     bench_chained_roundtrip,
+    bench_fixture_verification,
     bench_export,
 );
 

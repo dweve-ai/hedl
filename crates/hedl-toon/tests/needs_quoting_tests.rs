@@ -25,7 +25,7 @@ use hedl_toon::{to_toon, Delimiter, ToToonConfig};
 
 #[test]
 fn test_quoting_through_document() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Test various string values that exercise needs_quoting
     let test_cases = vec![
@@ -70,7 +70,7 @@ fn test_quoting_through_document() {
 
 #[test]
 fn test_delimiter_specific_quoting() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "comma".to_string(),
         Item::Scalar(Value::String("a,b".to_string().into())),
@@ -86,7 +86,7 @@ fn test_delimiter_specific_quoting() {
 
     // Test with comma delimiter (default)
     let config_comma = ToToonConfig {
-        indent: 2,
+        indent: 1,
         delimiter: Delimiter::Comma,
     };
     let toon_comma = to_toon(&doc, &config_comma).unwrap();
@@ -96,7 +96,7 @@ fn test_delimiter_specific_quoting() {
 
     // Test with tab delimiter
     let config_tab = ToToonConfig {
-        indent: 2,
+        indent: 1,
         delimiter: Delimiter::Tab,
     };
     let toon_tab = to_toon(&doc, &config_tab).unwrap();
@@ -105,7 +105,7 @@ fn test_delimiter_specific_quoting() {
 
     // Test with pipe delimiter
     let config_pipe = ToToonConfig {
-        indent: 2,
+        indent: 1,
         delimiter: Delimiter::Pipe,
     };
     let toon_pipe = to_toon(&doc, &config_pipe).unwrap();
@@ -115,7 +115,7 @@ fn test_delimiter_specific_quoting() {
 
 #[test]
 fn test_no_quoting_needed() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // These strings should NOT need quoting
     let test_cases = vec![

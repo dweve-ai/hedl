@@ -190,7 +190,7 @@ struct BenchmarkRegistry {
 /// ```
 pub fn register_benchmark(name: &str, metadata: BenchmarkMetadata) -> Result<()> {
     validate_benchmark_name(name)?;
-    let mut lock = REGISTRY.write().unwrap();
+    let mut lock = REGISTRY.write().expect("lock not poisoned");
     let registry = lock.get_or_insert_with(BenchmarkRegistry::default);
     registry.benchmarks.insert(name.to_string(), metadata);
     Ok(())
@@ -202,7 +202,7 @@ pub fn register_benchmark(name: &str, metadata: BenchmarkMetadata) -> Result<()>
 ///
 /// A vector of `BenchmarkInfo` for all registered benchmarks.
 pub fn discover_benchmarks() -> Vec<BenchmarkInfo> {
-    let lock = REGISTRY.read().unwrap();
+    let lock = REGISTRY.read().expect("lock not poisoned");
     if let Some(registry) = lock.as_ref() {
         registry
             .benchmarks
@@ -227,7 +227,7 @@ pub fn discover_benchmarks() -> Vec<BenchmarkInfo> {
 ///
 /// Option containing the metadata if found.
 pub fn get_benchmark_metadata(name: &str) -> Option<BenchmarkMetadata> {
-    let lock = REGISTRY.read().unwrap();
+    let lock = REGISTRY.read().expect("lock not poisoned");
     lock.as_ref()
         .and_then(|registry| registry.benchmarks.get(name).cloned())
 }
@@ -268,7 +268,7 @@ pub fn filter_by_tag(tag: &str) -> Vec<BenchmarkInfo> {
 
 /// Clears all registered benchmarks (mainly for testing).
 pub fn clear_registry() {
-    let mut lock = REGISTRY.write().unwrap();
+    let mut lock = REGISTRY.write().expect("lock not poisoned");
     *lock = None;
 }
 

@@ -80,6 +80,7 @@ const MAX_TENSOR_ELEMENTS: usize = 10_000_000;
 /// assert!(!matrix.is_integer());
 /// ```
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Tensor {
     /// A scalar number (integer or float).
     Scalar(f64),

@@ -73,7 +73,7 @@ use hedl_core::parse;
 
 fn benchmark_parse(c: &mut Criterion) {
     c.bench_function("parse_small", |b| {
-        let input = "%VERSION: 1.0\n---\nkey: value";
+        let input = "%V:2.0\n---\nkey: value";
         b.iter(|| {
             parse(black_box(input.as_bytes())).unwrap()
         });
@@ -88,7 +88,7 @@ fn benchmark_parse(c: &mut Criterion) {
 }
 
 fn generate_large_input(size: usize) -> String {
-    let mut result = "%VERSION: 1.0\n---\n".to_string();
+    let mut result = "%V:2.0\n---\n".to_string();
     for i in 0..size {
         result.push_str(&format!("key{}: value{}\n", i, i));
     }

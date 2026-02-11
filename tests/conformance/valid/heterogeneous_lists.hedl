@@ -1,0 +1,19 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Item:[id,mixed_list,types_shown]
+---
+# This file demonstrates that heterogeneous list literals are valid in HEDL.
+# Per SPEC section 8.8: "Lists MAY contain heterogeneous types"
+
+users:@User
+ |u1,Alice
+ |u2,Bob
+
+items:@Item
+ |i1,(1,two,~),(int,string,null)
+ |i2,(true,42,@User:u1),(bool,int,reference)
+ |i3,(3.14,hello,false,~),(float,string,bool,null)
+ |i4,(),(empty list)
+ |i5,(@User:u1,@User:u2,~),(ref,ref,null)

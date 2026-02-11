@@ -1,260 +1,259 @@
 # Tutorial: CLI Basics
 
-**Time:** 15 minutes | **Difficulty:** Beginner
+**Time:** 15 minutes | **Difficulty:** Building on Tutorial 1
 
-Master the essential HEDL command-line tools and learn how to use them effectively in your daily workflow. This tutorial builds on what you learned in the first tutorial and introduces you to the full power of the HEDL CLI.
+Your editor is where you write HEDL. The command line is where HEDL comes alive.
 
-## What You'll Learn
+Every conversion you did in Tutorial 1 happened in the terminal. But you only scratched the surface. The HEDL CLI follows Unix philosophy: small tools that do one thing well, designed to be chained together into something greater than the sum of their parts.
 
-- Core CLI commands and their options
-- Reading from stdin and writing to stdout
-- Using pipes and command chains
-- Common workflow patterns
-- Command shortcuts and best practices
+In the next fifteen minutes, you're going to master the five essential commands. You're going to chain them into pipelines. You're going to build a pre-commit hook that catches bad HEDL before it ever reaches your repository. By the end, the terminal will feel like home.
 
-## Prerequisites
+---
 
-- Completed [Tutorial 1: Your First Conversion](01-first-conversion.md)
-- HEDL CLI installed
-- Basic shell/terminal knowledge
+## The Five Commands You'll Use Every Day
 
-## The HEDL CLI Philosophy
+```mermaid
+graph TB
+    subgraph Toolkit["YOUR CLI TOOLKIT"]
+        direction TB
+        subgraph Primary["Primary Commands"]
+            V["validate<br/><i>Is this valid?</i>"]
+            F["format<br/><i>Make it canonical</i>"]
+            L["lint<br/><i>Is this optimal?</i>"]
+        end
 
-The HEDL CLI follows Unix philosophy:
-- **Do one thing well** - Each command has a focused purpose
-- **Work together** - Commands can be chained in pipelines
-- **Text streams** - Input and output are text, enabling composition
-- **Sensible defaults** - Common operations are simple
+        subgraph Analysis["Analysis Commands"]
+            I["inspect<br/><i>What does this mean?</i>"]
+            S["stats<br/><i>How much did I save?</i>"]
+        end
 
-## Core Commands Overview
+        V --> I
+        V --> S
+        F --> I
+        L --> S
+    end
 
-Let's explore the five essential commands you'll use every day:
+    Note["These five commands handle 90% of your HEDL workflow."]
 
-```bash
-validate    # Check syntax and structure
-format      # Standardize formatting
-lint        # Check for issues and best practices
-inspect     # View internal structure
-stats       # Compare format efficiency
+    style V fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style F fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style L fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    style I fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style S fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 ```
 
-## Step 1: Setting Up Sample Data
+Let's master each one.
 
-Create a sample HEDL file named `employees.hedl`:
+---
+
+## Step 1: Create Sample Data
+
+First, create a sample file to work with. Save this as `employees.hedl`:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: Employee: [id, name, department, salary, hired_date]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Employee:[id,name,department,salary,hired_date]
 ---
-employees: @Employee
-  | e1, Alice Johnson, Engineering, 95000, 2022-01-15
-  | e2, Bob Smith, Engineering, 87000, 2022-03-20
-  | e3, Carol White, Marketing, 72000, 2021-11-10
-  | e4, David Brown, Sales, 68000, 2023-02-01
-  | e5, Eve Davis, Engineering, 102000, 2020-06-15
-  | e6, Frank Miller, Marketing, 71000, 2023-05-22
+employees:@Employee
+ |e1,Alice Johnson,Engineering,95000,2022-01-15
+ |e2,Bob Smith,Engineering,87000,2022-03-20
+ |e3,Carol White,Marketing,72000,2021-11-10
+ |e4,David Brown,Sales,68000,2023-02-01
+ |e5,Eve Davis,Engineering,102000,2020-06-15
+ |e6,Frank Miller,Marketing,71000,2023-05-22
 ```
 
-## Step 2: Validation Deep Dive
+---
 
-The `validate` command checks your HEDL file for errors.
+## Step 2: The `validate` Command
 
-### Basic Validation
+Validation is your first line of defense. Run it on every file before you trust it.
 
 ```bash
 hedl validate employees.hedl
 ```
 
-**Output:**
+Output:
 ```
 ✓ employees.hedl is valid
 ```
 
-### What Validation Checks
+That's the good case. Let's see the bad case.
 
-Validation ensures:
-1. **Syntax correctness** - Proper HEDL syntax
-2. **Structure consistency** - Row lengths match column definitions
-3. **Type compatibility** - Values match expected types
-4. **Reference integrity** - All references point to existing entities
-5. **Indentation rules** - Proper 2-space indentation
+### Triggering Validation Errors
 
-### Testing Validation
-
-Let's create an invalid file to see validation in action. Create `invalid.hedl`:
+Create a file with a problem. Save this as `broken.hedl`:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | u1, Alice, alice@example.com
-  | u2, Bob
+users:@User
+ |u1,Alice,alice@example.com
+ |u2,Bob
 ```
 
-Note: Row `u2` is missing the email field.
+Bob is missing his email. Run validate:
 
 ```bash
-hedl validate invalid.hedl
+hedl validate broken.hedl
 ```
 
-**Output:**
+Output:
 ```
-✗ invalid.hedl is invalid
-Error on line 4: Expected 3 values but found 2
+✗ broken.hedl is invalid
+Error on line 8: Expected 3 values but found 2
   Row: u2 "Bob"
-  Expected: id, name, email
+  Expected columns: id, name, email
+  Missing: email
 ```
 
-**Key point:** Validation gives you clear error messages with line numbers and explanations.
+This is what good error messages look like:
+- **Line number**: Exactly where the problem is
+- **What's wrong**: Expected 3 values, found 2
+- **Context**: Shows the problematic row
+- **Suggestion**: Tells you what's missing
 
 ### Validating from Stdin
 
-You can validate content directly without a file:
+Sometimes you want to validate without creating a file:
 
 ```bash
-echo '%VERSION: 1.0
+echo '%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-name "Test"' | hedl validate -
+name:Test' | hedl validate -
 ```
 
-The `-` tells HEDL to read from stdin instead of a file.
+The `-` means "read from stdin instead of a file." This is Unix convention, and HEDL follows it.
 
-## Step 3: Formatting for Consistency
+---
 
-The `format` command applies HEDL's canonical formatting rules.
+## Step 3: The `format` Command
 
-### Basic Formatting
+HEDL has a canonical format. Every valid document has exactly one canonical representation.
 
 ```bash
 hedl format employees.hedl
 ```
 
-This outputs the formatted version to stdout. To save it:
+This prints the formatted version to stdout. To save it:
 
 ```bash
 hedl format employees.hedl -o employees_formatted.hedl
 ```
 
-### In-Place Formatting
-
-Format a file and overwrite it:
-
-```bash
-hedl format employees.hedl -o employees.hedl
-```
-
-**Warning:** This overwrites the original file. Use version control or backups!
-
-### What Formatting Does
-
-Formatting ensures:
-- **Consistent indentation** - Exactly 2 spaces
-- **Standardized spacing** - After colons, around values
-- **Deterministic ordering** - Predictable field order
-- **Canonical representation** - Same data always formatted identically
-
 ### Why Canonical Formatting Matters
 
-Canonical formatting is crucial for:
-- **Version control** - Reduces meaningless diffs
-- **Reproducibility** - Same input always produces same output
-- **Validation** - Easier to spot structural issues
-- **Code review** - Consistent style across team
+Imagine two developers edit the same HEDL file. One uses tabs, one uses spaces. One puts extra whitespace, one doesn't. When they merge, the diff is full of noise.
 
-### Formatting in Pipelines
+Canonical formatting eliminates this:
 
-Combine format with other commands:
+```mermaid
+graph LR
+    subgraph Without["WITHOUT CANONICAL FORMAT"]
+        W1["Developer A edits"]
+        W2["Developer B edits"]
+        W3["Both format differently"]
+        W4["Diff shows:<br/>47 whitespace changes<br/>2 actual data changes<br/>Noise everywhere"]
 
-```bash
-# Format and then validate
-hedl format messy.hedl | hedl validate -
+        W1 --> W3
+        W2 --> W3
+        W3 --> W4
+    end
 
-# Format and convert to JSON
-hedl format data.hedl | hedl to-json - --pretty
+    subgraph With["WITH CANONICAL FORMAT"]
+        C1["Developer A edits"]
+        C2["Developer B edits"]
+        C3["Both run hedl format"]
+        C4["Diff shows:<br/>2 actual data changes<br/><i>(exactly what changed)</i>"]
+
+        C1 --> C3
+        C2 --> C3
+        C3 --> C4
+    end
+
+    style Without fill:#ffebee,stroke:#c62828
+    style With fill:#e8f5e9,stroke:#2e7d32
+    style W4 fill:#ffcdd2,stroke:#c62828
+    style C4 fill:#c8e6c9,stroke:#2e7d32
 ```
 
-## Step 4: Linting for Quality
+### Check Without Modifying
 
-The `lint` command checks for issues and suggests improvements.
+Want to know if a file is already canonical?
+
+```bash
+hedl format --check employees.hedl
+```
+
+Exit code 0 means already canonical. Exit code 1 means formatting needed. Perfect for CI.
+
+---
+
+## Step 4: The `lint` Command
+
+Validation checks syntax. Linting checks style and best practices.
 
 ```bash
 hedl lint employees.hedl
 ```
 
-### What Linting Checks
+Linting might catch:
+- Inconsistent naming conventions
+- Suspicious patterns (duplicate values, empty fields)
+- Optimization opportunities
+- Data quality issues
 
-Linting identifies:
-1. **Inefficient patterns** - Places where ditto could be used
-2. **Naming conventions** - Inconsistent ID or field naming
-3. **Data quality** - Suspicious patterns (duplicate values, etc.)
-4. **Best practices** - HEDL usage recommendations
-5. **Optimization opportunities** - More efficient representations
-
-### Example Lint Issues
-
-Create `needs_lint.hedl`:
+Create a file with some issues. Save as `needs_lint.hedl`:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: Task: [id, status, priority, assignee]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Task:[id,status,priority,assignee]
 ---
-tasks: @Task
-  | t1, pending, high, Alice
-  | t2, pending, high, Alice
-  | t3, pending, medium, Bob
-  | t4, done, low, Alice
+tasks:@Task
+ |t1,pending,high,Alice
+ |t2,pending,high,Alice
+ |t3,pending,medium,Bob
+ |t4,done,low,Alice
 ```
 
 ```bash
 hedl lint needs_lint.hedl
 ```
 
-**Possible output:**
-```
-needs_lint.hedl:
-  Line 4: Consider using ditto (^) for repeated 'pending' value
-  Line 4: Consider using ditto (^) for repeated 'high' value
-  Line 4: Consider using ditto (^) for repeated 'Alice' value
-  Line 5: Consider using ditto (^) for repeated 'pending' value
+The linter might notice that multiple tasks have identical status and priority values, suggesting you could group related records or use references.
 
-Suggestions:
-  - Use the ditto operator to reduce redundancy
-  - This would save 18 tokens
-```
-
-### Fixing Lint Issues
-
-Here's the improved version using ditto:
-
-```hedl
-%VERSION: 1.0
-%STRUCT: Task: [id, status, priority, assignee]
 ---
-tasks: @Task
-  | t1, pending, high, Alice
-  | t2, ^, ^, ^
-  | t3, ^, medium, Bob
-  | t4, done, low, Alice
-```
 
-## Step 5: Inspecting Internal Structure
+## Step 5: The `inspect` Command
 
-The `inspect` command shows you how HEDL interprets your document.
+Sometimes you need to see how HEDL interprets your document.
 
 ```bash
 hedl inspect employees.hedl
 ```
 
-**Output:**
+Output:
 ```
 Document Structure:
-  Version: 1.0
-  Entities: 1
+  Version: 1.3
+  Null Symbol: ~
+  Quote Character: "
+  Schemas: 1
+
+Schema: Employee
+  Columns: [id, name, department, salary, hired_date]
 
 Entity: employees
   Type: Employee
-  Columns: [id, name, department, salary, hired_date]
   Row count: 6
   Rows:
     [0] e1: ["Alice Johnson", "Engineering", 95000, "2022-01-15"]
@@ -265,377 +264,245 @@ Entity: employees
     [5] e6: ["Frank Miller", "Marketing", 71000, "2023-05-22"]
 ```
 
-### When to Use Inspect
+Use `inspect` when:
+- You're debugging a parsing issue
+- You want to verify the structure matches your expectations
+- You're learning how HEDL syntax maps to internal structure
 
-Use `inspect` to:
-- **Debug parsing issues** - See how HEDL interprets your data
-- **Verify structure** - Confirm the data model matches expectations
-- **Learn HEDL** - Understand how syntax maps to structure
-- **Troubleshoot conversions** - See what data will be converted
+---
 
-## Step 6: Comparing Format Efficiency
+## Step 6: The `stats` Command
 
-The `stats` command compares HEDL to other formats.
+You know this one from Tutorial 1, but let's go deeper:
 
 ```bash
 hedl stats employees.hedl
 ```
 
-**Output:**
+Output:
 ```
-HEDL Size Comparison
-====================
+Format Comparison for employees.hedl:
+  HEDL:    312 bytes,  87 tokens (baseline)
+  JSON:    758 bytes, 212 tokens (+143%, +125 tokens)
+  YAML:    562 bytes, 157 tokens (+80%, +70 tokens)
+  XML:    1024 bytes, 287 tokens (+228%, +200 tokens)
 
-Input: employees.hedl
-
-Bytes:
-  Format               Size     Savings          %
-  -------------------- ---------- ------------ ----------
-  HEDL                      312
-  JSON (minified)           758        +446      58.9%
-  JSON (pretty)             892        +580      65.0%
-  YAML                      562        +250      44.5%
-  XML (minified)           1024        +712      69.5%
-  XML (pretty)             1156        +844      73.0%
+Token Savings:
+  vs JSON: 59% fewer tokens
+  vs YAML: 45% fewer tokens
+  vs XML:  70% fewer tokens
 ```
 
-### Understanding Stats Output
+### Token Estimation
 
-The stats command shows:
-- **Size comparison** - Bytes for each format (minified and pretty versions)
-- **Absolute savings** - How many bytes HEDL saves
-- **Percentage differences** - How much larger other formats are
-
-To include token estimates (for LLM context optimization), add the `--tokens` flag:
+For LLM cost optimization, use the `--tokens` flag:
 
 ```bash
 hedl stats employees.hedl --tokens
 ```
 
-## Step 7: Working with Stdin and Stdout
+This estimates tokens using common tokenizers (like cl100k_base used by GPT-4). The savings you see translate directly to cost savings.
 
-HEDL commands are designed for Unix-style pipelines.
+---
 
-### Reading from Stdin
+## Step 7: Chaining Commands with Pipes
 
-Use `-` as the filename to read from stdin:
+This is where Unix philosophy shines. Commands read from stdin and write to stdout. Chain them together.
 
-```bash
-cat employees.hedl | hedl validate -
-```
-
-### Writing to Stdout
-
-By default, most commands write to stdout:
+### Validate then Convert
 
 ```bash
-hedl format employees.hedl
+hedl validate employees.hedl && hedl to-json employees.hedl --pretty
 ```
 
-Save the output with shell redirection:
+The `&&` means "if the first command succeeds, run the second." Validation failures stop the pipeline.
+
+### Format then Validate
 
 ```bash
-hedl format employees.hedl > formatted.hedl
+hedl format messy.hedl | hedl validate -
 ```
 
-Or use the `-o` option:
+Format the file, pipe the output to validate. The `-` tells validate to read from stdin.
+
+### Complete Quality Pipeline
 
 ```bash
-hedl format employees.hedl -o formatted.hedl
+cat employees.hedl | hedl format - | hedl validate - && echo "✓ Ready for production"
 ```
 
-### Chaining Commands
+Read file, format it, validate the formatted version, print success message if all passes.
 
-Build powerful pipelines:
+### Convert and Compress
 
 ```bash
-# Format, validate, and convert in one pipeline
-cat messy.hedl | hedl format - | hedl validate - | hedl to-json - --pretty
+hedl to-json employees.hedl | gzip > employees.json.gz
 ```
 
-```bash
-# Process multiple files
-for file in *.hedl; do
-  hedl format "$file" | hedl lint - || echo "Failed: $file"
-done
-```
+Convert to JSON, pipe to gzip, save compressed. One line.
 
-```bash
-# Convert and compress
-hedl to-json data.hedl | gzip > data.json.gz
-```
+---
 
-## Step 8: Common Workflow Patterns
+## Step 8: Building a Pre-Commit Hook
 
-### Pattern 1: Validate Before Processing
+Let's put it all together. Create a git pre-commit hook that validates and formats HEDL files.
 
-Always validate before conversion:
-
-```bash
-if hedl validate input.hedl; then
-  hedl to-json input.hedl -o output.json
-  echo "Conversion successful"
-else
-  echo "Validation failed. Fix errors first."
-  exit 1
-fi
-```
-
-### Pattern 2: Format + Lint + Validate
-
-Create a quality check script:
+Create `.git/hooks/pre-commit`:
 
 ```bash
 #!/bin/bash
-# check_quality.sh
 
-hedl format "$1" -o temp.hedl
-hedl lint temp.hedl
-hedl validate temp.hedl
-mv temp.hedl "$1"
+# Find all staged HEDL files
+hedl_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.hedl$')
+
+if [ -z "$hedl_files" ]; then
+    exit 0  # No HEDL files staged
+fi
+
+echo "Checking HEDL files..."
+
+for file in $hedl_files; do
+    # Validate
+    if ! hedl validate "$file"; then
+        echo "✗ Validation failed: $file"
+        echo "  Fix the errors above before committing."
+        exit 1
+    fi
+
+    # Format and re-stage if changed
+    formatted=$(hedl format "$file")
+    current=$(cat "$file")
+
+    if [ "$formatted" != "$current" ]; then
+        echo "$formatted" > "$file"
+        git add "$file"
+        echo "  Auto-formatted: $file"
+    fi
+done
+
+echo "✓ All HEDL files valid and formatted"
 ```
 
-Usage:
+Make it executable:
 
 ```bash
-./check_quality.sh employees.hedl
+chmod +x .git/hooks/pre-commit
+```
+
+Now every commit automatically:
+1. Validates all staged HEDL files
+2. Blocks commits with invalid HEDL
+3. Auto-formats files to canonical form
+4. Re-stages the formatted versions
+
+---
+
+## Step 9: Common Patterns
+
+### Pattern 1: Validate Before Processing
+
+```bash
+if hedl validate input.hedl; then
+    hedl to-json input.hedl -o output.json
+    echo "✓ Conversion complete"
+else
+    echo "✗ Fix validation errors first"
+    exit 1
+fi
+```
+
+### Pattern 2: Quality Check Script
+
+```bash
+#!/bin/bash
+# quality_check.sh
+
+file="$1"
+
+echo "Checking $file..."
+hedl validate "$file" || exit 1
+hedl lint "$file"
+hedl stats "$file"
+echo "✓ Quality check passed"
 ```
 
 ### Pattern 3: Bulk Validation
-
-Check all HEDL files in a directory:
 
 ```bash
 #!/bin/bash
 # validate_all.sh
 
 for file in *.hedl; do
-  if hedl validate "$file"; then
-    echo "✓ $file"
-  else
-    echo "✗ $file"
-  fi
+    if hedl validate "$file" 2>/dev/null; then
+        echo "✓ $file"
+    else
+        echo "✗ $file"
+    fi
 done
 ```
 
-### Pattern 4: Pre-Commit Hook
-
-Use HEDL in a git pre-commit hook:
-
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit
-
-# Get all staged HEDL files
-hedl_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.hedl$')
-
-for file in $hedl_files; do
-  if ! hedl validate "$file"; then
-    echo "Error: $file is invalid. Commit aborted."
-    exit 1
-  fi
-
-  # Auto-format staged files
-  hedl format "$file" -o "$file"
-  git add "$file"
-done
-```
-
-## Step 9: Getting Help
-
-### Command Help
-
-Every command has built-in help:
-
-```bash
-# General help
-hedl --help
-
-# Command-specific help
-hedl validate --help
-hedl format --help
-hedl lint --help
-```
-
-### Version Information
-
-Check your HEDL version:
-
-```bash
-hedl --version
-```
-
-## Common Options Across Commands
-
-Most HEDL commands support these common options:
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--output` | `-o` | Specify output file |
-| `--help` | `-h` | Show command help |
-| `--version` | `-V` | Show version |
+---
 
 ## Exit Codes
 
 HEDL commands use standard exit codes:
 
-- `0` - Success
-- `1` - Validation error, command failure, or invalid arguments
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Error (validation failed, parse error, invalid arguments) |
 
 Use exit codes in scripts:
 
 ```bash
-if hedl validate data.hedl; then
-  echo "Valid!"
+hedl validate data.hedl
+if [ $? -eq 0 ]; then
+    echo "Valid!"
 else
-  echo "Invalid! Exit code: $?"
+    echo "Invalid! Check the errors above."
 fi
 ```
 
-## Best Practices
-
-### 1. Always Validate First
-
-Before any operation, validate your input:
+Or more concisely:
 
 ```bash
-hedl validate input.hedl && hedl to-json input.hedl -o output.json
+hedl validate data.hedl && echo "Valid!" || echo "Invalid!"
 ```
 
-### 2. Use Pipelines for Transformations
+---
 
-Chain commands for complex operations:
+## Common Options
+
+Most commands share these options:
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--output` | `-o` | Write to file instead of stdout |
+| `--help` | `-h` | Show command help |
+| `--version` | `-V` | Show HEDL version |
+
+Get help for any command:
 
 ```bash
-cat data.hedl | hedl format - | hedl lint - | hedl to-json - --pretty
+hedl --help
+hedl validate --help
+hedl format --help
 ```
 
-### 3. Save Formatted Versions
-
-Keep a canonically formatted version:
-
-```bash
-hedl format data.hedl -o data_canonical.hedl
-```
-
-### 4. Check Stats Before Conversion
-
-Understand the efficiency trade-offs:
-
-```bash
-hedl stats data.hedl
-```
-
-### 5. Use Descriptive Output Names
-
-Make output filenames clear:
-
-```bash
-hedl to-json employees.hedl -o employees.json
-hedl format employees.hedl -o employees.formatted.hedl
-```
-
-## Practice Exercises
-
-### Exercise 1: Quality Pipeline
-
-Create a script that:
-1. Formats a HEDL file
-2. Lints it
-3. Validates it
-4. Shows stats
-5. Converts to JSON if all checks pass
-
-<details>
-<summary>Solution</summary>
-
-```bash
-#!/bin/bash
-# quality_pipeline.sh
-
-FILE="$1"
-
-echo "Formatting..."
-hedl format "$FILE" -o temp.hedl
-
-echo "Linting..."
-hedl lint temp.hedl
-
-echo "Validating..."
-if hedl validate temp.hedl; then
-  echo "Stats:"
-  hedl stats temp.hedl
-
-  echo "Converting to JSON..."
-  hedl to-json temp.hedl --pretty -o "${FILE%.hedl}.json"
-
-  mv temp.hedl "$FILE"
-  echo "✓ Pipeline complete!"
-else
-  echo "✗ Validation failed"
-  rm temp.hedl
-  exit 1
-fi
-```
-</details>
-
-### Exercise 2: Batch Formatter
-
-Write a script to format all `.hedl` files in a directory recursively.
-
-### Exercise 3: Validation Report
-
-Create a script that validates multiple HEDL files and generates a summary report showing which files passed/failed.
-
-## Troubleshooting
-
-### Command Not Found
-
-```bash
-hedl: command not found
-```
-
-**Solution:** Ensure HEDL is installed and in your PATH:
-
-```bash
-cargo install hedl-cli
-```
-
-### Permission Denied
-
-```bash
-Permission denied: employees.hedl
-```
-
-**Solution:** Check file permissions:
-
-```bash
-chmod 644 employees.hedl
-```
-
-### Invalid UTF-8
-
-```bash
-Error: Invalid UTF-8 in file
-```
-
-**Solution:** Ensure your file is UTF-8 encoded:
-
-```bash
-file employees.hedl
-iconv -f ISO-8859-1 -t UTF-8 employees.hedl > employees_utf8.hedl
-```
+---
 
 ## Quick Reference
 
 ```bash
 # Validation
 hedl validate file.hedl
+hedl validate file.hedl && echo "Valid"
 cat file.hedl | hedl validate -
 
 # Formatting
+hedl format file.hedl
 hedl format file.hedl -o formatted.hedl
-hedl format file.hedl | less
+hedl format --check file.hedl
 
 # Linting
 hedl lint file.hedl
@@ -645,19 +512,53 @@ hedl inspect file.hedl
 
 # Statistics
 hedl stats file.hedl
+hedl stats file.hedl --tokens
 
-# Pipeline example
-hedl format data.hedl | hedl validate - && echo "OK"
+# Pipelines
+hedl format messy.hedl | hedl validate -
+hedl validate file.hedl && hedl to-json file.hedl --pretty
 ```
-
-## Next Steps
-
-You've mastered the core CLI commands! Continue your learning:
-
-- [Tutorial 3: Batch Processing](03-batch-processing.md) - Process multiple files efficiently
-- [Troubleshooting](../troubleshooting.md) - Deal with validation errors
-- [CLI Guide](../cli-guide.md) - Complete command reference
 
 ---
 
-**Questions?** Check the [FAQ](../faq.md) or [Troubleshooting](../troubleshooting.md) guides!
+## Practice Exercises
+
+### Exercise 1: Build a Quality Pipeline
+
+Create a script that:
+1. Formats a file
+2. Validates the formatted version
+3. Runs lint
+4. Shows stats
+5. Converts to JSON only if all checks pass
+
+### Exercise 2: Batch Validator
+
+Write a script that validates all `.hedl` files in a directory and produces a summary:
+- Total files checked
+- Valid count
+- Invalid count
+- List of invalid files with error messages
+
+### Exercise 3: CI Integration
+
+Create a GitHub Actions workflow or CI script that:
+1. Runs on all HEDL files in the repository
+2. Fails the build if any file is invalid
+3. Fails if any file is not canonically formatted
+
+---
+
+## What's Next
+
+You've mastered the individual commands. You've chained them into pipelines. You've built a pre-commit hook.
+
+But what happens when you have 500 files? What happens when validation would take an hour?
+
+That's when you need parallel batch processing.
+
+**→ [Tutorial 3: Batch Processing](03-batch-processing.md)**
+
+---
+
+**Questions?** Check the [FAQ](../faq.md) or [Troubleshooting](../troubleshooting.md) guides.

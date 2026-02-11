@@ -149,36 +149,4 @@ fn estimate_tokens(text: &str) -> usize {
     content_tokens + whitespace_tokens
 }
 
-/// Test formatting functions (mirrors stats.rs)
-#[allow(dead_code)]
-fn format_bytes(bytes: usize) -> String {
-    if bytes >= 1_000_000 {
-        format!("{:.1} MB", bytes as f64 / 1_000_000.0)
-    } else if bytes >= 1_000 {
-        format!("{:.1} KB", bytes as f64 / 1_000.0)
-    } else {
-        format!("{} B", bytes)
-    }
-}
 
-#[allow(dead_code)]
-fn format_number(n: usize) -> String {
-    if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1_000_000.0)
-    } else if n >= 1_000 {
-        format!("{:.1}K", n as f64 / 1_000.0)
-    } else {
-        format!("{}", n)
-    }
-}
-
-#[allow(dead_code)]
-fn format_diff(diff: i64) -> String {
-    if diff > 0 {
-        format!("+{}", format_number(diff as usize))
-    } else if diff < 0 {
-        format!("-{}", format_number((-diff) as usize))
-    } else {
-        "0".to_string()
-    }
-}

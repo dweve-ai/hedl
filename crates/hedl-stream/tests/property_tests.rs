@@ -17,31 +17,31 @@ use std::io::Cursor;
 fn property_list_start_end_balanced() {
     // Property: Every ListStart must have a corresponding ListEnd
     let inputs = vec![
-        r"
+        r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-  | a1
-",
-        r"
+a:@A
+ | a1
+"#,
+        r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 %STRUCT: B: [id]
 ---
-a: @A
-  | a1
-b: @B
-  | b1
-",
-        r"
+a:@A
+ | a1
+b:@B
+ | b1
+"#,
+        r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-b: @A
-c: @A
-",
+a:@A
+b:@A
+c:@A
+"#,
     ];
 
     for input in inputs {
@@ -65,27 +65,27 @@ c: @A
 fn property_object_start_end_balanced() {
     // Property: Every ObjectStart must have a corresponding ObjectEnd
     let inputs = vec![
-        r"
+        r#"
 %VERSION: 1.0
 ---
 obj:
-  key: value
-",
-        r"
+ key: value
+"#,
+        r#"
 %VERSION: 1.0
 ---
 obj1:
-  key1: value1
+ key1: value1
 obj2:
-  key2: value2
-",
-        r"
+ key2: value2
+"#,
+        r#"
 %VERSION: 1.0
 ---
 outer:
-  inner:
-    key: value
-",
+ inner:
+  key: value
+"#,
     ];
 
     for input in inputs {
@@ -110,34 +110,34 @@ fn property_list_count_matches_nodes() {
     // Property: ListEnd count should match the number of nodes in the list
     let inputs = vec![
         (
-            r"
+            r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-  | a1
-  | a2
-  | a3
-",
+a:@A
+ | a1
+ | a2
+ | a3
+"#,
             3,
         ),
         (
-            r"
+            r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-",
+a:@A
+"#,
             0,
         ),
         (
-            r"
+            r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-  | a1
-",
+a:@A
+ | a1
+"#,
             1,
         ),
     ];
@@ -159,23 +159,23 @@ a: @A
 fn property_node_depth_never_negative() {
     // Property: Node depth should always be >= 0
     let inputs = vec![
-        r"
+        r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-  | a1
-",
-        r"
+a:@A
+ | a1
+"#,
+        r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 %STRUCT: B: [id]
 %NEST: A > B
 ---
-a: @A
-  | a1
-    | b1
-",
+a:@A
+ | a1
+  | b1
+"#,
     ];
 
     for input in inputs {
@@ -194,7 +194,7 @@ a: @A
 #[test]
 fn property_node_depth_increases_by_one() {
     // Property: Nested nodes should increase depth by exactly 1
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 %STRUCT: B: [id]
@@ -202,11 +202,11 @@ fn property_node_depth_increases_by_one() {
 %NEST: A > B
 %NEST: B > C
 ---
-a: @A
-  | a1
-    | b1
-      | c1
-";
+a:@A
+ | a1
+  | b1
+   | c1
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -222,14 +222,14 @@ a: @A
 #[test]
 fn property_fields_match_schema_length() {
     // Property: Number of fields in a node should match schema column count
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email, age]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com, 30
-  | bob, Bob Jones, bob@example.com, 25
-";
+users:@User
+ | alice, Alice Smith, alice@example.com, 30
+ | bob, Bob Jones, bob@example.com, 25
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
 
@@ -248,15 +248,15 @@ users: @User
 #[test]
 fn property_line_numbers_monotonic() {
     // Property: Line numbers in events should be monotonically increasing
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-";
+items:@Item
+ | a
+ | b
+ | c
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -273,16 +273,16 @@ items: @Item
 #[test]
 fn property_nested_nodes_have_parent_info() {
     // Property: Nodes at depth > 0 should have parent information
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Parent: [id]
 %STRUCT: Child: [id]
 %NEST: Parent > Child
 ---
-data: @Parent
-  | p1
-    | c1
-";
+data:@Parent
+ | p1
+  | c1
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -302,10 +302,7 @@ fn property_end_of_document_is_last() {
     // Note: Empty bodies produce no events, bodies with content produce events
     let inputs_with_expected_events = vec![
         ("%VERSION: 1.0\n---\n", false), // Empty body, no events
-        (
-            "%VERSION: 1.0\n%STRUCT: A: [id]\n---\na: @A\n  | a1\n",
-            true,
-        ), // Has nodes
+        ("%VERSION: 1.0\n%STRUCT: A: [id]\n---\na:@A\n | a1\n", true), // Has nodes
         ("%VERSION: 1.0\n---\nkey: value\n", true), // Has scalar
     ];
 
@@ -326,14 +323,14 @@ fn property_end_of_document_is_last() {
 #[test]
 fn property_parsing_twice_gives_same_result() {
     // Property: Parsing the same input twice should give identical results
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-";
+users:@User
+ | alice, Alice
+ | bob, Bob
+"#;
 
     let parser1 = StreamingParser::new(Cursor::new(input)).unwrap();
     let events1: Vec<_> = parser1
@@ -355,15 +352,15 @@ users: @User
 #[test]
 fn property_errors_stop_iteration() {
     // Property: After an error, no more events should be produced
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-  | row1, val1
-  | invalid_row
-  | row3, val3
-";
+data:@Data
+ | row1, val1
+ | invalid_row
+ | row3, val3
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
@@ -427,15 +424,15 @@ fn property_no_panic_on_malformed_input() {
 #[test]
 fn property_same_input_same_event_count() {
     // Property: Same input should always produce same number of events
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-";
+items:@Item
+ | a
+ | b
+ | c
+"#;
 
     let runs = 10;
     let mut event_counts = Vec::new();
@@ -458,15 +455,15 @@ items: @Item
 #[test]
 fn property_single_char_ids() {
     // Property: Single character IDs should be valid
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-  | a
-  | b
-  | c
-";
+a:@A
+ | a
+ | b
+ | c
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -479,7 +476,7 @@ a: @A
 fn property_long_ids() {
     // Property: Long IDs should be handled correctly
     let long_id = "x".repeat(1000);
-    let input = format!("%VERSION: 1.0\n%STRUCT: A: [id]\n---\na: @A\n  | {long_id}\n");
+    let input = format!("%VERSION: 1.0\n%STRUCT: A: [id]\n---\na:@A\n | {long_id}\n");
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -496,8 +493,8 @@ fn property_empty_string_values() {
 %VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-  | id1, ""
+data:@Data
+ | id1, ""
 "#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -537,13 +534,13 @@ fn property_config_settings_respected() {
 #[test]
 fn property_header_available_after_creation() {
     // Property: Header should be available immediately after parser creation
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id]
 ---
-users: @User
-  | alice
-";
+users:@User
+ | alice
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     assert!(parser.header().is_some());

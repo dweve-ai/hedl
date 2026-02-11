@@ -1,0 +1,220 @@
+facilities[5]{id,name,type,address,city,state,zip,beds,er_available}:
+  fac-001,Metro General Hospital,hospital,"1200 Medical Center Dr",Chicago,IL,60601,450,true
+  fac-002,Lakeside Medical Clinic,clinic,555 Lakeshore Ave,Chicago,IL,60611,0,false
+  fac-003,North Shore Surgery Center,surgical_center,890 Northbrook Rd,Northbrook,IL,60062,24,true
+  fac-004,Wellness Family Practice,clinic,234 Oak Street,Evanston,IL,60201,0,false
+  fac-005,Chicago Heart Institute,specialty_center,678 Cardiac Way,Chicago,IL,60605,85,true
+
+providers[15]{id,facility,name,specialty,role,years_exp,patients_per_day,rating,certifications}:
+  prov-001,fac-001,Dr. Sarah Chen,Cardiology,Doctor,18,22,4.8,"ABIM;FACC;BLS"
+  prov-002,fac-001,Dr. Michael Torres,Neurology,Doctor,12,18,4.6,"ABPN;FAAN"
+  prov-003,fac-001,Dr. Emily Watson,General Practice,Doctor,8,28,4.9,"ABFM;BLS;ACLS"
+  prov-004,fac-001,Jennifer Adams,null,Nurse,15,35,4.7,"RN;BSN;CCRN"
+  prov-005,fac-002,Dr. James Liu,General Practice,Doctor,22,32,4.5,ABFM
+  prov-006,fac-002,Dr. Maria Garcia,Pediatrics,Doctor,10,26,4.8,"ABP;PALS"
+  prov-007,fac-002,Thomas Wright,null,Physician Assistant,6,24,4.4,"PA-C;BLS"
+  prov-008,fac-003,Dr. Robert Kim,Orthopedics,Doctor,20,14,4.9,"ABOS;FAAOS"
+  prov-009,fac-003,Dr. Lisa Patel,Orthopedics,Doctor,14,16,4.7,ABOS
+  prov-010,fac-004,Dr. David Brown,General Practice,Doctor,25,30,4.6,"ABFM;AAFP"
+  prov-011,fac-004,Amanda Foster,null,Nurse Practitioner,9,22,4.5,"FNP-BC;BLS"
+  prov-012,fac-005,Dr. William Hayes,Cardiology,Doctor,28,18,4.9,"ABIM;FACC;FSCAI"
+  prov-013,fac-005,Dr. Karen Miller,Cardiology,Doctor,16,20,4.7,"ABIM;FACC"
+  prov-014,fac-001,Dr. Steven Park,Oncology,Doctor,19,15,4.8,"ABIM;FACP"
+  prov-015,fac-001,Dr. Rachel Green,Psychiatry,Doctor,11,20,4.6,ABPN
+
+patients[25]{id,name,dob,gender,blood_type,insurance_type,primary_provider,emergency_contact,allergies,chronic_conditions}:
+  pat-001,John Smith,1965-03-15,Male,A+,private,prov-003,Mary Smith (555-0101),Penicillin,"Hypertension;Type 2 Diabetes"
+  pat-002,Emily Johnson,1978-07-22,Female,O+,private,prov-005,Robert Johnson (555-0102),null,Asthma
+  pat-003,Michael Williams,1952-11-08,Male,B+,medicare,prov-001,Susan Williams (555-0103),"Aspirin;Sulfa","Coronary Artery Disease;Atrial Fibrillation"
+  pat-004,Sarah Davis,1990-04-30,Female,AB-,private,prov-006,Tom Davis (555-0104),Latex,null
+  pat-005,James Wilson,1945-09-12,Male,O-,medicare,prov-012,Linda Wilson (555-0105),null,"Congestive Heart Failure;Hypertension"
+  pat-006,Jessica Brown,1985-12-03,Female,A-,private,prov-010,David Brown (555-0106),Codeine,Migraine
+  pat-007,David Martinez,1972-06-18,Male,B-,medicaid,prov-003,Rosa Martinez (555-0107),null,"COPD;Hypertension"
+  pat-008,Amanda Taylor,2015-02-25,Female,O+,private,prov-006,Jennifer Taylor (555-0108),Eggs,Eczema
+  pat-009,Christopher Lee,1960-08-14,Male,A+,medicare,prov-001,Helen Lee (555-0109),Iodine,Peripheral Artery Disease
+  pat-010,Michelle Anderson,1988-01-29,Female,AB+,private,prov-015,Kevin Anderson (555-0110),null,Generalized Anxiety Disorder
+  pat-011,Robert Thomas,1955-05-06,Male,O+,medicare,prov-008,Patricia Thomas (555-0111),NSAIDs,Osteoarthritis
+  pat-012,Jennifer Jackson,1995-10-17,Female,B+,private,prov-010,Mark Jackson (555-0112),null,null
+  pat-013,William White,1948-12-22,Male,A-,medicare,prov-002,Barbara White (555-0113),Contrast Dye,"Parkinson Disease;Dementia"
+  pat-014,Elizabeth Harris,1982-03-08,Female,O+,private,prov-003,Richard Harris (555-0114),Shellfish,Hypothyroidism
+  pat-015,Joseph Clark,1970-07-14,Male,B+,medicaid,prov-005,Nancy Clark (555-0115),null,"Type 2 Diabetes;Obesity"
+  pat-016,Margaret Lewis,1938-11-30,Female,A+,medicare,prov-012,Edward Lewis (555-0116),Morphine,"Aortic Stenosis;Hypertension"
+  pat-017,Charles Robinson,1975-04-25,Male,AB+,private,prov-008,Diana Robinson (555-0117),null,Herniated Disc
+  pat-018,Patricia Walker,1992-09-11,Female,O-,private,prov-006,null,"Peanuts;Tree Nuts",null
+  pat-019,Daniel Hall,1958-02-17,Male,B-,medicare,prov-014,Sharon Hall (555-0119),null,Lung Cancer
+  pat-020,Linda Allen,1968-06-05,Female,A+,private,prov-001,George Allen (555-0120),Beta Blockers,Mitral Valve Prolapse
+  pat-021,Matthew Young,2018-08-20,Male,O+,medicaid,prov-006,Stephanie Young (555-0121),null,Asthma
+  pat-022,Sandra King,1980-12-12,Female,AB-,private,prov-015,Thomas King (555-0122),null,"Major Depressive Disorder;Insomnia"
+  pat-023,Anthony Wright,1963-03-28,Male,A-,medicare,prov-002,Carol Wright (555-0123),Statins,Multiple Sclerosis
+  pat-024,Karen Scott,1998-05-09,Female,B+,private,prov-010,James Scott (555-0124),null,null
+  pat-025,Steven Adams,1942-10-03,Male,O+,medicare,prov-012,Ruth Adams (555-0125),ACE Inhibitors,"Heart Failure;Chronic Kidney Disease"
+
+appointments[40]{id,patient,provider,facility,date,time,duration_min,status,reason,notes}:
+  apt-001,pat-001,prov-003,fac-001,2024-01-15,09:00,30,Completed,Annual Physical,Blood pressure slightly elevated
+  apt-002,pat-002,prov-005,fac-002,2024-01-16,10:30,20,Completed,Asthma Follow-up,Symptoms well controlled
+  apt-003,pat-003,prov-001,fac-001,2024-01-17,14:00,45,Completed,Cardiac Evaluation,Ordered stress test
+  apt-004,pat-004,prov-006,fac-002,2024-01-18,11:00,20,Completed,Well Child Visit,Development on track
+  apt-005,pat-005,prov-012,fac-005,2024-01-19,08:30,60,Completed,Heart Failure Review,Adjusted medications
+  apt-006,pat-006,prov-010,fac-004,2024-01-22,15:00,30,Completed,Migraine Consultation,Started preventive therapy
+  apt-007,pat-007,prov-003,fac-001,2024-01-23,09:30,30,Completed,COPD Management,Pulmonary function stable
+  apt-008,pat-008,prov-006,fac-002,2024-01-24,13:00,20,Completed,Eczema Follow-up,Rash improving
+  apt-009,pat-009,prov-001,fac-001,2024-01-25,10:00,45,Completed,PAD Evaluation,Scheduled angiogram
+  apt-010,pat-010,prov-015,fac-001,2024-01-26,14:30,50,Completed,Anxiety Management,Therapy progressing well
+  apt-011,pat-011,prov-008,fac-003,2024-01-29,08:00,40,Completed,Knee Evaluation,Recommended surgery
+  apt-012,pat-012,prov-010,fac-004,2024-01-30,11:30,20,Completed,Routine Checkup,All vitals normal
+  apt-013,pat-013,prov-002,fac-001,2024-01-31,09:00,60,Completed,Neurology Review,Medication adjustment
+  apt-014,pat-014,prov-003,fac-001,2024-02-01,10:30,25,Completed,Thyroid Follow-up,TSH levels normalized
+  apt-015,pat-015,prov-005,fac-002,2024-02-02,14:00,30,Completed,Diabetes Management,A1C improved
+  apt-016,pat-016,prov-012,fac-005,2024-02-05,09:00,45,Completed,Pre-op Evaluation,Cleared for surgery
+  apt-017,pat-017,prov-008,fac-003,2024-02-06,13:30,30,Completed,Back Pain Consult,MRI scheduled
+  apt-018,pat-018,prov-006,fac-002,2024-02-07,10:00,20,Completed,Pediatric Wellness,Growth normal
+  apt-019,pat-019,prov-014,fac-001,2024-02-08,08:30,60,Completed,Oncology Review,Treatment response good
+  apt-020,pat-020,prov-001,fac-001,2024-02-09,15:00,40,Completed,MVP Follow-up,Echo scheduled
+  apt-021,pat-021,prov-006,fac-002,2024-02-12,09:30,20,Completed,Asthma Check,Inhaler technique reviewed
+  apt-022,pat-022,prov-015,fac-001,2024-02-13,14:00,50,Completed,Depression Follow-up,Medication effective
+  apt-023,pat-023,prov-002,fac-001,2024-02-14,10:30,45,Completed,MS Management,Stable condition
+  apt-024,pat-024,prov-010,fac-004,2024-02-15,11:00,20,Completed,Annual Physical,Excellent health
+  apt-025,pat-025,prov-012,fac-005,2024-02-16,08:00,60,Completed,Heart Failure Check,Fluid balance improved
+  apt-026,pat-001,prov-001,fac-001,2024-02-19,09:00,45,Scheduled,Cardiology Referral,null
+  apt-027,pat-003,prov-001,fac-005,2024-02-20,07:30,120,Completed,Stress Test,Positive for ischemia
+  apt-028,pat-005,prov-013,fac-005,2024-02-21,10:00,30,Completed,Echo Follow-up,EF improved to 40%
+  apt-029,pat-007,prov-003,fac-001,2024-02-22,14:30,30,Cancelled,COPD Review,Patient called to cancel
+  apt-030,pat-009,prov-001,fac-001,2024-02-23,06:00,180,Completed,Angiography,Two stents placed
+  apt-031,pat-011,prov-008,fac-003,2024-02-26,07:00,120,Completed,Knee Replacement,Surgery successful
+  apt-032,pat-013,prov-002,fac-001,2024-02-27,09:30,45,No Show,Follow-up,Patient did not arrive
+  apt-033,pat-016,prov-012,fac-005,2024-02-28,06:30,240,Completed,TAVR Procedure,Valve replaced successfully
+  apt-034,pat-017,prov-009,fac-003,2024-03-01,08:00,90,Completed,Spinal Surgery,Disc repaired
+  apt-035,pat-019,prov-014,fac-001,2024-03-04,10:00,180,Completed,Chemotherapy,Cycle 3 completed
+  apt-036,pat-020,prov-001,fac-001,2024-03-05,13:00,45,Completed,Echo Study,Mild regurgitation
+  apt-037,pat-022,prov-015,fac-001,2024-03-06,15:30,50,Scheduled,Therapy Session,null
+  apt-038,pat-025,prov-012,fac-005,2024-03-07,09:00,45,Scheduled,Device Check,null
+  apt-039,pat-002,prov-005,fac-002,2024-03-08,11:00,20,Scheduled,Asthma Review,null
+  apt-040,pat-006,prov-010,fac-004,2024-03-11,14:00,30,Scheduled,Migraine Check,null
+
+diagnoses[30]{id,patient,provider,date,icd_code,condition,severity,is_chronic}:
+  dx-001,pat-001,prov-003,2020-05-10,I10,Essential Hypertension,Moderate,true
+  dx-002,pat-001,prov-003,2021-08-22,E11.9,Type 2 Diabetes Mellitus,Mild,true
+  dx-003,pat-002,prov-005,2018-03-15,J45.20,Mild Intermittent Asthma,Mild,true
+  dx-004,pat-003,prov-001,2015-11-30,I25.10,Coronary Artery Disease,Severe,true
+  dx-005,pat-003,prov-001,2019-04-18,I48.91,Atrial Fibrillation,Moderate,true
+  dx-006,pat-005,prov-012,2017-06-25,I50.9,Heart Failure,Severe,true
+  dx-007,pat-005,prov-012,2012-09-14,I10,Essential Hypertension,Moderate,true
+  dx-008,pat-006,prov-010,2019-02-08,G43.909,Migraine,Moderate,true
+  dx-009,pat-007,prov-003,2016-12-05,J44.9,COPD,Moderate,true
+  dx-010,pat-007,prov-003,2018-07-20,I10,Essential Hypertension,Mild,true
+  dx-011,pat-008,prov-006,2022-04-12,L30.9,Dermatitis,Mild,true
+  dx-012,pat-009,prov-001,2020-10-28,I73.9,Peripheral Artery Disease,Moderate,true
+  dx-013,pat-010,prov-015,2021-05-16,F41.1,Generalized Anxiety Disorder,Moderate,true
+  dx-014,pat-011,prov-008,2014-08-03,M17.11,Primary Osteoarthritis Right Knee,Severe,true
+  dx-015,pat-013,prov-002,2018-01-22,G20,Parkinson Disease,Moderate,true
+  dx-016,pat-013,prov-002,2022-11-08,F03.90,Dementia,Mild,true
+  dx-017,pat-014,prov-003,2019-09-30,E03.9,Hypothyroidism,Mild,true
+  dx-018,pat-015,prov-005,2017-04-14,E11.9,Type 2 Diabetes Mellitus,Moderate,true
+  dx-019,pat-015,prov-005,2020-06-22,E66.9,Obesity,Moderate,true
+  dx-020,pat-016,prov-012,2019-12-10,I35.0,Aortic Stenosis,Severe,true
+  dx-021,pat-016,prov-012,2010-05-18,I10,Essential Hypertension,Moderate,true
+  dx-022,pat-017,prov-008,2023-01-15,M51.16,Herniated Disc L4-L5,Moderate,false
+  dx-023,pat-019,prov-014,2023-06-20,C34.90,Lung Cancer,Severe,true
+  dx-024,pat-020,prov-001,2015-07-08,I34.1,Mitral Valve Prolapse,Mild,true
+  dx-025,pat-021,prov-006,2021-10-05,J45.20,Mild Intermittent Asthma,Mild,true
+  dx-026,pat-022,prov-015,2020-03-12,F33.1,Major Depressive Disorder,Moderate,true
+  dx-027,pat-022,prov-015,2021-08-25,G47.00,Insomnia,Mild,true
+  dx-028,pat-023,prov-002,2016-04-30,G35,Multiple Sclerosis,Moderate,true
+  dx-029,pat-025,prov-012,2018-09-22,I50.9,Heart Failure,Severe,true
+  dx-030,pat-025,prov-012,2020-01-15,N18.3,Chronic Kidney Disease Stage 3,Moderate,true
+
+prescriptions[35]{id,patient,provider,diagnosis,medication,dosage_mg,frequency,duration_days,refills,start_date}:
+  rx-001,pat-001,prov-003,dx-001,Lisinopril,10,qd,90,3,2024-01-15
+  rx-002,pat-001,prov-003,dx-002,Metformin,500,bid,90,3,2024-01-15
+  rx-003,pat-002,prov-005,dx-003,Albuterol,90,prn,30,6,2024-01-16
+  rx-004,pat-003,prov-001,dx-004,Clopidogrel,75,qd,90,3,2024-01-17
+  rx-005,pat-003,prov-001,dx-005,Metoprolol,50,bid,90,3,2024-01-17
+  rx-006,pat-003,prov-001,dx-005,Warfarin,5,qd,30,6,2024-01-17
+  rx-007,pat-005,prov-012,dx-006,Furosemide,40,bid,90,3,2024-01-19
+  rx-008,pat-005,prov-012,dx-006,Carvedilol,25,bid,90,3,2024-01-19
+  rx-009,pat-005,prov-012,dx-007,Amlodipine,10,qd,90,3,2024-01-19
+  rx-010,pat-006,prov-010,dx-008,Sumatriptan,50,prn,30,2,2024-01-22
+  rx-011,pat-006,prov-010,dx-008,Topiramate,25,bid,90,3,2024-01-22
+  rx-012,pat-007,prov-003,dx-009,Tiotropium,18,qd,30,6,2024-01-23
+  rx-013,pat-007,prov-003,dx-010,Losartan,50,qd,90,3,2024-01-23
+  rx-014,pat-008,prov-006,dx-011,Hydrocortisone Cream,25,bid,14,2,2024-01-24
+  rx-015,pat-009,prov-001,dx-012,Cilostazol,100,bid,90,3,2024-01-25
+  rx-016,pat-010,prov-015,dx-013,Sertraline,50,qd,90,3,2024-01-26
+  rx-017,pat-011,prov-008,dx-014,Celecoxib,200,qd,30,2,2024-01-29
+  rx-018,pat-013,prov-002,dx-015,Carbidopa-Levodopa,25,tid,90,3,2024-01-31
+  rx-019,pat-013,prov-002,dx-016,Donepezil,10,qd,90,3,2024-01-31
+  rx-020,pat-014,prov-003,dx-017,Levothyroxine,75,qd,90,3,2024-02-01
+  rx-021,pat-015,prov-005,dx-018,Metformin,1000,bid,90,3,2024-02-02
+  rx-022,pat-015,prov-005,dx-019,Semaglutide,0.5,qd,30,6,2024-02-02
+  rx-023,pat-016,prov-012,dx-020,Aspirin,81,qd,90,3,2024-02-05
+  rx-024,pat-016,prov-012,dx-021,Lisinopril,20,qd,90,3,2024-02-05
+  rx-025,pat-017,prov-008,dx-022,Gabapentin,300,tid,30,2,2024-02-06
+  rx-026,pat-019,prov-014,dx-023,Ondansetron,8,tid,14,0,2024-02-08
+  rx-027,pat-020,prov-001,dx-024,Propranolol,20,bid,90,3,2024-02-09
+  rx-028,pat-021,prov-006,dx-025,Fluticasone,44,bid,30,6,2024-02-12
+  rx-029,pat-022,prov-015,dx-026,Escitalopram,10,qd,90,3,2024-02-13
+  rx-030,pat-022,prov-015,dx-027,Trazodone,50,qd,30,3,2024-02-13
+  rx-031,pat-023,prov-002,dx-028,Ocrelizumab,300,null,180,0,2024-02-14
+  rx-032,pat-025,prov-012,dx-029,Furosemide,80,bid,90,3,2024-02-16
+  rx-033,pat-025,prov-012,dx-029,Spironolactone,25,qd,90,3,2024-02-16
+  rx-034,pat-025,prov-012,dx-030,Sodium Bicarbonate,650,tid,90,3,2024-02-16
+  rx-035,pat-003,prov-001,dx-004,Atorvastatin,40,qd,90,3,2024-02-20
+
+labs[40]{id,patient,provider,test_name,date,value,unit,ref_range,status}:
+  lab-001,pat-001,prov-003,HbA1c,2024-01-15,7.2,%,"[4.0, 5.6]",Abnormal
+  lab-002,pat-001,prov-003,Fasting Glucose,2024-01-15,142,mg/dL,"[70, 100]",Abnormal
+  lab-003,pat-001,prov-003,Total Cholesterol,2024-01-15,198,mg/dL,"[0, 200]",Normal
+  lab-004,pat-001,prov-003,Blood Pressure Systolic,2024-01-15,145,mmHg,"[90, 120]",Abnormal
+  lab-005,pat-003,prov-001,Troponin I,2024-01-17,0.08,ng/mL,"[0, 0.04]",Abnormal
+  lab-006,pat-003,prov-001,BNP,2024-01-17,450,pg/mL,"[0, 100]",Abnormal
+  lab-007,pat-003,prov-001,INR,2024-01-17,2.3,ratio,"[2.0, 3.0]",Normal
+  lab-008,pat-003,prov-001,LDL Cholesterol,2024-01-17,145,mg/dL,"[0, 100]",Abnormal
+  lab-009,pat-005,prov-012,BNP,2024-01-19,890,pg/mL,"[0, 100]",Critical
+  lab-010,pat-005,prov-012,Creatinine,2024-01-19,1.8,mg/dL,"[0.7, 1.3]",Abnormal
+  lab-011,pat-005,prov-012,Potassium,2024-01-19,5.2,mEq/L,"[3.5, 5.0]",Abnormal
+  lab-012,pat-005,prov-012,Sodium,2024-01-19,132,mEq/L,"[136, 145]",Abnormal
+  lab-013,pat-007,prov-003,FEV1,2024-01-23,58,%,"[80, 120]",Abnormal
+  lab-014,pat-007,prov-003,Oxygen Saturation,2024-01-23,94,%,"[95, 100]",Abnormal
+  lab-015,pat-009,prov-001,ABI,2024-01-25,0.65,ratio,"[0.9, 1.3]",Abnormal
+  lab-016,pat-010,prov-015,TSH,2024-01-26,2.1,mIU/L,"[0.4, 4.0]",Normal
+  lab-017,pat-011,prov-008,Hemoglobin,2024-01-29,13.5,g/dL,"[12.0, 16.0]",Normal
+  lab-018,pat-011,prov-008,Platelet Count,2024-01-29,245,K/uL,"[150, 400]",Normal
+  lab-019,pat-013,prov-002,Vitamin D,2024-01-31,18,ng/mL,"[30, 100]",Abnormal
+  lab-020,pat-014,prov-003,TSH,2024-02-01,3.2,mIU/L,"[0.4, 4.0]",Normal
+  lab-021,pat-014,prov-003,Free T4,2024-02-01,1.1,ng/dL,"[0.8, 1.8]",Normal
+  lab-022,pat-015,prov-005,HbA1c,2024-02-02,8.4,%,"[4.0, 5.6]",Abnormal
+  lab-023,pat-015,prov-005,Fasting Glucose,2024-02-02,186,mg/dL,"[70, 100]",Abnormal
+  lab-024,pat-016,prov-012,BNP,2024-02-05,1250,pg/mL,"[0, 100]",Critical
+  lab-025,pat-016,prov-012,Creatinine,2024-02-05,1.4,mg/dL,"[0.7, 1.3]",Abnormal
+  lab-026,pat-019,prov-014,WBC,2024-02-08,2.8,K/uL,"[4.5, 11.0]",Abnormal
+  lab-027,pat-019,prov-014,Hemoglobin,2024-02-08,9.2,g/dL,"[12.0, 16.0]",Abnormal
+  lab-028,pat-019,prov-014,Platelet Count,2024-02-08,95,K/uL,"[150, 400]",Abnormal
+  lab-029,pat-020,prov-001,Ejection Fraction,2024-02-09,62,%,"[55, 70]",Normal
+  lab-030,pat-022,prov-015,Lithium Level,2024-02-13,0,mEq/L,"[0.6, 1.2]",Normal
+  lab-031,pat-023,prov-002,MRI Lesion Count,2024-02-14,12,lesions,"[0, 0]",Abnormal
+  lab-032,pat-025,prov-012,BNP,2024-02-16,1450,pg/mL,"[0, 100]",Critical
+  lab-033,pat-025,prov-012,eGFR,2024-02-16,38,mL/min,"[90, 120]",Abnormal
+  lab-034,pat-025,prov-012,Potassium,2024-02-16,5.5,mEq/L,"[3.5, 5.0]",Abnormal
+  lab-035,pat-003,prov-001,Troponin I,2024-02-20,0.15,ng/mL,"[0, 0.04]",Critical
+  lab-036,pat-005,prov-013,Ejection Fraction,2024-02-21,40,%,"[55, 70]",Abnormal
+  lab-037,pat-009,prov-001,Creatinine,2024-02-23,1.2,mg/dL,"[0.7, 1.3]",Normal
+  lab-038,pat-011,prov-008,Hemoglobin,2024-02-26,11.8,g/dL,"[12.0, 16.0]",Abnormal
+  lab-039,pat-016,prov-012,Ejection Fraction,2024-02-28,55,%,"[55, 70]",Normal
+  lab-040,pat-019,prov-014,Tumor Marker CA-125,2024-03-04,85,U/mL,"[0, 35]",Abnormal
+
+procedures[15]{id,patient,provider,facility,date,name,cpt_code,duration_min,outcome,cost}:
+  proc-001,pat-003,prov-001,fac-005,2024-02-20,Cardiac Stress Test,93015,45,Successful,2500
+  proc-002,pat-009,prov-001,fac-001,2024-02-23,Coronary Angiography,93458,90,Successful,12500
+  proc-003,pat-009,prov-001,fac-001,2024-02-23,PCI with Stent x2,92928,120,Successful,35000
+  proc-004,pat-011,prov-008,fac-003,2024-02-26,Total Knee Arthroplasty,27447,150,Successful,45000
+  proc-005,pat-016,prov-012,fac-005,2024-02-28,TAVR,33361,180,Successful,85000
+  proc-006,pat-017,prov-009,fac-003,2024-03-01,Lumbar Discectomy,63030,90,Successful,28000
+  proc-007,pat-019,prov-014,fac-001,2024-03-04,Chemotherapy Administration,96413,180,Successful,8500
+  proc-008,pat-020,prov-001,fac-001,2024-03-05,Echocardiogram,93306,45,Successful,1800
+  proc-009,pat-003,prov-001,fac-005,2024-02-27,Cardiac Catheterization,93452,60,Complication,15000
+  proc-010,pat-005,prov-012,fac-005,2024-01-19,ICD Implantation,33249,120,Successful,55000
+  proc-011,pat-013,prov-002,fac-001,2024-01-31,Lumbar Puncture,62270,30,Successful,2200
+  proc-012,pat-023,prov-002,fac-001,2024-02-14,MRI Brain with Contrast,70553,60,Successful,3500
+  proc-013,pat-006,prov-010,fac-004,2024-01-22,Nerve Block Injection,64450,20,Successful,1500
+  proc-014,pat-008,prov-006,fac-002,2024-01-24,Allergy Skin Testing,95004,45,Successful,450
+  proc-015,pat-025,prov-012,fac-005,2024-02-16,CRT-D Implantation,33225,150,Partial,65000

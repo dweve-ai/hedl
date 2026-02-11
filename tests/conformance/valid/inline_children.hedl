@@ -1,0 +1,12 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id,name,price]
+%S:Review:[id,rating,text]
+%N:Product>Review
+---
+products:@Product
+ |p1,Widget,9.99
+  @Review#2:|r1,5,Great|r2,4,Good
+ |p2,Gadget,19.99
+  @Review#1:|r3,3,Average

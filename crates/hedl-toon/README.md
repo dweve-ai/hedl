@@ -1,25 +1,25 @@
 # hedl-toon
 
-**Bidirectional HEDL ↔ TOON conversion with TOON v3.0 compliance—optimized for LLM context windows.**
+**Bidirectional HEDL ↔ TOON conversion with TOON v3.0 compliance -optimized for LLM context windows.**
 
-TOON (Token-Oriented Object Notation) was designed for LLM efficiency. Every token counts. Every byte costs money. But comprehensive accuracy testing with GPT-5.1, Mistral Large, and DeepSeek v3.2 reveals: **HEDL outperforms TOON for LLM comprehension** while using 10% fewer tokens.
+TOON (Token-Oriented Object Notation) was designed for LLM efficiency. Every token counts. Every byte costs money. But comprehensive accuracy testing with Mistral Large, DeepSeek v3, and NVIDIA GLM-4.7 reveals: **HEDL outperforms TOON for LLM comprehension** while using similar tokens.
 
 `hedl-toon` provides bidirectional conversion between HEDL and TOON formats. Convert legacy TOON data to HEDL for better accuracy. Export HEDL to TOON when backward compatibility is required. Full TOON v3.0 specification compliance with tabular and expanded formats, three delimiter options, and comprehensive pluralization support.
 
 ## LLM Accuracy: HEDL vs TOON
 
-Comprehensive accuracy testing across 3 major LLM providers shows HEDL consistently outperforms TOON:
+Comprehensive accuracy testing across 3 major LLM providers (571 questions, 7 datasets) shows HEDL consistently outperforms TOON:
 
 | Provider | HEDL Accuracy | TOON Accuracy | HEDL Advantage |
 |----------|---------------|---------------|----------------|
-| GPT-5.1 | 71.8% | 68.2% | **+3.6 points** |
-| Mistral Large | 51.8% | 45.1% | **+6.7 points** |
-| DeepSeek v3.2 | 63.1% | 63.1% | Tie |
-| **Average** | **62.2%** | **58.8%** | **+3.4 points** |
+| Mistral Large | 81.3% | 70.2% | **+11.1 points** |
+| DeepSeek | 79.2% | 64.6% | **+14.6 points** |
+| NVIDIA GLM-4.7 | 80.6% | 69.7% | **+10.9 points** |
+| **Average** | **80.4%** | **68.2%** | **+12.2 points** |
 
-**Token Efficiency**: HEDL uses 10.3% fewer tokens than TOON while achieving higher accuracy.
+**Token Efficiency**: HEDL uses 7% fewer tokens than TOON overall (9-17% fewer for nested/hierarchical data).
 
-**Accuracy per 1K tokens**: HEDL 0.23 vs TOON 0.21 (+9.5% efficiency)
+**Accuracy per 1K tokens**: HEDL 0.12 vs TOON 0.10 (+20% efficiency)
 
 **Conclusion**: HEDL is the superior format for LLM applications. Use `hedl-toon` only for backward compatibility with existing TOON-based systems.
 
@@ -27,7 +27,7 @@ Comprehensive accuracy testing across 3 major LLM providers shows HEDL consisten
 
 ```toml
 [dependencies]
-hedl-toon = "1.1"
+hedl-toon = "2.0"
 ```
 
 ## What's Implemented
@@ -55,11 +55,11 @@ Convert HEDL documents to TOON when backward compatibility is required:
 use hedl_toon::{hedl_to_toon, to_toon, ToToonConfig, Delimiter};
 
 let doc = hedl_core::parse(br#"
-%STRUCT: User: [id, name, age]
+%S:User:[id, name, age]
 ---
 users: @User
-  | alice, Alice Smith, 30
-  | bob, Bob Jones, 25
+ | alice, Alice Smith, 30
+ | bob, Bob Jones, 25
 "#)?;
 
 // Default configuration (2-space indent, comma delimiter)
@@ -456,7 +456,7 @@ teams[1]:
 
 ## Use Cases
 
-**Legacy TOON Migration**: Convert existing TOON data to HEDL for improved LLM accuracy (+3.4 points average) and 10% token efficiency gain.
+**Legacy TOON Migration**: Convert existing TOON data to HEDL for improved LLM accuracy (+12.2pp average) and 7% token efficiency gain.
 
 **Backward Compatibility**: Export HEDL to TOON when integrating with systems that only consume TOON format.
 
@@ -486,7 +486,7 @@ teams[1]:
 
 ## Dependencies
 
-- `hedl-core` 1.0 - HEDL parsing and data model
+- `hedl-core` 2.0 - HEDL parsing and data model
 - `thiserror` 1.0 - Error type definitions
 
 ## License

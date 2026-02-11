@@ -1,176 +1,176 @@
 {
   "version": "current",
-  "timestamp": "2026-01-20T19:48:59.544921874+00:00",
+  "timestamp": "2026-02-10T12:24:39.390287134+00:00",
   "benchmarks": {
-    "parsing_small": {
-      "mean": 1071252,
-      "std_dev": 0,
+    "parsing_large": {
+      "mean": 22636201,
+      "std_dev": 806924,
       "percentiles": {
-        "p50": 1003697,
-        "p95": 1485012,
-        "p99": 3103959
-      }
-    },
-    "validation_small": {
-      "mean": 255995,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 266977,
-        "p95": 466757,
-        "p99": 602128
-      }
-    },
-    "conversion_json_small": {
-      "mean": 394660,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 379428,
-        "p95": 474453,
-        "p99": 664635
-      }
-    },
-    "parsing_medium": {
-      "mean": 11141761,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 10906095,
-        "p95": 13283374,
-        "p99": 17864754
-      }
-    },
-    "canonicalization_small": {
-      "mean": 297109,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 287023,
-        "p95": 381089,
-        "p99": 430385
+        "p50": 22468750,
+        "p95": 25245240,
+        "p99": 25245240
       }
     },
     "pipeline_full_small": {
-      "mean": 1909082,
-      "std_dev": 0,
+      "mean": 694668,
+      "std_dev": 76311,
       "percentiles": {
-        "p50": 1761740,
-        "p95": 2527805,
-        "p99": 3023378
+        "p50": 676915,
+        "p95": 830645,
+        "p99": 896766
       }
     },
-    "conversion_json_medium": {
-      "mean": 3902473,
-      "std_dev": 0,
+    "parsing_small": {
+      "mean": 174049,
+      "std_dev": 12911,
       "percentiles": {
-        "p50": 3806651,
-        "p95": 4370600,
-        "p99": 6681624
+        "p50": 170045,
+        "p95": 204203,
+        "p99": 241070
       }
     },
     "canonicalization_tiny": {
-      "mean": 170601,
-      "std_dev": 0,
+      "mean": 44463,
+      "std_dev": 25378,
       "percentiles": {
-        "p50": 159057,
-        "p95": 258000,
-        "p99": 307094
-      }
-    },
-    "validation_tiny": {
-      "mean": 258712,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 260908,
-        "p95": 455456,
-        "p99": 523500
-      }
-    },
-    "parsing_tiny": {
-      "mean": 119834,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 98663,
-        "p95": 222577,
-        "p99": 683990
-      }
-    },
-    "pipeline_full_medium": {
-      "mean": 13852630,
-      "std_dev": 0,
-      "percentiles": {
-        "p50": 13324095,
-        "p95": 17375426,
-        "p99": 18141835
+        "p50": 40115,
+        "p95": 50898,
+        "p99": 240571
       }
     },
     "conversion_json_tiny": {
-      "mean": 37958,
-      "std_dev": 0,
+      "mean": 3796,
+      "std_dev": 966,
       "percentiles": {
-        "p50": 37580,
-        "p95": 40970,
-        "p99": 52529
+        "p50": 3581,
+        "p95": 4498,
+        "p99": 12235
+      }
+    },
+    "conversion_json_small": {
+      "mean": 46457,
+      "std_dev": 3250,
+      "percentiles": {
+        "p50": 45615,
+        "p95": 49821,
+        "p99": 71880
+      }
+    },
+    "validation_tiny": {
+      "mean": 376905,
+      "std_dev": 74548,
+      "percentiles": {
+        "p50": 372410,
+        "p95": 531604,
+        "p99": 650467
+      }
+    },
+    "canonicalization_small": {
+      "mean": 64703,
+      "std_dev": 10360,
+      "percentiles": {
+        "p50": 62424,
+        "p95": 74219,
+        "p99": 141396
+      }
+    },
+    "conversion_json_medium": {
+      "mean": 446474,
+      "std_dev": 49071,
+      "percentiles": {
+        "p50": 432137,
+        "p95": 527005,
+        "p99": 772919
       }
     },
     "linting_medium": {
-      "mean": 302090,
-      "std_dev": 0,
+      "mean": 532852,
+      "std_dev": 180037,
       "percentiles": {
-        "p50": 305612,
-        "p95": 450597,
-        "p99": 540540
+        "p50": 487592,
+        "p95": 828123,
+        "p99": 1527698
       }
     },
-    "canonicalization_medium": {
-      "mean": 1626888,
-      "std_dev": 0,
+    "pipeline_full_medium": {
+      "mean": 2725820,
+      "std_dev": 227377,
       "percentiles": {
-        "p50": 1580870,
-        "p95": 1808924,
-        "p99": 2289460
+        "p50": 2539661,
+        "p95": 2697095,
+        "p99": 3342726
       }
     },
-    "parsing_large": {
-      "mean": 122574256,
-      "std_dev": 0,
+    "parsing_medium": {
+      "mean": 1772589,
+      "std_dev": 110914,
       "percentiles": {
-        "p50": 122110180,
-        "p95": 130896165,
-        "p99": 130896165
+        "p50": 1734098,
+        "p95": 1994327,
+        "p99": 2256547
       }
     },
-    "linting_small": {
-      "mean": 266000,
-      "std_dev": 0,
+    "validation_small": {
+      "mean": 384312,
+      "std_dev": 73041,
       "percentiles": {
-        "p50": 279313,
-        "p95": 394777,
-        "p99": 458491
+        "p50": 383440,
+        "p95": 509257,
+        "p99": 629040
       }
     },
     "validation_medium": {
-      "mean": 255589,
-      "std_dev": 0,
+      "mean": 410079,
+      "std_dev": 84348,
       "percentiles": {
-        "p50": 248046,
-        "p95": 401848,
-        "p99": 429963
+        "p50": 392315,
+        "p95": 535367,
+        "p99": 935658
       }
     },
-    "pipeline_full_tiny": {
-      "mean": 784886,
-      "std_dev": 0,
+    "parsing_tiny": {
+      "mean": 15264,
+      "std_dev": 1876,
       "percentiles": {
-        "p50": 713624,
-        "p95": 1177034,
-        "p99": 2530225
+        "p50": 14849,
+        "p95": 17047,
+        "p99": 29519
+      }
+    },
+    "canonicalization_medium": {
+      "mean": 309419,
+      "std_dev": 51739,
+      "percentiles": {
+        "p50": 296528,
+        "p95": 381333,
+        "p99": 643329
       }
     },
     "linting_tiny": {
-      "mean": 223363,
-      "std_dev": 0,
+      "mean": 419239,
+      "std_dev": 124493,
       "percentiles": {
-        "p50": 229673,
-        "p95": 420597,
-        "p99": 511863
+        "p50": 404620,
+        "p95": 652682,
+        "p99": 1044550
+      }
+    },
+    "pipeline_full_tiny": {
+      "mean": 557899,
+      "std_dev": 110473,
+      "percentiles": {
+        "p50": 534173,
+        "p95": 809133,
+        "p99": 984332
+      }
+    },
+    "linting_small": {
+      "mean": 436469,
+      "std_dev": 91350,
+      "percentiles": {
+        "p50": 425415,
+        "p95": 625760,
+        "p99": 713343
       }
     }
   }

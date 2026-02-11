@@ -22,7 +22,7 @@
 //! characteristics.
 
 use hedl_cli::batch::{
-    BatchConfig, BatchOperation, BatchProcessor, FileResult, FormatOperation, LintOperation,
+    BatchConfig, BatchExecutor, BatchOperation, FileResult, FormatOperation, LintOperation,
     ValidationOperation,
 };
 use std::fs;
@@ -67,13 +67,15 @@ fn create_matrix_test_files(count: usize) -> (TempDir, Vec<PathBuf>) {
         let path = dir.path().join(format!("matrix{i}.hedl"));
         let base = i * 100;
         let content = format!(
-            r"%VERSION: 1.0
-%STRUCT: Item (3): [id,value]
+            "%V:2.0
+%NULL:~
+%QUOTE:\"
+%S:Item:[id,value]
 ---
-items: @Item
-  |item_{},100
-  |item_{},200
-  |item_{},300
+items:@Item
+ |item_{},100
+ |item_{},200
+ |item_{},300
 ",
             base,
             base + 1,
@@ -128,9 +130,9 @@ fn create_varying_size_files() -> (TempDir, Vec<PathBuf>) {
     // Medium file (~ 5KB)
     let medium_path = dir.path().join("medium.hedl");
     let mut medium_content =
-        String::from("%VERSION: 1.0\n%STRUCT: Item (100): [id,value]\n---\nitems: @Item\n");
+        String::from("%VERSION: 1.0\n%STRUCT: Item (100): [id,value]\n---\nitems:@Item\n");
     for i in 0..100 {
-        medium_content.push_str(&format!("  |item_{i},value_{i}\n"));
+        medium_content.push_str(&format!(" |item_{i},value_{i}\n"));
     }
     fs::write(&medium_path, medium_content).expect("Failed to write medium file");
     paths.push(medium_path);
@@ -138,11 +140,11 @@ fn create_varying_size_files() -> (TempDir, Vec<PathBuf>) {
     // Large file (~ 50KB)
     let large_path = dir.path().join("large.hedl");
     let mut large_content = String::from(
-        "%VERSION: 1.0\n%STRUCT: Item (1000): [id,name,description,value]\n---\nitems: @Item\n",
+        "%VERSION: 1.0\n%STRUCT: Item (1000): [id,name,description,value]\n---\nitems:@Item\n",
     );
     for i in 0..1000 {
         large_content.push_str(&format!(
-            "  |item_{i},name_{i},This is a longer description for item number {i},value_{i}\n"
+            " |item_{i},name_{i},This is a longer description for item number {i},value_{i}\n"
         ));
     }
     fs::write(&large_path, large_content).expect("Failed to write large file");
@@ -223,13 +225,13 @@ fn test_file_result_failure() {
 }
 
 // ============================================================================
-// BatchProcessor Tests - Validation
+// BatchExecutor Tests - Validation
 // ============================================================================
 
 #[test]
 fn test_validation_operation_success() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -246,7 +248,7 @@ fn test_validation_operation_success() {
 #[test]
 fn test_validation_operation_with_failures() {
     let (_dir, files) = create_mixed_validity_files();
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -267,7 +269,7 @@ fn test_validation_operation_with_failures() {
 #[test]
 fn test_validation_operation_strict_mode() {
     let (_dir, files) = create_valid_test_files(3);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
 
     // Non-strict should succeed
     let operation_normal = ValidationOperation { strict: false };
@@ -287,7 +289,7 @@ fn test_validation_operation_strict_mode() {
 #[test]
 fn test_validation_operation_nonexistent_file() {
     let files = vec![PathBuf::from("/nonexistent/file.hedl")];
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -300,13 +302,13 @@ fn test_validation_operation_nonexistent_file() {
 }
 
 // ============================================================================
-// BatchProcessor Tests - Format
+// BatchExecutor Tests - Format
 // ============================================================================
 
 #[test]
 fn test_format_operation_success() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = FormatOperation {
         check: false,
         ditto: false,
@@ -331,7 +333,7 @@ fn test_format_operation_success() {
 #[test]
 fn test_format_operation_with_counts() {
     let (_dir, files) = create_matrix_test_files(3);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = FormatOperation {
         check: false,
         ditto: false,
@@ -364,10 +366,10 @@ fn test_format_operation_with_counts() {
     // Verify that count hints are added to successful files
     for result in results.successes() {
         let formatted = result.result.as_ref().unwrap();
-        // Count hints should be present in the formatted output
+        // v2.0 uses %C:Type.total=N directives instead of Type(N) syntax
         assert!(
-            formatted.contains("(3)"),
-            "Expected count hint (3) in formatted output for file {:?}",
+            formatted.contains("%C:") && formatted.contains(".total=3"),
+            "Expected count directive %C:Type.total=3 in formatted output for file {:?}",
             result.path
         );
     }
@@ -376,7 +378,7 @@ fn test_format_operation_with_counts() {
 #[test]
 fn test_format_operation_with_ditto() {
     let (_dir, files) = create_valid_test_files(3);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = FormatOperation {
         check: false,
         ditto: true,
@@ -394,7 +396,7 @@ fn test_format_operation_with_ditto() {
 #[test]
 fn test_format_operation_check_mode() {
     let (_dir, files) = create_valid_test_files(3);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = FormatOperation {
         check: true,
         ditto: false,
@@ -412,7 +414,7 @@ fn test_format_operation_check_mode() {
 #[test]
 fn test_format_operation_invalid_file() {
     let (_dir, files) = create_mixed_validity_files();
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = FormatOperation {
         check: false,
         ditto: false,
@@ -428,13 +430,13 @@ fn test_format_operation_invalid_file() {
 }
 
 // ============================================================================
-// BatchProcessor Tests - Lint
+// BatchExecutor Tests - Lint
 // ============================================================================
 
 #[test]
 fn test_lint_operation_success() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = LintOperation { warn_error: false };
 
     let results = processor
@@ -455,7 +457,7 @@ fn test_lint_operation_success() {
 #[test]
 fn test_lint_operation_warn_error() {
     let (_dir, files) = create_valid_test_files(3);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = LintOperation { warn_error: true };
 
     let results = processor
@@ -469,7 +471,7 @@ fn test_lint_operation_warn_error() {
 #[test]
 fn test_lint_operation_invalid_file() {
     let (_dir, files) = create_mixed_validity_files();
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = LintOperation { warn_error: false };
 
     let results = processor
@@ -481,13 +483,13 @@ fn test_lint_operation_invalid_file() {
 }
 
 // ============================================================================
-// BatchProcessor Tests - Parallelization
+// BatchExecutor Tests - Parallelization
 // ============================================================================
 
 #[test]
 fn test_serial_processing_small_batch() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig {
+    let processor = BatchExecutor::new(BatchConfig {
         parallel_threshold: 100, // Force serial
         ..Default::default()
     });
@@ -504,7 +506,7 @@ fn test_serial_processing_small_batch() {
 #[test]
 fn test_parallel_processing_large_batch() {
     let (_dir, files) = create_valid_test_files(50);
-    let processor = BatchProcessor::new(BatchConfig {
+    let processor = BatchExecutor::new(BatchConfig {
         parallel_threshold: 10, // Force parallel
         ..Default::default()
     });
@@ -523,7 +525,7 @@ fn test_parallel_threshold_boundary() {
     let (_dir, files) = create_valid_test_files(10);
 
     // Just below threshold - should be serial
-    let processor_serial = BatchProcessor::new(BatchConfig {
+    let processor_serial = BatchExecutor::new(BatchConfig {
         parallel_threshold: 11,
         ..Default::default()
     });
@@ -534,7 +536,7 @@ fn test_parallel_threshold_boundary() {
     assert_eq!(results_serial.success_count(), 10);
 
     // At threshold - should be parallel
-    let processor_parallel = BatchProcessor::new(BatchConfig {
+    let processor_parallel = BatchExecutor::new(BatchConfig {
         parallel_threshold: 10,
         ..Default::default()
     });
@@ -550,7 +552,7 @@ fn test_max_threads_configuration() {
     let (_dir, files) = create_valid_test_files(20);
 
     // Test with limited threads
-    let processor = BatchProcessor::new(BatchConfig {
+    let processor = BatchExecutor::new(BatchConfig {
         parallel_threshold: 10,
         max_threads: Some(2),
         ..Default::default()
@@ -566,13 +568,13 @@ fn test_max_threads_configuration() {
 }
 
 // ============================================================================
-// BatchProcessor Tests - Performance Characteristics
+// BatchExecutor Tests - Performance Characteristics
 // ============================================================================
 
 #[test]
 fn test_varying_file_sizes() {
     let (_dir, files) = create_varying_size_files();
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -586,7 +588,7 @@ fn test_varying_file_sizes() {
 #[test]
 fn test_throughput_calculation() {
     let (_dir, files) = create_valid_test_files(10);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -610,7 +612,7 @@ fn test_throughput_calculation() {
 #[test]
 fn test_processing_time_recorded() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -623,13 +625,13 @@ fn test_processing_time_recorded() {
 }
 
 // ============================================================================
-// BatchProcessor Tests - Progress Reporting
+// BatchExecutor Tests - Progress Reporting
 // ============================================================================
 
 #[test]
 fn test_progress_disabled() {
     let (_dir, files) = create_valid_test_files(10);
-    let processor = BatchProcessor::new(BatchConfig {
+    let processor = BatchExecutor::new(BatchConfig {
         progress_interval: 0, // Disable progress
         ..Default::default()
     });
@@ -645,7 +647,7 @@ fn test_progress_disabled() {
 #[test]
 fn test_progress_with_verbose() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig {
+    let processor = BatchExecutor::new(BatchConfig {
         verbose: true,
         ..Default::default()
     });
@@ -661,7 +663,7 @@ fn test_progress_with_verbose() {
 #[test]
 fn test_progress_interval() {
     let (_dir, files) = create_valid_test_files(20);
-    let processor = BatchProcessor::new(BatchConfig {
+    let processor = BatchExecutor::new(BatchConfig {
         progress_interval: 5, // Report every 5 files
         ..Default::default()
     });
@@ -681,7 +683,7 @@ fn test_progress_interval() {
 #[test]
 fn test_batch_results_statistics() {
     let (_dir, files) = create_mixed_validity_files();
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -698,7 +700,7 @@ fn test_batch_results_statistics() {
 #[test]
 fn test_batch_results_iterators() {
     let (_dir, files) = create_mixed_validity_files();
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -717,7 +719,7 @@ fn test_batch_results_iterators() {
 #[test]
 fn test_batch_results_all_success() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -736,7 +738,7 @@ fn test_batch_results_all_success() {
 #[test]
 fn test_empty_file_list() {
     let files: Vec<PathBuf> = vec![];
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -751,7 +753,7 @@ fn test_empty_file_list() {
 #[test]
 fn test_single_file() {
     let (_dir, files) = create_valid_test_files(1);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -765,7 +767,7 @@ fn test_single_file() {
 #[test]
 fn test_very_large_batch() {
     let (_dir, files) = create_valid_test_files(200);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -788,7 +790,7 @@ fn test_all_failures() {
         files.push(path);
     }
 
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = ValidationOperation { strict: false };
 
     let results = processor
@@ -826,7 +828,7 @@ impl BatchOperation for LineCountOperation {
 #[test]
 fn test_custom_operation() {
     let (_dir, files) = create_valid_test_files(5);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = LineCountOperation;
 
     let results = processor
@@ -865,7 +867,7 @@ impl BatchOperation for AlwaysFailOperation {
 #[test]
 fn test_custom_operation_all_failures() {
     let (_dir, files) = create_valid_test_files(3);
-    let processor = BatchProcessor::new(BatchConfig::default());
+    let processor = BatchExecutor::new(BatchConfig::default());
     let operation = AlwaysFailOperation;
 
     let results = processor

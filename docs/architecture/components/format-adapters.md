@@ -186,13 +186,13 @@ pub struct FromToonConfig {
 
 ```toml
 # Include only JSON (default)
-hedl = "1.2"
+hedl = "2.0"
 
 # Include specific formats
-hedl = { version = "1.2", features = ["yaml", "xml"] }
+hedl = { version = "2.0", features = ["yaml", "xml"] }
 
 # Include all formats
-hedl = { version = "1.2", features = ["all-formats"] }
+hedl = { version = "2.0", features = ["all-formats"] }
 ```
 
 ### Runtime Format Detection

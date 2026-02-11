@@ -25,7 +25,7 @@
 //! use hedl_lint::{FixApplicator, FixConfig};
 //! use hedl_core::parse;
 //!
-//! let source = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers: @User\n  |a,Alice\n";
+//! let source = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers:@User\n |a,Alice\n";
 //! let doc = parse(source.as_bytes()).unwrap();
 //!
 //! // Generate fixes (shown in provider implementations)
@@ -39,17 +39,29 @@
 //! }
 //! ```
 
+/// Fix application engine.
 pub mod applicator;
+/// Configuration for fix behavior.
 pub mod config;
+/// Conflict detection and resolution for fixes.
 pub mod conflict;
+/// Context for fix generation.
 pub mod context;
+/// Diff generation for fix previews.
 pub mod diff;
+/// Error types for fix operations.
 pub mod error;
+/// Fix ordering for safe sequential application.
 pub mod ordering;
+/// Preview functionality for fixes.
 pub mod preview;
+/// Fix provider trait for lint rules.
 pub mod provider;
+/// Source position and range utilities for fix application.
 pub mod range;
+/// Statistics tracking for fix operations.
 pub mod statistics;
+/// Verification of fix safety and correctness.
 pub mod verifier;
 
 pub use applicator::FixApplicator;

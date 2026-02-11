@@ -21,10 +21,10 @@ use crate::audit::{
     audit_call_failure, audit_call_start, audit_call_success, sanitize_c_string, sanitize_pointer,
 };
 use crate::error::{clear_error, set_error};
+use crate::ffi_strings::get_input_string;
 use crate::memory::{hedl_free_document, is_valid_document_ptr};
 use crate::reentrancy::check_ffi_reentrancy;
 use crate::types::{HedlDocument, HEDL_ERR_NULL_PTR, HEDL_ERR_PARSE, HEDL_OK};
-use crate::utils::get_input_string;
 use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 use std::os::raw::{c_char, c_int};
 use std::ptr;
@@ -177,7 +177,12 @@ pub unsafe extern "C" fn hedl_get_version(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse,
+    // so the pointer is properly aligned and points to valid memory.
     let doc_ref = &(*doc).inner;
+    // SAFETY: We validated major and minor are non-null above.
+    // These are output parameters provided by the caller.
     *major = doc_ref.version.0 as c_int;
     *minor = doc_ref.version.1 as c_int;
     HEDL_OK
@@ -192,6 +197,8 @@ pub unsafe extern "C" fn hedl_schema_count(doc: *const HedlDocument) -> c_int {
     if !is_valid_document_ptr(doc) {
         return -1;
     }
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     (*doc).inner.structs.len() as c_int
 }
 
@@ -204,6 +211,8 @@ pub unsafe extern "C" fn hedl_alias_count(doc: *const HedlDocument) -> c_int {
     if !is_valid_document_ptr(doc) {
         return -1;
     }
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     (*doc).inner.aliases.len() as c_int
 }
 
@@ -216,5 +225,7 @@ pub unsafe extern "C" fn hedl_root_item_count(doc: *const HedlDocument) -> c_int
     if !is_valid_document_ptr(doc) {
         return -1;
     }
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     (*doc).inner.root.len() as c_int
 }

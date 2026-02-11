@@ -1,0 +1,111 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Device:[id,name,location,zone,ip_address,firmware,status,installed_date]
+%S:Sensor:[id,type,unit,min_threshold,max_threshold,calibration_date]
+%S:Reading:[id,timestamp,value,alert_level]
+%S:Alert:[id,message,acknowledged,acknowledged_by]
+%N:Device>Sensor
+%N:Sensor>Reading
+%N:Reading>Alert
+%C:Device.total=5
+%C:Device.status:online=3,maintenance=1,error=1
+%C:Sensor.total=12
+%C:Sensor.type:temperature=4,humidity=2,pressure=1,fan_speed=1,vibration=1,motor_temp=1,operational=1,door_open=1
+%C:Reading.total=60
+%C:Reading.alert_level:none=52,warning=6,critical=2
+%C:Alert.total=6
+---
+devices:@Device
+ |dev-001,Factory Floor Monitor,Building A Floor 1,zone-north,192.168.1.101,v2.4.1,online,2023-01-15
+  @Sensor#3:
+ |s-001,temperature,Celsius,15.0,35.0,2024-01-10
+   @Reading#10:
+   |r-001,2024-06-15T08:00:00Z,22.4,none
+   |r-002,2024-06-15T08:15:00Z,22.6,none
+   |r-003,2024-06-15T08:30:00Z,23.1,none
+   |r-004,2024-06-15T08:45:00Z,24.8,none
+   |r-005,2024-06-15T09:00:00Z,26.2,none
+   |r-006,2024-06-15T09:15:00Z,28.5,none
+   |r-007,2024-06-15T09:30:00Z,31.2,none
+   |r-008,2024-06-15T09:45:00Z,33.8,none
+   |r-009,2024-06-15T10:00:00Z,36.1,warning
+    @Alert#1:|a-001,Temperature exceeded 35.0C threshold,true,john.smith
+   |r-010,2024-06-15T10:15:00Z,34.2,none
+ |s-002,humidity,Percent,30.0,70.0,2024-01-10
+   @Reading#10:
+   |r-011,2024-06-15T08:00:00Z,45.2,none
+   |r-012,2024-06-15T08:15:00Z,46.1,none
+   |r-013,2024-06-15T08:30:00Z,47.8,none
+   |r-014,2024-06-15T08:45:00Z,52.3,none
+   |r-015,2024-06-15T09:00:00Z,58.9,none
+   |r-016,2024-06-15T09:15:00Z,65.4,none
+   |r-017,2024-06-15T09:30:00Z,71.2,warning
+    @Alert#1:|a-002,Humidity exceeded 70.0% threshold,true,jane.doe
+   |r-018,2024-06-15T09:45:00Z,68.5,none
+   |r-019,2024-06-15T10:00:00Z,62.1,none
+   |r-020,2024-06-15T10:15:00Z,55.8,none
+ |s-003,pressure,Pascal,99000,103000,2024-01-10
+ |dev-002,Warehouse Controller,Building B Floor 1,zone-south,192.168.1.102,v2.4.1,online,2023-02-20
+  @Sensor#2:
+ |s-004,temperature,Celsius,10.0,25.0,2024-01-12
+   @Reading#10:
+   |r-021,2024-06-15T08:00:00Z,18.2,none
+   |r-022,2024-06-15T08:15:00Z,18.5,none
+   |r-023,2024-06-15T08:30:00Z,19.1,none
+   |r-024,2024-06-15T08:45:00Z,19.8,none
+   |r-025,2024-06-15T09:00:00Z,20.4,none
+   |r-026,2024-06-15T09:15:00Z,21.2,none
+   |r-027,2024-06-15T09:30:00Z,22.8,none
+   |r-028,2024-06-15T09:45:00Z,24.1,none
+   |r-029,2024-06-15T10:00:00Z,25.6,warning
+    @Alert#1:|a-003,Temperature exceeded 25.0C threshold,false,~
+   |r-030,2024-06-15T10:15:00Z,24.3,none
+ |s-005,humidity,Percent,40.0,80.0,2024-01-12
+ |dev-003,HVAC Monitor,Building A Roof,zone-north,192.168.1.103,v2.3.8,maintenance,2022-11-10
+  @Sensor#2:|s-006,temperature,Celsius,-5.0,45.0,2023-12-05|s-007,fan_speed,RPM,500,3000,2023-12-05
+ |dev-004,Assembly Line Unit,Building A Floor 2,zone-east,192.168.1.104,v2.4.2,online,2023-06-01
+  @Sensor#3:
+ |s-008,vibration,Millimeters,0.0,2.5,2024-02-01
+   @Reading#10:
+   |r-031,2024-06-15T08:00:00Z,0.8,none
+   |r-032,2024-06-15T08:15:00Z,0.9,none
+   |r-033,2024-06-15T08:30:00Z,1.1,none
+   |r-034,2024-06-15T08:45:00Z,1.4,none
+   |r-035,2024-06-15T09:00:00Z,1.8,none
+   |r-036,2024-06-15T09:15:00Z,2.2,none
+   |r-037,2024-06-15T09:30:00Z,2.6,warning
+   |r-038,2024-06-15T09:45:00Z,2.9,critical
+    @Alert#1:|a-004,Vibration exceeded 2.5mm critical level,true,mike.wilson
+   |r-039,2024-06-15T10:00:00Z,1.5,none
+   |r-040,2024-06-15T10:15:00Z,1.2,none
+ |s-009,motor_temp,Celsius,20.0,80.0,2024-02-01
+   @Reading#10:
+   |r-051,2024-06-15T08:00:00Z,45.2,none
+   |r-052,2024-06-15T08:15:00Z,48.6,none
+   |r-053,2024-06-15T08:30:00Z,52.1,none
+   |r-054,2024-06-15T08:45:00Z,58.4,none
+   |r-055,2024-06-15T09:00:00Z,65.2,none
+   |r-056,2024-06-15T09:15:00Z,72.8,none
+   |r-057,2024-06-15T09:30:00Z,78.5,none
+   |r-058,2024-06-15T09:45:00Z,82.3,warning
+    @Alert#1:|a-006,Motor temperature exceeded 80.0C threshold,false,~
+   |r-059,2024-06-15T10:00:00Z,75.1,none
+   |r-060,2024-06-15T10:15:00Z,68.4,none
+ |s-010,operational,Boolean,0,1,2024-02-01
+ |dev-005,Cold Storage Monitor,Building C Floor 1,zone-west,192.168.1.105,v2.4.0,error,2023-03-15
+  @Sensor#2:
+ |s-011,temperature,Celsius,-25.0,-15.0,2024-01-20
+   @Reading#10:
+   |r-041,2024-06-15T08:00:00Z,-20.5,none
+   |r-042,2024-06-15T08:15:00Z,-20.2,none
+   |r-043,2024-06-15T08:30:00Z,-19.8,none
+   |r-044,2024-06-15T08:45:00Z,-18.9,none
+   |r-045,2024-06-15T09:00:00Z,-17.5,none
+   |r-046,2024-06-15T09:15:00Z,-15.8,none
+   |r-047,2024-06-15T09:30:00Z,-14.2,warning
+   |r-048,2024-06-15T09:45:00Z,-12.5,critical
+    @Alert#1:|a-005,Cold storage temperature above -15.0C,true,jane.doe
+   |r-049,2024-06-15T10:00:00Z,-16.8,none
+   |r-050,2024-06-15T10:15:00Z,-19.2,none
+ |s-012,door_open,Boolean,0,1,2024-01-20

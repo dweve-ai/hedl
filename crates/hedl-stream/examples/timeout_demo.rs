@@ -30,7 +30,7 @@ fn main() {
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
+users:@User
   | alice, Alice Smith
   | bob, Bob Jones
 ";
@@ -56,7 +56,7 @@ users: @User
         r"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-data: @Data
+data:@Data
 ",
     );
 

@@ -7,29 +7,37 @@ use hedl_core::parse as core_parse;
 #[test]
 fn test_parse_basic_after_optimization() {
     // Verify basic parsing still works after optimization
-    let hedl = "%VERSION: 1.0\n---\nname: test\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+name: test
+"#;
     let result = core_parse(hedl.as_bytes());
     assert!(result.is_ok(), "Basic parsing should work");
 
     let doc = result.unwrap();
-    assert_eq!(doc.version, (1, 0));
+    // Parsing v2.0 content preserves the version
+    assert_eq!(doc.version, (2, 0));
 }
 
 #[test]
 fn test_parse_complex_document() {
     // Test complex HEDL document to ensure all parser features work
     let hedl = r#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%STRUCT: Post: [id, title, content]
-%NEST: User > Post
-%ALIAS: %active: "true"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
+%S:Post:[id, title, content]
+%N:User>Post
+%A:%active:"true"
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-    | post1, First Post, Hello world
-  | bob, Bob Jones, bob@example.com
-    | post2, Bob's Post, Content here
+users:@User
+ |alice, Alice Smith, alice@example.com
+  |post1, First Post, Hello world
+ |bob, Bob Jones, bob@example.com
+  |post2, Bob's Post, Content here
 "#;
 
     let result = core_parse(hedl.as_bytes());
@@ -44,8 +52,16 @@ users: @User
 #[test]
 fn test_parse_preserves_structure() {
     // Verify that optimization doesn't change parsed structure
-    let hedl =
-        "%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\nitems: @T\n  | a, 1\n  | b, 2\n  | c, 3\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id, value]
+---
+items:@T
+ |a, 1
+ |b, 2
+ |c, 3
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Check root items
@@ -61,23 +77,40 @@ fn test_parse_preserves_structure() {
 #[test]
 fn test_parse_edge_cases() {
     // Empty body
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+"#;
     assert!(
         core_parse(hedl.as_bytes()).is_ok(),
         "Empty body should parse"
     );
 
     // Only header
-    let hedl = "%VERSION: 1.0\n%STRUCT: T: [id]\n---\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+"#;
     assert!(
         core_parse(hedl.as_bytes()).is_ok(),
         "Header-only should parse"
     );
 
     // Large document (stress test)
-    let mut large_hedl = String::from("%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n");
+    let mut large_hedl = String::from(
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+items:@T
+"#,
+    );
     for i in 0..1000 {
-        large_hedl.push_str(&format!("  | item{i}\n"));
+        large_hedl.push_str(&format!(" |item{i}\n"));
     }
     assert!(
         core_parse(large_hedl.as_bytes()).is_ok(),
@@ -88,7 +121,11 @@ fn test_parse_edge_cases() {
 #[test]
 fn test_parse_error_handling() {
     // Invalid version
-    let hedl = "%VERSION: 99.99\n---\n";
+    let hedl = r#"%V:99.99
+%NULL:~
+%QUOTE:"
+---
+"#;
     let _result = core_parse(hedl.as_bytes());
     // Parser may accept any version, but we test error handling path
 
@@ -98,7 +135,12 @@ fn test_parse_error_handling() {
     assert!(result.is_err(), "Missing version should error");
 
     // Invalid syntax
-    let hedl = "%VERSION: 1.0\n---\n::::\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+::::
+"#;
     let result = core_parse(hedl.as_bytes());
     assert!(result.is_err(), "Invalid syntax should error");
 }
@@ -210,7 +252,15 @@ fn test_token_estimation_correctness() {
 fn test_inlining_preserves_behavior() {
     // Test that inlined functions still behave correctly
     // Parse the same document multiple times to ensure consistency
-    let hedl = "%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n  | a\n  | b\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+items:@T
+ |a
+ |b
+"#;
 
     let result1 = core_parse(hedl.as_bytes());
     let result2 = core_parse(hedl.as_bytes());
@@ -234,7 +284,11 @@ fn test_inlining_preserves_behavior() {
 #[test]
 fn test_memory_layout_optimization() {
     // Verify that memory layout optimizations don't break functionality
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Access all document fields to ensure layout is correct
@@ -251,25 +305,65 @@ fn test_memory_layout_optimization() {
 fn test_state_machine_optimization() {
     // Test various parser states to ensure state machine optimization is correct
     let test_cases = vec![
-        ("%VERSION: 1.0\n---\n", true, "empty body"),
         (
-            "%VERSION: 1.0\n%STRUCT: T: [id]\n---\n",
+            r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+"#,
+            true,
+            "empty body",
+        ),
+        (
+            r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+"#,
             true,
             "struct only",
         ),
         (
-            "%VERSION: 1.0\n%ALIAS: %a: \"b\"\n---\n",
+            r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%A:%a:"b"
+---
+"#,
             true,
             "alias only",
         ),
-        ("%VERSION: 1.0\n---\nkey: value\n", true, "scalar value"),
         (
-            "%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n  | a\n",
+            r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+key: value
+"#,
+            true,
+            "scalar value",
+        ),
+        (
+            r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+items:@T
+ |a
+"#,
             true,
             "list",
         ),
         (
-            "%VERSION: 1.0\n---\nobj:\n  nested: value\n",
+            r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+obj:
+ nested: value
+"#,
             true,
             "nested object",
         ),
@@ -288,14 +382,16 @@ fn test_state_machine_optimization() {
 #[test]
 fn test_utf8_handling_after_optimization() {
     // Ensure UTF-8 handling is preserved after byte-level optimizations
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 emoji: 😀
 chinese: 你好
 arabic: مرحبا
 russian: Привет
-";
+"#;
 
     let result = core_parse(hedl.as_bytes());
     assert!(result.is_ok(), "UTF-8 should parse correctly");
@@ -306,16 +402,32 @@ fn test_boundary_conditions() {
     // Test boundary conditions that might expose optimization bugs
 
     // Single character
-    let hedl = "%VERSION: 1.0\n---\nx: a\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+x: a
+"#;
     assert!(core_parse(hedl.as_bytes()).is_ok());
 
     // Maximum reasonable version
-    let hedl = "%VERSION: 255.255\n---\n";
+    let hedl = r#"%V:255.255
+%NULL:~
+%QUOTE:"
+---
+"#;
     let _result = core_parse(hedl.as_bytes());
     // Version validation is done by parser
 
     // Nested objects (if supported)
-    let hedl = "%VERSION: 1.0\n---\na:\n  b:\n    c: value\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+a:
+ b:
+  c: value
+"#;
     // This may or may not parse depending on HEDL's nesting support
     let _result = core_parse(hedl.as_bytes());
     // We just verify it doesn't crash
@@ -327,7 +439,15 @@ fn test_concurrent_parsing() {
     // (even though WASM is single-threaded, we test the logic)
     use std::sync::Arc;
 
-    let hedl = Arc::new("%VERSION: 1.0\n---\ntest: value\n".to_string());
+    let hedl = Arc::new(
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+test: value
+"#
+        .to_string(),
+    );
 
     let handles: Vec<_> = (0..10)
         .map(|_| {
@@ -346,9 +466,26 @@ fn test_optimization_does_not_change_output() {
     // Compare parsing results before and after optimization
     // This is a meta-test that would be run during CI
     let test_documents = vec![
-        "%VERSION: 1.0\n---\n",
-        "%VERSION: 1.0\n---\nkey: value\n",
-        "%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n  | a\n  | b\n",
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+"#,
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+key: value
+"#,
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+items:@T
+ |a
+ |b
+"#,
     ];
 
     for hedl in test_documents {
@@ -368,7 +505,12 @@ fn test_optimization_does_not_change_output() {
 #[test]
 fn test_dce_preserves_entry_points() {
     // Dead code elimination should preserve all entry points
-    let hedl = "%VERSION: 1.0\n---\ntest: value\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+test: value
+"#;
 
     // Parse (entry point)
     assert!(core_parse(hedl.as_bytes()).is_ok());
@@ -397,7 +539,12 @@ fn test_constant_folding_correctness() {
 #[test]
 fn test_inlining_does_not_cause_stack_overflow() {
     // Aggressive inlining should not cause stack overflow
-    let hedl = "%VERSION: 1.0\n---\n".repeat(100);
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+"#
+    .repeat(100);
     let result = core_parse(hedl.as_bytes());
     // May error due to content, but should not stack overflow
     let _ = result;
@@ -407,12 +554,14 @@ fn test_inlining_does_not_cause_stack_overflow() {
 fn test_optimization_with_all_value_types() {
     // Test various HEDL value types to ensure type conversions still work
     let hedl = r#"
-%VERSION: 1.0
-%STRUCT: T: [id, name, active, score]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id, name, active, score]
 ---
-values: @T
-  | item1, test, true, 42
-  | item2, "hello", false, 3.14
+values:@T
+ |item1, test, true, 42
+ |item2, "hello", false, 3.14
 "#;
 
     let result = core_parse(hedl.as_bytes());
@@ -424,13 +573,26 @@ fn test_wasm_specific_constraints() {
     // Test constraints specific to WASM environment
 
     // Large allocations (should work within reasonable limits)
-    let large_doc = format!("%VERSION: 1.0\n---\ndata: {}\n", "x".repeat(100_000));
+    let header = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+data: "#;
+    let large_doc = format!("{}{}\n", header, "x".repeat(100_000));
     assert!(core_parse(large_doc.as_bytes()).is_ok());
 
     // Many small allocations
-    let mut many_items = String::from("%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n");
+    let mut many_items = String::from(
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
+---
+items:@T
+"#,
+    );
     for i in 0..100 {
-        many_items.push_str(&format!("  | item{i}\n"));
+        many_items.push_str(&format!(" |item{i}\n"));
     }
     assert!(core_parse(many_items.as_bytes()).is_ok());
 }

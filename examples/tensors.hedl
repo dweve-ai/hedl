@@ -1,0 +1,22 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates tensor literals for ML/AI workflows
+# Supports 1D, 2D, 3D, and higher-dimensional arrays
+---
+# 1D tensors (vectors)
+vector: [1, 2, 3, 4, 5]
+embeddings: [0.1, 0.2, 0.3, 0.4]
+
+# 2D tensors (matrices)
+matrix: [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+weights: [[0.5, 0.3], [0.2, 0.8]]
+
+# 3D tensors
+cube: [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+
+# Higher dimensions with floats
+neural_weights: [[[[0.1, 0.2], [0.3, 0.4]], [[0.5, 0.6], [0.7, 0.8]]]]
+
+# Single element
+scalar_tensor: [42]

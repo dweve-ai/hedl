@@ -1,6 +1,6 @@
 # HEDL C/C++ Bindings
 
-Production-ready CMake integration for HEDL (Hierarchical Entity Data Language) C/C++ FFI bindings.
+CMake integration for HEDL (Hierarchical Entity Data Language) C/C++ FFI bindings.
 
 ## Overview
 
@@ -130,7 +130,7 @@ LD_LIBRARY_PATH=/path/to/hedl/target/release ./myapp
 
 int main(void) {
     const char* hedl_src =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
         "---\n"
         "name: Alice\n"
         "age: 30\n";

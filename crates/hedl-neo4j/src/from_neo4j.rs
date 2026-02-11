@@ -104,6 +104,7 @@ pub fn from_neo4j_records(records: &[Neo4jRecord], config: &FromNeo4jConfig) -> 
     }
 
     // Extract all nodes
+    // Clone necessary: function signature requires borrowing records, and we need owned nodes for processing
     let nodes: Vec<Neo4jNode> = records
         .iter()
         .filter(|r| !config.exclude_labels.contains(&r.node.label))
@@ -111,6 +112,7 @@ pub fn from_neo4j_records(records: &[Neo4jRecord], config: &FromNeo4jConfig) -> 
         .collect();
 
     // Extract all relationships
+    // Clone necessary: flattening relationships from borrowed records into owned collection
     let relationships: Vec<Neo4jRelationship> = records
         .iter()
         .flat_map(|r| r.relationships.clone())
@@ -135,6 +137,7 @@ pub fn from_neo4j_records(records: &[Neo4jRecord], config: &FromNeo4jConfig) -> 
         let schema = infer_schema_from_nodes(label_nodes, &config.id_property);
 
         // Store struct definition
+        // Clone necessary: schema is moved into MatrixList, but also needed for structs map
         structs.insert(label.clone(), schema.clone());
 
         // Build matrix list
@@ -143,6 +146,7 @@ pub fn from_neo4j_records(records: &[Neo4jRecord], config: &FromNeo4jConfig) -> 
             .map(|n| neo4j_node_to_hedl_node(n, &schema, config))
             .collect();
 
+        // Clone necessary: label is borrowed from grouped map, needs owned String for type_name
         let matrix_list = MatrixList {
             type_name: label.clone(),
             schema,
@@ -161,11 +165,15 @@ pub fn from_neo4j_records(records: &[Neo4jRecord], config: &FromNeo4jConfig) -> 
     // Convert non-NEST relationships to references
     convert_relationships_to_references(&mut root, &relationships, &nests, config)?;
 
-    // Convert Vec<Nest> to BTreeMap<String, String> for Document
-    let nests_map: BTreeMap<String, String> = nests
-        .iter()
-        .map(|n| (n.parent.clone(), n.child.clone()))
-        .collect();
+    // Convert Vec<Nest> to BTreeMap<String, Vec<String>> for Document
+    let mut nests_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    // Clone necessary: building owned map from borrowed Nest structures
+    for n in &nests {
+        nests_map
+            .entry(n.parent.clone())
+            .or_default()
+            .push(n.child.clone());
+    }
 
     Ok(Document {
         version: config.version,
@@ -369,9 +377,11 @@ fn process_batch(
         merge_schema(&mut acc.schema, &record.node, &config.id_property);
 
         // Add node to accumulator
+        // Clone necessary: batch contains borrowed records, accumulator needs owned nodes
         acc.nodes.push(record.node.clone());
 
         // Buffer relationships for later processing
+        // Clone necessary: buffering relationships from borrowed batch into owned collection
         for rel in &record.relationships {
             rel_buffer.push(rel.clone());
         }
@@ -390,6 +400,7 @@ fn infer_schema_from_single_node(node: &Neo4jNode, id_property: &str) -> Vec<Str
 
     for name in prop_names {
         if name != id_property {
+            // Clone necessary: building owned schema from borrowed HashMap keys
             schema.push(name.clone());
         }
     }
@@ -401,6 +412,7 @@ fn infer_schema_from_single_node(node: &Neo4jNode, id_property: &str) -> Vec<Str
 fn merge_schema(schema: &mut Vec<String>, node: &Neo4jNode, id_property: &str) {
     for prop_name in node.properties.keys() {
         if prop_name != id_property && !schema.contains(prop_name) {
+            // Clone necessary: schema needs owned String, prop_name is borrowed from HashMap key
             schema.push(prop_name.clone());
         }
     }
@@ -426,6 +438,7 @@ fn finalize_document(
     let mut root = BTreeMap::new();
 
     for (label, acc) in accumulators {
+        // Clone necessary: schema is moved into MatrixList, but also needed for structs map
         structs.insert(label.clone(), acc.schema.clone());
 
         let hedl_nodes: Result<Vec<Node>> = acc
@@ -451,11 +464,15 @@ fn finalize_document(
     // Convert non-NEST relationships to references
     convert_relationships_to_references(&mut root, &relationships, &nests, config)?;
 
-    // Convert Vec<Nest> to BTreeMap<String, String> for Document
-    let nests_map: BTreeMap<String, String> = nests
-        .iter()
-        .map(|n| (n.parent.clone(), n.child.clone()))
-        .collect();
+    // Convert Vec<Nest> to BTreeMap<String, Vec<String>> for Document
+    let mut nests_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    // Clone necessary: building owned map from borrowed Nest structures
+    for n in &nests {
+        nests_map
+            .entry(n.parent.clone())
+            .or_default()
+            .push(n.child.clone());
+    }
 
     Ok(Document {
         version: config.version,
@@ -474,6 +491,7 @@ fn neo4j_node_to_hedl_node(
     config: &FromNeo4jConfig,
 ) -> Result<Node> {
     // Filter excluded properties
+    // Clone necessary: we need to modify properties without mutating the original node
     let mut properties = neo4j_node.properties.clone();
     for prop in &config.exclude_properties {
         properties.remove(prop);
@@ -490,14 +508,17 @@ fn neo4j_node_to_hedl_node(
     for (i, column) in schema.iter().enumerate() {
         if i == 0 {
             // First column is the ID
+            // Clone necessary: ID is borrowed from node, needs owned String for Value
             fields.push(Value::String(neo4j_node.id.clone().into()));
         } else if let Some(value) = unflattened.get(column) {
+            // Clone necessary: value is borrowed from map, needs owned Value for fields
             fields.push(value.clone());
         } else {
             fields.push(Value::Null);
         }
     }
 
+    // Clone necessary: Node needs owned strings for type_name and id
     Ok(Node {
         type_name: neo4j_node.label.clone(),
         id: neo4j_node.id.clone(),
@@ -533,6 +554,7 @@ fn attach_children(
                 .and_then(super::cypher::statements::CypherValue::as_int)
                 .unwrap_or(0);
 
+            // Clone necessary: building parent->children index from borrowed relationships
             parent_children
                 .entry((rel.from_label.clone(), rel.from_id.clone()))
                 .or_default()
@@ -550,6 +572,7 @@ fn attach_children(
             let child_key = child_label.to_lowercase();
 
             // Find and clone child node
+            // Clone necessary: child nodes will be attached to parents while still in child list
             if let Some(Item::List(child_list)) = root.get(&child_key) {
                 if let Some(child_node) = child_list.rows.iter().find(|n| n.id == child_id) {
                     children_to_attach.push((
@@ -608,6 +631,7 @@ fn convert_relationships_to_references(
             && !ref_rel_types.contains(&rel.rel_type);
 
         if !is_nest || ref_rel_types.contains(&rel.rel_type) {
+            // Clone necessary: building node->references index from borrowed relationships
             node_refs
                 .entry((rel.from_label.clone(), rel.from_id.clone()))
                 .or_default()
@@ -783,9 +807,9 @@ mod tests {
         let records = vec![user_record, post_record];
         let doc = neo4j_to_hedl(&records).unwrap();
 
-        // Should have inferred NEST (nests is BTreeMap<parent, child>)
+        // Should have inferred NEST (nests is BTreeMap<parent, Vec<children>>)
         assert!(!doc.nests.is_empty());
-        assert_eq!(doc.nests.get("User"), Some(&"Post".to_string()));
+        assert_eq!(doc.nests.get("User"), Some(&vec!["Post".to_string()]));
 
         // User should have Post as child
         if let Item::List(list) = doc.root.get("user").unwrap() {
@@ -1025,7 +1049,7 @@ mod tests {
     fn test_config_builder() {
         // Test basic config creation
         let config = FromNeo4jConfig::new();
-        assert_eq!(config.version, (1, 0));
+        assert_eq!(config.version, (2, 0));
         assert_eq!(config.id_property, "_hedl_id");
 
         // Test builder pattern
@@ -1038,7 +1062,7 @@ mod tests {
 
         // Test default
         let config = FromNeo4jConfig::default();
-        assert_eq!(config.version, (1, 0));
+        assert_eq!(config.version, (2, 0));
     }
 }
 

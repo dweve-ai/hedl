@@ -40,7 +40,7 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_idempotency_empty_document() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let output1 = canonicalize(&doc).unwrap();
     let doc2 = parse(output1.as_bytes()).unwrap();
     let output2 = canonicalize(&doc2).unwrap();
@@ -53,7 +53,7 @@ fn test_idempotency_empty_document() {
 
 #[test]
 fn test_idempotency_simple_key_value() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "name".to_string(),
         Item::Scalar(Value::String("test".to_string().into())),
@@ -73,7 +73,7 @@ fn test_idempotency_simple_key_value() {
 
 #[test]
 fn test_idempotency_nested_objects() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut inner = BTreeMap::new();
     inner.insert(
         "child".to_string(),
@@ -93,7 +93,7 @@ fn test_idempotency_nested_objects() {
 
 #[test]
 fn test_idempotency_matrix_list() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "User".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -130,7 +130,8 @@ fn test_idempotency_matrix_list() {
 
 #[test]
 fn test_idempotency_with_ditto() {
-    let mut doc = Document::new((1, 0));
+    // Use pre-v2.0 since ditto is not allowed in v2.0
+    let mut doc = Document::new((1, 2));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "category".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -165,9 +166,8 @@ fn test_idempotency_with_ditto() {
 }
 
 #[test]
-#[allow(clippy::approx_constant)]
 fn test_idempotency_all_value_types() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("null".to_string(), Item::Scalar(Value::Null));
     doc.root
@@ -175,7 +175,7 @@ fn test_idempotency_all_value_types() {
     doc.root
         .insert("int".to_string(), Item::Scalar(Value::Int(42)));
     doc.root
-        .insert("float".to_string(), Item::Scalar(Value::Float(3.14)));
+        .insert("float".to_string(), Item::Scalar(Value::Float(1.5)));
     doc.root.insert(
         "string".to_string(),
         Item::Scalar(Value::String("hello".to_string().into())),
@@ -230,7 +230,7 @@ fn test_idempotency_all_value_types() {
 
 #[test]
 fn test_determinism_multiple_runs() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("zebra".to_string(), Item::Scalar(Value::Int(3)));
     doc.root
@@ -250,7 +250,7 @@ fn test_determinism_multiple_runs() {
 
 #[test]
 fn test_determinism_key_ordering() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("zebra".to_string(), Item::Scalar(Value::Int(3)));
     doc.root
@@ -274,7 +274,7 @@ fn test_determinism_key_ordering() {
 
 #[test]
 fn test_determinism_alias_ordering() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.aliases.insert("zebra".to_string(), "z".to_string());
     doc.aliases.insert("apple".to_string(), "a".to_string());
     doc.aliases.insert("mango".to_string(), "m".to_string());
@@ -291,7 +291,7 @@ fn test_determinism_alias_ordering() {
 
 #[test]
 fn test_determinism_struct_ordering() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs
         .insert("Zebra".to_string(), vec!["id".to_string()]);
     doc.structs
@@ -319,7 +319,7 @@ fn test_determinism_struct_ordering() {
 
 #[test]
 fn test_round_trip_preserves_null() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("value".to_string(), Item::Scalar(Value::Null));
 
@@ -335,7 +335,7 @@ fn test_round_trip_preserves_null() {
 
 #[test]
 fn test_round_trip_preserves_booleans() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("true_val".to_string(), Item::Scalar(Value::Bool(true)));
     doc.root
@@ -356,7 +356,7 @@ fn test_round_trip_preserves_booleans() {
 
 #[test]
 fn test_round_trip_preserves_integers() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("zero".to_string(), Item::Scalar(Value::Int(0)));
     doc.root
@@ -381,13 +381,12 @@ fn test_round_trip_preserves_integers() {
 }
 
 #[test]
-#[allow(clippy::approx_constant)]
 fn test_round_trip_preserves_floats() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("zero".to_string(), Item::Scalar(Value::Float(0.0)));
     doc.root
-        .insert("pi".to_string(), Item::Scalar(Value::Float(3.14159)));
+        .insert("approx".to_string(), Item::Scalar(Value::Float(1.23)));
     doc.root
         .insert("whole".to_string(), Item::Scalar(Value::Float(42.0)));
     doc.root
@@ -396,7 +395,7 @@ fn test_round_trip_preserves_floats() {
     let output = canonicalize(&doc).unwrap();
     let doc2 = parse(output.as_bytes()).unwrap();
 
-    for key in &["zero", "pi", "whole", "negative"] {
+    for key in &["zero", "approx", "whole", "negative"] {
         assert_eq!(
             doc.root.get(*key).unwrap().as_scalar().unwrap(),
             doc2.root.get(*key).unwrap().as_scalar().unwrap(),
@@ -407,7 +406,7 @@ fn test_round_trip_preserves_floats() {
 
 #[test]
 fn test_round_trip_preserves_strings() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "simple".to_string(),
         Item::Scalar(Value::String("hello".to_string().into())),
@@ -443,7 +442,7 @@ fn test_round_trip_preserves_strings() {
 
 #[test]
 fn test_round_trip_preserves_references() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     // Create targets for references
     doc.structs.insert(
         "Target".to_string(),
@@ -499,7 +498,7 @@ fn test_round_trip_preserves_references() {
 
 #[test]
 fn test_round_trip_preserves_tensors() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     // Note: Tensor scalars are indistinguishable from floats in canonical form
     // They both serialize as "1.0" so we skip scalar tensors
     doc.root.insert(
@@ -532,7 +531,7 @@ fn test_round_trip_preserves_tensors() {
 
 #[test]
 fn test_round_trip_preserves_matrix_list_structure() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "User".to_string(),
         vec!["id".to_string(), "name".to_string(), "email".to_string()],
@@ -584,7 +583,7 @@ fn test_round_trip_preserves_matrix_list_structure() {
 
 #[test]
 fn test_keys_always_sorted_alphabetically() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     // Insert in reverse order
     doc.root
         .insert("zebra".to_string(), Item::Scalar(Value::Int(26)));
@@ -620,7 +619,7 @@ fn test_keys_always_sorted_alphabetically() {
 
 #[test]
 fn test_nested_keys_sorted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut inner = BTreeMap::new();
     inner.insert("zebra".to_string(), Item::Scalar(Value::Int(3)));
     inner.insert("alpha".to_string(), Item::Scalar(Value::Int(1)));
@@ -644,7 +643,7 @@ fn test_nested_keys_sorted() {
 
 #[test]
 fn test_minimal_quoting_simple_strings() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "simple".to_string(),
         Item::Scalar(Value::String("hello".to_string().into())),
@@ -660,7 +659,7 @@ fn test_minimal_quoting_simple_strings() {
 
 #[test]
 fn test_minimal_quoting_requires_quotes_for_special() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "empty".to_string(),
         Item::Scalar(Value::String(String::new().into())),
@@ -690,7 +689,7 @@ fn test_minimal_quoting_requires_quotes_for_special() {
 
 #[test]
 fn test_always_quoting_quotes_everything() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "simple".to_string(),
         Item::Scalar(Value::String("hello".to_string().into())),
@@ -710,7 +709,7 @@ fn test_always_quoting_quotes_everything() {
 
 #[test]
 fn test_quoting_round_trip_minimal() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "text".to_string(),
         Item::Scalar(Value::String("hello world".to_string().into())),
@@ -726,7 +725,7 @@ fn test_quoting_round_trip_minimal() {
 
 #[test]
 fn test_quoting_round_trip_always() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "text".to_string(),
         Item::Scalar(Value::String("hello world".to_string().into())),
@@ -746,7 +745,7 @@ fn test_quoting_round_trip_always() {
 
 #[test]
 fn test_ditto_never_in_first_row() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -761,15 +760,18 @@ fn test_ditto_never_in_first_row() {
         .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // First row should never have ditto
+    // First row has explicit values (ditto removed in new format)
     let lines: Vec<&str> = output.lines().collect();
     let first_row = lines.iter().find(|l| l.trim().starts_with('|')).unwrap();
-    assert!(!first_row.contains('^'), "First row should never use ditto");
+    assert!(
+        first_row.contains("42"),
+        "First row should have explicit values"
+    );
 }
 
 #[test]
 fn test_ditto_never_in_id_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -784,22 +786,23 @@ fn test_ditto_never_in_id_column() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new()
-        .with_ditto(true)
-        .with_inline_schemas(true);
+    let config = CanonicalConfig::new().with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Second row should have ditto for value column only, not ID
+    // All values are explicit (ditto disabled by default in new format)
     assert!(
-        output.contains("|i2,^"),
-        "Second row should use ditto for matching value"
+        output.contains("|i2,42"),
+        "Second row should have explicit value"
     );
-    assert!(!output.contains("|^,"), "ID column should never use ditto");
+    assert!(
+        output.contains("|i1,42"),
+        "First row should have explicit value"
+    );
 }
 
 #[test]
 fn test_ditto_applied_for_matching_values() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Item",
         vec!["id".to_string(), "cat".to_string(), "status".to_string()],
@@ -825,21 +828,19 @@ fn test_ditto_applied_for_matching_values() {
 
     doc.root.insert("items".to_string(), Item::List(list));
 
-    let config = CanonicalConfig::new()
-        .with_ditto(true)
-        .with_inline_schemas(true);
+    let config = CanonicalConfig::new().with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Both columns should use ditto (except ID)
+    // All values are explicit (ditto disabled by default in new format)
     assert!(
-        output.contains("|i2,^,^"),
-        "Matching values should use ditto"
+        output.contains("|i2,fruit,true"),
+        "All values should be explicit"
     );
 }
 
 #[test]
 fn test_ditto_not_applied_for_different_values() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -859,17 +860,14 @@ fn test_ditto_not_applied_for_different_values() {
         .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Different values should not use ditto
-    assert!(
-        !output.contains("|i2,^"),
-        "Different values should not use ditto"
-    );
+    // All values are explicit (ditto removed in new format)
     assert!(output.contains("|i2,2"), "Should output actual value");
+    assert!(output.contains("|i1,1"), "Should output first row value");
 }
 
 #[test]
 fn test_ditto_disabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -895,16 +893,20 @@ fn test_ditto_disabled() {
         .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // No ditto when disabled
+    // All values are explicit (ditto removed in new format)
     assert!(
-        !output.contains('^'),
-        "Ditto should not be used when disabled"
+        output.contains("|i1,same"),
+        "First row should have explicit value"
+    );
+    assert!(
+        output.contains("|i2,same"),
+        "Second row should have explicit value"
     );
 }
 
 #[test]
 fn test_ditto_deep_equality_required() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     // Int 42 vs Float 42.0 should NOT ditto
     list.add_row(Node::new(
@@ -925,10 +927,11 @@ fn test_ditto_deep_equality_required() {
         .with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Different types should not ditto
+    // All values are explicit (ditto removed in new format)
+    assert!(output.contains("|i1,42"), "First row should have int value");
     assert!(
-        !output.contains("|i2,^"),
-        "Different types should not use ditto"
+        output.contains("|i2,42.0"),
+        "Second row should have float value"
     );
 }
 
@@ -938,7 +941,7 @@ fn test_ditto_deep_equality_required() {
 
 #[test]
 fn test_count_hint_in_struct_declaration() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "User".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -967,16 +970,21 @@ fn test_count_hint_in_struct_declaration() {
     let config = CanonicalConfig::new().with_inline_schemas(false);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Count hint should be in STRUCT declaration
+    // v2.0 uses separate %C: directive for counts (NOT embedded in %S:)
     assert!(
-        output.contains("%STRUCT: User (2): [id,name]"),
-        "Count hint should appear in STRUCT declaration"
+        output.contains("%S:User:[id,name]"),
+        "STRUCT declaration should NOT have count in parentheses"
+    );
+    assert!(
+        output.contains("%C:User.total=2"),
+        "Count should appear in separate %C: directive"
     );
 }
 
 #[test]
 fn test_node_child_count_preserved() {
-    let mut doc = Document::new((1, 0));
+    // Pre-v2.0 uses |[N] inline count syntax; v2.0 uses @ChildType#N: child block syntax
+    let mut doc = Document::new((1, 2));
     doc.structs.insert(
         "Team".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -999,16 +1007,56 @@ fn test_node_child_count_preserved() {
     let config = CanonicalConfig::new().with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Node child count should be preserved as [N] prefix
+    // Pre-v2.0 count hints use |[N] syntax
     assert!(
         output.contains("|[5]"),
-        "Node child count should be preserved"
+        "Pre-v2.0 should use |[N] inline count syntax"
+    );
+}
+
+#[test]
+#[ignore = "Canonicalizer not yet updated to v2.0 child block syntax"]
+fn test_v20_child_block_syntax() {
+    // Test v2.0 child block syntax (@ChildType#N:) when canonicalizer support is added
+    let mut doc = Document::new((2, 0));
+    doc.structs.insert(
+        "Team".to_string(),
+        vec!["id".to_string(), "name".to_string()],
+    );
+
+    let mut list = MatrixList::new("Team", vec!["id".to_string(), "name".to_string()]);
+    let mut node = Node::new(
+        "Team",
+        "t1",
+        vec![
+            Value::Int(1),
+            Value::String("Engineering".to_string().into()),
+        ],
+    );
+    node.set_child_count(5);
+    list.add_row(node);
+
+    doc.root.insert("teams".to_string(), Item::List(list));
+
+    let config = CanonicalConfig::new().with_inline_schemas(true);
+    let output = canonicalize_with_config(&doc, &config).unwrap();
+
+    // In v2.0, child counts should NOT use |[N] inline syntax
+    assert!(
+        !output.contains("|[5]"),
+        "v2.0 should not use deprecated |[N] inline count syntax"
+    );
+
+    // In v2.0, child count should be expressed as @ChildType#N: block marker
+    assert!(
+        output.contains("@Team#5:"),
+        "v2.0 should use @ChildType#N: child block syntax"
     );
 }
 
 #[test]
 fn test_count_hint_round_trip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Item".to_string(),
         vec!["id".to_string(), "value".to_string()],
@@ -1035,10 +1083,14 @@ fn test_count_hint_round_trip() {
 
     let output = canonicalize(&doc).unwrap();
 
-    // Verify count hint is in output
+    // v2.0 uses separate %C: directive for counts (NOT embedded in %S:)
     assert!(
-        output.contains("%STRUCT: Item (3): [id,value]"),
-        "Count hint should be in canonical output"
+        output.contains("%S:Item:[id,value]"),
+        "STRUCT declaration should NOT have count in parentheses"
+    );
+    assert!(
+        output.contains("%C:Item.total=3"),
+        "Count should appear in separate %C: directive"
     );
 
     let doc2 = parse(output.as_bytes()).unwrap();
@@ -1060,7 +1112,7 @@ fn test_count_hint_round_trip() {
 
 #[test]
 fn test_null_formatted_as_tilde() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("value".to_string(), Item::Scalar(Value::Null));
 
@@ -1070,7 +1122,7 @@ fn test_null_formatted_as_tilde() {
 
 #[test]
 fn test_bool_formatted_correctly() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("t".to_string(), Item::Scalar(Value::Bool(true)));
     doc.root
@@ -1083,7 +1135,7 @@ fn test_bool_formatted_correctly() {
 
 #[test]
 fn test_integer_formatted_correctly() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("zero".to_string(), Item::Scalar(Value::Int(0)));
     doc.root
@@ -1098,23 +1150,22 @@ fn test_integer_formatted_correctly() {
 }
 
 #[test]
-#[allow(clippy::approx_constant)]
 fn test_float_formatted_with_decimal() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
-        .insert("frac".to_string(), Item::Scalar(Value::Float(3.14)));
+        .insert("frac".to_string(), Item::Scalar(Value::Float(1.5)));
     doc.root
         .insert("whole".to_string(), Item::Scalar(Value::Float(42.0)));
 
     let output = canonicalize(&doc).unwrap();
-    assert!(output.contains("frac: 3.14"));
+    assert!(output.contains("frac: 1.5"));
     // Whole floats should have .0 to distinguish from int
     assert!(output.contains("whole: 42.0"));
 }
 
 #[test]
 fn test_reference_formatted_correctly() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "local".to_string(),
         Item::Scalar(Value::Reference(Reference::local("target"))),
@@ -1125,13 +1176,15 @@ fn test_reference_formatted_correctly() {
     );
 
     let output = canonicalize(&doc).unwrap();
+    // Key-value pairs have space after colon: key: value
+    // Only matrix list declarations use key:@Type (no space)
     assert!(output.contains("local: @target"));
     assert!(output.contains("qualified: @User:id"));
 }
 
 #[test]
 fn test_expression_formatted_correctly() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "expr".to_string(),
         Item::Scalar(Value::Expression(Box::new(Expression::Identifier {
@@ -1146,7 +1199,7 @@ fn test_expression_formatted_correctly() {
 
 #[test]
 fn test_tensor_formatted_correctly() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "scalar".to_string(),
         Item::Scalar(Value::Tensor(Box::new(Tensor::Scalar(1.0)))),
@@ -1170,7 +1223,7 @@ fn test_tensor_formatted_correctly() {
 
 #[test]
 fn test_unicode_preserved() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "chinese".to_string(),
         Item::Scalar(Value::String("你好世界".to_string().into())),
@@ -1192,7 +1245,7 @@ fn test_unicode_preserved() {
 
 #[test]
 fn test_unicode_round_trip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "text".to_string(),
         Item::Scalar(Value::String("Iñtërnâtiônàlizætiøn 🌍".to_string().into())),
@@ -1214,7 +1267,7 @@ fn test_unicode_round_trip() {
 
 #[test]
 fn test_quote_escaping() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("say \"hello\"".to_string().into())),
@@ -1227,7 +1280,7 @@ fn test_quote_escaping() {
 
 #[test]
 fn test_quote_escaping_round_trip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("He said \"hi\"".to_string().into())),
@@ -1245,7 +1298,7 @@ fn test_quote_escaping_round_trip() {
 
 #[test]
 fn test_newline_escaping_in_cells() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -1266,7 +1319,7 @@ fn test_newline_escaping_in_cells() {
 
 #[test]
 fn test_tab_escaping_in_cells() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -1287,7 +1340,7 @@ fn test_tab_escaping_in_cells() {
 
 #[test]
 fn test_backslash_escaping_in_cells() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "path".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -1308,14 +1361,15 @@ fn test_backslash_escaping_in_cells() {
 
 #[test]
 fn test_control_character_escaping_round_trip() {
-    let mut doc = Document::new((1, 0));
+    // v2.0 only supports \n, \t, \\, \" escapes (not \r)
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
         "i1",
         vec![
             Value::String("i1".to_string().into()),
-            Value::String("line1\nline2\ttab\rcarriage".to_string().into()),
+            Value::String("line1\nline2\ttab".to_string().into()),
         ],
     ));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -1338,7 +1392,7 @@ fn test_control_character_escaping_round_trip() {
 
 #[test]
 fn test_complex_document_idempotency() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Aliases
     doc.aliases.insert("usr".to_string(), "User".to_string());
@@ -1402,7 +1456,7 @@ fn test_complex_document_idempotency() {
 
 #[test]
 fn test_invariant_holds_across_configurations() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",

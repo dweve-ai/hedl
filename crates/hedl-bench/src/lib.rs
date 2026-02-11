@@ -42,22 +42,34 @@
 //! ```
 
 // Core modules (Phase 1 infrastructure - COMPLETE)
+/// Core benchmark infrastructure.
 pub mod core;
+/// Dataset generators for benchmarks.
 pub mod datasets;
+/// Error types for HEDL benchmarking operations.
 pub mod error;
+/// Benchmark harness for unified reporting.
 pub mod harness;
+/// Comprehensive reporting module for HEDL benchmarks.
 pub mod report;
+/// Benchmark reporters for various output formats.
 pub mod reporters;
+/// Token counting utilities for comparing HEDL efficiency vs other formats.
 pub mod token_counter;
 
 // New modular structure (Phase 2)
+/// Helper utilities for HEDL benchmarks.
+pub mod benchmark_utilities;
+/// Fixture management for benchmark data.
 pub mod fixtures;
+/// Comprehensive data generation for HEDL benchmarks.
 pub mod generators;
-pub mod helpers;
 
-// Legacy modules (deprecated, moved to legacy/)
-#[allow(deprecated)]
-pub mod legacy;
+/// HEDL Accuracy Benchmark Framework v2.0.
+pub mod accuracy;
+
+/// Real-world datasets with verified ground truth for LLM accuracy benchmarks.
+pub mod real_datasets;
 
 // Re-export key types for convenience
 pub use datasets::{
@@ -68,20 +80,10 @@ pub use datasets::{
 };
 pub use error::{validate_dataset_size, BenchError, Result, MAX_DATASET_SIZE};
 
-// Legacy re-exports for backward compatibility (temporarily disabled)
-// #[allow(deprecated)]
-// pub use legacy::normalize::{compare, normalize};
-// #[allow(deprecated)]
-// pub use legacy::questions::{
-//     all_questions, all_questions_flat, generate_blog_questions, generate_event_questions,
-//     generate_product_questions, generate_user_questions, generate_validation_questions,
-//     question_counts, AnswerType, Question, QuestionType,
-// };
-
-// New module re-exports (temporarily disabled)
-// pub use fixtures::{FixtureCache, load_fixture as load_fixture_new, load_all_fixtures};
-// pub use generators::{ComplexityLevel as GenComplexityLevel, GeneratorConfig};
-// pub use helpers::{parse_unchecked, convert_to_json, convert_to_yaml};
+// New module re-exports
+pub use benchmark_utilities::{convert_to_json, convert_to_yaml, parse_unchecked};
+pub use fixtures::{load_all_fixtures, load_fixture as load_fixture_new, FixtureCache};
+pub use generators::{ComplexityLevel as GenComplexityLevel, GeneratorConfig};
 pub use report::{
     BenchmarkReport, ComparisonRow, ComplexityLevel, CustomTable, ExportConfig,
     FormatDatasetResult, FormatMetrics, Insight, PerfResult, SummaryReport, TableCell,
@@ -127,10 +129,11 @@ mod tests {
     #[test]
     fn test_generate_users() {
         let hedl = generate_users(10);
-        assert!(hedl.contains("%VERSION: 1.0"));
-        // Uses %STRUCT with count in header for LLM comprehension
-        assert!(hedl.contains("%STRUCT: User (10): [id,name,email,role,created_at]"));
-        assert!(hedl.contains("users: @User"));
+        assert!(hedl.contains("%V:2.0"));
+        // v2.0 uses separate %S and %C directives
+        assert!(hedl.contains("%S:User:[id,name,email,role,created_at]"));
+        assert!(hedl.contains("%C:User.total=10"));
+        assert!(hedl.contains("users:@User"));
     }
 
     #[test]

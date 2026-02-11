@@ -1,250 +1,229 @@
-# HEDL Concepts
+# Understanding HEDL: The Core Concepts
 
-Deep-dive explanations of HEDL's design, architecture, and key concepts. These guides help you understand *why* HEDL works the way it does.
+You can use HEDL without understanding how it works. The CLI commands are simple. The syntax takes five minutes to learn. Most people stop there, and that's fine.
 
-## What are Concepts?
+But if you want to get the most out of HEDL, if you want to understand *why* it makes certain choices, if you want to design your data models well, if you want to debug subtle issues, you need to understand the concepts underneath.
 
-Concept guides are **understanding-oriented** and explain the theory behind HEDL. Unlike how-to guides (which solve problems) and tutorials (which teach skills), concept guides illuminate principles and design decisions.
-
-## Core Concepts
-
-### 1. [Data Model](data-model.md)
-**Understanding HEDL's structure**
-
-Learn about HEDL's hierarchical entity-based data model:
-- Document structure and versioning
-- Entities and collections
-- Matrix lists and their efficiency
-- Nested hierarchies
-- Value types and literals
-
-**Read this to understand:**
-- How HEDL organizes data
-- Why matrix lists are token-efficient
-- The relationship between entities and JSON objects
-- How nesting works in HEDL
+This section goes deep. By the end, you'll understand HEDL better than most people who use it.
 
 ---
 
-### 2. [Type System](type-system.md)
-**How HEDL handles types**
+## The Central Insight
 
-Explore HEDL's type inference and validation system:
-- Automatic type inference
-- Type annotations and schemas
-- Type checking and validation
-- Polymorphic values
-- Type coercion rules
+Here's the core idea that makes HEDL work:
 
-**Read this to understand:**
-- How HEDL determines value types
-- When to use type annotations
-- How type inference improves ergonomics
-- Type compatibility between formats
+**In structured data, the shape repeats far more often than the values.**
 
----
+Think about a JSON file with 10,000 user records. Each record has `{"id": ..., "name": ..., "email": ...}`. The values are different for each user, but the shape is identical. You're writing `"id":`, `"name":`, `"email":` ten thousand times.
 
-### 3. [References](references.md)
-**Entity relationships in HEDL**
+That's not data. That's metadata repeated as if it were data.
 
-Master HEDL's reference system for connecting entities:
-- Reference syntax (`@Type:id`)
-- Type-scoped IDs
-- Reference resolution
-- Cross-entity relationships
-- Circular reference handling
+HEDL separates structure from values. You declare the structure once:
 
-**Read this to understand:**
-- How to model relationships
-- Why type-scoped IDs matter
-- Reference integrity checking
-- Graph-like data structures in HEDL
-
----
-
-### 4. [Canonicalization](canonicalization.md)
-**Deterministic formatting**
-
-Learn about HEDL's canonical form:
-- What canonicalization means
-- Formatting rules
-- Deterministic ordering
-- Use cases (git, hashing, diffing)
-- Comparison with other formats
-
-**Read this to understand:**
-- Why canonical form is important
-- How HEDL ensures consistency
-- Benefits for version control
-- Cryptographic hashing of documents
-
----
-
-## Design Principles
-
-### Token Efficiency
-
-HEDL is designed to minimize token count for LLM applications:
-
-**Key techniques:**
-1. **Matrix lists** - Define structure once, not per-item
-2. **Ditto operator** - Repeat values without rewriting
-3. **Minimal syntax** - Few delimiters and keywords
-4. **Type inference** - Omit type annotations when unneeded
-
-**Result:** 35-60% fewer tokens than JSON
-
----
-
-### Human Readability
-
-Despite being compact, HEDL remains readable:
-
-**Design choices:**
-1. **Whitespace-based structure** - Like Python or YAML
-2. **Clear column headers** - Self-documenting data
-3. **Intuitive syntax** - Minimal learning curve
-4. **Comments support** - Document your data
-
-**Result:** Easier to read than JSON for tabular data
-
----
-
-### Interoperability
-
-HEDL works seamlessly with existing formats:
-
-**Conversion fidelity:**
-- JSON ↔ HEDL: Lossless
-- YAML ↔ HEDL: Lossless
-- CSV ↔ HEDL: Lossless (with schema)
-- XML ↔ HEDL: High fidelity
-- Parquet ↔ HEDL: Lossless
-
-**Result:** Drop-in replacement for existing workflows
-
----
-
-## Architecture Overview
-
-### Parsing Pipeline
-
-```
-Input Text
-    ↓
-Lexer (tokenization)
-    ↓
-Parser (syntax tree)
-    ↓
-Validator (type checking)
-    ↓
-Document (in-memory representation)
-    ↓
-Serializer (output format)
-    ↓
-Output
+```hedl
+%S:User:[id,name,email]
 ```
 
-### Streaming Architecture
+Then you write only values:
 
-```
-Input Stream
-    ↓
-Chunk Reader
-    ↓
-Incremental Parser
-    ↓
-Validator (streaming)
-    ↓
-Transform (optional)
-    ↓
-Serializer (streaming)
-    ↓
-Output Stream
+```hedl
+|u001,Alice,alice@example.com
+|u002,Bob,bob@example.com
 ```
 
----
-
-## Key Terminology
-
-| Term | Definition |
-|------|------------|
-| **Entity** | A named collection of data (like a JSON object key) |
-| **Matrix List** | A typed collection with a schema and rows |
-| **Type Annotation** | `@TypeName` prefix indicating entity type |
-| **Column Definition** | `[col1,col2,col3]` specifying structure |
-| **Ditto Operator** | `^` symbol repeating previous value |
-| **Reference** | `@Type:id` pointer to another entity |
-| **Canonical Form** | Deterministic standardized formatting |
-| **Type Inference** | Automatic determination of value types |
+This single insight drives everything else in HEDL's design.
 
 ---
 
-## Conceptual Comparisons
+## The Four Concepts
 
-### HEDL vs JSON
+HEDL has four core concepts you need to understand:
 
-| Aspect | HEDL | JSON |
-|--------|------|------|
-| **Structure** | Matrix lists + objects | Objects + arrays |
-| **Tokens** | 35-60% fewer | Baseline |
-| **Readability** | Better for tables | Better for nested |
-| **Types** | Strong typing with structs | Schema-less |
-| **References** | Built-in with @Type:id | Manual |
+### 1. The Data Model
 
-### HEDL vs CSV
+How does HEDL organize information? What are entities, what are values, what are collections? How does nesting work?
 
-| Aspect | HEDL | CSV |
-|--------|------|------|
-| **Nesting** | Full hierarchy | Flat only |
-| **Types** | Strong typing | Text only |
-| **Metadata** | Version, types | None |
-| **Flexibility** | Multiple entities | Single table |
+The data model is the foundation. Everything else builds on it.
 
-### HEDL vs YAML
+**[Read about the Data Model →](data-model.md)**
 
-| Aspect | HEDL | YAML |
-|--------|------|------|
-| **Tokens** | Fewer for tables | More verbose |
-| **Parsing** | Faster | Slower |
-| **Ambiguity** | Less | More (Norway problem) |
-| **Tables** | Native support | Manual |
+You'll learn:
+- How HEDL documents are structured (headers vs. body)
+- What "entities" and "collections" mean in HEDL
+- How matrix lists achieve their efficiency
+- When to use nesting vs. flat structures
+- How HEDL maps to JSON concepts
+
+### 2. The Type System
+
+HEDL has types. Integers, floats, strings, booleans, nulls, references, tensors, lists. Some are inferred automatically. Some require explicit annotation.
+
+Understanding types helps you write cleaner HEDL and avoid subtle conversion issues.
+
+**[Read about the Type System →](type-system.md)**
+
+You'll learn:
+- How HEDL infers types from values (42 → integer, "42" → string)
+- When you need quotes and when you don't
+- The difference between tensors `[...]` and lists `(...)`
+- How types convert when you export to JSON, YAML, CSV
+- What happens when types are ambiguous
+
+### 3. References
+
+HEDL has first-class references: `@alice`. These aren't strings. They're validated links to entities defined elsewhere.
+
+References are what make HEDL useful for relational data and knowledge graphs. They're also what enable validation that catches broken links before runtime.
+
+**[Read about References →](references.md)**
+
+You'll learn:
+- The syntax of references (`@id`)
+- How references get validated
+- Building graph structures with references
+- What happens to references when you convert to JSON
+- Handling circular references
+
+### 4. Canonicalization
+
+Run `hedl format` twice on the same data. You get the same output. Byte for byte identical.
+
+This matters for version control (diffs are meaningful), for caching (you can hash documents), and for reproducibility (the same data always looks the same).
+
+**[Read about Canonicalization →](canonicalization.md)**
+
+You'll learn:
+- What "canonical form" means
+- The exact formatting rules HEDL applies
+- Why 1-space indentation (not 2, not 4)
+- How to use canonical form for caching and hashing
+- Comparing documents for equality
 
 ---
 
-## When to Use HEDL
+## How They Fit Together
 
-### Ideal Use Cases
+These concepts aren't isolated. They interact:
 
-1. **LLM Applications** - Minimize token costs
-2. **Tabular Data** - More efficient than JSON/YAML
-3. **Data Pipelines** - Interoperable format
-4. **Configuration** - Human-readable and validated
-5. **Knowledge Graphs** - Built-in references
+```mermaid
+graph TB
+    subgraph Foundation["Foundation Layer"]
+        DM[Data Model<br/>structure]
+    end
 
-### Not Ideal For
+    subgraph Building["Building Blocks"]
+        TS[Type System<br/>values]
+        RF[References<br/>links]
+        CN[Canonicalization<br/>format]
+    end
 
-1. **Deeply nested trees** - JSON might be simpler
-2. **Binary data** - Use Parquet or binary formats
-3. **Streaming logs** - Use JSONL or structured logging
-4. **Large text content** - Consider Markdown or plain text
+    DM --> TS
+    DM --> RF
+    DM --> CN
+    TS --> RF
+
+    style DM fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style TS fill:#e8f5e9,stroke:#2e7d32
+    style RF fill:#fff3e0,stroke:#ef6c00
+    style CN fill:#f3e5f5,stroke:#7b1fa2
+```
+
+**The Data Model** defines how things are organized. Entities, collections, nesting.
+
+**The Type System** defines what values can be. It operates within the data model.
+
+**References** create connections between entities. They depend on the data model to know what entities exist.
+
+**Canonicalization** takes a data model instance and produces a standard text representation.
+
+When you parse a HEDL document:
+1. The parser recognizes the **data model** structure
+2. It infers or validates **types** for each value
+3. It resolves **references** to check they point to real entities
+4. When you serialize, **canonicalization** ensures consistent output
 
 ---
 
-## Further Reading
+## A Worked Example
 
-After understanding these concepts:
+Let's trace a document through all four concepts:
 
-- **Apply your knowledge:** See [CLI Guide](../cli-guide.md)
-- **Learn by doing:** Try the [Tutorials](../tutorials/)
-- **Look up specifics:** Check the [Reference](../reference/)
-- **Get help:** Read the [FAQ](../faq.md)
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Author:[id,name]
+%S:Book:[isbn,title,author,price]
+---
+authors:@Author
+ |twain,Mark Twain
+ |hemingway,Ernest Hemingway
+
+books:@Book
+ |978-0-14-028329-7,The Adventures of Tom Sawyer,@twain,12.99
+ |978-0-7432-9737-9,The Old Man and the Sea,@hemingway,14.99
+ |978-0-14-118776-1,A Farewell to Arms,@hemingway,13.99
+```
+
+**Data Model perspective:**
+- This document has two entities at the root: `authors` and `books`
+- `authors` is a matrix list following the `Author` schema
+- `books` is a matrix list following the `Book` schema
+- Each row in a matrix list becomes an entity with the columns as fields
+
+**Type System perspective:**
+- `twain` and `hemingway` are strings (inferred, no quotes needed)
+- `Mark Twain` is a string
+- `12.99` is a float (has decimal point)
+- `978-0-14-028329-7` is a string (contains hyphens, not a number)
+- `@twain` is a reference (has the `@` prefix)
+
+**References perspective:**
+- `@twain` references the entity with id `twain`
+- The parser checks: does an entity with id `twain` exist?
+- Yes: the first row of `authors` defines `twain`
+- If we wrote `@faulkner`, the parser would error (no such entity)
+
+**Canonicalization perspective:**
+- If we run `hedl format`, we get this exact output
+- The order of entities is preserved (authors before books)
+- Indentation is exactly 1 space per level
+- No trailing whitespace, consistent line endings
 
 ---
 
-**Choose a concept to explore:**
+## Why These Concepts Matter
 
-- [Data Model](data-model.md) - Structure and organization
-- [Type System](type-system.md) - Types and inference
-- [References](references.md) - Entity relationships
-- [Canonicalization](canonicalization.md) - Deterministic formatting
+You could use HEDL without understanding any of this. But understanding helps you:
+
+**Design better data models.** When you understand how matrix lists work, you'll structure data to maximize their efficiency.
+
+**Debug problems faster.** When a reference fails to validate, you'll know exactly what the parser is checking.
+
+**Choose the right format.** When you understand type conversion, you'll know when HEDL → JSON is lossless and when it's not.
+
+**Optimize for your use case.** When you understand canonicalization, you'll know when to use `hedl format` and when not to.
+
+---
+
+## Where to Go Next
+
+Read the concepts in order if you're learning HEDL deeply:
+
+1. **[Data Model](data-model.md)** first (the foundation)
+2. **[Type System](type-system.md)** second (builds on data model)
+3. **[References](references.md)** third (uses types and data model)
+4. **[Canonicalization](canonicalization.md)** last (applies to everything)
+
+Or jump to whichever concept you need right now:
+
+| I want to understand... | Read this |
+|-------------------------|-----------|
+| How HEDL organizes data | [Data Model](data-model.md) |
+| How types work in HEDL | [Type System](type-system.md) |
+| How to link entities together | [References](references.md) |
+| How formatting works | [Canonicalization](canonicalization.md) |
+
+---
+
+Ready to go deep? Start with the [Data Model](data-model.md).

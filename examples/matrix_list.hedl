@@ -1,0 +1,20 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates matrix lists with schemas
+# Schemas define typed rows with positional columns
+%S:User:[id,name,age,active]
+%S:Product:[id,name,price,stock]
+---
+# Matrix list with schema
+# Each row is a CSV-like record following the schema columns
+users:@User
+ |u1,Alice,28,true
+ |u2,Bob,34,false
+ |u3,Charlie,42,true
+
+products:@Product
+ |p1,Laptop,999.99,15
+ |p2,Mouse,29.99,150
+ |p3,Keyboard,79.99,45
+ |p4,"USB Cable",9.99,500

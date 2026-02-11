@@ -26,9 +26,13 @@
 //! - `aggregator`: Result aggregation and statistics
 //! - `comparator`: Baseline comparison and regression detection
 
+/// Result aggregation and statistics computation.
 pub mod aggregator;
+/// Metric collection for benchmarks.
 pub mod collector;
+/// Benchmark comparison and regression detection.
 pub mod comparator;
+/// Benchmark runner for executing and collecting results.
 pub mod runner;
 
 pub use aggregator::{

@@ -120,7 +120,7 @@ const error = fixtures.getErrorFixture("invalid_syntax");
 ### Go
 
 ```go
-import "github.com/dweve/hedl/bindings/go/hedl"
+import "github.com/dweve-ai/hedl/bindings/go/hedl"
 
 // Get global fixtures instance
 fixtures := hedl.GetGlobalFixtures()
@@ -188,9 +188,9 @@ To add a new fixture:
 
 1. Create `sample_references.hedl`:
 ```hedl
-%VERSION: 1.0
-%STRUCT: Author: [id, name]
-%STRUCT: Book: [isbn, title, author_ref]
+%V:2.0
+%S:Author:[id, name]
+%S:Book:[isbn, title, author_ref]
 ---
 authors: @Author
   | 1, Alice Smith

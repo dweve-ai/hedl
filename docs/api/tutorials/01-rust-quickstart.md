@@ -1,9 +1,12 @@
 # Rust API Quickstart
 
-This tutorial will guide you through using HEDL in Rust, from installation to building a complete application.
+Your application handles thousands of user records. Each API response carries the same field names over and over: `id`, `name`, `email`, `created_at`. JSON is eating 40% of your token budget on redundant keys, and your LLM costs are climbing.
 
-## Prerequisites
+HEDL fixes this. You declare the schema once, write the data as rows, and cut your tokens in half. The Rust API gives you compile-time type safety, zero-copy parsing where possible, and seamless integration with serde and the rest of the Rust ecosystem.
 
+This tutorial takes you from zero to a working HEDL application. You'll parse documents, convert between formats, handle errors gracefully, and build something real.
+
+**What you need:**
 - Rust 1.70 or later
 - Cargo (comes with Rust)
 - Basic Rust knowledge
@@ -14,10 +17,10 @@ Add HEDL to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hedl = "1.2"
+hedl = "2.0"
 
 # Optional features
-hedl = { version = "1.2", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
+hedl = { version = "2.0", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
 ```
 
 ## Your First HEDL Program
@@ -37,12 +40,14 @@ use hedl::{parse, to_json};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Define a HEDL document
     let hedl_text = r#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+users:@User
+ |alice,Alice Smith,alice@example.com
+ |bob,Bob Jones,bob@example.com
 "#;
 
     // Parse the document
@@ -352,25 +357,27 @@ use std::collections::HashMap;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse user database
     let hedl_text = r#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email, role]
-%STRUCT: Permission: [resource, action]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email,role]
+%S:Permission:[resource,action]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com, admin
-  | bob, Bob Jones, bob@example.com, user
-  | charlie, Charlie Brown, charlie@example.com, moderator
+users:@User
+ |alice,Alice Smith,alice@example.com,admin
+ |bob,Bob Jones,bob@example.com,user
+ |charlie,Charlie Brown,charlie@example.com,moderator
 
 permissions:
-  alice: @Permission
-    | users, write
-    | posts, write
-    | comments, moderate
-  bob: @Permission
-    | posts, read
-    | comments, write
-  charlie: @Permission
-    | comments, moderate
+  alice:@Permission
+  |users,write
+  |posts,write
+  |comments,moderate
+  bob:@Permission
+  |posts,read
+  |comments,write
+  charlie:@Permission
+  |comments,moderate
 "#;
 
     let doc = parse(hedl_text)?;
@@ -463,14 +470,14 @@ mod tests {
 
     #[test]
     fn test_parse_simple() {
-        let input = "%VERSION: 1.0\n---\nkey: value";
+        let input = "%V:2.0\n---\nkey: value";
         let doc = parse(input).unwrap();
         assert_eq!(doc.root.len(), 1);
     }
 
     #[test]
     fn test_json_roundtrip() {
-        let input = "%VERSION: 1.0\n---\nkey: value";
+        let input = "%V:2.0\n---\nkey: value";
         let doc = parse(input).unwrap();
         let json = to_json(&doc).unwrap();
         assert!(json.contains("\"key\""));
@@ -496,4 +503,4 @@ mod tests {
 
 - **[Rust API Reference](../rust-api.md)** - Complete Rust API documentation
 - **[Error Handling Guide](../guides/error-handling.md)** - Error handling patterns
-- **[GitHub Examples](https://github.com/dweve/hedl/tree/main/examples)** - Example code
+- **[GitHub Examples](https://github.com/dweve-ai/hedl/tree/main/examples)** - Example code

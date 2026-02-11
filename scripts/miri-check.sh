@@ -37,5 +37,4 @@ MIRIFLAGS="-Zmiri-disable-isolation" \
 echo ""
 echo "✓ All MIRI checks passed! No undefined behavior detected."
 echo ""
-echo "Note: hedl-core currently has 0 unsafe blocks."
-echo "This baseline ensures future unsafe code is validated."
+echo "Note: All unsafe blocks have SAFETY comments documenting their invariants."

@@ -53,8 +53,10 @@ thiserror = { workspace = true }
 serde_json = { workspace = true }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 similar = "2.3"
-
 rayon = { version = "1.8", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+uuid = { version = "1.6", features = ["v4", "serde", "js"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

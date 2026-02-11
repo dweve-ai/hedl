@@ -437,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_parse_minimal() {
-        let input = "%VERSION: 1.0\n---\n";
+        let input = "%V:2.0\n---\n";
         let doc = parse(input).unwrap();
         assert_eq!(doc.version, (1, 0));
         assert_eq!(doc.root.len(), 0);
@@ -445,7 +445,7 @@ mod tests {
 
     #[test]
     fn test_json_conversion() {
-        let input = "%VERSION: 1.0\n---\nkey: value\nnum: 42";
+        let input = "%V:2.0\n---\nkey: value\nnum: 42";
         let doc = parse(input).unwrap();
         let json = hedl::to_json(&doc).unwrap();
 
@@ -478,7 +478,7 @@ mod prop_tests {
             key in "[a-z][a-z0-9_]*",
             value in ".*"
         ) {
-            let input = format!("%VERSION: 1.0\n---\n{}: {}", key, value);
+            let input = format!("%V:2.0\n---\n{}: {}", key, value);
             let result = parse(&input);
             prop_assert!(result.is_ok());
         }
@@ -520,7 +520,7 @@ mod integration_tests {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test.hedl");
 
-        fs::write(&file_path, "%VERSION: 1.0\n---\nkey: value").unwrap();
+        fs::write(&file_path, "%V:2.0\n---\nkey: value").unwrap();
 
         let content = fs::read_to_string(&file_path).unwrap();
         let doc = parse(&content).unwrap();
@@ -531,9 +531,9 @@ mod integration_tests {
     #[test]
     fn test_batch_processing() {
         let inputs = vec![
-            "%VERSION: 1.0\n---\na: 1",
-            "%VERSION: 1.0\n---\nb: 2",
-            "%VERSION: 1.0\n---\nc: 3",
+            "%V:2.0\n---\na: 1",
+            "%V:2.0\n---\nb: 2",
+            "%V:2.0\n---\nc: 3",
         ];
 
         let docs: Vec<_> = inputs

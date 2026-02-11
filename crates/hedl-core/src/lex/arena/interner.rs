@@ -297,6 +297,7 @@ impl InternedString {
         // - ptr and len were created from valid UTF-8
         // - The arena keeps the bytes alive
         // - We never mutate the bytes after creation
+        // SAFETY: Pointer was allocated via Box::into_raw and has not been freed
         unsafe {
             std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.ptr.as_ptr(), self.len))
         }

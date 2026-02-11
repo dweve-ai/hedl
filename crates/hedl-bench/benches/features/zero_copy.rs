@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Zero-copy string handling benchmarks.
 //!
 //! Measures HEDL's zero-copy string optimizations for JSON conversion.
@@ -249,12 +247,14 @@ fn bench_simple_strings(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = ZeroCopyResult::default();
-        result.operation = "simple_parse".to_string();
-        result.size = size;
-        result.input_bytes = json.len();
-        result.string_count = count_strings(&json);
-        result.escaped_string_count = 0;
+        let mut result = ZeroCopyResult {
+            operation: "simple_parse".to_string(),
+            size,
+            input_bytes: json.len(),
+            string_count: count_strings(&json),
+            escaped_string_count: 0,
+            ..Default::default()
+        };
 
         // Zero-copy parse times
         let mut times = Vec::new();
@@ -315,12 +315,14 @@ fn bench_escaped_strings(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = ZeroCopyResult::default();
-        result.operation = "escaped_parse".to_string();
-        result.size = size;
-        result.input_bytes = json.len();
-        result.string_count = count_strings(&json);
-        result.escaped_string_count = count_escaped_strings(&json);
+        let mut result = ZeroCopyResult {
+            operation: "escaped_parse".to_string(),
+            size,
+            input_bytes: json.len(),
+            string_count: count_strings(&json),
+            escaped_string_count: count_escaped_strings(&json),
+            ..Default::default()
+        };
 
         // Zero-copy parse times (with escape processing)
         let mut times = Vec::new();
@@ -378,10 +380,12 @@ fn bench_owned_transfer(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = ZeroCopyResult::default();
-        result.operation = "owned_transfer".to_string();
-        result.size = size;
-        result.input_bytes = json.len();
+        let mut result = ZeroCopyResult {
+            operation: "owned_transfer".to_string(),
+            size,
+            input_bytes: json.len(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -458,10 +462,12 @@ fn bench_roundtrip(c: &mut Criterion) {
         );
 
         // Collect result with actual serialization measurement
-        let mut result = ZeroCopyResult::default();
-        result.operation = "roundtrip".to_string();
-        result.size = size;
-        result.input_bytes = hedl.len();
+        let mut result = ZeroCopyResult {
+            operation: "roundtrip".to_string(),
+            size,
+            input_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         let mut parse_times = Vec::new();
         let mut serialize_times = Vec::new();
@@ -519,11 +525,13 @@ fn bench_realistic_workloads(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = ZeroCopyResult::default();
-        result.operation = "realistic".to_string();
-        result.size = size;
-        result.input_bytes = json.len();
-        result.string_count = count_strings(&json);
+        let mut result = ZeroCopyResult {
+            operation: "realistic".to_string(),
+            size,
+            input_bytes: json.len(),
+            string_count: count_strings(&json),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -582,22 +590,30 @@ fn bench_serde_zero_copy(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark note: flatbuffers and cap'n proto require schema compilation
-/// For demonstration, we show the pattern - real implementation would need:
-/// 1. Schema files for the data structures
-/// 2. Generated code from schema compiler
-/// 3. Builder APIs for serialization
-/// 4. Reader APIs for deserialization
+/// Benchmark note: flatbuffers and cap'n proto benchmarks not implemented
+///
+/// These formats require schema compilation and code generation, which adds
+/// complexity not justified for this benchmark suite. The frameworks work
+/// fundamentally differently:
+///
+/// 1. FlatBuffers: Requires .fbs schema and flatc compiler
+/// 2. Cap'n Proto: Requires .capnp schema and capnpc compiler
+/// 3. Both generate type-safe code, unlike HEDL's dynamic parsing
+///
+/// For a fair comparison, we would need to:
+/// - Define schemas matching HEDL's flexible structure
+/// - Generate bindings for each schema
+/// - Rebuild on schema changes
+/// - Handle schema evolution
+///
+/// The serde_json comparison provides adequate baseline for zero-copy evaluation.
+/// Binary format comparisons are better suited for dedicated serialization benchmarks.
 fn bench_comparative_formats_stub(c: &mut Criterion) {
     ensure_init();
 
     let group = c.benchmark_group("comparative_binary_formats");
 
-    // TODO: Implement actual flatbuffers benchmarks
-    // group.bench_function("flatbuffers", |b| { ... });
-
-    // TODO: Implement actual cap'n proto benchmarks
-    // group.bench_function("capnproto", |b| { ... });
+    // Intentionally empty - see function documentation for rationale
 
     group.finish();
 }

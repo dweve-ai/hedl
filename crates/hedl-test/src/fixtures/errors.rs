@@ -37,7 +37,7 @@ pub fn invalid_hedl_samples() -> Vec<(&'static str, &'static str)> {
         ("malformed_struct", "%STRUCT: InvalidFormat\n---\n"),
         ("unclosed_string", "field: \"unclosed"),
         ("invalid_escape", "field: \"invalid\\x\""),
-        ("malformed_reference", "ref: @"),
+        ("malformed_reference", "ref:@"),
         ("invalid_tensor", "tensor: [[["),
         ("mismatched_brackets", "tensor: [1, 2]]"),
         ("invalid_number", "num: 123.456.789"),
@@ -92,7 +92,7 @@ pub fn semantically_invalid_docs() -> Vec<(&'static str, Document)> {
 ///
 /// Has a `MatrixList` with a `type_name` not defined in structs.
 fn undefined_struct() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let list = MatrixList {
         type_name: "UndefinedType".to_string(),
@@ -111,7 +111,7 @@ fn undefined_struct() -> Document {
 ///
 /// Has a NEST directive referencing a non-existent child type.
 fn undefined_nest() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.structs.insert(
         "Parent".to_string(),
@@ -120,7 +120,9 @@ fn undefined_nest() -> Document {
 
     // NEST references non-existent child type
     doc.nests
-        .insert("Parent".to_string(), "NonExistentChild".to_string());
+        .entry("Parent".to_string())
+        .or_default()
+        .push("NonExistentChild".to_string());
 
     doc
 }
@@ -129,7 +131,7 @@ fn undefined_nest() -> Document {
 ///
 /// Parent nests Child, Child nests Parent (circular).
 fn circular_nest() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.structs
         .insert("TypeA".to_string(), vec!["id".to_string()]);
@@ -137,8 +139,14 @@ fn circular_nest() -> Document {
         .insert("TypeB".to_string(), vec!["id".to_string()]);
 
     // Circular NEST: A -> B -> A
-    doc.nests.insert("TypeA".to_string(), "TypeB".to_string());
-    doc.nests.insert("TypeB".to_string(), "TypeA".to_string());
+    doc.nests
+        .entry("TypeA".to_string())
+        .or_default()
+        .push("TypeB".to_string());
+    doc.nests
+        .entry("TypeB".to_string())
+        .or_default()
+        .push("TypeA".to_string());
 
     doc
 }
@@ -147,7 +155,7 @@ fn circular_nest() -> Document {
 ///
 /// References point to non-existent nodes.
 fn dangling_reference() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "related".to_string()]);
 
@@ -176,7 +184,7 @@ fn dangling_reference() -> Document {
 ///
 /// `MatrixList` schema doesn't match the defined struct.
 fn mismatched_schema() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Define struct with certain fields
     doc.structs.insert(
@@ -201,7 +209,7 @@ fn mismatched_schema() -> Document {
 ///
 /// `MatrixList` has an empty string as `type_name`.
 fn empty_type_name() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let list = MatrixList {
         type_name: String::new(), // Empty type name
@@ -219,7 +227,7 @@ fn empty_type_name() -> Document {
 ///
 /// Multiple nodes in the same list have the same ID.
 fn duplicate_ids() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "name".to_string()]);
 
@@ -255,7 +263,7 @@ fn duplicate_ids() -> Document {
 ///
 /// Alias references a non-existent identifier.
 fn invalid_alias() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Alias points to non-existent root item
     doc.aliases
@@ -269,7 +277,7 @@ fn invalid_alias() -> Document {
 /// Tests stack overflow and recursion limits.
 #[must_use]
 pub fn deeply_nested_document(depth: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create a deeply nested structure
     let mut current_children = BTreeMap::new();
@@ -310,7 +318,10 @@ pub fn deeply_nested_document(depth: usize) -> Document {
         "Level".to_string(),
         vec!["id".to_string(), "level".to_string()],
     );
-    doc.nests.insert("Level".to_string(), "Level".to_string());
+    doc.nests
+        .entry("Level".to_string())
+        .or_default()
+        .push("Level".to_string());
 
     doc
 }
@@ -320,7 +331,7 @@ pub fn deeply_nested_document(depth: usize) -> Document {
 /// Tests memory and performance limits.
 #[must_use]
 pub fn wide_document(width: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
 
@@ -349,7 +360,7 @@ pub fn wide_document(width: usize) -> Document {
 /// Tests string handling and buffer limits.
 #[must_use]
 pub fn long_string_document(length: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let long_string = "x".repeat(length);
 
@@ -366,7 +377,7 @@ pub fn long_string_document(length: usize) -> Document {
 /// Tests reference resolution performance.
 #[must_use]
 pub fn many_references_document(count: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create target nodes
     let mut targets = MatrixList::new("Target", vec!["id".to_string(), "name".to_string()]);
@@ -448,21 +459,21 @@ mod tests {
 
         for (name, doc) in docs {
             assert!(!name.is_empty(), "Doc name should not be empty");
-            assert_eq!(doc.version, (1, 0), "Should have valid version");
+            assert_eq!(doc.version, (2, 0), "Should have valid version");
         }
     }
 
     #[test]
     fn test_deeply_nested_document() {
         let doc = deeply_nested_document(10);
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
         assert!(doc.root.contains_key("levels"));
     }
 
     #[test]
     fn test_wide_document() {
         let doc = wide_document(100);
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
 
         if let Some(Item::List(list)) = doc.root.get("items") {
             assert_eq!(list.rows.len(), 100);

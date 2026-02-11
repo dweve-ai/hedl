@@ -64,8 +64,10 @@ fn init_audit_logging() {
 fn example_successful_parse() {
     info!("=== Example 1: Successful Parse with Audit Logging ===");
 
+    // SAFETY: FFI function requires raw pointer for output parameter
     unsafe {
-        let input = CString::new("%VERSION: 1.0\n---\nuser: Alice\nage: 30\n").unwrap();
+        let input =
+            CString::new("%V:2.0\\n%NULL:~\\n%QUOTE:\\\"\\n---\\nuser: Alice\nage: 30\n").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
 
         info!("Calling hedl_parse...");
@@ -85,6 +87,7 @@ fn example_successful_parse() {
 fn example_failed_parse() {
     info!("=== Example 2: Failed Parse with Error Logging ===");
 
+    // SAFETY: FFI function requires raw pointer for output parameter
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
 
@@ -105,9 +108,10 @@ fn example_failed_parse() {
 fn example_performance_tracking() {
     info!("=== Example 3: Performance Tracking ===");
 
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = CString::new(
-            "%VERSION: 1.0\n---\n\
+            "%V:2.0\\n%NULL:~\\n%QUOTE:\\\"\\n---\\n\
              name: Test\n\
              items: [1, 2, 3, 4, 5]\n\
              data: { key1: value1, key2: value2 }\n",
@@ -144,10 +148,12 @@ fn example_multithreaded_operations() {
     let threads: Vec<_> = (0..4)
         .map(|i| {
             std::thread::spawn(move || {
+                // SAFETY: Testing FFI function with known-valid input
                 unsafe {
-                    let input =
-                        CString::new(format!("%VERSION: 1.0\n---\nthread: {i}\ndata: test\n"))
-                            .unwrap();
+                    let input = CString::new(format!(
+                        "%V:2.0\\n%NULL:~\\n%QUOTE:\\\"\\n---\\nthread: {i}\ndata: test\n"
+                    ))
+                    .unwrap();
 
                     let mut doc: *mut HedlDocument = ptr::null_mut();
 
@@ -186,8 +192,9 @@ fn example_env_var_configuration() {
     info!("  RUST_LOG=hedl_ffi::audit=debug   - FFI audit logs only");
     info!("  RUST_LOG=error                   - Errors only");
 
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = CString::new("%VERSION: 1.0\n---\ntest: value\n").unwrap();
+        let input = CString::new("%V:2.0\\n%NULL:~\\n%QUOTE:\\\"\\n---\\ntest: value\n").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
 
         hedl_parse(input.as_ptr(), -1, 0, &mut doc);

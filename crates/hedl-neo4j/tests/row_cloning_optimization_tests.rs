@@ -76,7 +76,7 @@ fn create_document_with_nodes(count: usize) -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -159,7 +159,7 @@ fn create_document_with_relationships(node_count: usize, rel_count: usize) -> Do
     );
 
     Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
@@ -222,10 +222,10 @@ fn create_document_with_nest(parent_count: usize, children_per_parent: usize) ->
     structs.insert("Child".to_string(), child_schema);
 
     let mut nests = BTreeMap::new();
-    nests.insert("Parent".to_string(), "Child".to_string());
+    nests.insert("Parent".to_string(), vec!["Child".to_string()]);
 
     Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,
@@ -781,7 +781,7 @@ fn test_deterministic_statements() {
 #[test]
 fn test_empty_document() {
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),

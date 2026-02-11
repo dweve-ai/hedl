@@ -11,7 +11,7 @@ use hedl_parquet::{from_parquet_bytes, to_parquet_bytes_with_config, ToParquetCo
 
 /// Create a test document with the specified number of rows.
 fn create_test_document(num_rows: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "TestEntity",
         vec![
@@ -41,7 +41,7 @@ fn create_test_document(num_rows: usize) -> Document {
 
 /// Create a test document with many string columns.
 fn create_string_heavy_document(num_rows: usize, num_string_cols: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut schema = vec!["id".to_string()];
     for i in 0..num_string_cols {
         schema.push(format!("str_col_{i}"));
@@ -257,7 +257,7 @@ fn test_default_config_uses_auto() {
 
 #[test]
 fn test_empty_document() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let config = ToParquetConfig::default();
 
     // Should not panic on empty document

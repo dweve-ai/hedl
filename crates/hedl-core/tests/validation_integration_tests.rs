@@ -11,7 +11,7 @@ use hedl_core::Document;
 
 #[test]
 fn test_validation_framework_basic() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let runner = ValidationRunner::new(LintConfig::default());
     let result = runner.validate(&doc);
 
@@ -26,7 +26,7 @@ fn test_validation_runner_with_custom_config() {
     config.disable_rule("duplicate-key");
 
     let runner = ValidationRunner::new(config);
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let result = runner.validate(&doc);
 
     assert!(result.is_valid);
@@ -34,7 +34,7 @@ fn test_validation_runner_with_custom_config() {
 
 #[test]
 fn test_validation_result_filters() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let runner = ValidationRunner::new(LintConfig::default());
     let result = runner.validate(&doc);
 
@@ -46,7 +46,7 @@ fn test_validation_result_filters() {
 
 #[test]
 fn test_validation_stats() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let runner = ValidationRunner::new(LintConfig::default());
     let result = runner.validate(&doc);
 

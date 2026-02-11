@@ -1,266 +1,423 @@
-# AST Design
+# AST Design: The Shape of Data
 
-Understanding HEDL's Abstract Syntax Tree structure and design principles.
+When you parse a HEDL document, what do you get? Not the original text. Not a stream of tokens. You get an Abstract Syntax Tree: a data structure that captures the meaning of the document in a form programs can work with.
 
-## Core Types
+The AST is where text becomes data. Every design decision here ripples through the entire system. The types you choose, the relationships you model, the trade-offs you make: they all shape what's possible and what's efficient.
+
+This document explains HEDL's AST design: what the types are, why they're structured this way, and how to work with them effectively.
+
+```
+╔═══════════════════════════════════════════════════════════════════╗
+║                    FROM TEXT TO TREE                              ║
+╠═══════════════════════════════════════════════════════════════════╣
+║                                                                   ║
+║   Text:                          AST:                            ║
+║                                                                   ║
+║   user:                          Document                        ║
+║    name: Alice                    └── root                       ║
+║    profile:                           └── "user" → Object        ║
+║     bio: Developer                        ├── "name" → Scalar    ║
+║                                           │     └── String("Alice")
+║                                           └── "profile" → Object ║
+║                                                 └── "bio" → Scalar║
+║                                                       └── String("Developer")
+║                                                                   ║
+║   Same information, different representation.                    ║
+║   Text is for humans. AST is for programs.                       ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## The Core Types
+
+### Document: The Root of Everything
+
+Every parsed HEDL document becomes a `Document`:
 
 ```rust
-// File: crates/hedl-core/src/document.rs
-
-/// A parsed HEDL document with header directives and body content.
 pub struct Document {
+    /// Version tuple: (1, 3) means v2.0
     pub version: (u32, u32),
-    pub schema_versions: BTreeMap<String, crate::schema_version::SchemaVersion>,
+
+    /// Schema version overrides from %SV headers
+    pub schema_versions: BTreeMap<String, SchemaVersion>,
+
+    /// Alias definitions from %A headers
     pub aliases: BTreeMap<String, String>,
+
+    /// Schema definitions from %S headers
     pub structs: BTreeMap<String, Vec<String>>,
+
+    /// Nesting relationships from %N headers
     pub nests: BTreeMap<String, String>,
+
+    /// The actual content: key-value pairs at the root level
     pub root: BTreeMap<String, Item>,
 }
+```
 
-/// An item in the document body (scalar, nested object, or matrix list).
+Notice the `BTreeMap` everywhere. Not `HashMap`. Why?
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WHY BTREEMAP?                                │
+│                                                                 │
+│  HashMap:                                                       │
+│  ├── O(1) lookup (faster)                                      │
+│  ├── Random iteration order                                    │
+│  └── Non-deterministic: same data, different order each run    │
+│                                                                 │
+│  BTreeMap:                                                      │
+│  ├── O(log n) lookup (still fast enough)                       │
+│  ├── Sorted iteration order                                    │
+│  └── Deterministic: same data, same order, always             │
+│                                                                 │
+│  HEDL needs determinism for:                                    │
+│  • Canonicalization (same AST = same output)                   │
+│  • Testing (predictable iteration)                             │
+│  • Diffing (meaningful comparisons)                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Item: The Three Faces of Data
+
+An `Item` represents a value in the document body. It can be three things:
+
+```rust
 pub enum Item {
+    /// A single value: number, string, boolean, etc.
     Scalar(Value),
+
+    /// A nested object with key-value pairs
     Object(BTreeMap<String, Item>),
+
+    /// A typed matrix list with structured rows
     List(MatrixList),
 }
+```
 
-/// A typed matrix list containing structured rows.
+This three-way split reflects HEDL's data model:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    THE THREE ITEM TYPES                         │
+│                                                                 │
+│  SCALAR                                                         │
+│  └── A single value                                            │
+│      name: Alice                                                │
+│      count: 42                                                  │
+│      active: true                                               │
+│                                                                 │
+│  OBJECT                                                         │
+│  └── A container of key-value pairs                            │
+│      user:                                                      │
+│       name: Alice                                               │
+│       age: 30                                                   │
+│                                                                 │
+│  LIST (MatrixList)                                              │
+│  └── A typed collection of structured rows                     │
+│      users:@User                                                │
+│       |alice,Alice,alice@example.com                           │
+│       |bob,Bob,bob@example.com                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Value: The Atomic Types
+
+At the leaves of the tree, you find `Value`:
+
+```rust
+pub enum Value {
+    Null,                        // ~
+    Bool(bool),                  // true, false
+    Int(i64),                    // 42, -17
+    Float(f64),                  // 3.14, 1.5e10
+    String(Box<str>),            // "hello", unquoted
+    Tensor(Box<Tensor>),         // [1,2,3], [[1,2],[3,4]]
+    Reference(Reference),        // @User:alice, @bob
+    Expression(Box<Expression>), // $(func(arg))
+}
+```
+
+Why `Box<str>` instead of `String`? Why `Box<Tensor>` instead of `Tensor`?
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ENUM SIZE OPTIMIZATION                       │
+│                                                                 │
+│  The size of an enum is the size of its largest variant.       │
+│                                                                 │
+│  Without boxing:                                                │
+│  enum Value {                                                   │
+│      Null,                   // 0 bytes payload                │
+│      Int(i64),               // 8 bytes payload                │
+│      String(String),         // 24 bytes payload (ptr+len+cap) │
+│      Tensor(Tensor),         // 48+ bytes payload              │
+│  }                                                              │
+│  Total: 48+ bytes for EVERY Value, even simple ones            │
+│                                                                 │
+│  With boxing:                                                   │
+│  enum Value {                                                   │
+│      Null,                   // 0 bytes payload                │
+│      Int(i64),               // 8 bytes payload                │
+│      String(Box<str>),       // 16 bytes payload (ptr+len)     │
+│      Tensor(Box<Tensor>),    // 8 bytes payload (ptr only)     │
+│  }                                                              │
+│  Total: ~32 bytes per Value                                    │
+│                                                                 │
+│  For a document with 1 million values, that's ~16 MB saved.    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### MatrixList: Structured Collections
+
+Matrix lists are HEDL's power feature. They represent typed, structured data efficiently:
+
+```rust
 pub struct MatrixList {
+    /// The type name (e.g., "User")
     pub type_name: String,
+
+    /// Column names from the schema
     pub schema: Vec<String>,
+
+    /// The actual rows/entities
     pub rows: Vec<Node>,
+
+    /// Optional hint for row count (for pre-allocation)
     pub count_hint: Option<usize>,
 }
-
-/// A row/entity in a matrix list.
-pub struct Node {
-    pub type_name: String,
-    pub id: String,
-    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
-    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,  // Lazy allocation
-    pub child_count: u16,  // Compact hint (u16 saves 6 bytes)
-}
-
-/// HEDL scalar values.
-pub enum Value {
-    Null,
-    Bool(bool),
-    Int(i64),
-    Float(f64),
-    String(Box<str>),           // Box<str> reduces enum size vs String
-    Tensor(Box<Tensor>),        // Boxed to reduce enum size
-    Reference(Reference),
-    Expression(Box<Expression>), // Boxed to reduce enum size
-}
 ```
 
-## Design Principles
+### Node: Rows with Identity
 
-### 1. Hierarchical Structure
+Each row in a matrix list is a `Node`:
 
-Items can contain nested objects, forming a tree:
-
-```hedl
-%VERSION: 1.0
----
-user:           # Root key
-  name: Alice   # Scalar value
-  profile:      # Nested object
-    bio: Dev    # Nested scalar
-```
-
-Maps to:
 ```rust
-use std::collections::BTreeMap;
+pub struct Node {
+    /// The type this node belongs to
+    pub type_name: String,
 
-Document {
-    version: (1, 0),
-    aliases: BTreeMap::new(),
-    structs: BTreeMap::new(),
-    nests: BTreeMap::new(),
-    root: {
-        let mut root = BTreeMap::new();
-        root.insert(
-            "user".to_string(),
-            Item::Object({
-                let mut user = BTreeMap::new();
-                user.insert("name".to_string(), Item::Scalar(Value::String("Alice".into())));
-                user.insert("profile".to_string(), Item::Object({
-                    let mut profile = BTreeMap::new();
-                    profile.insert("bio".to_string(), Item::Scalar(Value::String("Dev".into())));
-                    profile
-                }));
-                user
-            })
-        );
-        root
-    },
+    /// The unique identifier (first column)
+    pub id: String,
+
+    /// Field values (second column onward)
+    pub fields: SmallVec<[Value; 4]>,
+
+    /// Children, if this node has nested rows (via %N)
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,
+
+    /// Count of children (compact hint)
+    pub child_count: u16,
 }
 ```
 
-### 2. Typed Values
+Notice `SmallVec<[Value; 4]>`. Most rows have 1-4 fields. SmallVec stores up to 4 values inline (on the stack), avoiding heap allocation for the common case.
 
-Values have explicit types to preserve semantics:
+---
 
-| HEDL | AST | Notes |
-|------|-----|-------|
-| `42` | `Value::Int(42)` | Integer |
-| `3.14` | `Value::Float(3.14)` | Float |
-| `true` | `Value::Bool(true)` | Boolean |
-| `"text"` | `Value::String("text")` | String |
-| `~` | `Value::Null` | Null |
-| `@User:alice` | `Value::Reference(...)` | Reference |
-| `[1, 2, 3]` | `Value::Tensor(...)` | Tensor |
+## Mapping HEDL to AST
 
-### 3. Flexible Items
-
-`Item` enum allows scalars, nested objects, and matrix lists:
+Let's see how a complete document maps to the AST:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
+%A:active=true
 ---
-users: @User
-  | alice, Alice Smith
-  | bob, Bob Jones
+users:@User
+ |alice,Alice,alice@example.com
+ |bob,Bob,bob@example.com
 
 config:
-  timeout: 30
+ timeout: 30
+ enabled: $active
 ```
+
+Becomes:
 
 ```rust
-use std::collections::BTreeMap;
-
 Document {
-    version: (1, 0),
-    aliases: BTreeMap::new(),
+    version: (1, 3),
+    schema_versions: {},
+    aliases: {
+        "active" => "true"
+    },
     structs: {
-        let mut structs = BTreeMap::new();
-        structs.insert("User".to_string(), vec!["id".to_string(), "name".to_string()]);
-        structs
+        "User" => ["id", "name", "email"]
     },
-    nests: BTreeMap::new(),
+    nests: {},
     root: {
-        let mut root = BTreeMap::new();
-        root.insert("users".to_string(), Item::List(MatrixList {
-            type_name: "User".to_string(),
-            schema: vec!["id".to_string(), "name".to_string()],
-            rows: vec![
+        "users" => Item::List(MatrixList {
+            type_name: "User",
+            schema: ["id", "name", "email"],
+            rows: [
                 Node {
-                    type_name: "User".into(),
-                    id: "alice".into(),
-                    fields: smallvec![Value::String("Alice Smith".into())],
+                    type_name: "User",
+                    id: "alice",
+                    fields: [
+                        Value::String("Alice"),
+                        Value::String("alice@example.com")
+                    ],
                     children: None,
                     child_count: 0
                 },
                 Node {
-                    type_name: "User".into(),
-                    id: "bob".into(),
-                    fields: smallvec![Value::String("Bob Jones".into())],
+                    type_name: "User",
+                    id: "bob",
+                    fields: [
+                        Value::String("Bob"),
+                        Value::String("bob@example.com")
+                    ],
                     children: None,
                     child_count: 0
-                },
+                }
             ],
-            count_hint: None,
-        }));
-        root.insert("config".to_string(), Item::Object({
-            let mut config = BTreeMap::new();
-            config.insert("timeout".to_string(), Item::Scalar(Value::Int(30)));
-            config
-        }));
-        root
-    },
+            count_hint: None
+        }),
+        "config" => Item::Object({
+            "timeout" => Item::Scalar(Value::Int(30)),
+            "enabled" => Item::Scalar(Value::Bool(true))  // Alias expanded
+        })
+    }
 }
 ```
+
+---
 
 ## Memory Layout
 
-(Estimates for 64-bit systems)
+Understanding memory layout helps when optimizing for large documents:
 
 ```
-Document
-├─ version: (u32, u32) (8 bytes)
-├─ aliases: BTreeMap<String, String> (24 bytes + heap)
-├─ structs: BTreeMap<String, Vec<String>> (24 bytes + heap)
-├─ nests: BTreeMap<String, String> (24 bytes + heap)
-└─ root: BTreeMap<String, Item> (24 bytes + heap)
-
-Item (enum, ~96-128 bytes)
-├─ Scalar(Value)
-├─ Object(BTreeMap<String, Item>)
-└─ List(MatrixList)
-
-Node (~72-88 bytes, optimized)
-├─ type_name: String (24 bytes)
-├─ id: String (24 bytes)
-├─ fields: SmallVec<[Value; 4]> (32 bytes inline, stack-allocated for ≤4 fields)
-├─ children: Option<Box<BTreeMap<...>>> (8 bytes, lazy heap allocation)
-└─ child_count: u16 (2 bytes, compact hint)
-
-Value (enum, ~32 bytes, optimized)
-├─ Null, Bool, Int, Float (small)
-├─ String: Box<str> (16 bytes + heap)
-├─ Reference: (~32 bytes: Option<Box<str>> + Box<str>)
-├─ Tensor: Box<Tensor> (8 bytes pointer + heap)
-└─ Expression: Box<Expression> (8 bytes pointer + heap)
+┌─────────────────────────────────────────────────────────────────┐
+│                    MEMORY LAYOUT                                │
+│                                                                 │
+│  Document (~128 bytes + heap)                                   │
+│  ├── version: 8 bytes                                          │
+│  ├── schema_versions: 24 bytes + heap                          │
+│  ├── aliases: 24 bytes + heap                                  │
+│  ├── structs: 24 bytes + heap                                  │
+│  ├── nests: 24 bytes + heap                                    │
+│  └── root: 24 bytes + heap                                     │
+│                                                                 │
+│  Item (~32-128 bytes)                                           │
+│  ├── Scalar: 32 bytes (discriminant + Value)                   │
+│  ├── Object: 32 bytes (discriminant + BTreeMap header)         │
+│  └── List: ~96 bytes (discriminant + MatrixList)               │
+│                                                                 │
+│  Node (~72-88 bytes)                                            │
+│  ├── type_name: 24 bytes                                       │
+│  ├── id: 24 bytes                                              │
+│  ├── fields: 32 bytes (SmallVec inline storage)                │
+│  ├── children: 8 bytes (Option<Box<...>>)                      │
+│  └── child_count: 2 bytes                                      │
+│                                                                 │
+│  Value (~32 bytes)                                              │
+│  ├── Null/Bool: ~1 byte payload                                │
+│  ├── Int: 8 bytes payload                                      │
+│  ├── Float: 8 bytes payload                                    │
+│  ├── String: 16 bytes (Box<str>)                               │
+│  ├── Tensor: 8 bytes (Box pointer)                             │
+│  ├── Reference: ~32 bytes                                      │
+│  └── Expression: 8 bytes (Box pointer)                         │
+│                                                                 │
+│  Small document (10 items): ~2-4 KB                            │
+│  Medium document (1000 items): ~200-400 KB                     │
+│  Large document (100,000 items): ~20-40 MB                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Total for small document** (~10 items): ~2-4 KB
+---
 
-## Traversal Patterns
+## Traversing the AST
 
-### Visitor Pattern
+### The Visitor Pattern
+
+HEDL provides a visitor pattern for walking documents:
 
 ```rust
-use hedl_core::traverse::{DocumentVisitor, VisitorContext};
-use hedl_core::{Document, Value, MatrixList, Node};
-
 pub trait DocumentVisitor {
     type Error;
 
-    fn begin_document(&mut self, doc: &Document, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called at the start of traversal
+    fn begin_document(&mut self, doc: &Document, ctx: &VisitorContext)
+        -> Result<(), Self::Error> { Ok(()) }
 
-    fn end_document(&mut self, doc: &Document, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called at the end of traversal
+    fn end_document(&mut self, doc: &Document, ctx: &VisitorContext)
+        -> Result<(), Self::Error> { Ok(()) }
 
-    fn visit_scalar(&mut self, key: &str, value: &Value, ctx: &VisitorContext) -> Result<(), Self::Error>;
+    /// Called for each scalar value
+    fn visit_scalar(&mut self, key: &str, value: &Value, ctx: &VisitorContext)
+        -> Result<(), Self::Error>;
 
-    fn begin_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called when entering a nested object
+    fn begin_object(&mut self, key: &str, ctx: &VisitorContext)
+        -> Result<(), Self::Error> { Ok(()) }
 
-    fn end_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called when leaving a nested object
+    fn end_object(&mut self, key: &str, ctx: &VisitorContext)
+        -> Result<(), Self::Error> { Ok(()) }
 
-    fn begin_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called when entering a matrix list
+    fn begin_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext)
+        -> Result<(), Self::Error> { Ok(()) }
 
-    fn end_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called for each row in a matrix list
+    fn visit_node(&mut self, node: &Node, schema: &[String], ctx: &VisitorContext)
+        -> Result<(), Self::Error>;
 
-    fn visit_node(&mut self, node: &Node, schema: &[String], ctx: &VisitorContext) -> Result<(), Self::Error>;
-    
-    fn begin_node_children(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn end_node_children(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    /// Called when leaving a matrix list
+    fn end_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext)
+        -> Result<(), Self::Error> { Ok(()) }
 }
 ```
 
-### Recursive Walking
+Example: counting all values in a document:
 
 ```rust
-use hedl_core::Item;
+struct ValueCounter {
+    count: usize,
+}
 
+impl DocumentVisitor for ValueCounter {
+    type Error = std::convert::Infallible;
+
+    fn visit_scalar(&mut self, _key: &str, _value: &Value, _ctx: &VisitorContext)
+        -> Result<(), Self::Error>
+    {
+        self.count += 1;
+        Ok(())
+    }
+
+    fn visit_node(&mut self, node: &Node, _schema: &[String], _ctx: &VisitorContext)
+        -> Result<(), Self::Error>
+    {
+        self.count += 1 + node.fields.len();  // ID + fields
+        Ok(())
+    }
+}
+
+// Use it
+let mut counter = ValueCounter { count: 0 };
+traverse(&doc, &mut counter)?;
+println!("Total values: {}", counter.count);
+```
+
+### Direct Recursion
+
+For simple tasks, direct recursion is often cleaner:
+
+```rust
 fn count_items(item: &Item) -> usize {
     match item {
         Item::Scalar(_) => 1,
@@ -268,253 +425,227 @@ fn count_items(item: &Item) -> usize {
         Item::List(list) => 1 + list.rows.len(),
     }
 }
+
+fn find_all_references(item: &Item) -> Vec<&Reference> {
+    let mut refs = Vec::new();
+    collect_refs(item, &mut refs);
+    refs
+}
+
+fn collect_refs<'a>(item: &'a Item, refs: &mut Vec<&'a Reference>) {
+    match item {
+        Item::Scalar(Value::Reference(r)) => refs.push(r),
+        Item::Scalar(_) => {}
+        Item::Object(map) => {
+            for child in map.values() {
+                collect_refs(child, refs);
+            }
+        }
+        Item::List(list) => {
+            for node in &list.rows {
+                for field in &node.fields {
+                    if let Value::Reference(r) = field {
+                        refs.push(r);
+                    }
+                }
+            }
+        }
+    }
+}
 ```
 
-## Optimization Techniques
+---
 
-### 1. Pre-allocation
+## Special Types in Detail
 
-HEDL optimizes collection growth by pre-allocating capacity for `Vec` and `BTreeMap` when sizes are known or can be estimated from input metadata.
-
-### 2. Ordered Iteration
-
-Using `BTreeMap` for the root and objects ensures that document traversal and serialization are always deterministic, which is required for canonicalization.
-
-## Type Definitions
-
-### Reference
-
-A reference to another entity in the document using the `@Type:id` syntax.
+### Reference: Links Between Entities
 
 ```rust
-// File: crates/hedl-core/src/value.rs
-
 pub struct Reference {
-    /// Optional type qualifier (e.g., "User" in "@User:id").
-    /// Boxed to reduce size when None (common case).
+    /// Optional type qualifier (e.g., "User" in "@User:id")
     pub type_name: Option<Box<str>>,
-    /// The ID being referenced.
-    /// Uses Box<str> for compact representation (16 bytes vs 24 for String).
+
+    /// The ID being referenced
     pub id: Box<str>,
 }
 ```
 
-**Key methods:**
-- `local(id)` - Create a local reference (no type qualifier)
-- `qualified(type_name, id)` - Create a qualified reference
-- `unqualified(id)` - Alias for `local()`
-- `to_ref_string()` - Format as a reference string (with @)
+References can be qualified (`@User:alice`) or unqualified (`@alice`):
 
-**Examples:**
 ```rust
+// Unqualified: searches based on context
 let r1 = Reference::local("alice");
-// r1: Reference { type_name: None, id: "alice" }
-
-let r2 = Reference::qualified("User", "alice");
-// r2: Reference { type_name: Some("User"), id: "alice" }
-
 assert_eq!(r1.to_ref_string(), "@alice");
+
+// Qualified: explicit type
+let r2 = Reference::qualified("User", "alice");
 assert_eq!(r2.to_ref_string(), "@User:alice");
 ```
 
-### Tensor
-
-A multi-dimensional numerical array stored as nested vectors.
+### Tensor: Multi-dimensional Arrays
 
 ```rust
-// File: crates/hedl-core/src/lex/tensor.rs
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Tensor {
-    /// A scalar number (integer or float).
+    /// A single number
     Scalar(f64),
-    /// A nested array of tensors.
+
+    /// A nested array of tensors
     Array(Vec<Tensor>),
 }
 ```
 
-**Key methods:**
-- `shape()` - Returns dimensions as `Vec<usize>`
-- `flatten()` - Converts to flat `Vec<f64>` in row-major order
-- `is_integer()` - Checks if all values are integers
-- `is_scalar()` / `is_array()` - Type checks
-- `ndim()` - Number of dimensions
-- `len()` / `is_empty()` - Element counts
+Tensors represent numerical data of any dimension:
 
-**Examples:**
 ```rust
-use hedl_core::lex::parse_tensor;
-
 // Scalar
-let t = parse_tensor("42").unwrap();
-assert_eq!(t.shape(), vec![]);
+let t = parse_tensor("42")?;
+assert_eq!(t.shape(), vec![]);  // Empty shape = scalar
 
 // 1D vector
-let t = parse_tensor("[1, 2, 3]").unwrap();
+let t = parse_tensor("[1,2,3]")?;
 assert_eq!(t.shape(), vec![3]);
 assert_eq!(t.flatten(), vec![1.0, 2.0, 3.0]);
 
 // 2D matrix
-let t = parse_tensor("[[1, 2], [3, 4]]").unwrap();
+let t = parse_tensor("[[1,2],[3,4]]")?;
 assert_eq!(t.shape(), vec![2, 2]);
 assert_eq!(t.flatten(), vec![1.0, 2.0, 3.0, 4.0]);
+
+// 3D tensor
+let t = parse_tensor("[[[1,2],[3,4]],[[5,6],[7,8]]]")?;
+assert_eq!(t.shape(), vec![2, 2, 2]);
 ```
 
-**Security limits:**
-- Max recursion depth: 100
-- Max elements: 10,000,000
-- Rejects NaN and Infinity values
-
-### Expression
-
-AST for `$(...)` expressions with function calls and field access.
+### Expression: Computed Values
 
 ```rust
-// File: crates/hedl-core/src/lex/expression.rs
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// A literal value: number, string, or boolean.
+    /// A literal value
     Literal { value: ExprLiteral, span: Span },
-    /// An identifier: `foo`, `bar_baz`.
-    Identifier { name: String, span: Span },
-    /// A function call: `func(arg1, arg2)`.
-    Call {
-        name: String,
-        args: Vec<Expression>,
-        span: Span,
-    },
-    /// Field access: `target.field`.
-    Access {
-        target: Box<Expression>,
-        field: String,
-        span: Span,
-    },
-}
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExprLiteral {
-    Int(i64),
-    Float(f64),
-    String(String),
-    Bool(bool),
+    /// An identifier
+    Identifier { name: String, span: Span },
+
+    /// A function call
+    Call { name: String, args: Vec<Expression>, span: Span },
+
+    /// Field access
+    Access { target: Box<Expression>, field: String, span: Span },
 }
 ```
 
-**Examples:**
-```rust
-use hedl_core::lex::parse_expression;
+Expressions represent computed values in `$(...)` syntax:
 
-// Identifier
-let expr = parse_expression("foo").unwrap();
+```rust
+// Simple identifier
+let e = parse_expression("name")?;
 
 // Function call
-let expr = parse_expression("upper(name)").unwrap();
+let e = parse_expression("upper(name)")?;
 
 // Field access
-let expr = parse_expression("user.name").unwrap();
+let e = parse_expression("user.name")?;
 
-// Chained access
-let expr = parse_expression("user.profile.bio").unwrap();
+// Chained
+let e = parse_expression("user.profile.bio")?;
 
 // Nested calls
-let expr = parse_expression("concat(upper(first), last)").unwrap();
+let e = parse_expression("concat(upper(first), \" \", last)")?;
 ```
 
-### VisitorContext
+---
 
-Context provided during document traversal for format conversion.
+## Design Decisions
+
+### Why Owned Strings?
+
+The AST owns its string data. This makes the API simpler (no lifetime parameters) and allows the AST to outlive the input buffer. See [Memory Optimization](zero-copy-optimizations.md) for the full discussion.
+
+### Why SmallVec for Fields?
+
+Most rows have few fields. SmallVec avoids heap allocation for the common case while gracefully handling rows with many fields.
+
+### Why Option<Box<...>> for Children?
+
+Most nodes don't have children. Using `Option<Box<_>>` means childless nodes only pay 8 bytes (a null pointer), not the full size of an empty BTreeMap.
+
+### Why BTreeMap Everywhere?
+
+Determinism. HEDL documents serialize to identical output regardless of insertion order. This is required for canonicalization and makes testing reliable.
+
+---
+
+## Working with the AST
+
+### Reading Values
 
 ```rust
-// File: crates/hedl-core/src/traverse.rs
-
-#[derive(Debug, Clone)]
-pub struct VisitorContext<'a> {
-    /// Current nesting depth (0 = root level).
-    pub depth: usize,
-    /// Path from root to current element (key names).
-    pub path: Vec<&'a str>,
-    /// Reference to the document being traversed.
-    pub document: &'a Document,
-    /// Schema for the current list (if within a list context).
-    pub current_schema: Option<&'a [String]>,
+// Get a scalar value
+if let Some(Item::Scalar(Value::String(name))) = doc.root.get("name") {
+    println!("Name: {}", name);
 }
-```
 
-**Methods:**
-- `new(document)` - Create root context
-- `child(key)` - Create child context with incremented depth
-- `with_schema(schema)` - Add schema context for list traversal
-- `path_string()` - Get current path as string (for error messages)
-
-**Usage:**
-```rust
-use hedl_core::traverse::{DocumentVisitor, traverse, VisitorContext};
-
-impl DocumentVisitor for MyConverter {
-    type Error = String;
-
-    fn visit_scalar(&mut self, key: &str, value: &Value, ctx: &VisitorContext)
-        -> Result<(), Self::Error>
-    {
-        println!("At depth {}: {} = {:?}", ctx.depth, key, value);
-        println!("Path: {}", ctx.path_string());
-        Ok(())
+// Get a nested value
+if let Some(Item::Object(user)) = doc.root.get("user") {
+    if let Some(Item::Scalar(Value::Int(age))) = user.get("age") {
+        println!("Age: {}", age);
     }
-    // ... other methods
+}
+
+// Get a row from a matrix
+if let Some(Item::List(users)) = doc.root.get("users") {
+    for node in &users.rows {
+        println!("User {} has {} fields", node.id, node.fields.len());
+    }
 }
 ```
 
-### SchemaVersion
-
-Semantic versioning for schema evolution.
+### Modifying the AST
 
 ```rust
-// File: crates/hedl-core/src/schema_version.rs
+// Add a new key
+doc.root.insert(
+    "new_key".to_string(),
+    Item::Scalar(Value::String("new_value".into()))
+);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SchemaVersion {
-    pub major: u32,
-    pub minor: u32,
-    pub patch: u32,
+// Modify a value
+if let Some(Item::Scalar(ref mut val)) = doc.root.get_mut("count") {
+    *val = Value::Int(42);
+}
+
+// Add a row to a matrix
+if let Some(Item::List(ref mut users)) = doc.root.get_mut("users") {
+    users.rows.push(Node {
+        type_name: "User".to_string(),
+        id: "charlie".to_string(),
+        fields: smallvec![
+            Value::String("Charlie".into()),
+            Value::String("charlie@example.com".into())
+        ],
+        children: None,
+        child_count: 0,
+    });
 }
 ```
 
-**Methods:**
-- `new(major, minor, patch)` - Create version
-- `v1()` - Returns version 1.0.0
-- `parse(s)` - Parse from string like "1.2.3"
-- `is_compatible_with(other)` - Check backward compatibility
-- `is_breaking_from(other)` - Check if major version changed
+---
 
-**Compatibility rules:**
-- Same major version required
-- Reader's minor >= writer's minor
-- Patch versions don't affect compatibility
+## The AST's Role
 
-**Examples:**
-```rust
-use hedl_core::schema_version::SchemaVersion;
+The AST is the bridge between text and meaning. It's where:
 
-let v1_0 = SchemaVersion::new(1, 0, 0);
-let v1_1 = SchemaVersion::new(1, 1, 0);
-let v2_0 = SchemaVersion::new(2, 0, 0);
+- The parser deposits its work
+- Format converters find their source data
+- Validators check for problems
+- Tools navigate and transform documents
 
-// v1.1 can read v1.0 data (backward compatible)
-assert!(v1_1.is_compatible_with(&v1_0));
+Understanding the AST is understanding HEDL at its core. Every other system builds on these types, these relationships, these design decisions.
 
-// v1.0 cannot read v1.1 data (missing new fields)
-assert!(!v1_0.is_compatible_with(&v1_1));
+---
 
-// Different major versions are incompatible
-assert!(!v2_0.is_compatible_with(&v1_0));
+## Related Documentation
 
-// Parse from string
-let v = SchemaVersion::parse("1.2.3").unwrap();
-assert_eq!(v.to_string(), "1.2.3");
-```
-
-## Related
-
-- [Parser Architecture](parser-architecture.md)
-- [Zero-Copy Optimizations](zero-copy-optimizations.md)
+- [Parser Architecture](parser-architecture.md): How the AST gets built
+- [Memory Optimization](zero-copy-optimizations.md): Why the AST is designed this way
+- [Error Handling](error-handling.md): Errors during AST construction

@@ -67,6 +67,10 @@ pub enum ExpectedType {
     Expression,
     /// One of several acceptable types
     Union(Vec<ExpectedType>),
+    /// List with element type constraint
+    ///
+    /// Matches `Value::List` where all elements match the inner type.
+    List(Box<ExpectedType>),
 }
 
 impl ExpectedType {
@@ -130,6 +134,14 @@ impl ExpectedType {
             }
             ExpectedType::Expression => matches!(value, Value::Expression(_)),
             ExpectedType::Union(types) => types.iter().any(|t| t.matches(value)),
+            ExpectedType::List(element_type) => {
+                if let Value::List(items) = value {
+                    // All elements must match the element type
+                    items.iter().all(|item| element_type.matches(item))
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -166,6 +178,9 @@ impl ExpectedType {
             ExpectedType::Union(types) => {
                 let type_names: Vec<String> = types.iter().map(|t| t.describe()).collect();
                 format!("Union({})", type_names.join(" | "))
+            }
+            ExpectedType::List(element_type) => {
+                format!("List({})", element_type.describe())
             }
         }
     }
@@ -242,6 +257,17 @@ impl ExpectedType {
                 types.iter().any(|t| t.can_coerce(value, strict))
             }
 
+            ExpectedType::List(element_type) => {
+                // Check if a list can be coerced by checking all elements
+                if let Value::List(items) = value {
+                    items
+                        .iter()
+                        .all(|item| element_type.can_coerce(item, strict))
+                } else {
+                    false
+                }
+            }
+
             // Other types don't support coercion
             _ => false,
         }
@@ -274,6 +300,15 @@ pub fn value_to_expected_type(value: &Value) -> ExpectedType {
             target_type: r.type_name.as_ref().map(|s| s.to_string()),
         },
         Value::Expression(_) => ExpectedType::Expression,
+        // Lists infer their element type from the first non-null element
+        Value::List(items) => {
+            let element_type = items
+                .iter()
+                .find(|v| !matches!(v, Value::Null))
+                .map(value_to_expected_type)
+                .unwrap_or(ExpectedType::Any);
+            ExpectedType::List(Box::new(element_type))
+        }
     }
 }
 
@@ -297,6 +332,18 @@ pub fn describe_value_type(value: &Value) -> String {
             }
         }
         Value::Expression(_) => "Expression".to_string(),
+        Value::List(items) => {
+            if items.is_empty() {
+                "List".to_string()
+            } else {
+                let element_type = items
+                    .iter()
+                    .find(|v| !matches!(v, Value::Null))
+                    .map(describe_value_type)
+                    .unwrap_or_else(|| "Null".to_string());
+                format!("List({})", element_type)
+            }
+        }
     }
 }
 

@@ -135,6 +135,7 @@ mod parser;
 mod reader;
 
 #[cfg(feature = "compression")]
+/// Compression support for streaming HEDL.
 pub mod compression;
 
 #[cfg(feature = "async")]

@@ -46,9 +46,13 @@ pub enum CoreCommands {
         #[arg(value_name = "FILE")]
         file: String,
 
-        /// Strict mode (fail on any error)
+        /// Strict reference validation (all references must resolve)
         #[arg(short, long)]
         strict: bool,
+
+        /// Use lenient parsing mode (constraint violations become null)
+        #[arg(short, long)]
+        lenient: bool,
     },
 
     /// Format a HEDL file to canonical form
@@ -136,7 +140,11 @@ impl CoreCommands {
     /// Returns `Err` if the command execution fails.
     pub fn execute(self) -> Result<(), crate::error::CliError> {
         match self {
-            CoreCommands::Validate { file, strict } => commands::validate(&file, strict),
+            CoreCommands::Validate {
+                file,
+                strict,
+                lenient,
+            } => commands::validate(&file, strict, lenient),
             CoreCommands::Format {
                 file,
                 output,

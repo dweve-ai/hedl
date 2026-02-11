@@ -42,7 +42,7 @@ pub fn generate_flat_struct(field_count: usize) -> String {
     }
 
     format!(
-        "%VERSION: 1.0\n%STRUCT: Record (1): [{}]\ndata: @Record\n| {}",
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Record:[{}]\n%C:Record.total=1\n---\ndata:@Record\n |{}",
         fields.join(","),
         (0..field_count)
             .map(|i| format!("value{i}"))
@@ -69,18 +69,18 @@ pub fn generate_nested_simple(depth: usize) -> String {
         return generate_flat_struct(3);
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Level0: [id,name]\n");
-    doc.push_str("root: @Level0\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:Level0:[id,name]\n");
+    doc.push_str("root:@Level0\n");
     doc.push_str("| 0, root\n");
 
     for level in 1..=depth {
         doc.push_str(&format!(
-            "%NEST: Level{} in Level{}: [id,name]\n",
+            "%N:Level{}>Level{}: [id,name]\n",
             level,
             level - 1
         ));
-        doc.push_str(&format!("  | {level}, child_{level}\n"));
+        doc.push_str(&format!(" | {level}, child_{level}\n"));
     }
 
     doc
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_flat_struct() {
         let doc = generate_flat_struct(5);
-        assert!(doc.contains("%STRUCT: Record"));
+        assert!(doc.contains("%S:Record"));
         assert!(doc.contains("field0"));
         assert!(doc.contains("field4"));
     }
@@ -173,13 +173,13 @@ mod tests {
     #[test]
     fn test_nested_simple() {
         let doc = generate_nested_simple(2);
-        assert!(doc.contains("%VERSION: 1.0"));
-        assert!(doc.contains("%NEST:"));
+        assert!(doc.contains("%V:2.0"));
+        assert!(doc.contains("%N:"));
     }
 
     #[test]
     fn test_list_simple() {
         let doc = generate_list_simple(10);
-        assert!(doc.contains("%STRUCT: User"));
+        assert!(doc.contains("%S:User"));
     }
 }

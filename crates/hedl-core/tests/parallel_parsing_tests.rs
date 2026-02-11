@@ -62,11 +62,8 @@ fn test_entity_boundary_empty_document() {
 
 #[test]
 fn test_entity_boundary_single_entity() {
-    let lines: Vec<(usize, &str)> = vec![
-        (1, "users: @User"),
-        (2, "| alice, Alice"),
-        (3, "| bob, Bob"),
-    ];
+    let lines: Vec<(usize, &str)> =
+        vec![(1, "users:@User"), (2, " |alice, Alice"), (3, " |bob, Bob")];
 
     let boundaries = identify_entity_boundaries(&lines);
     assert_eq!(boundaries.len(), 1);
@@ -77,11 +74,11 @@ fn test_entity_boundary_single_entity() {
 #[test]
 fn test_entity_boundary_mixed_types() {
     let lines: Vec<(usize, &str)> = vec![
-        (1, "users: @User"),
-        (2, "| alice, Alice"),
+        (1, "users:@User"),
+        (2, " |alice, Alice"),
         (3, "config:"),
-        (4, "  debug: true"),
-        (5, "  level: 5"),
+        (4, " debug: true"),
+        (5, " level: 5"),
         (6, "version: 1.0"),
     ];
 
@@ -100,7 +97,7 @@ fn test_entity_boundary_mixed_types() {
 
 #[test]
 fn test_entity_boundary_with_count_hint() {
-    let lines: Vec<(usize, &str)> = vec![(1, "users(100): @User"), (2, "| alice, Alice")];
+    let lines: Vec<(usize, &str)> = vec![(1, "users(100):@User"), (2, " |alice, Alice")];
 
     let boundaries = identify_entity_boundaries(&lines);
     assert_eq!(boundaries.len(), 1);
@@ -112,9 +109,9 @@ fn test_entity_boundary_with_count_hint() {
 fn test_entity_boundary_skips_comments() {
     let lines: Vec<(usize, &str)> = vec![
         (1, "# This is a comment"),
-        (2, "users: @User"),
+        (2, "users:@User"),
         (3, "# Another comment"),
-        (4, "| alice, Alice"),
+        (4, " |alice, Alice"),
     ];
 
     let boundaries = identify_entity_boundaries(&lines);
@@ -151,7 +148,7 @@ fn test_parallel_row_parsing_simple() {
 fn test_parallel_row_parsing_with_child_counts() {
     use hedl_core::header::Header;
 
-    let header = Header::new((1, 0));
+    let header = Header::new((2, 0));
     let limits = Limits::default();
     let counters = AtomicSecurityCounters::new();
 
@@ -159,9 +156,9 @@ fn test_parallel_row_parsing_with_child_counts() {
         type_name: "Team".to_string(),
         schema: vec!["id".to_string(), "name".to_string()],
         rows: vec![
-            (1, "|[5] team1, Engineering"),
-            (2, "|[3] team2, Sales"),
-            (3, "|team3, Marketing"), // No child count
+            (1, "|team1, Engineering"),
+            (2, "|team2, Sales"),
+            (3, "|team3, Marketing"),
         ],
         has_ditto: false,
     };
@@ -170,8 +167,11 @@ fn test_parallel_row_parsing_with_child_counts() {
 
     assert_eq!(nodes.len(), 3);
     assert_eq!(nodes[0].id, "team1");
-    assert_eq!(nodes[0].child_count, 5);
-    assert_eq!(nodes[1].child_count, 3);
+    assert_eq!(nodes[1].id, "team2");
+    assert_eq!(nodes[2].id, "team3");
+    // Note: child_count is set via child blocks in v2.0, not inline
+    assert_eq!(nodes[0].child_count, 0);
+    assert_eq!(nodes[1].child_count, 0);
     assert_eq!(nodes[2].child_count, 0);
 }
 
@@ -491,13 +491,15 @@ fn test_parallel_config_thresholds_document() {
 #[test]
 fn test_parallel_parse_deterministic_output() {
     // Parse the same document multiple times and verify results are identical
-    let input = b"%VERSION: 1.0
-%STRUCT: User: [id, name, age]
+    let input = b"%V:2.0
+%NULL:~
+%QUOTE:\"
+%S:User:[id,name,age]
 ---
-users: @User
-  | alice, Alice, 30
-  | bob, Bob, 25
-  | carol, Carol, 35
+users:@User
+ |alice, Alice, 30
+ |bob, Bob, 25
+ |carol, Carol, 35
 ";
 
     let doc1 = parse(input).unwrap();
@@ -525,15 +527,17 @@ users: @User
 #[test]
 fn test_parse_valid_references() {
     // Test document with valid references
-    let input = b"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, author]
+    let input = b"%V:2.0
+%NULL:~
+%QUOTE:\"
+%S:User:[id,name]
+%S:Post:[id,author]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-posts: @Post
-  | post1, @User:alice
+users:@User
+ |alice, Alice
+ |bob, Bob
+posts:@Post
+ |post1, @User:alice
 ";
 
     let result = parse(input);
@@ -543,7 +547,9 @@ posts: @Post
 #[test]
 fn test_parse_unresolved_references_strict() {
     // Test document with unresolved reference
-    let input = b"%VERSION: 1.0
+    let input = b"%V:2.0
+%NULL:~
+%QUOTE:\"
 ---
 author: @User:nonexistent
 ";
@@ -559,7 +565,9 @@ author: @User:nonexistent
 #[test]
 fn test_parse_unresolved_references_lenient() {
     // Test document with unresolved reference but lenient mode
-    let input = b"%VERSION: 1.0
+    let input = b"%V:2.0
+%NULL:~
+%QUOTE:\"
 ---
 author: @User:nonexistent
 ";
@@ -576,12 +584,12 @@ author: @User:nonexistent
 #[test]
 fn test_parallel_large_document() {
     // Generate a document with many entities to test parallel performance
-    let mut doc = String::from("%VERSION: 1.0\n%STRUCT: Item: [id, value]\n---\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Item:[id,value]\n---\n");
 
     for i in 0..100 {
-        doc.push_str(&format!("list{i}: @Item\n"));
+        doc.push_str(&format!("list{i}:@Item\n"));
         for j in 0..10 {
-            doc.push_str(&format!("  | item{i}_{j}, value{j}\n"));
+            doc.push_str(&format!(" |item{i}_{j}, value{j}\n"));
         }
     }
 
@@ -596,13 +604,15 @@ fn test_parallel_large_document() {
 #[test]
 fn test_parallel_deep_nesting() {
     // Test that parallel parsing handles nested structures correctly
-    let input = b"%VERSION: 1.0
+    let input = b"%V:2.0
+%NULL:~
+%QUOTE:\"
 ---
 level1:
-  level2:
-    level3:
-      level4:
-        value: 42
+ level2:
+  level3:
+   level4:
+    value: 42
 ";
 
     let doc = parse(input).unwrap();
@@ -626,16 +636,18 @@ level1:
 #[test]
 fn test_parallel_mixed_content() {
     // Test parallel parsing with mixed content types
-    let input = b"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let input = b"%V:2.0
+%NULL:~
+%QUOTE:\"
+%S:User:[id,name]
 ---
 version: 1.0
-users: @User
-  | alice, Alice
-  | bob, Bob
+users:@User
+ |alice, Alice
+ |bob, Bob
 settings:
-  debug: true
-  level: 5
+ debug: true
+ level: 5
 count: 42
 ";
 

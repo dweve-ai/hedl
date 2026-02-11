@@ -92,28 +92,45 @@
 //! - `hedl-row` -> `hedl_core::lex::row` (CSV parsing)
 //! - `hedl-tensor` -> `hedl_core::lex::tensor` (tensor parsing)
 //!
-//! For a detailed migration guide, see `LEXER_CONSOLIDATION.md`.
+//! The consolidation unified tokens, spans, config, regions, and format-specific
+//! parsing into a single module hierarchy.
 
 // Core modules
+/// Unified error types for lexical analysis, CSV parsing, and tensor parsing.
 pub mod error;
+/// Source position and span tracking for error reporting.
 pub mod span;
+/// Token validation and parsing for keys, types, IDs, and references.
 pub mod tokens;
 
 // Extended modules from hedl-lex
+/// Arena allocation for HEDL parsing.
 pub mod arena;
+/// Configuration for lexical analysis with resource limits.
 pub mod config;
+/// Parsing utilities for parenthesized count hints.
 pub mod count_hint;
+/// CSV parsing for HEDL matrix rows.
 pub mod csv;
+/// Directive parsing for HEDL header section.
 pub mod directives;
+/// Expression AST for HEDL `$(...)` expressions.
 pub mod expression;
+/// Incremental parsing support for efficient IDE integration.
 pub mod incremental;
+/// Indentation handling for HEDL.
 pub mod indent;
+/// Value inference for HEDL scalars.
 pub mod lex_inference;
+/// Protected region scanning for HEDL.
 pub mod regions;
+/// String manipulation utilities for HEDL format conversion.
 pub mod strings;
 
 // Data modules from hedl-row and hedl-tensor
+/// CSV row parsing state machine for HEDL matrix rows.
 pub mod row;
+/// Tensor literal parsing for HEDL format.
 pub mod tensor;
 
 // Re-export error types
@@ -124,8 +141,8 @@ pub use span::{SourcePos, Span};
 
 // Re-export token types and functions
 pub use tokens::{
-    is_valid_id_token, is_valid_key_token, is_valid_type_name, parse_reference, parse_reference_at,
-    Reference,
+    is_list_end, is_list_start, is_valid_id_token, is_valid_key_token, is_valid_type_name,
+    parse_reference, parse_reference_at, Reference,
 };
 
 // Re-export expression types and functions
@@ -149,7 +166,10 @@ pub use directives::{
 pub use regions::{scan_regions, strip_comment, Region, RegionType};
 
 // Re-export value inference
-pub use lex_inference::{infer_cell_value, infer_value, TensorValue, Value};
+pub use lex_inference::{
+    infer_cell_value, infer_cell_value_with_null_char, infer_value, infer_value_with_null_char,
+    parse_list_literal, TensorValue, Value,
+};
 
 // Re-export CSV parsing (from row module which handles tensors correctly)
 pub use row::{parse_csv_row, CsvField};

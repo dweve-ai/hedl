@@ -25,14 +25,14 @@ use super::span::SourcePos;
 pub struct IndentInfo {
     /// Number of leading spaces.
     pub spaces: usize,
-    /// Calculated indent level (spaces / 2).
+    /// Calculated indent level (1 space = 1 level in v2.0).
     pub level: usize,
 }
 
 /// Calculate indentation info from a line.
 ///
 /// Returns `None` if the line is blank (only whitespace).
-/// Returns error if indentation uses tabs or odd number of spaces.
+/// Returns error if indentation uses tabs.
 ///
 /// # Parameters
 /// - `line`: The line to analyze
@@ -63,17 +63,9 @@ pub fn calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>,
         return Ok(None);
     }
 
-    // Validate even number of spaces
-    if spaces % 2 != 0 {
-        return Err(LexError::InvalidIndentation {
-            spaces,
-            pos: SourcePos::new(line_num as usize, 1),
-        });
-    }
-
     Ok(Some(IndentInfo {
         spaces,
-        level: spaces / 2,
+        level: spaces,
     }))
 }
 
@@ -109,28 +101,26 @@ mod tests {
 
     #[test]
     fn test_calculate_indent_level_1() {
-        let result = calculate_indent("  hello", 5).unwrap().unwrap();
-        assert_eq!(result.spaces, 2);
+        let result = calculate_indent(" hello", 5).unwrap().unwrap();
+        assert_eq!(result.spaces, 1);
         assert_eq!(result.level, 1);
     }
 
     #[test]
     fn test_calculate_indent_level_2() {
-        let result = calculate_indent("    hello", 10).unwrap().unwrap();
-        assert_eq!(result.spaces, 4);
+        let result = calculate_indent("  hello", 10).unwrap().unwrap();
+        assert_eq!(result.spaces, 2);
         assert_eq!(result.level, 2);
     }
 
     #[test]
     fn test_calculate_indent_deep_nesting() {
-        let result = calculate_indent("          hello", 15).unwrap().unwrap();
-        assert_eq!(result.spaces, 10);
+        let result = calculate_indent("     hello", 15).unwrap().unwrap();
+        assert_eq!(result.spaces, 5);
         assert_eq!(result.level, 5);
 
-        let result = calculate_indent("                    hello", 20)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.spaces, 20);
+        let result = calculate_indent("          hello", 20).unwrap().unwrap();
+        assert_eq!(result.spaces, 10);
         assert_eq!(result.level, 10);
     }
 
@@ -138,32 +128,29 @@ mod tests {
     fn test_calculate_indent_various_content() {
         // Content with special characters
         assert_eq!(
-            calculate_indent("  key: value", 1).unwrap().unwrap().level,
+            calculate_indent(" key: value", 1).unwrap().unwrap().level,
             1
         );
         assert_eq!(
-            calculate_indent("  | row, data", 1).unwrap().unwrap().level,
+            calculate_indent(" | row, data", 1).unwrap().unwrap().level,
             1
         );
         assert_eq!(
-            calculate_indent("  @reference", 1).unwrap().unwrap().level,
+            calculate_indent(" @reference", 1).unwrap().unwrap().level,
             1
         );
-        assert_eq!(
-            calculate_indent("  # comment", 1).unwrap().unwrap().level,
-            1
-        );
+        assert_eq!(calculate_indent(" # comment", 1).unwrap().unwrap().level, 1);
     }
 
     #[test]
     fn test_calculate_indent_unicode_content() {
         // Unicode content should work fine
-        let result = calculate_indent("  日本語", 3).unwrap().unwrap();
-        assert_eq!(result.spaces, 2);
+        let result = calculate_indent(" 日本語", 3).unwrap().unwrap();
+        assert_eq!(result.spaces, 1);
         assert_eq!(result.level, 1);
 
-        let result = calculate_indent("    émoji 😀", 7).unwrap().unwrap();
-        assert_eq!(result.spaces, 4);
+        let result = calculate_indent("  émoji 😀", 7).unwrap().unwrap();
+        assert_eq!(result.spaces, 2);
         assert_eq!(result.level, 2);
     }
 
@@ -195,45 +182,37 @@ mod tests {
         assert!(calculate_indent("     \t   ", 8).unwrap().is_none());
     }
 
-    // ==================== calculate_indent: odd indentation errors ====================
+    // ==================== calculate_indent: all positive indents are valid ====================
+    // With 1-space indentation, any number of spaces is valid (1 space = 1 level)
 
     #[test]
-    fn test_odd_indent_1_space() {
-        let result = calculate_indent(" hello", 42);
-        assert!(matches!(
-            result,
-            Err(LexError::InvalidIndentation { spaces: 1, pos }) if pos.line() == 42
-        ));
+    fn test_valid_indent_1_space() {
+        let result = calculate_indent(" hello", 42).unwrap().unwrap();
+        assert_eq!(result.spaces, 1);
+        assert_eq!(result.level, 1);
     }
 
     #[test]
-    fn test_odd_indent_3_spaces() {
-        let result = calculate_indent("   hello", 15);
-        assert!(matches!(
-            result,
-            Err(LexError::InvalidIndentation { spaces: 3, pos }) if pos.line() == 15
-        ));
+    fn test_valid_indent_3_spaces() {
+        let result = calculate_indent("   hello", 15).unwrap().unwrap();
+        assert_eq!(result.spaces, 3);
+        assert_eq!(result.level, 3);
     }
 
     #[test]
-    fn test_odd_indent_5_spaces() {
-        let result = calculate_indent("     hello", 20);
-        assert!(matches!(
-            result,
-            Err(LexError::InvalidIndentation { spaces: 5, pos }) if pos.line() == 20
-        ));
+    fn test_valid_indent_5_spaces() {
+        let result = calculate_indent("     hello", 20).unwrap().unwrap();
+        assert_eq!(result.spaces, 5);
+        assert_eq!(result.level, 5);
     }
 
     #[test]
-    fn test_odd_indent_various() {
-        for odd in [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21] {
-            let line = format!("{}hello", " ".repeat(odd));
-            let result = calculate_indent(&line, 100);
-            assert!(
-                matches!(result, Err(LexError::InvalidIndentation { spaces, pos }) if spaces == odd && pos.line() == 100),
-                "Expected InvalidIndentation for {} spaces at line 100",
-                odd
-            );
+    fn test_valid_indent_various() {
+        for indent in [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21] {
+            let line = format!("{}hello", " ".repeat(indent));
+            let result = calculate_indent(&line, 100).unwrap().unwrap();
+            assert_eq!(result.spaces, indent);
+            assert_eq!(result.level, indent);
         }
     }
 
@@ -280,7 +259,7 @@ mod tests {
     #[test]
     fn test_validate_indent_within_max() {
         let info = IndentInfo {
-            spaces: 4,
+            spaces: 2,
             level: 2,
         };
         assert!(validate_indent(info, 10, 5).is_ok());
@@ -290,7 +269,7 @@ mod tests {
     #[test]
     fn test_validate_indent_at_max() {
         let info = IndentInfo {
-            spaces: 20,
+            spaces: 10,
             level: 10,
         };
         assert!(validate_indent(info, 10, 15).is_ok());
@@ -299,7 +278,7 @@ mod tests {
     #[test]
     fn test_validate_indent_exceeds_max() {
         let info = IndentInfo {
-            spaces: 22,
+            spaces: 11,
             level: 11,
         };
         let result = validate_indent(info, 10, 42);
@@ -318,7 +297,7 @@ mod tests {
         assert!(validate_indent(info, 0, 1).is_ok());
 
         let info = IndentInfo {
-            spaces: 2,
+            spaces: 1,
             level: 1,
         };
         let result = validate_indent(info, 0, 8);
@@ -333,11 +312,11 @@ mod tests {
     #[test]
     fn test_indent_info_equality() {
         let a = IndentInfo {
-            spaces: 4,
+            spaces: 2,
             level: 2,
         };
         let b = IndentInfo {
-            spaces: 4,
+            spaces: 2,
             level: 2,
         };
         assert_eq!(a, b);
@@ -346,11 +325,11 @@ mod tests {
     #[test]
     fn test_indent_info_inequality() {
         let a = IndentInfo {
-            spaces: 4,
+            spaces: 2,
             level: 2,
         };
         let b = IndentInfo {
-            spaces: 2,
+            spaces: 1,
             level: 1,
         };
         assert_ne!(a, b);
@@ -359,7 +338,7 @@ mod tests {
     #[test]
     fn test_indent_info_clone() {
         let a = IndentInfo {
-            spaces: 6,
+            spaces: 3,
             level: 3,
         };
         let b = a;
@@ -369,11 +348,11 @@ mod tests {
     #[test]
     fn test_indent_info_debug() {
         let info = IndentInfo {
-            spaces: 4,
+            spaces: 2,
             level: 2,
         };
         let debug_str = format!("{:?}", info);
-        assert!(debug_str.contains("spaces: 4"));
+        assert!(debug_str.contains("spaces: 2"));
         assert!(debug_str.contains("level: 2"));
     }
 }

@@ -8,9 +8,6 @@
 // Tests the different strategies for handling null or missing ID values
 // when reading Parquet files into HEDL documents.
 
-// Allow approximate float constants in tests - these are intentional test values
-#![allow(clippy::approx_constant)]
-
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_parquet::{
     from_parquet_bytes, from_parquet_bytes_with_config, to_parquet_bytes, FromParquetConfig,
@@ -24,7 +21,7 @@ use proptest::prelude::*;
 
 /// Create a document with standard non-null IDs for baseline testing.
 fn create_standard_document() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "name".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("Entity", schema.clone());
 
@@ -66,7 +63,7 @@ fn create_standard_document() -> Document {
 
 /// Create a document with mixed content including different value types.
 fn create_mixed_content_document() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec![
         "id".to_string(),
         "int_val".to_string(),
@@ -82,7 +79,7 @@ fn create_mixed_content_document() -> Document {
         vec![
             Value::String("row1".to_string().into()),
             Value::Int(42),
-            Value::Float(3.14159),
+            Value::Float(4.56789),
             Value::Bool(true),
             Value::String("hello".to_string().into()),
         ],
@@ -94,7 +91,7 @@ fn create_mixed_content_document() -> Document {
         vec![
             Value::String("row2".to_string().into()),
             Value::Int(-999),
-            Value::Float(-2.71828),
+            Value::Float(-5.67891),
             Value::Bool(false),
             Value::String("world".to_string().into()),
         ],
@@ -108,7 +105,7 @@ fn create_mixed_content_document() -> Document {
 
 /// Create a document with nullable fields (not ID, but other columns).
 fn create_document_with_nullable_fields() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec![
         "id".to_string(),
         "required_field".to_string(),
@@ -415,7 +412,7 @@ fn test_roundtrip_lenient_mode() {
 
 #[test]
 fn test_single_row_valid_id() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("Single", schema.clone());
 
@@ -442,7 +439,7 @@ fn test_single_row_valid_id() {
 
 #[test]
 fn test_many_rows_all_valid_ids() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "index".to_string()];
     let mut matrix_list = MatrixList::new("ManyRows", schema.clone());
 
@@ -539,7 +536,7 @@ fn test_id_values_preserved() {
 
 #[test]
 fn test_id_with_special_chars_preserved() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("Special", schema.clone());
 
@@ -574,7 +571,7 @@ fn test_id_with_special_chars_preserved() {
 
 #[test]
 fn test_id_with_unicode_preserved() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("Unicode", schema.clone());
 
@@ -604,7 +601,7 @@ fn test_id_with_unicode_preserved() {
 
 #[test]
 fn test_long_id_preserved() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("LongId", schema.clone());
 
@@ -634,7 +631,7 @@ fn test_long_id_preserved() {
 
 #[test]
 fn test_empty_string_id() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "value".to_string()];
     let mut matrix_list = MatrixList::new("EmptyId", schema.clone());
 
@@ -727,7 +724,7 @@ proptest! {
         num_rows in 1usize..20,
         id_prefix in "[a-z]{3,10}"
     ) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let schema = vec!["id".to_string(), "value".to_string()];
         let mut matrix_list = MatrixList::new("PropTest", schema.clone());
 
@@ -763,7 +760,7 @@ proptest! {
 
     #[test]
     fn prop_row_count_preserved_all_modes(num_rows in 1usize..50) {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let schema = vec!["id".to_string(), "index".to_string()];
         let mut matrix_list = MatrixList::new("CountTest", schema.clone());
 
@@ -846,7 +843,7 @@ fn test_concurrent_reads_different_modes() {
 
 #[test]
 fn test_large_document_all_modes() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec![
         "id".to_string(),
         "col1".to_string(),

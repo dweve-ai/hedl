@@ -25,7 +25,7 @@ fn test_document_builder_default() {
     let builder = DocumentBuilder::default();
     let doc = builder.build();
 
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (1, 2));
     assert!(doc.root.is_empty());
 }
 
@@ -91,8 +91,8 @@ fn test_document_builder_with_nest() {
         .build();
 
     assert_eq!(doc.nests.len(), 2);
-    assert_eq!(doc.nests.get("User"), Some(&"Post".to_string()));
-    assert_eq!(doc.nests.get("Post"), Some(&"Comment".to_string()));
+    assert_eq!(doc.nests.get("User"), Some(&vec!["Post".to_string()]));
+    assert_eq!(doc.nests.get("Post"), Some(&vec!["Comment".to_string()]));
 }
 
 #[test]
@@ -114,14 +114,14 @@ fn test_document_builder_with_list() {
 #[test]
 fn test_document_builder_chaining() {
     let doc = DocumentBuilder::new()
-        .version(1, 0)
+        .version(1, 2)
         .alias("u", "users")
         .struct_def("User", vec!["id".to_string(), "name".to_string()])
         .nest("User", "Post")
         .scalar("config", ValueBuilder::string("production"))
         .build();
 
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (1, 2));
     assert_eq!(doc.aliases.len(), 1);
     assert_eq!(doc.structs.len(), 1);
     assert_eq!(doc.nests.len(), 1);
@@ -444,7 +444,7 @@ fn test_builder_complex_nested_structure() {
         .list("users", users_list)
         .build();
 
-    assert_eq!(doc.nests.get("User"), Some(&"Post".to_string()));
+    assert_eq!(doc.nests.get("User"), Some(&vec!["Post".to_string()]));
 
     if let Some(Item::List(list)) = doc.root.get("users") {
         let user = &list.rows[0];

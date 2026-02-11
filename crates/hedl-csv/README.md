@@ -1,12 +1,12 @@
 # hedl-csv
 
-**HEDL's CSV integration—bidirectional conversion with flexible configuration, type inference, and security limits.**
+**HEDL's CSV integration -bidirectional conversion with flexible configuration, type inference, and security limits.**
 
 CSV is the universal data export format. Your spreadsheets export it. Your databases dump it. Your analytics tools import it. Your data science workflows depend on it. But CSV lacks types, schemas, and structure. Every field is a string. Every export is a guessing game.
 
 `hedl-csv` bridges HEDL's structured matrix lists with CSV's simplicity. Parse CSV files into typed HEDL documents with automatic type inference. Export HEDL matrix lists to CSV for compatibility with spreadsheets, databases, and legacy ETL tools. Configure delimiters, handle irregular plurals, enforce security limits.
 
-Part of the **HEDL format family** alongside `hedl-json`, `hedl-yaml`, `hedl-xml`, and `hedl-parquet`—bringing HEDL's structure to every ecosystem you work in.
+Part of the **HEDL format family** alongside `hedl-json`, `hedl-yaml`, `hedl-xml`, and `hedl-parquet` -bringing HEDL's structure to every ecosystem you work in.
 
 ## What's Implemented
 
@@ -27,7 +27,7 @@ Bidirectional conversion with comprehensive configuration:
 
 ```toml
 [dependencies]
-hedl-csv = "1.2"
+hedl-csv = "2.0"
 ```
 
 ## Bidirectional Conversion
@@ -132,7 +132,7 @@ let config = FromCsvConfig {
 let doc = from_csv_reader_with_config(file, "Transaction", &["amount", "date", "status"], config)?;
 ```
 
-**Memory Usage**: O(1) per row. A 10 GB CSV uses the same memory as a 10 MB CSV—only the current row and output buffer are in memory.
+**Memory Usage**: O(1) per row. A 10 GB CSV uses the same memory as a 10 MB CSV -only the current row and output buffer are in memory.
 
 ### HEDL → CSV: Export for Analysis
 
@@ -142,12 +142,12 @@ Export HEDL matrix lists to CSV for spreadsheets, databases, or legacy tools:
 use hedl_csv::{to_csv, ToCsvConfig};
 
 let doc = hedl_core::parse(br#"
-%STRUCT: Product: [id, name, price, stock]
+%S:Product:[id, name, price, stock]
 ---
 products: @Product
-  | p1, Widget, 19.99, 100
-  | p2, Gadget, 29.99, 50
-  | p3, Doohickey, 9.99, 200
+ | p1, Widget, 19.99, 100
+ | p2, Gadget, 29.99, 50
+ | p3, Doohickey, 9.99, 200
 "#)?;
 
 // Export to CSV (default config: comma delimiter, headers included)
@@ -170,11 +170,11 @@ use hedl_csv::{to_csv_with_config, ToCsvConfig};
 use csv::QuoteStyle;
 
 let doc = hedl_core::parse(br#"
-%STRUCT: Product: [id, name, price, stock]
+%S:Product:[id, name, price, stock]
 ---
 products: @Product
-  | p1, Widget, 19.99, 100
-  | p2, Gadget, 29.99, 50
+ | p1, Widget, 19.99, 100
+ | p2, Gadget, 29.99, 50
 "#)?;
 
 let config = ToCsvConfig {
@@ -195,12 +195,12 @@ use hedl_csv::to_csv_list;
 
 let doc = hedl_core::parse(br#"
 users: @User[id, name]
-  | alice, Alice
-  | bob, Bob
+ | alice, Alice
+ | bob, Bob
 
 products: @Product[id, name, price]
-  | p1, Widget, 19.99
-  | p2, Gadget, 29.99
+ | p1, Widget, 19.99
+ | p2, Gadget, 29.99
 "#)?;
 
 // Export only the products list
@@ -482,7 +482,7 @@ let config = ToCsvConfig {
 
 **Schema Preservation**: CSV has no schema concept. HEDL's `%STRUCT`, `%NEST`, `%ALIAS` declarations are lost in CSV export. If you need schemas, use HEDL source files or define validation rules with `hedl-lint`.
 
-**Nested Data**: CSV is flat. HEDL matrix lists with nested children (via `%NEST`) are flattened—only the parent list fields are exported, nested children are skipped.
+**Nested Data**: CSV is flat. HEDL matrix lists with nested children (via `%NEST`) are flattened -only the parent list fields are exported, nested children are skipped.
 
 **Complex Types**: CSV represents everything as strings. Type inference helps but can't handle arbitrary complex types. Use JSON or Parquet for rich nested structures.
 
@@ -502,7 +502,7 @@ Detailed performance benchmarks are available in the HEDL repository benchmark s
 
 ## Dependencies
 
-- `hedl-core` 1.2 - HEDL parsing and data model
+- `hedl-core` 2.0 - HEDL parsing and data model
 - `csv` 1.3 - High-performance CSV parsing and writing
 - `thiserror` 1.0 - Error type definitions
 

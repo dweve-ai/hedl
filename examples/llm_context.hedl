@@ -1,0 +1,37 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# LLM context and prompt example
+# HEDL's primary use case: efficient token representation
+# 93% more value per token than JSON
+%S:Message:[id,role,content]
+%S:Example:[input,output]
+---
+system_prompt: "You are a helpful AI assistant specialized in Rust systems programming."
+
+constraints:
+ max_tokens: 4096
+ temperature: 0.7
+ top_p: 0.9
+
+conversation:@Message
+ |m1,system,"You are a helpful AI assistant."
+ |m2,user,"How do I optimize binary operations?"
+ |m3,assistant,"Use SIMD intrinsics for batch operations..."
+ |m4,user,"Show me an example."
+
+few_shot_examples:@Example
+ |"implement sorting","Use slice::sort_unstable for performance"
+ |"optimize allocations","Use arena allocation for short-lived objects"
+ |"parallel processing","Use rayon for data parallelism"
+
+context:
+ codebase: dweve-core
+ task: performance_optimization
+ focus: binary_operations
+
+knowledge:
+ simd: true
+ avx2_neon: true
+ cache_alignment: true
+ branch_prediction: true

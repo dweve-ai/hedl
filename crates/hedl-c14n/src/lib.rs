@@ -33,7 +33,7 @@
 //! # Features
 //!
 //! - Minimal or always-quote string formatting strategies
-//! - Ditto optimization for repeated values in matrix lists
+//! - Legacy ditto support for pre-v2.0 documents
 //! - Proper escaping of quotes and control characters
 //! - Alphabetically sorted keys, aliases, and struct declarations
 //! - Count hints in STRUCT directives for performance optimization

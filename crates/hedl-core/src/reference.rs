@@ -86,7 +86,7 @@ impl From<bool> for ReferenceMode {
 ///
 /// P0 OPTIMIZATION: Inverted index for unqualified references (100-1000x speedup)
 /// - Forward index: type -> (id -> line_num) for qualified lookups (O(log n))
-/// - Inverted index: id -> [types] for unqualified lookups (O(1))
+/// - Inverted index: id -> \[types\] for unqualified lookups (O(1))
 pub struct TypeRegistry {
     /// Forward index: type_name -> (id -> line_number)
     by_type: BTreeMap<String, BTreeMap<String, usize>>,
@@ -224,7 +224,7 @@ pub fn register_node(
 /// ```
 /// use hedl_core::{Document, ReferenceMode, resolve_references};
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// // Strict mode - fail on unresolved references
 /// resolve_references(&doc, ReferenceMode::Strict)?;
 ///

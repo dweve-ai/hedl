@@ -267,7 +267,7 @@ pub enum ComplexityLevel {
     Flat,
     /// Moderate nesting (blog posts with comments, orders with items)
     ModerateNesting,
-    /// Heavy use of ditto markers for repeated values
+    /// Heavy use of ditto markers for repeated values (pre-v2.0 only)
     DittoHeavy,
     /// Cross-references and graph structures
     ReferenceHeavy,
@@ -294,7 +294,7 @@ impl ComplexityLevel {
         match self {
             ComplexityLevel::Flat => "Simple tabular data, no nesting",
             ComplexityLevel::ModerateNesting => "Some hierarchy, nested objects",
-            ComplexityLevel::DittoHeavy => "Repeated values using ^ markers",
+            ComplexityLevel::DittoHeavy => "Repeated values using ^ markers (pre-v2.0 only)",
             ComplexityLevel::ReferenceHeavy => "Cross-references, graph structures",
             ComplexityLevel::DeepHierarchy => "5+ levels of nesting",
         }

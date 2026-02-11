@@ -28,7 +28,7 @@ mod validate;
 
 pub use batch_commands::{
     batch_format, batch_format_with_config, batch_lint, batch_lint_with_config, batch_validate,
-    batch_validate_with_config,
+    batch_validate_with_config, BatchFormatParams,
 };
 pub use completion::{generate_completion_for_command, print_installation_instructions};
 pub use convert::{
@@ -174,7 +174,7 @@ pub fn read_file(path: &str) -> Result<String, CliError> {
 ///
 /// # fn main() -> Result<(), hedl_cli::error::CliError> {
 /// // Write to stdout
-/// let hedl_content = "%VERSION: 1.0\n---\nteams: @Team[name]\n  |t1,Team A\n  |t2,Team B";
+/// let hedl_content = "%VERSION: 1.0\n---\nteams:@Team[name]\n  |t1,Team A\n  |t2,Team B";
 /// write_output(hedl_content, None)?;
 ///
 /// // Write to file

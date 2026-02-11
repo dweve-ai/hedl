@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_concurrent_parsing() {
         let inputs: Vec<String> = (0..100)
-            .map(|i| format!("%VERSION: 1.0\n---\nkey_{}: value_{}", i, i))
+            .map(|i| format!("%V:2.0\n---\nkey_{}: value_{}", i, i))
             .collect();
 
         let handles: Vec<_> = inputs
@@ -469,7 +469,7 @@ mod tests {
             .map(|i| {
                 let cache = Arc::clone(&cache);
                 thread::spawn(move || {
-                    let doc = hedl::parse(&format!("%VERSION: 1.0\n---\nkey_{}: value_{}", i, i)).unwrap();
+                    let doc = hedl::parse(&format!("%V:2.0\n---\nkey_{}: value_{}", i, i)).unwrap();
                     cache.insert(format!("doc_{}", i), doc);
                 })
             })

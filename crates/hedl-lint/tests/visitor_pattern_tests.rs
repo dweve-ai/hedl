@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 fn test_single_pass_sequential_equivalence_complex() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Complex document with all violation types
     doc.structs
@@ -80,7 +80,7 @@ fn test_single_pass_sequential_equivalence_complex() {
 fn test_single_pass_preserves_severity() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create violations of different severities
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
@@ -127,7 +127,7 @@ fn test_single_pass_respects_rule_disable() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "a", vec![])); // Would trigger id-naming
@@ -151,7 +151,7 @@ fn test_single_pass_respects_rule_disable() {
 fn test_single_pass_nested_structure_traversal() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create multi-level nested structure
     let mut level1 = BTreeMap::new();
@@ -178,7 +178,7 @@ fn test_single_pass_nested_structure_traversal() {
 fn test_single_pass_collects_types_from_nested_children() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Define schemas
     doc.structs
@@ -224,7 +224,7 @@ fn test_single_pass_diagnostic_limit_early_termination() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
 
     // Add many violations
@@ -247,7 +247,7 @@ fn test_single_pass_diagnostic_limit_early_termination() {
 fn test_visitor_handles_empty_nested_objects() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut nested = BTreeMap::new();
     let inner = BTreeMap::new();
@@ -266,7 +266,7 @@ fn test_visitor_handles_empty_nested_objects() {
 fn test_visitor_handles_mixed_item_types() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Mix of scalars, lists, and objects
     doc.root.insert(
@@ -294,7 +294,7 @@ fn test_visitor_handles_mixed_item_types() {
 fn test_visitor_processes_multiple_lists() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs
         .insert("Type1".to_string(), vec!["id".to_string()]);
     doc.structs
@@ -328,7 +328,7 @@ fn test_visitor_processes_multiple_lists() {
 fn test_visitor_handles_nodes_with_no_children() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     // Nodes without children
@@ -347,7 +347,7 @@ fn test_visitor_handles_nodes_with_no_children() {
 fn test_visitor_handles_wide_trees() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create wide tree (many children at same level)
     let mut list = MatrixList::new("Parent", vec!["id".to_string()]);
@@ -372,7 +372,7 @@ fn test_visitor_handles_wide_trees() {
 fn test_visitor_path_tracking() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create nested structure to test path tracking
     let mut level1 = BTreeMap::new();
@@ -415,7 +415,7 @@ fn test_parallel_execution_produces_same_results() {
 
     let runner_sequential = LintRunner::new(config_sequential);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Complex document
     for i in 0..10 {
@@ -447,7 +447,7 @@ fn test_parallel_execution_with_diagnostic_limit() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
 
     for i in 0..100 {
@@ -469,7 +469,7 @@ fn test_parallel_execution_with_diagnostic_limit() {
 fn test_single_pass_performance_on_large_document() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create moderately large document
     doc.structs
@@ -496,7 +496,7 @@ fn test_single_pass_performance_on_large_document() {
 fn test_sequential_vs_single_pass_produce_identical_results() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create diverse document with all rule triggers
     doc.structs.insert("A".to_string(), vec!["id".to_string()]);

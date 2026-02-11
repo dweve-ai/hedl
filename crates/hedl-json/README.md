@@ -1,12 +1,12 @@
 # hedl-json
 
-**HEDL's integration with the JSON ecosystem—bidirectional conversion, JSONPath queries, schema generation, and streaming.**
+**HEDL's integration with the JSON ecosystem -bidirectional conversion, JSONPath queries, schema generation, and streaming.**
 
 JSON is the universal data interchange format. Your APIs speak it, your databases accept it, your monitoring tools consume it, your LLM providers require it. Every token in a JSON payload costs money. Every extra byte adds latency. Every API call compounds the inefficiency.
 
-`hedl-json` bridges HEDL's efficiency with JSON's ubiquity. Use HEDL's compact matrix notation internally—save 46.7% on tokens, 57.7% on payload size. When you need JSON compatibility, `hedl-json` handles the conversion seamlessly. Query HEDL documents with JSONPath. Generate JSON Schema for validation. Stream large JSON files without loading everything into memory.
+`hedl-json` bridges HEDL's efficiency with JSON's ubiquity. Use HEDL's compact matrix notation internally -save 46.7% on tokens, 57.7% on payload size. When you need JSON compatibility, `hedl-json` handles the conversion seamlessly. Query HEDL documents with JSONPath. Generate JSON Schema for validation. Stream large JSON files without loading everything into memory.
 
-Part of the **HEDL format family** alongside `hedl-yaml`, `hedl-xml`, `hedl-csv`, and `hedl-parquet`—bringing HEDL's efficiency to every ecosystem you work in.
+Part of the **HEDL format family** alongside `hedl-yaml`, `hedl-xml`, `hedl-csv`, and `hedl-parquet` -bringing HEDL's efficiency to every ecosystem you work in.
 
 ## What's Implemented
 
@@ -23,7 +23,7 @@ Based on 6,333 lines of Rust across 7 modules:
 
 ```toml
 [dependencies]
-hedl-json = "1.2"
+hedl-json = "2.0"
 ```
 
 ## Bidirectional Conversion
@@ -36,11 +36,11 @@ Convert HEDL's compact representation to JSON when you need API compatibility:
 use hedl_json::{to_json, to_json_value, ToJsonConfig};
 
 let doc = hedl_core::parse(br#"
-%STRUCT: User: [id, name, email]
+%S:User:[id, name, email]
 ---
 users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
 "#)?;
 
 // Configure JSON output
@@ -156,9 +156,9 @@ use hedl_json::jsonpath::{query, query_first, query_single, query_exists, query_
 
 let doc = hedl_core::parse(br#"
 users: @User[id, name, age]
-  | alice, Alice Smith, 30
-  | bob, Bob Jones, 25
-  | carol, Carol White, 35
+ | alice, Alice Smith, 30
+ | bob, Bob Jones, 25
+ | carol, Carol White, 35
 "#)?;
 
 let config = QueryConfig::default();
@@ -211,10 +211,10 @@ Generate JSON Schema Draft 7 from HEDL documents for validation and documentatio
 use hedl_json::schema_gen::{generate_schema, generate_schema_value, SchemaConfig};
 
 let doc = hedl_core::parse(br#"
-%STRUCT: User: [id, name, email, age]
+%S:User:[id, name, email, age]
 ---
 users: @User
-  | u1, Alice, alice@example.com, 30
+ | u1, Alice, alice@example.com, 30
 "#)?;
 
 let config = SchemaConfig::builder()
@@ -263,12 +263,12 @@ HEDL's `%NEST` declarations become nested object arrays in JSON Schema:
 
 ```rust
 let doc = hedl_core::parse(br#"
-%STRUCT: Team: [id, name]
-%STRUCT: Member: [id, name, role]
-%NEST: Team > Member
+%S:Team:[id, name]
+%S:Member:[id, name, role]
+%N:Team>Member
 ---
 teams: @Team
-  | t1, Engineering
+ | t1, Engineering
 "#)?;
 
 let schema = generate_schema_value(&doc, &SchemaConfig::default())?;
@@ -330,7 +330,7 @@ for result in streamer {
             // Process valid log entry
         }
         Err(e) => {
-            // Malformed line—log error and continue
+            // Malformed line - log error and continue
             eprintln!("Skipping malformed line {}: {}",
                 streamer.line_number(), e);
         }
@@ -406,8 +406,8 @@ Example matrix list conversion:
 
 ```hedl
 users: @User[id, name]
-  | alice, Alice
-  | bob, Bob
+ | alice, Alice
+ | bob, Bob
 ```
 
 Becomes:
@@ -461,7 +461,7 @@ Becomes:
 
 - `serde_json` 1.0 - JSON parsing and serialization
 - `serde_json_path` 0.7 - JSONPath query engine
-- `hedl-core` 1.0 - HEDL parsing and data model
+- `hedl-core` 2.0 - HEDL parsing and data model
 - `thiserror` 1.0 - Error type definitions
 
 ## Performance Characteristics

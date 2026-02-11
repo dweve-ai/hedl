@@ -22,7 +22,7 @@ The `hedl-neo4j` crate provides seamless bidirectional conversion between HEDL d
 ```toml
 # Cargo.toml
 [dependencies]
-hedl-neo4j = "1.2"
+hedl-neo4j = "2.0"
 ```
 
 ### Basic Usage
@@ -34,17 +34,19 @@ use hedl_neo4j::{to_cypher, ToCypherConfig};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse HEDL document
     let hedl = r#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%STRUCT: Post: [id, title, content]
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
+%S:Post:[id,title,content]
+%N:User>Post
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-    | post1, Hello World, My first post
-    | post2, Rust Tips, Advanced Rust patterns
-  | bob, Bob Jones, bob@example.com
-    | post3, Neo4j Guide, Getting started with Neo4j
+users:@User
+ |alice,Alice Smith,alice@example.com
+  |post1,Hello World,My first post
+  |post2,Rust Tips,Advanced Rust patterns
+ |bob,Bob Jones,bob@example.com
+  |post3,Neo4j Guide,Getting started with Neo4j
 "#;
 
     let doc = parse(hedl.as_bytes())?;
@@ -92,14 +94,14 @@ MERGE (parent)-[:HAS_POST]->(n);
 
 ### Mapping Rules
 
-| HEDL Concept | Neo4j Equivalent | Example |
+ |HEDL Concept |Neo4j Equivalent |Example |
 |--------------|------------------|---------|
-| **%STRUCT: User** | Node label `:User` | `(n:User)` |
-| **Row** | Node with properties | `{id: 'alice', name: 'Alice'}` |
-| **ID column** | Unique node property | `{id: 'alice'}` |
-| **Other columns** | Node properties | `{name: 'Alice', email: '...'}` |
-| **%NEST: User > Post** | Relationship | `(User)-[:HAS_POST]->(Post)` |
-| **Reference `@user1`** | Relationship | `(n)-[:REFERS_TO]->(m)` |
+ |**%STRUCT: User** |Node label `:User` | `(n:User)` |
+ |**Row** |Node with properties | `{id: 'alice', name: 'Alice'}` |
+ |**ID column** |Unique node property | `{id: 'alice'}` |
+ |**Other columns** |Node properties | `{name: 'Alice', email: '...'}` |
+ |**%N:User>Post** |Relationship | `(User)-[:HAS_POST]->(Post)` |
+ |**Reference `@user1`** |Relationship | `(n)-[:REFERS_TO]->(m)` |
 
 ---
 
@@ -154,22 +156,24 @@ use hedl_core::parse;
 use hedl_neo4j::{to_cypher_statements, ToCypherConfig};
 
 let hedl = r#"
-%VERSION: 1.0
-%STRUCT: Person: [id, name, born]
-%STRUCT: Movie: [id, title, released]
-%STRUCT: ActedIn: [person_id, movie_id, role]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Person:[id,name,born]
+%S:Movie:[id,title,released]
+%S:ActedIn:[person_id,movie_id,role]
 ---
-people: @Person
-  | keanu, Keanu Reeves, 1964
-  | carrie, Carrie-Anne Moss, 1967
+people:@Person
+ |keanu,Keanu Reeves,1964
+ |carrie,Carrie-Anne Moss,1967
 
-movies: @Movie
-  | matrix, The Matrix, 1999
-  | reloaded, The Matrix Reloaded, 2003
+movies:@Movie
+ |matrix,The Matrix,1999
+ |reloaded,The Matrix Reloaded,2003
 
-roles: @ActedIn
-  | keanu, matrix, Neo
-  | carrie, matrix, Trinity
+roles:@ActedIn
+ |keanu,matrix,Neo
+ |carrie,matrix,Trinity
 "#;
 
 let doc = parse(hedl.as_bytes())?;
@@ -201,20 +205,22 @@ SET r.role = 'Neo';
 
 ```rust
 let hedl = r#"
-%VERSION: 1.0
-%STRUCT: Department: [id, name]
-%STRUCT: Team: [id, name]
-%STRUCT: Employee: [id, name, role]
-%NEST: Department > Team
-%NEST: Team > Employee
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Department:[id,name]
+%S:Team:[id,name]
+%S:Employee:[id,name,role]
+%N:Department>Team
+%N:Team>Employee
 ---
-departments: @Department
-  | eng, Engineering
-    | backend, Backend Team
-      | alice, Alice Smith, Senior Engineer
-      | bob, Bob Jones, Engineer
-    | frontend, Frontend Team
-      | charlie, Charlie Brown, Tech Lead
+departments:@Department
+ |eng,Engineering
+  |backend,Backend Team
+   |alice,Alice Smith,Senior Engineer
+   |bob,Bob Jones,Engineer
+  |frontend,Frontend Team
+   |charlie,Charlie Brown,Tech Lead
 "#;
 
 let doc = parse(hedl.as_bytes())?;
@@ -251,7 +257,7 @@ let hedl_doc = from_cypher(&neo4j_result)?;
 NEST directives create parent-child relationships:
 
 ```hedl
-%NEST: User > Post
+%N:User>Post
 ```
 
 **Becomes**:
@@ -279,10 +285,10 @@ let config = ToCypherConfig::default()
 HEDL references create relationships:
 
 ```hedl
-%STRUCT: Order: [id, user_ref, product_ref]
+%S:Order:[id,user_ref,product_ref]
 ---
-orders: @Order
-  | order1, @User:alice, @Product:widget
+orders:@Order
+ |order1,@alice,@widget
 ```
 
 **Becomes**:
@@ -423,23 +429,23 @@ if issues.is_empty() {
 
 **Good**:
 ```hedl
-%STRUCT: User: [id, name, email]
+%S:User:[id,name,email]
 ---
-users: @User
-  | user_123, Alice, alice@example.com  # UUID or sequential ID
+users:@User
+ |user_123,Alice,alice@example.com  # UUID or sequential ID
 ```
 
 **Bad**:
 ```hedl
-| alice, Alice, alice@example.com  # Name as ID (not unique)
+ |alice,Alice,alice@example.com  # Name as ID (not unique)
 ```
 
 ### 2. NEST Hierarchy
 
 **Good**: Clear parent-child semantics
 ```hedl
-%NEST: Company > Department
-%NEST: Department > Team
+%N:Company>Department
+%N:Department>Team
 ```
 
 **Avoid**: Deep nesting (>5 levels) - flatten instead
@@ -515,7 +521,7 @@ driver.close()
 hedl to-cypher data.hedl > import.cypher
 
 # Execute in Neo4j
-cat import.cypher | cypher-shell -u neo4j -p password
+cat import.cypher |cypher-shell -u neo4j -p password
 
 # Or use Neo4j browser
 # 1. Open http://localhost:7474
@@ -579,8 +585,8 @@ The library **automatically escapes** all user data:
 ```rust
 // Safe - automatically escaped
 let hedl = r#"
-users: @User
-  | evil, '; DROP DATABASE; --, email
+users:@User
+ |evil,'; DROP DATABASE; --,email
 "#;
 
 let cypher = to_cypher(&doc, &config)?;

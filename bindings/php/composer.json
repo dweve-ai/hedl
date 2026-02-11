@@ -45,7 +45,7 @@
     "test:async": "php tests/HedlAsyncTest.php"
   },
   "support": {
-    "issues": "https://github.com/dweve/hedl/issues",
-    "source": "https://github.com/dweve/hedl"
+    "issues": "https://github.com/dweve-ai/hedl/issues",
+    "source": "https://github.com/dweve-ai/hedl"
   }
 }

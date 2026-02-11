@@ -161,7 +161,6 @@ assert!(is_valid_type_name("User"));
 - **Key**: `key:` with colon
 - **Value**: Unquoted or quoted string
 - **Row Operator**: `|`
-- **Ditto Operator**: `^`
 - **Expression**: `$(...)`
 - **Tensor**: `[...]`
 - **Reference**: `@Type:id` or `@id`
@@ -208,7 +207,7 @@ pub fn calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>,
 
 **Validates**:
 - No tabs in indentation
-- Even number of spaces (2-space increments)
+- 1 space per indent level (v2.0)
 - Enforces `max_indent_depth` limit
 
 #### 3. Reference Parsing
@@ -274,7 +273,7 @@ Build AST from preprocessed lines using header metadata. This is the main parsin
 The parser includes automatic timeout checking to prevent long-running operations:
 
 ```rust
-// From parser.rs:561 - Automatic timeout checking every 10,000 iterations
+// From parser/ - Automatic timeout checking every 10,000 iterations
 for result in lines.iter().copied().with_timeout_check(timeout_ctx) {
     let (line_num, line) = result?;
     // ... parse line
@@ -305,10 +304,10 @@ pub fn parse_header(lines: &[(usize, &str)], limits: &Limits) -> HedlResult<(Hea
 ```
 
 **Parses**:
-- `%VERSION: 1.0` → `(1, 0)`
-- `%STRUCT: User: [id, name, email]` → Schema
-- `%ALIAS: %pi: "3.14159"` → Constant
-- `%NEST: User > Post` → Relationship
+- `%V:2.0` → `(1, 0)`
+- `%S:User:[id,name,email]` → Schema
+- `%A:%pi: "3.14159"` → Constant
+- `%N:User>Post` → Relationship
 
 #### 2. Body Parsing
 
@@ -338,7 +337,7 @@ let mut stack = vec![Frame::Root { object: BTreeMap::new() }];
 Block strings allow multi-line text values using triple-quote delimiters:
 
 ```rust
-// From parser.rs:564-574 and block_string.rs
+// From parser/ and block_string.rs
 if let Some(ref mut state) = block_string {
     if let Some(full_content) = state.process_line(line, line_num, limits)? {
         // Block string complete
@@ -363,11 +362,10 @@ Matrix lists are detected via the `@TypeName` syntax and parsed by processing su
 
 **Key Features**:
 - CSV field parsing with quoting and escaping
-- Ditto operator (`^`) for efficient value repetition
-- Child count syntax `|[N]` for NEST parent nodes (parser.rs:988-1018)
-- Count hint syntax `teams(3): @Team` for pre-allocation (parser.rs:843-880)
+- Child count syntax `|[N]` for NEST parent nodes (parser/)
+- Count hint syntax `teams(3):@Team` for pre-allocation (parser/)
 - Automatic registration of node IDs for reference resolution
-- **Inline schema validation**: Row field count validated against declared struct schema (parser.rs:1056-1062)
+- **Inline schema validation**: Row field count validated against declared struct schema (parser/)
 - Security enforcement of `max_nodes` limit
 
 **Schema Validation During Parsing**:
@@ -375,7 +373,7 @@ Matrix lists are detected via the `@TypeName` syntax and parsed by processing su
 Schema validation happens inline during matrix list parsing, NOT as a separate stage:
 
 ```rust
-// From parser.rs:1056-1062
+// From parser/
 let fields = parse_csv_row(csv_content)?;
 
 // Validate shape immediately
@@ -401,12 +399,11 @@ pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResu
 
     // First-byte dispatch
     match s.as_bytes().first() {
-        Some(b'^') => infer_ditto(ctx, line_num),
         Some(b'[') => parse_tensor(s),
         Some(b'@') => parse_reference(s),
         Some(b'$') => parse_expression(s),
         Some(b'%') => infer_alias(s, ctx),
-        Some(b'-') | Some(b'0'..=b'9') => try_parse_number(s),
+        Some(b'-') |Some(b'0'..=b'9') => try_parse_number(s),
         _ => Ok(Value::String(s.into())),
     }
 }
@@ -415,8 +412,7 @@ pub fn infer_value(s: &str, ctx: &InferenceContext, line_num: usize) -> HedlResu
 **Inference Rules**:
 1. `~` → `Value::Null`
 2. `true`/`false` → `Value::Bool`
-3. `^` → Ditto (copies from previous row)
-4. `@...` → `Value::Reference`
+3. `@...` → `Value::Reference`
 5. `$(...)` → `Value::Expression`
 6. `[...]` → `Value::Tensor`
 7. Numeric → `Value::Int` or `Value::Float`
@@ -510,7 +506,7 @@ NEST hierarchies are built based on the `%NEST` directives during reference reso
 
 ```rust
 // NEST relationships are defined in the header
-// %NEST: User > Post
+// %N:User>Post
 // This means Post nodes nest under User nodes
 
 // The nests map stores: BTreeMap<parent_type, child_type>
@@ -520,7 +516,7 @@ pub fn get_child_type(doc: &Document, parent_type: &str) -> Option<&String> {
 ```
 
 **NEST Rules**:
-- `%NEST: User > Post` means Post nodes nest under User
+- `%N:User>Post` means Post nodes nest under User
 - Child nodes have reference to parent
 - Built during reference resolution
 
@@ -540,14 +536,14 @@ Resource limits are enforced **inline during parsing** to enable fail-fast behav
 
 **Limits and Enforcement Points**:
 - `max_file_size`: Checked in preprocessing before parsing starts
-- `max_total_keys`: Tracked cumulatively and checked on each key insertion (parser.rs:1376-1387)
-- `max_indent_depth`: Checked during indentation calculation (parser.rs:590-598)
-- `max_nodes`: Checked as each matrix row is added (parser.rs:1094-1103)
+- `max_total_keys`: Tracked cumulatively and checked on each key insertion (parser/)
+- `max_indent_depth`: Checked during indentation calculation (parser/)
+- `max_nodes`: Checked as each matrix row is added (parser/)
 - `max_aliases`: Checked during header parsing
-- `max_columns`: Checked when parsing struct definitions (parser.rs:978-983)
+- `max_columns`: Checked when parsing struct definitions (parser/)
 - `max_block_string_size`: Checked during block string accumulation
-- `max_object_keys`: Checked before inserting keys (parser.rs:1364-1373)
-- `max_nest_depth`: Checked before creating child list frames (parser.rs:1212-1229)
+- `max_object_keys`: Checked before inserting keys (parser/)
+- `max_nest_depth`: Checked before creating child list frames (parser/)
 - `timeout`: Checked every 10,000 iterations via `with_timeout_check`
 
 ## Security Considerations
@@ -569,35 +565,37 @@ The parser enforces multiple defense-in-depth limits:
 
 **Attack 1**: Many small objects with cumulative large key count
 ```hedl
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 # 100,000 objects with 10 keys each = 1,000,000 total keys
 # Each object is "valid" (under max_object_keys = 10,000)
 # But total memory usage is excessive!
 obj0:
-  k0: v0
-  k1: v1
-  ...
+ k0: v0
+ k1: v1
+ ...
 obj1:
-  k0: v0
-  ...
+ k0: v0
+ ...
 ```
 
-**Defense**: `max_total_keys` limit (default 10M) tracks cumulative keys across ALL objects and rejects document when exceeded. See parser.rs:1376-1387.
+**Defense**: `max_total_keys` limit (default 10M) tracks cumulative keys across ALL objects and rejects document when exceeded. See parser/.
 
 **Attack 2**: Deeply nested NEST hierarchy
 ```hedl
-%NEST: A > B
-%NEST: B > C
+%N:A>B
+%N:B>C
 # ... many levels deep
 ```
 
-**Defense**: `max_nest_depth` limit (default 100) counts List frames in the parsing stack and rejects when exceeded. See parser.rs:1212-1229.
+**Defense**: `max_nest_depth` limit (default 100) counts List frames in the parsing stack and rejects when exceeded. See parser/.
 
 ## Parser Configuration
 
 ```rust
-// From hedl-core/src/parser.rs
+// From hedl-core/src/parser/
 pub struct ParseOptions {
     pub limits: Limits,
     pub reference_mode: ReferenceMode,

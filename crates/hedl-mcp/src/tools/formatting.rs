@@ -19,7 +19,7 @@
 
 use crate::error::{McpError, McpResult};
 use crate::protocol::{CallToolResult, Content};
-use crate::tools::helpers::{estimate_tokens, parse_args, validate_input_size};
+use crate::tools::argument_parsing::{estimate_tokens, parse_args, validate_input_size};
 use crate::tools::types::{FormatArgs, OptimizeArgs, MAX_INPUT_SIZE};
 use hedl_core::parse;
 use hedl_json::{from_json_value, FromJsonConfig};
@@ -101,8 +101,7 @@ mod tests {
 
     #[test]
     fn test_hedl_format_basic() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl });
         let result = execute_hedl_format(Some(args)).unwrap();
 
@@ -117,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_hedl_format_with_ditto() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: Data: [id, category]\n---\ndata: @Data\n  | row1, CategoryA\n  | row2, CategoryA\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: Data: [id, category]\n---\ndata:@Data\n | row1, CategoryA\n | row2, CategoryA\n";
         let args = json!({ "hedl": hedl, "ditto": true });
         let result = execute_hedl_format(Some(args)).unwrap();
 
@@ -132,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_hedl_format_without_ditto() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: Data: [id, category]\n---\ndata: @Data\n  | row1, CategoryA\n  | row2, CategoryA\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: Data: [id, category]\n---\ndata:@Data\n | row1, CategoryA\n | row2, CategoryA\n";
         let args = json!({ "hedl": hedl, "ditto": false });
         let result = execute_hedl_format(Some(args)).unwrap();
 

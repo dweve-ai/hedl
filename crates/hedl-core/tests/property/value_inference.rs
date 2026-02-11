@@ -36,7 +36,7 @@ proptest! {
     /// Property: Any valid integer should parse correctly and roundtrip.
     #[test]
     fn prop_integer_roundtrips(n in -1_000_000_i64..1_000_000_i64) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {n}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {n}\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -50,7 +50,7 @@ proptest! {
     /// Property: Any valid floating-point number should parse correctly.
     #[test]
     fn prop_float_parses(f in -1_000_000.0_f64..1_000_000.0_f64) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {f}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {f}\n");
         let result = parse(doc.as_bytes());
 
         if f.is_nan() {
@@ -80,7 +80,7 @@ proptest! {
     /// Property: Any valid boolean should parse correctly and roundtrip.
     #[test]
     fn prop_bool_roundtrips(b: bool) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {b}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {b}\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -95,7 +95,7 @@ proptest! {
     /// Note: Must start with a letter to avoid numeric inference.
     #[test]
     fn prop_simple_string_roundtrips(s in "[a-zA-Z][a-zA-Z0-9_-]{0,99}") {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {s}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {s}\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -109,7 +109,7 @@ proptest! {
     /// Property: Null value always parses correctly.
     #[test]
     fn prop_null_parses(_n in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\nvalue: ~\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: ~\n";
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok());
 
@@ -124,7 +124,7 @@ proptest! {
     /// Note: Keys use snake_case (letters, digits, underscores).
     #[test]
     fn prop_valid_key_names(key in "[a-z][a-z0-9_]{0,50}") {
-        let doc = format!("%VERSION: 1.0\n---\n{key}: test\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{key}: test\n");
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
@@ -137,7 +137,7 @@ proptest! {
     #[test]
     fn prop_leading_zeros_handled(zeros in "0{2,5}", digits in "[1-9][0-9]{0,5}") {
         let num_str = format!("{zeros}{digits}");
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {num_str}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {num_str}\n");
         let result = parse(doc.as_bytes());
 
         // Should parse successfully (either as int 0 or as string)
@@ -156,7 +156,7 @@ mod determinism_tests {
         /// Property: Integer inference is deterministic (same input -> same output).
         #[test]
         fn prop_integer_inference_deterministic(n in -1_000_000_i64..1_000_000_i64) {
-            let doc = format!("%VERSION: 1.0\n---\nval: {n}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nval: {n}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -173,7 +173,7 @@ mod determinism_tests {
         fn prop_float_inference_deterministic(f in -1_000.0_f64..1_000.0) {
             prop_assume!(f.is_finite());
 
-            let doc = format!("%VERSION: 1.0\n---\nval: {f}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nval: {f}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -195,7 +195,7 @@ mod determinism_tests {
         /// Note: Must start with a letter to avoid numeric inference.
         #[test]
         fn prop_string_inference_deterministic(s in "[a-zA-Z][a-zA-Z0-9_-]{0,99}") {
-            let doc = format!("%VERSION: 1.0\n---\nval: {s}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nval: {s}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -210,7 +210,7 @@ mod determinism_tests {
         /// Property: Bool inference is deterministic.
         #[test]
         fn prop_bool_inference_deterministic(b: bool) {
-            let doc = format!("%VERSION: 1.0\n---\nval: {b}\n");
+            let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nval: {b}\n");
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -225,7 +225,7 @@ mod determinism_tests {
         /// Property: Null inference is deterministic.
         #[test]
         fn prop_null_inference_deterministic(_n in 0..100_u32) {
-            let doc = "%VERSION: 1.0\n---\nval: ~\n";
+            let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nval: ~\n";
 
             let result1 = parse(doc.as_bytes()).unwrap();
             let result2 = parse(doc.as_bytes()).unwrap();
@@ -244,7 +244,7 @@ mod determinism_tests {
             id in "[a-z][a-z0-9_]{0,30}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nref: @{type_name}:{id}\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n |{id}\nref: @{type_name}:{id}\n"
             );
 
             let result1 = parse(doc.as_bytes()).unwrap();
@@ -266,9 +266,9 @@ mod determinism_tests {
 #[test]
 fn test_property_list_with_n_rows() {
     proptest!(ProptestConfig::with_cases(1000), |(n in 1_usize..100)| {
-        let mut doc = String::from("%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\ndata: @T\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n");
         for i in 0..n {
-            doc.push_str(&format!("  | id{}, {}\n", i, i * 10));
+            doc.push_str(&format!(" |id{}, {}\n", i, i * 10));
         }
 
         let result = parse(doc.as_bytes());
@@ -286,16 +286,16 @@ fn test_property_list_with_n_rows() {
 #[test]
 fn test_property_nested_objects() {
     proptest!(ProptestConfig::with_cases(1000), |(depth in 1_usize..10)| {
-        let mut doc = String::from("%VERSION: 1.0\n---\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
         // Build nested structure
         for d in 0..depth {
-            let indent = "  ".repeat(d);
+            let indent = " ".repeat(d);
             doc.push_str(&format!("{indent}level{d}:\n"));
         }
 
         // Add final value
-        let indent = "  ".repeat(depth);
+        let indent = " ".repeat(depth);
         doc.push_str(&format!("{indent}value: 42\n"));
 
         let result = parse(doc.as_bytes());
@@ -304,17 +304,17 @@ fn test_property_nested_objects() {
 }
 
 /// Property: Nested objects at correct indentation parse successfully.
-/// Note: HEDL requires exactly 2 spaces per nesting level.
+/// Note: HEDL requires exactly 1 space per nesting level.
 #[test]
 fn test_property_whitespace_variations() {
     proptest!(ProptestConfig::with_cases(1000), |(depth in 1_usize..5)| {
-        // Build a nested structure with correct 2-space indentation per level
-        let mut doc = String::from("%VERSION: 1.0\n---\n");
+        // Build a nested structure with correct 1-space indentation per level
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         for d in 0..depth {
-            let indent = "  ".repeat(d);
+            let indent = " ".repeat(d);
             doc.push_str(&format!("{indent}level{d}:\n"));
         }
-        let indent = "  ".repeat(depth);
+        let indent = " ".repeat(depth);
         doc.push_str(&format!("{indent}value: 42\n"));
 
         let result = parse(doc.as_bytes());

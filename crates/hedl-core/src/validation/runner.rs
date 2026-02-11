@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn test_validate_empty_document() {
         let runner = ValidationRunner::new(LintConfig::default());
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = runner.validate(&doc);
 
         assert!(result.is_valid);
@@ -349,7 +349,7 @@ mod tests {
         );
         runner.add_rule(Box::new(rule));
 
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = runner.validate(&doc);
 
         assert_eq!(result.diagnostics.len(), 1);
@@ -370,7 +370,7 @@ mod tests {
         );
         runner.add_rule(Box::new(rule));
 
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = runner.validate(&doc);
 
         assert!(!result.is_valid);
@@ -397,7 +397,7 @@ mod tests {
 
         runner.registry_mut().disable_rule("duplicate-key");
 
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = runner.validate(&doc);
 
         // Rule is disabled, no diagnostics
@@ -406,7 +406,7 @@ mod tests {
 
     #[test]
     fn test_symbol_table_build() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
         list.add_row(Node::new(
             "User",
@@ -458,7 +458,7 @@ mod tests {
         );
         runner.add_rule(Box::new(rule));
 
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = runner.validate(&doc);
 
         // The warning should have been escalated to error
@@ -484,7 +484,7 @@ mod tests {
         );
         runner.add_rule(Box::new(rule));
 
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = runner.validate(&doc);
 
         // Hint should have been escalated to error

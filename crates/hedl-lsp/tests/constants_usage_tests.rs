@@ -25,20 +25,25 @@
 
 use hedl_lsp::constants::*;
 use hedl_lsp::document_manager::{
-    DocumentManager, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE,
+    DocumentCache, DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE,
 };
 use tower_lsp::lsp_types::{Position, Range, Url};
 
+/// Pass a value through a function to prevent clippy from seeing it as a
+/// compile-time constant, enabling range assertions in tests.
+fn val<T>(v: T) -> T {
+    v
+}
+
 #[test]
-#[allow(clippy::assertions_on_constants)]
 fn test_debounce_constant_is_reasonable() {
     // Verify debounce delay is within acceptable range for user experience
     assert!(
-        DEBOUNCE_MS >= 50,
+        val(DEBOUNCE_MS) >= 50,
         "Debounce too short ({DEBOUNCE_MS}ms), will cause excessive CPU usage"
     );
     assert!(
-        DEBOUNCE_MS <= 500,
+        val(DEBOUNCE_MS) <= 500,
         "Debounce too long ({DEBOUNCE_MS}ms), will feel laggy to users"
     );
 
@@ -50,8 +55,6 @@ fn test_debounce_constant_is_reasonable() {
 }
 
 #[test]
-#[allow(clippy::assertions_on_constants)]
-#[allow(clippy::identity_op)]
 fn test_memory_limit_constants() {
     // Verify megabyte conversion is standard binary MiB
     assert_eq!(
@@ -74,35 +77,35 @@ fn test_memory_limit_constants() {
 
     // Verify limits are reasonable for real-world usage
     assert!(
-        DEFAULT_MAX_DOCUMENT_SIZE >= 1 * BYTES_PER_MEGABYTE,
+        val(DEFAULT_MAX_DOCUMENT_SIZE) >= BYTES_PER_MEGABYTE,
         "Document limit too small for real files"
     );
     assert!(
-        DEFAULT_MAX_DOCUMENT_SIZE <= 2048 * BYTES_PER_MEGABYTE,
+        val(DEFAULT_MAX_DOCUMENT_SIZE) <= 2048 * BYTES_PER_MEGABYTE,
         "Document limit too large, excessive memory risk"
     );
 }
 
 #[test]
 fn test_document_manager_uses_constants() {
-    // Verify DocumentManager correctly uses the default constants
-    let manager = DocumentManager::new(DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE);
+    // Verify DocumentCache correctly uses the default constants
+    let manager = DocumentCache::new(DEFAULT_MAX_CACHE_SIZE, DEFAULT_MAX_DOCUMENT_SIZE);
 
     assert_eq!(
         manager.max_cache_size(),
         DEFAULT_MAX_CACHE_SIZE,
-        "DocumentManager should use DEFAULT_MAX_CACHE_SIZE"
+        "DocumentCache should use DEFAULT_MAX_CACHE_SIZE"
     );
     assert_eq!(
         manager.max_document_size(),
         DEFAULT_MAX_DOCUMENT_SIZE,
-        "DocumentManager should use DEFAULT_MAX_DOCUMENT_SIZE"
+        "DocumentCache should use DEFAULT_MAX_DOCUMENT_SIZE"
     );
 }
 
 #[test]
 fn test_document_size_limit_enforcement() {
-    let manager = DocumentManager::new(10, 100); // 100 byte limit
+    let manager = DocumentCache::new(10, 100); // 100 byte limit
 
     let uri = Url::parse("file:///test.hedl").unwrap();
 
@@ -131,7 +134,6 @@ fn test_document_size_limit_enforcement() {
 }
 
 #[test]
-#[allow(clippy::assertions_on_constants)]
 fn test_lsp_protocol_constants_are_consistent() {
     // Diagnostic and symbol line end should be the same for consistency
     assert_eq!(
@@ -141,13 +143,13 @@ fn test_lsp_protocol_constants_are_consistent() {
 
     // Line end should be large enough for typical code lines
     assert!(
-        DIAGNOSTIC_LINE_END_CHAR >= 100,
+        val(DIAGNOSTIC_LINE_END_CHAR) >= 100,
         "Line end character ({DIAGNOSTIC_LINE_END_CHAR}) too small for typical code"
     );
 
     // But not unnecessarily large
     assert!(
-        DIAGNOSTIC_LINE_END_CHAR <= 10000,
+        val(DIAGNOSTIC_LINE_END_CHAR) <= 10000,
         "Line end character ({DIAGNOSTIC_LINE_END_CHAR}) unnecessarily large"
     );
 }
@@ -170,15 +172,14 @@ fn test_position_constants() {
 }
 
 #[test]
-#[allow(clippy::assertions_on_constants)]
 fn test_header_selection_constant() {
     // Verify header selection is reasonable
     assert!(
-        HEADER_SELECTION_CHAR >= 5,
+        val(HEADER_SELECTION_CHAR) >= 5,
         "Header selection too narrow for \"Header\" text"
     );
     assert!(
-        HEADER_SELECTION_CHAR <= 100,
+        val(HEADER_SELECTION_CHAR) <= 100,
         "Header selection unnecessarily wide"
     );
 
@@ -190,15 +191,14 @@ fn test_header_selection_constant() {
 }
 
 #[test]
-#[allow(clippy::assertions_on_constants)]
 fn test_reference_width_constant() {
     // Verify default reference width is reasonable
     assert!(
-        DEFAULT_REFERENCE_WIDTH >= 5,
+        val(DEFAULT_REFERENCE_WIDTH) >= 5,
         "Reference width too narrow for most entity IDs"
     );
     assert!(
-        DEFAULT_REFERENCE_WIDTH <= 50,
+        val(DEFAULT_REFERENCE_WIDTH) <= 50,
         "Reference width unnecessarily wide"
     );
 
@@ -245,7 +245,7 @@ fn test_megabyte_conversion_accuracy() {
 #[test]
 fn test_cache_size_limits() {
     // Test that cache respects size limits with constants
-    let manager = DocumentManager::new(3, 1000);
+    let manager = DocumentCache::new(3, 1000);
 
     // Insert 3 documents (at limit)
     for i in 0..3 {

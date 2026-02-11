@@ -15,10 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Note: Large error types are intentional for rich error context.
-// Boxing would add heap allocation overhead for error paths.
 #![cfg_attr(not(test), warn(missing_docs))]
-#![allow(clippy::result_large_err)]
 
 //! HEDL YAML Conversion
 //!
@@ -59,7 +56,14 @@
 //! use hedl_yaml::{to_yaml, ToYamlConfig};
 //! use std::collections::BTreeMap;
 //!
-//! let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
+//! let mut doc = Document {
+//!     version: (1, 0),
+//!     schema_versions: BTreeMap::new(),
+//!     aliases: BTreeMap::new(),
+//!     structs: BTreeMap::new(),
+//!     nests: BTreeMap::new(),
+//!     root: BTreeMap::new(),
+//! };
 //! let mut root = BTreeMap::new();
 //! root.insert("name".to_string(), Item::Scalar(Value::String("example".to_string().into())));
 //! root.insert("count".to_string(), Item::Scalar(Value::Int(42)));
@@ -84,7 +88,7 @@
 //! // Use default configuration with high limits (500MB / 10M / 10K)
 //! let config = FromYamlConfig::default();
 //! let doc = from_yaml(yaml, &config).unwrap();
-//! assert_eq!(doc.version, (1, 0));
+//! assert_eq!(doc.version, (2, 0));
 //! ```
 //!
 //! ## Customizing Resource Limits
@@ -111,7 +115,14 @@
 //! use std::collections::BTreeMap;
 //!
 //! // Create original document
-//! let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
+//! let mut doc = Document {
+//!     version: (1, 0),
+//!     schema_versions: BTreeMap::new(),
+//!     aliases: BTreeMap::new(),
+//!     structs: BTreeMap::new(),
+//!     nests: BTreeMap::new(),
+//!     root: BTreeMap::new(),
+//! };
 //! let mut root = BTreeMap::new();
 //! root.insert("test".to_string(), Item::Scalar(Value::String("value".to_string().into())));
 //! doc.root = root;
@@ -123,8 +134,8 @@
 //! let from_config = FromYamlConfig::default();
 //! let restored = from_yaml(&yaml, &from_config).unwrap();
 //!
-//! // Data is preserved, but schema/type metadata is lost
-//! assert_eq!(restored.version, doc.version);
+//! // Data is preserved, but version defaults to v2.0 (not preserved in YAML)
+//! assert_eq!(restored.version, (2, 0));
 //! ```
 //!
 //! ## Preserving Metadata with Hints
@@ -134,7 +145,14 @@
 //! use hedl_yaml::{to_yaml, ToYamlConfig};
 //! use std::collections::BTreeMap;
 //!
-//! let mut doc = Document { version: (1, 0), aliases: BTreeMap::new(), root: BTreeMap::new(), structs: BTreeMap::new(), nests: BTreeMap::new(), schema_versions: BTreeMap::new() };
+//! let mut doc = Document {
+//!     version: (1, 0),
+//!     schema_versions: BTreeMap::new(),
+//!     aliases: BTreeMap::new(),
+//!     structs: BTreeMap::new(),
+//!     nests: BTreeMap::new(),
+//!     root: BTreeMap::new(),
+//! };
 //! let mut root = BTreeMap::new();
 //! root.insert("count".to_string(), Item::Scalar(Value::Int(42)));
 //! doc.root = root;
@@ -149,15 +167,18 @@
 //! ```
 
 mod anchors;
+/// YAML error types.
 pub mod error;
-mod from_yaml;
+/// YAML to HEDL conversion.
+pub mod from_yaml;
 mod to_yaml;
+/// YAML token scanning.
 pub mod yaml_scanner;
 
 // Re-export the shared DEFAULT_SCHEMA from hedl-core for internal use
 pub(crate) use hedl_core::convert::DEFAULT_SCHEMA;
 
-pub use error::YamlError;
+pub use error::{ErrorContext, YamlError};
 pub use from_yaml::{
     from_yaml, from_yaml_value, FromYamlConfig, FromYamlConfigBuilder, DEFAULT_MAX_ARRAY_LENGTH,
     DEFAULT_MAX_DOCUMENT_SIZE, DEFAULT_MAX_NESTING_DEPTH,
@@ -525,7 +546,8 @@ mod tests {
         };
         let yaml = hedl_to_yaml(&doc).unwrap();
         let restored = yaml_to_hedl(&yaml).unwrap();
-        assert_eq!(restored.version, (1, 0));
+        // yaml_to_hedl creates new documents with v2.0 default
+        assert_eq!(restored.version, (2, 0));
         assert_eq!(restored.root.len(), 0);
     }
 

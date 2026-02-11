@@ -18,7 +18,7 @@ use hedl_core::{parse, Document, Item, MatrixList, Node, Value};
 // ==================== Helper functions ====================
 
 fn create_test_doc() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create a User list
     let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
@@ -43,7 +43,7 @@ fn create_test_doc() -> Document {
 }
 
 fn create_doc_with_duplicates() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["name".to_string()]);
     list.add_row(Node::new(
@@ -126,7 +126,7 @@ fn test_duplicate_key_rule_finds_duplicates() {
 #[test]
 fn test_duplicate_key_rule_multiple_types_no_conflict() {
     // Different types can have same IDs
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut user_list = MatrixList::new("User", vec!["name".to_string()]);
     user_list.add_row(Node::new(
@@ -154,7 +154,7 @@ fn test_duplicate_key_rule_multiple_types_no_conflict() {
 #[test]
 fn test_duplicate_key_rule_empty_document() {
     let rule = DuplicateKeyRule;
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let mut context = ValidationContext::new();
 
     let diagnostics = rule.check(&doc, &mut context).unwrap();
@@ -163,7 +163,7 @@ fn test_duplicate_key_rule_empty_document() {
 
 #[test]
 fn test_duplicate_key_rule_single_node() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["name".to_string()]);
     list.add_row(Node::new(
@@ -237,7 +237,7 @@ fn test_invalid_reference_rule_no_references() {
 fn test_invalid_reference_rule_valid_reference() {
     use hedl_core::Reference;
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["id".to_string(), "friend".to_string()]);
     list.add_row(Node::new(
@@ -262,7 +262,7 @@ fn test_invalid_reference_rule_valid_reference() {
 fn test_invalid_reference_rule_detects_invalid() {
     use hedl_core::Reference;
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["id".to_string(), "friend".to_string()]);
     list.add_row(Node::new(
@@ -291,7 +291,7 @@ fn test_invalid_reference_rule_detects_invalid() {
 fn test_invalid_reference_rule_unqualified_reference() {
     use hedl_core::Reference;
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["id".to_string(), "ref".to_string()]);
     list.add_row(Node::new(
@@ -385,9 +385,9 @@ fn test_parse_rejects_duplicate_keys() {
     let input = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | user1, Alice
-  | user1, Bob
+users:@User
+ | user1, Alice
+ | user1, Bob
 ";
 
     let result = parse(input.as_bytes());
@@ -400,9 +400,9 @@ fn test_parse_and_validate_no_duplicates() {
     let input = r"%VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | user1, Alice
-  | user2, Bob
+users:@User
+ | user1, Alice
+ | user2, Bob
 ";
 
     let doc = parse(input.as_bytes()).unwrap();
@@ -435,7 +435,7 @@ fn test_multiple_rules_on_same_document() {
 
 #[test]
 fn test_rule_on_empty_document() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
 
     let rules: Vec<Box<dyn Rule>> = vec![
         Box::new(DuplicateKeyRule),
@@ -485,7 +485,7 @@ fn test_validation_context_registration() {
 fn test_very_long_id_duplicate_detection() {
     let long_id = "a".repeat(1000);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["name".to_string()]);
     list.add_row(Node::new(
@@ -511,7 +511,7 @@ fn test_very_long_id_duplicate_detection() {
 fn test_unicode_id_duplicate_detection() {
     let unicode_id = "用户1";
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("User", vec!["name".to_string()]);
     list.add_row(Node::new(

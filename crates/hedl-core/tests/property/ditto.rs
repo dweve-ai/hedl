@@ -29,8 +29,9 @@ proptest! {
         type_name in "[A-Z][a-zA-Z0-9]{0,15}",
         value in -1000_i64..1000
     ) {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, {value}\n | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -51,8 +52,9 @@ proptest! {
         type_name in "[A-Z][a-zA-Z0-9]{0,15}",
         value in "[a-zA-Z0-9]{1,50}"
     ) {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, {value}\n | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -73,8 +75,9 @@ proptest! {
         type_name in "[A-Z][a-zA-Z0-9]{0,15}",
         value in proptest::bool::ANY
     ) {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, {value}\n | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -92,8 +95,9 @@ proptest! {
     /// Property: Ditto copies null values correctly.
     #[test]
     fn prop_ditto_copies_null(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, ~\n  | id2, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, ~\n | id2, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -118,8 +122,9 @@ proptest! {
         // Generate a second row ID that's guaranteed to be different from ref_id
         let second_id = format!("row2_{ref_id}");
 
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {ref_id}, @{ref_id}\n  | {second_id}, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, ref]\n---\nitems:@{type_name}\n | {ref_id}, @{ref_id}\n | {second_id}, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -137,8 +142,9 @@ proptest! {
     /// Property: Ditto in first row produces an error.
     #[test]
     fn prop_ditto_first_row_error(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -151,8 +157,9 @@ proptest! {
         type_name in "[A-Z][a-zA-Z0-9]{0,15}",
         value in -100_i64..100
     ) {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n  | id3, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, {value}\n | id2, ^\n | id3, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -176,8 +183,9 @@ proptest! {
         val1 in -100_i64..100,
         val2 in -100_i64..100
     ) {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, col1, col2]\n---\nitems: @{type_name}\n  | id1, {val1}, {val2}\n  | id2, ^, 999\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, col1, col2]\n---\nitems:@{type_name}\n | id1, {val1}, {val2}\n | id2, ^, 999\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -199,8 +207,9 @@ proptest! {
         val1 in -100_i64..100,
         val2 in -100_i64..100
     ) {
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, col1, col2]\n---\nitems: @{type_name}\n  | id1, {val1}, {val2}\n  | id2, ^, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, col1, col2]\n---\nitems:@{type_name}\n | id1, {val1}, {val2}\n | id2, ^, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -227,8 +236,9 @@ proptest! {
     ) {
         prop_assume!(val1 != val2);
 
+        // Ditto is only allowed in pre-v2.0
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {val1}\n  | id2, {val2}\n  | id3, ^\n"
+            "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, {val1}\n | id2, {val2}\n | id3, ^\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -258,8 +268,9 @@ mod edge_cases {
             type_name in "[A-Z][a-zA-Z0-9]{0,15}",
             value in -1000.0_f64..1000.0
         ) {
+            // Ditto is only allowed in pre-v2.0
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id1, {value}\n  | id2, ^\n"
+                "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id1, {value}\n | id2, ^\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -281,12 +292,13 @@ mod edge_cases {
             value in -100_i64..100,
             count in 2_usize..20
         ) {
+            // Ditto is only allowed in pre-v2.0
             let mut doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | id0, {value}\n"
+                "%VERSION: 1.2\n%STRUCT: {type_name}: [id, value]\n---\nitems:@{type_name}\n | id0, {value}\n"
             );
 
             for i in 1..=count {
-                doc.push_str(&format!("  | id{i}, ^\n"));
+                doc.push_str(&format!(" | id{i}, ^\n"));
             }
 
             let result = parse(doc.as_bytes());
@@ -310,8 +322,9 @@ mod edge_cases {
             int_val in -100_i64..100,
             bool_val in proptest::bool::ANY
         ) {
+            // Ditto is only allowed in pre-v2.0
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, int_col, bool_col, null_col]\n---\nitems: @{type_name}\n  | id1, {int_val}, {bool_val}, ~\n  | id2, ^, ^, ^\n"
+                "%VERSION: 1.2\n%STRUCT: {type_name}: [id, int_col, bool_col, null_col]\n---\nitems:@{type_name}\n | id1, {int_val}, {bool_val}, ~\n | id2, ^, ^, ^\n"
             );
 
             let result = parse(doc.as_bytes());
