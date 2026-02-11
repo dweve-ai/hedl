@@ -160,7 +160,10 @@ pub unsafe extern "C" fn hedl_to_json(
 
     clear_error();
 
-    if !is_valid_document_ptr(doc) || out_str.is_null() {
+    // Validate pointers before any dereference. `doc` must be non-null and refer
+    // to a live HedlDocument created by this library; `out_str` must be a
+    // non-null pointer to a writable C string pointer.
+    if doc.is_null() || !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
         audit_call_failure(
