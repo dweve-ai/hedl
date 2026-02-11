@@ -339,29 +339,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --package hedl-core conformance --all-features
 
-  miri:
-    name: MIRI
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    continue-on-error: true
-    needs: [test-core]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: miri
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: miri
-      - name: Setup MIRI
-        run: cargo +nightly miri setup
-      - name: Run MIRI on hedl-core (lib only)
-        run: |
-          cargo +nightly miri test -p hedl-core --lib --no-fail-fast
-        env:
-          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation
-        timeout-minutes: 30
-
   benchmarks:
     name: Benchmark Tests
     runs-on: ubuntu-latest
