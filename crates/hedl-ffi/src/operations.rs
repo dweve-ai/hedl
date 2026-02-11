@@ -37,7 +37,8 @@ unsafe fn get_valid_doc_ref<'a>(
     op_name: &str,
     start: Instant,
 ) -> Result<&'a hedl_core::Document, c_int> {
-    if !is_valid_document_ptr(doc) {
+    // Explicitly reject NULL pointers before attempting to dereference.
+    if doc.is_null() || !is_valid_document_ptr(doc) {
         let duration = start.elapsed();
         set_error("Null or invalid document handle");
         audit_call_failure(
@@ -49,7 +50,8 @@ unsafe fn get_valid_doc_ref<'a>(
         return Err(HEDL_ERR_NULL_PTR);
     }
 
-    // SAFETY: Caller guarantees `doc` came from `hedl_parse` and has not been freed.
+    // SAFETY: We have checked that `doc` is non-null and `is_valid_document_ptr(doc)` returned
+    // true, so it is safe to dereference and access the inner document.
     Ok(&(*doc).inner)
 }
 

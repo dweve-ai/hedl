@@ -123,7 +123,7 @@ fn example_performance_tracking() {
         info!("Parsing document...");
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
 
-        if result == HEDL_OK {
+        if result == HEDL_OK && !doc.is_null() {
             info!("Canonicalizing document...");
             let mut canonical: *mut c_char = ptr::null_mut();
             let result = hedl_canonicalize(doc, &mut canonical);

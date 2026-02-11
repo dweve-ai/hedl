@@ -390,26 +390,29 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
     // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
     // `doc` is a valid mutable pointer for output.
     // SAFETY: FFI call with valid C-compatible types and checked pointers
-    unsafe {
-        hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
-    }
+    let parse_result = unsafe { hedl_parse(c_str.as_ptr(), -1, 0, &mut doc) };
 
-    let mut string_ns = 0u64;
-    for _ in 0..iterations {
-        let start = std::time::Instant::now();
+    if parse_result == HEDL_OK && !doc.is_null() {
+        let mut string_ns = 0u64;
+        for _ in 0..iterations {
+            let start = std::time::Instant::now();
+            // SAFETY: FFI call with valid pointers from HEDL API.
+            unsafe {
+                let mut out_str: *mut c_char = ptr::null_mut();
+                hedl_canonicalize(doc, &mut out_str);
+                hedl_free_string(out_str);
+            }
+            string_ns += start.elapsed().as_nanos() as u64;
+        }
+        record_perf("memory_string_alloc_free", string_ns, iterations, None);
+
         // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
-            let mut out_str: *mut c_char = ptr::null_mut();
-            hedl_canonicalize(doc, &mut out_str);
-            hedl_free_string(out_str);
+            hedl_free_document(doc);
         }
-        string_ns += start.elapsed().as_nanos() as u64;
-    }
-    record_perf("memory_string_alloc_free", string_ns, iterations, None);
-
-    // SAFETY: FFI call with valid pointers from HEDL API.
-    unsafe {
-        hedl_free_document(doc);
+    } else {
+        // Parsing failed; do not attempt to use or free `doc`.
+        return;
     }
 
     group.finish();
@@ -541,17 +544,19 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
         b.iter(|| unsafe {
             let c_str = CString::new(hedl.as_str()).unwrap();
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
+            let parse_result = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
 
-            let mut canonical: *mut c_char = ptr::null_mut();
-            hedl_canonicalize(doc, &mut canonical);
-            hedl_free_string(canonical);
+            if parse_result == HEDL_OK && !doc.is_null() {
+                let mut canonical: *mut c_char = ptr::null_mut();
+                hedl_canonicalize(doc, &mut canonical);
+                hedl_free_string(canonical);
 
-            let mut diag: *mut HedlDiagnostics = ptr::null_mut();
-            hedl_lint(doc, &mut diag);
-            hedl_free_diagnostics(diag);
+                let mut diag: *mut HedlDiagnostics = ptr::null_mut();
+                hedl_lint(doc, &mut diag);
+                hedl_free_diagnostics(diag);
 
-            hedl_free_document(doc);
+                hedl_free_document(doc);
+            }
         });
     });
 
@@ -577,14 +582,16 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
         // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
-            let mut canonical: *mut c_char = ptr::null_mut();
-            hedl_canonicalize(doc, &mut canonical);
-            hedl_free_string(canonical);
-            let mut diag: *mut HedlDiagnostics = ptr::null_mut();
-            hedl_lint(doc, &mut diag);
-            hedl_free_diagnostics(diag);
-            hedl_free_document(doc);
+            let parse_result = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
+            if parse_result == HEDL_OK && !doc.is_null() {
+                let mut canonical: *mut c_char = ptr::null_mut();
+                hedl_canonicalize(doc, &mut canonical);
+                hedl_free_string(canonical);
+                let mut diag: *mut HedlDiagnostics = ptr::null_mut();
+                hedl_lint(doc, &mut diag);
+                hedl_free_diagnostics(diag);
+                hedl_free_document(doc);
+            }
         }
         ffi_ns += start.elapsed().as_nanos() as u64;
     }
