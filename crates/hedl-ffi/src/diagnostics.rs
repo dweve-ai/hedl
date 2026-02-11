@@ -34,7 +34,7 @@ use std::ptr;
 /// Pointer must be valid. Returns -1 if diag is NULL or poisoned.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_diagnostics_count(diag: *const HedlDiagnostics) -> c_int {
-    if !is_valid_diagnostics_ptr(diag) {
+    if diag.is_null() || !is_valid_diagnostics_ptr(diag) {
         return -1;
     }
     // SAFETY: We validated the pointer is non-null and not poisoned.
