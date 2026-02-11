@@ -307,6 +307,11 @@ pub unsafe extern "C" fn hedl_to_json_async(
 ) -> *mut HedlAsyncOp {
     tracing::debug!("hedl_to_json_async called");
 
+    if doc.is_null() {
+        set_error("Invalid document pointer");
+        return std::ptr::null_mut();
+    }
+
     if !is_valid_document_ptr(doc) {
         set_error("Invalid document pointer");
         return std::ptr::null_mut();
