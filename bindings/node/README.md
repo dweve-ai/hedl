@@ -127,8 +127,8 @@ Use async variants when:
 import * as hedl from 'hedl';
 
 // Async parsing
-const doc = await hedl.parseAsync('%V:2.0\n---\nkey: value');
-console.log(doc.version); // [1, 0]
+const doc = await hedl.parseAsync('%V:2.0\n%NULL:~\n%QUOTE:"\n---\nkey: value');
+console.log(doc.version); // [2, 0]
 doc.close();
 ```
 

@@ -25,6 +25,8 @@ import hedl
 # Parse HEDL content
 doc = hedl.parse('''
 %V:2.0
+%NULL:~
+%QUOTE:"
 %S:User:[id, name, email]
 ---
 users: @User

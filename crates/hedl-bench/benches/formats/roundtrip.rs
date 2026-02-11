@@ -377,6 +377,7 @@ fn compare_json_values(
                     } else {
                         format!("{}.{}", path, key)
                     };
+                    total += 1;
                     mismatches.push(format!("Extra key: {}", new_path));
                 }
             }
@@ -388,6 +389,9 @@ fn compare_json_values(
             let mut total = 0;
             let mut mismatches = Vec::new();
 
+            let min_len = exp_arr.len().min(act_arr.len());
+            let max_len = exp_arr.len().max(act_arr.len());
+
             if exp_arr.len() != act_arr.len() {
                 mismatches.push(format!(
                     "{}: array length mismatch (expected {}, got {})",
@@ -395,6 +399,8 @@ fn compare_json_values(
                     exp_arr.len(),
                     act_arr.len()
                 ));
+                // Account for extra/missing elements in total
+                total += max_len - min_len;
             }
 
             for (i, (exp_val, act_val)) in exp_arr.iter().zip(act_arr.iter()).enumerate() {

@@ -79,7 +79,7 @@ customers:@Customer
  |ord-001,delivered,credit_card,1549.97,123.99,15.99,1689.95,2023-11-15T09:23:45Z,2023-11-22T14:30:00Z
    @Item#2:|item-001,prod-001,1,1299.99,0,1299.99|item-002,prod-007,1,249.99,0,249.99
    @Shipment#1:|ship-001,FedEx,FX123456789US,2.35,2023-11-16,2023-11-21,2023-11-20
- |ord-011,processing,credit_card,299.99,24.00,12.99,336.98,2023-11-21T08:23:11Z,2023-11-22T14:30:00Z
+ |ord-011,processing,credit_card,299.99,24.00,12.99,336.98,2023-11-21T08:23:11Z,2023-11-21T08:23:11Z
    @Item#1:|item-021,prod-011,1,299.99,0,299.99
  |cust-002,Bob Smith,bob.smith@email.com,+1-555-0102,platinum,2018-07-22,34521.75
   @Address#2:|addr-003,1600 Pennsylvania Ave,Washington,DC,20500,USA,38.8977,-77.0365|addr-004,350 Fifth Avenue,New York,NY,10118,USA,40.7484,-73.9857

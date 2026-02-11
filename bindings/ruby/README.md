@@ -26,6 +26,8 @@ require 'hedl'
 # Parse HEDL content
 doc = Hedl.parse(<<~HEDL)
   %V:2.0
+  %NULL:~
+  %QUOTE:"
   %S:User:[id, name, email]
   ---
   users: @User

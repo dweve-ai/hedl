@@ -131,6 +131,8 @@ LD_LIBRARY_PATH=/path/to/hedl/target/release ./myapp
 int main(void) {
     const char* hedl_src =
         "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
         "---\n"
         "name: Alice\n"
         "age: 30\n";

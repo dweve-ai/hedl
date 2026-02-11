@@ -1,6 +1,6 @@
 # hedl-bench
 
-**Comprehensive benchmark suite for HEDL -measure parsing performance, conversion overhead, and regression detection across all crates.**
+**Comprehensive benchmark suite for HEDL - measure parsing performance, conversion overhead, and regression detection across all crates.**
 
 Performance regressions slip into production. Optimization claims need quantitative validation. Comparing HEDL to alternatives requires rigorous measurement. Benchmarking shouldn't require custom harnesses for each test case. Tracking performance over time reveals degradation trends before they impact users.
 

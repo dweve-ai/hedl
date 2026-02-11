@@ -18,6 +18,8 @@ using Dweve.Hedl;
 // Parse HEDL content
 using var doc = Hedl.Parse(@"
 %V:2.0
+%NULL:~
+%QUOTE:""
 %S:User:[id, name, email]
 ---
 users: @User
@@ -26,7 +28,7 @@ users: @User
 ");
 
 // Get document info
-Console.WriteLine($"Version: {doc.Version}");      // (1, 0)
+Console.WriteLine($"Version: {doc.Version}");      // (2, 0)
 Console.WriteLine($"Schemas: {doc.SchemaCount}");  // 1
 
 // Convert to JSON

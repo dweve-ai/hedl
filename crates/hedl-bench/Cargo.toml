@@ -132,7 +132,7 @@ path = "benches/core/validation.rs"
 
 [[bench]]
 name = "end_to_end_workflow"
-path = "benches/integration/end_to_end_workflow.rs"
+path = "benches/integration/end_to_end.rs"
 harness = false
 
 [[bench]]

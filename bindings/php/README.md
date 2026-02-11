@@ -42,6 +42,8 @@ use Dweve\Hedl\Hedl;
 // Parse HEDL content
 $doc = Hedl::parse('
 %V:2.0
+%NULL:~
+%QUOTE:"
 %S:User:[id, name, email]
 ---
 users: @User
