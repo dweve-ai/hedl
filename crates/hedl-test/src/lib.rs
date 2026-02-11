@@ -100,8 +100,8 @@ pub fn write_fixtures_to_dir(dir: &std::path::Path) -> std::io::Result<()> {
 /// Canonical test fixtures covering all HEDL features.
 pub mod fixtures;
 
-/// Expression utility functions for tests.
-pub mod expr_utils;
+/// Expression parsing utilities for tests.
+pub mod expression_parsing;
 
 /// Fixture counting utilities.
 pub mod counts;
@@ -111,7 +111,7 @@ pub use fixtures::*;
 
 // Re-export commonly used utilities
 pub use counts::{count_nodes, count_references};
-pub use expr_utils::{expr, expr_value, try_expr, try_expr_value, ExprError};
+pub use expression_parsing::{expr, expr_value, try_expr, try_expr_value, ExprError};
 
 #[cfg(test)]
 mod tests {
@@ -124,7 +124,7 @@ mod tests {
             let doc = fixture_fn();
             assert_eq!(
                 doc.version,
-                (1, 0),
+                (1, 2),
                 "Fixture {name} should have version 1.0"
             );
         }
@@ -155,7 +155,7 @@ mod tests {
     fn test_with_nest_fixture() {
         let doc = fixtures::with_nest();
         assert!(doc.nests.contains_key("User"));
-        assert_eq!(doc.nests.get("User"), Some(&"Post".to_string()));
+        assert_eq!(doc.nests.get("User"), Some(&vec!["Post".to_string()]));
 
         // Check that alice has children
         if let Some(Item::List(list)) = doc.root.get("users") {

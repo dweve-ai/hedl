@@ -1,9 +1,12 @@
 # WASM Browser Integration Tutorial
 
-This tutorial demonstrates how to use HEDL in web browsers and Node.js via WebAssembly.
+Your web app needs to parse configuration files client-side. Or you're building a local-first application where data never leaves the browser. Or you want to let users preview HEDL documents before uploading them to your backend.
 
-## Prerequisites
+The WASM build brings HEDL's full parsing and conversion capabilities directly to JavaScript and TypeScript. It runs in any modern browser, Node.js, Deno, and anywhere else WebAssembly works. Same 56% token savings, same schema-aware parsing, now available without a server round-trip.
 
+This tutorial shows you how to load the WASM module, parse documents, convert between formats, and integrate with React and Vue. By the end, you'll have HEDL running entirely in the browser.
+
+**What you need:**
 - Node.js 16+ or modern browser
 - npm or yarn
 - Basic JavaScript/TypeScript knowledge
@@ -44,12 +47,14 @@ import init, { parse, toJson } from 'hedl-wasm';
 await init();
 
 const hedlText = `
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+users:@User
+ |alice,Alice Smith, alice@example.com
+ |bob,Bob Jones, bob@example.com
 `;
 
 const doc = parse(hedlText);
@@ -72,7 +77,9 @@ console.log('JSON:', json);
 <body>
     <h1>HEDL Parser</h1>
     <textarea id="input" rows="10" cols="80">
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 name: Alice
 age: 30
@@ -121,7 +128,9 @@ import init, {
 await init();
 
 const hedlText: string = `
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 name: Alice
 age: 30
@@ -240,7 +249,7 @@ import init, { parse, toJson, validate } from 'hedl-wasm';
 
 const HedlEditor: React.FC = () => {
     const [wasmReady, setWasmReady] = useState(false);
-    const [input, setInput] = useState(`%VERSION: 1.0\n---\nname: Alice\nage: 30`);
+    const [input, setInput] = useState(`%V:2.0\n---\nname: Alice\nage: 30`);
     const [output, setOutput] = useState('');
     const [error, setError] = useState('');
 
@@ -382,7 +391,7 @@ function MyComponent() {
 import { ref, onMounted } from 'vue';
 import init, { parse, toJson, validate } from 'hedl-wasm';
 
-const input = ref(`%VERSION: 1.0\n---\nname: Alice\nage: 30`);
+const input = ref(`%V:2.0\n---\nname: Alice\nage: 30`);
 const output = ref('');
 const error = ref('');
 const ready = ref(false);
@@ -561,12 +570,14 @@ function safeParseHedl(input: string) {
     <div class="container">
         <div class="editor">
             <h2>HEDL Input</h2>
-            <textarea id="hedl-input">%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+            <textarea id="hedl-input">%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com</textarea>
+users:@User
+ |alice,Alice Smith, alice@example.com
+ |bob,Bob Jones, bob@example.com</textarea>
             <button onclick="processHedl()">Parse & Convert</button>
         </div>
         <div class="viewer">
@@ -642,5 +653,5 @@ users: @User
 ## Resources
 
 - **[npm package](https://www.npmjs.com/package/hedl-wasm)** - Package page
-- **[GitHub](https://github.com/dweve/hedl)** - Source code
-- **[Examples](https://github.com/dweve/hedl/tree/main/examples)** - Example applications
+- **[GitHub](https://github.com/dweve-ai/hedl)** - Source code
+- **[Examples](https://github.com/dweve-ai/hedl/tree/main/examples)** - Example applications

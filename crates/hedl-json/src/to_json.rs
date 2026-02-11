@@ -195,6 +195,14 @@ fn value_to_json(value: &Value) -> JsonValue {
             // Represent expressions as strings with $() wrapper
             JsonValue::String(format!("$({e})"))
         }
+        Value::List(items) => {
+            // Convert list to JSON array, recursively converting each element
+            let mut arr = Vec::with_capacity(items.len());
+            for item in items.as_ref() {
+                arr.push(value_to_json(item));
+            }
+            JsonValue::Array(arr)
+        }
     }
 }
 
@@ -528,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_item_to_json_scalar() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let item = Item::Scalar(Value::Int(42));
         let result = item_to_json(&item, &doc, &config).unwrap();
@@ -537,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_item_to_json_object() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let mut obj = BTreeMap::new();
         obj.insert(
@@ -553,7 +561,7 @@ mod tests {
 
     #[test]
     fn test_object_to_json_empty() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let obj = BTreeMap::new();
         let result = object_to_json(&obj, &doc, &config).unwrap();
@@ -562,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_object_to_json_nested() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let mut inner = BTreeMap::new();
         inner.insert("nested".to_string(), Item::Scalar(Value::Bool(true)));
@@ -576,7 +584,7 @@ mod tests {
 
     #[test]
     fn test_root_to_json_empty() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let root = BTreeMap::new();
         let result = root_to_json(&root, &doc, &config).unwrap();
@@ -585,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_root_to_json_with_items() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let mut root = BTreeMap::new();
         root.insert(
@@ -660,7 +668,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list_to_json_simple() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let list = MatrixList {
             type_name: "User".to_string(),
@@ -680,7 +688,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list_to_json_with_metadata() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig {
             include_metadata: true,
             flatten_lists: false,
@@ -706,7 +714,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list_to_json_empty() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig::default();
         let list = MatrixList {
             type_name: "User".to_string(),
@@ -720,7 +728,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list_to_json_with_count_hint() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToJsonConfig {
             include_metadata: true,
             flatten_lists: false,

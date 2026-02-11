@@ -37,7 +37,7 @@ proptest! {
         id in "[a-z][a-z0-9_-]{0,30}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -59,7 +59,7 @@ proptest! {
         id in "[a-z][a-z0-9_-]{0,30}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nref: @{type_name}:{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n |{id}\nref: @{type_name}:{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -85,7 +85,7 @@ proptest! {
         let id = format!("{}-{}", id_prefix, id_parts.join("-"));
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -110,7 +110,7 @@ proptest! {
         let id = format!("{}_{}", id_prefix, id_parts.join("_"));
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -135,7 +135,7 @@ proptest! {
         prop_assume!(id1 != id2);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref1, ref2]\n---\nitems: @{type_name}\n  | row1, @{id1}, @{id2}\n  | {id1}, ~, ~\n  | {id2}, ~, ~\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref1, ref2]\n---\nitems:@{type_name}\n |row1, @{id1}, @{id2}\n |{id1}, ~, ~\n |{id2}, ~, ~\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -167,7 +167,7 @@ proptest! {
         prop_assume!(type1 != type2);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type1}: [id]\n%STRUCT: {type2}: [id, ref]\n---\nitems1: @{type1}\n  | {id}\nitems2: @{type2}\n  | other, @{type1}:{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type1}:[id]\n%S:{type2}:[id,ref]\n---\nitems1:@{type1}\n |{id}\nitems2:@{type2}\n |other, @{type1}:{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -187,7 +187,7 @@ proptest! {
     #[test]
     fn prop_null_reference_valid(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | id1, ~\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |id1, ~\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -210,7 +210,7 @@ proptest! {
         let id = format!("{id_prefix}{id_suffix}");
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -232,7 +232,7 @@ proptest! {
         id in "[a-z][a-z0-9_-]{0,30}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{id}\n"
         );
 
         let result1 = parse(doc.as_bytes());
@@ -266,7 +266,7 @@ mod expression_syntax {
             content in "[a-zA-Z0-9+\\-* ]{1,50}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n---\nvalue: $$({content})\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: $$({content})\n"
             );
 
             let result = parse(doc.as_bytes());

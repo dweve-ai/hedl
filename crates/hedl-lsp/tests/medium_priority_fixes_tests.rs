@@ -25,7 +25,7 @@
 use hedl_lsp::analysis::AnalyzedDocument;
 use hedl_lsp::completion::get_completions;
 use hedl_lsp::rename::{find_all_occurrences, identify_symbol_at_position};
-use hedl_lsp::utils::{get_line_and_byte_offset, utf16_col_to_byte_offset};
+use hedl_lsp::utf_encoding::{get_line_and_byte_offset, utf16_col_to_byte_offset};
 use tower_lsp::lsp_types::*;
 
 // ============================================================================
@@ -36,12 +36,14 @@ use tower_lsp::lsp_types::*;
 fn test_type_occurrence_multiple_on_same_line() {
     // Test that when a type appears multiple times on the same line,
     // ALL occurrences are found, not just the first one
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title, author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title, author]
 ---
-data: users: @User, posts: @Post, admins: @User
-";
+data: users:@User, posts:@Post, admins:@User
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = Url::parse("file:///test.hedl").unwrap();
@@ -50,7 +52,7 @@ data: users: @User, posts: @Post, admins: @User
     let symbol = identify_symbol_at_position(
         &analysis,
         content,
-        Position::new(1, 10), // Position on "User" in %STRUCT
+        Position::new(3, 4), // Position on "User" in %S directive
     );
 
     assert!(symbol.is_some(), "Should identify User symbol");
@@ -59,24 +61,24 @@ data: users: @User, posts: @Post, admins: @User
 
     // Should find:
     // 1. Definition in %STRUCT: User
-    // 2. First usage: @User (in "users: @User")
-    // 3. Second usage: @User (in "admins: @User")
+    // 2. First usage:@User (in "users:@User")
+    // 3. Second usage:@User (in "admins:@User")
     assert!(
         occurrences.len() >= 3,
         "Should find at least 3 occurrences of User (found {})",
         occurrences.len()
     );
 
-    // Check that we found both @User on line 4
-    let line_4_occurrences: Vec<_> = occurrences
+    // Check that we found both @User on line 6
+    let line_6_occurrences: Vec<_> = occurrences
         .iter()
-        .filter(|loc| loc.location.line == 4)
+        .filter(|loc| loc.location.line == 6)
         .collect();
 
     assert!(
-        line_4_occurrences.len() >= 2,
-        "Should find 2 occurrences of @User on line 4 (found {})",
-        line_4_occurrences.len()
+        line_6_occurrences.len() >= 2,
+        "Should find 2 occurrences of @User on line 6 (found {})",
+        line_6_occurrences.len()
     );
 }
 
@@ -84,17 +86,19 @@ data: users: @User, posts: @Post, admins: @User
 fn test_type_occurrence_in_struct_directive_not_first_match() {
     // Test that we find the correct type name even when it's not the first match
     // E.g., if there's a comment or prefix containing the type name
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 # This User comment should not interfere
 ---
-users: @User
-";
+users:@User
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
-    let symbol = identify_symbol_at_position(&analysis, content, Position::new(1, 10));
+    let symbol = identify_symbol_at_position(&analysis, content, Position::new(3, 4));
     assert!(symbol.is_some());
 
     let occurrences = find_all_occurrences(&symbol.unwrap(), &analysis, content, &uri);
@@ -112,20 +116,22 @@ users: @User
 fn test_type_occurrence_substring_not_matched() {
     // Test that substring matches don't count
     // E.g., "User" should not match "SuperUser" or "UserData"
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: SuperUser: [id, name, role]
-%STRUCT: UserData: [id, data]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:SuperUser:[id, name, role]
+%S:UserData:[id, data]
 ---
-users: @User
-superusers: @SuperUser
-";
+users:@User
+superusers:@SuperUser
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
     // Find occurrences of "User" (not "SuperUser" or "UserData")
-    let symbol = identify_symbol_at_position(&analysis, content, Position::new(1, 10));
+    let symbol = identify_symbol_at_position(&analysis, content, Position::new(3, 4));
     assert!(symbol.is_some());
 
     let occurrences = find_all_occurrences(&symbol.unwrap(), &analysis, content, &uri);
@@ -187,18 +193,20 @@ fn test_utf16_position_with_emoji() {
 #[test]
 fn test_position_handling_with_unicode_in_hedl() {
     // Test that we can correctly identify symbols when the document contains Unicode
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, 名前, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, 名前, email]
 ---
-users: @User
-  | alice, アリス, alice@example.com
-";
+users:@User
+ |alice, アリス, alice@example.com
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Try to get completions at a position after Unicode characters
     // Position should be in UTF-16 code units
-    let position = Position::new(4, 10); // In the middle of the line with Unicode
+    let position = Position::new(6, 10); // In the middle of the line with Unicode
 
     let completions = get_completions(&analysis, content, position);
 
@@ -231,20 +239,22 @@ fn test_get_line_and_byte_offset_unicode() {
 #[test]
 fn test_active_list_type_nested_lists() {
     // Test that we correctly identify the active list type in nested lists
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
-%STRUCT: Comment: [id, text]
-%NEST: User > Post
-%NEST: Post > Comment
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title]
+%S:Comment:[id, text]
+%N:User>Post
+%N:Post>Comment
 ---
-users: @User
-  | alice, Alice
-    posts: @Post
-      | post1, First Post
-        comments: @Comment
-          | c1, Great!
-";
+users:@User
+ |alice, Alice
+    posts:@Post
+      |post1, First Post
+        comments:@Comment
+          |c1, Great!
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -287,18 +297,20 @@ users: @User
 #[test]
 fn test_active_list_type_sibling_lists() {
     // Test that we correctly identify the type when there are sibling lists at the same level
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
+users:@User
+ |alice, Alice
+ |bob, Bob
 
-posts: @Post
-  | post1, First Post
-  | post2, Second Post
-";
+posts:@Post
+ |post1, First Post
+ |post2, Second Post
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -317,18 +329,20 @@ posts: @Post
 #[test]
 fn test_active_list_type_with_indentation_variation() {
     // Test handling of lists with varying indentation levels
-    let content = r"%VERSION: 1.0
-%STRUCT: Level1: [id, name]
-%STRUCT: Level2: [id, data]
-%STRUCT: Level3: [id, value]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Level1:[id, name]
+%S:Level2:[id, data]
+%S:Level3:[id, value]
 ---
-level1: @Level1
-  | item1, Name1
-    level2: @Level2
-      | item2, Data2
-        level3: @Level3
-          | item3, Value3
-";
+level1:@Level1
+ |item1, Name1
+    level2:@Level2
+      |item2, Data2
+        level3:@Level3
+          |item3, Value3
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -358,14 +372,16 @@ level1: @Level1
 #[test]
 fn test_active_list_type_empty_parent() {
     // Test that we handle the case where a parent list has no rows
-    let content = r"%VERSION: 1.0
-%STRUCT: Parent: [id, name]
-%STRUCT: Child: [id, data]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Parent:[id, name]
+%S:Child:[id, data]
 ---
-parents: @Parent
-  children: @Child
-    | c1, Data1
-";
+parents:@Parent
+  children:@Child
+    |c1, Data1
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -386,15 +402,17 @@ parents: @Parent
 #[test]
 fn test_unicode_and_nested_lists_combined() {
     // Test that Unicode handling works correctly in nested lists
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, 名前]
-%STRUCT: Post: [id, タイトル]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, 名前]
+%S:Post:[id, タイトル]
 ---
-users: @User
-  | alice, アリス
-    posts: @Post
-      | p1, 最初の投稿
-";
+users:@User
+ |alice, アリス
+    posts:@Post
+      |p1, 最初の投稿
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -411,28 +429,30 @@ users: @User
 #[test]
 fn test_multiple_type_occurrences_with_unicode() {
     // Test that we find all type occurrences even when the line contains Unicode
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-data: users: @User, 管理者: @User
-";
+data: users:@User, 管理者:@User
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
-    let symbol = identify_symbol_at_position(&analysis, content, Position::new(1, 10));
+    let symbol = identify_symbol_at_position(&analysis, content, Position::new(3, 4));
     assert!(symbol.is_some());
 
     let occurrences = find_all_occurrences(&symbol.unwrap(), &analysis, content, &uri);
 
     // Should find both @User occurrences despite Unicode in between
-    let line_3_occurrences: Vec<_> = occurrences
+    let line_5_occurrences: Vec<_> = occurrences
         .iter()
-        .filter(|loc| loc.location.line == 3)
+        .filter(|loc| loc.location.line == 5)
         .collect();
 
     assert!(
-        line_3_occurrences.len() >= 2,
+        line_5_occurrences.len() >= 2,
         "Should find both @User occurrences on line with Unicode"
     );
 }
@@ -444,16 +464,18 @@ data: users: @User, 管理者: @User
 #[test]
 fn test_regression_simple_type_occurrence() {
     // Ensure that simple type occurrence finding still works
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-";
+users:@User
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = Url::parse("file:///test.hedl").unwrap();
 
-    let symbol = identify_symbol_at_position(&analysis, content, Position::new(1, 10));
+    let symbol = identify_symbol_at_position(&analysis, content, Position::new(3, 4));
     assert!(symbol.is_some());
 
     let occurrences = find_all_occurrences(&symbol.unwrap(), &analysis, content, &uri);
@@ -467,12 +489,14 @@ users: @User
 #[test]
 fn test_regression_ascii_position_handling() {
     // Ensure ASCII text still works correctly
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
-";
+users:@User
+ |alice, Alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -483,12 +507,14 @@ users: @User
 #[test]
 fn test_regression_simple_list_type_detection() {
     // Ensure simple list type detection still works
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
-";
+users:@User
+ |alice, Alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 

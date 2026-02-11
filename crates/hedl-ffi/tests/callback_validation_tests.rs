@@ -9,7 +9,9 @@
 use hedl_ffi::*;
 use std::os::raw::{c_char, c_void};
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+#[cfg(feature = "json")]
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 // Thread-safe counter for use with user_data
@@ -53,6 +55,7 @@ unsafe extern "C" fn copying_callback(data: *const c_char, len: usize, _user_dat
 }
 
 // Callback that verifies user_data pointer
+#[cfg(feature = "json")]
 unsafe extern "C" fn userdata_callback(_data: *const c_char, _len: usize, user_data: *mut c_void) {
     if !user_data.is_null() {
         let value = *(user_data as *const i32);
@@ -63,10 +66,11 @@ unsafe extern "C" fn userdata_callback(_data: *const c_char, _len: usize, user_d
 #[cfg(feature = "json")]
 #[test]
 fn test_json_callback_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nkey: \"value\"\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: \"value\"\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -88,10 +92,11 @@ fn test_json_callback_basic() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_callback_with_user_data() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let user_value: i32 = 42;
 
-        let input = b"%VERSION: 1.0\n---\ntest: 123\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntest: 123\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -110,10 +115,11 @@ fn test_json_callback_with_user_data() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_callback_data_content() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         get_callback_buffer().lock().unwrap().clear();
 
-        let input = b"%VERSION: 1.0\n---\nkey: \"test_value\"\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: \"test_value\"\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -134,10 +140,11 @@ fn test_json_callback_data_content() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_yaml_callback_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -158,10 +165,11 @@ fn test_yaml_callback_basic() {
 #[cfg(feature = "xml")]
 #[test]
 fn test_xml_callback_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nroot: { child: \"value\" }\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot: { child: \"value\" }\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -181,10 +189,12 @@ fn test_xml_callback_basic() {
 #[cfg(feature = "csv")]
 #[test]
 fn test_csv_callback_basic() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nrows: [\n{ a: 1, b: 2 },\n{ a: 3, b: 4 }\n]\0";
+        let input =
+            b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nrows: [\n{ a: 1, b: 2 },\n{ a: 3, b: 4 }\n]\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -206,10 +216,11 @@ fn test_csv_callback_basic() {
 #[cfg(feature = "neo4j")]
 #[test]
 fn test_neo4j_callback_basic() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nnode: { id: 1 }\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nnode: { id: 1 }\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -231,10 +242,11 @@ fn test_neo4j_callback_basic() {
 
 #[test]
 fn test_canonicalize_callback_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert_eq!(parse_result, HEDL_OK, "Parse failed");
@@ -262,10 +274,11 @@ fn test_canonicalize_callback_basic() {
 
 #[test]
 fn test_canonicalize_callback_data_content() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         get_callback_buffer().lock().unwrap().clear();
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -276,7 +289,7 @@ fn test_canonicalize_callback_data_content() {
             let buffer = get_callback_buffer().lock().unwrap();
             assert!(!buffer.is_empty());
             let data_str = String::from_utf8_lossy(&buffer);
-            assert!(data_str.contains("%VERSION"));
+            assert!(data_str.contains("%V:"));
             assert!(data_str.contains("key"));
         }
 
@@ -287,10 +300,11 @@ fn test_canonicalize_callback_data_content() {
 #[cfg(feature = "json")]
 #[test]
 fn test_callback_invoked_only_once() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\ndata: \"test\"\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: \"test\"\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -310,10 +324,12 @@ fn test_callback_invoked_only_once() {
 #[cfg(feature = "json")]
 #[test]
 fn test_callback_with_complex_data() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\ncomplex: { nested: { deep: { value: 42 } } }\0";
+        let input =
+            b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ncomplex: { nested: { deep: { value: 42 } } }\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -337,11 +353,12 @@ fn test_callback_with_complex_data() {
 #[cfg(feature = "json")]
 #[test]
 fn test_callback_with_large_output() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let counter = CallbackCounter::new();
 
         // Create a document that will produce large output
-        let mut input = String::from("%VERSION: 1.0\n---\nitems: [");
+        let mut input = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nitems: [");
         for i in 0..1000 {
             if i > 0 {
                 input.push_str(", ");
@@ -372,10 +389,11 @@ fn test_callback_with_large_output() {
 #[cfg(feature = "json")]
 #[test]
 fn test_multiple_callbacks_different_formats() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let counter = CallbackCounter::new();
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -403,8 +421,10 @@ fn test_multiple_callbacks_different_formats() {
 }
 
 // Test callback that tracks if it was called
+#[cfg(feature = "json")]
 static CALLBACK_INVOKED: AtomicBool = AtomicBool::new(false);
 
+#[cfg(feature = "json")]
 unsafe extern "C" fn tracking_callback(_data: *const c_char, _len: usize, _user_data: *mut c_void) {
     CALLBACK_INVOKED.store(true, Ordering::SeqCst);
 }
@@ -412,10 +432,11 @@ unsafe extern "C" fn tracking_callback(_data: *const c_char, _len: usize, _user_
 #[cfg(feature = "json")]
 #[test]
 fn test_callback_definitely_invoked() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         CALLBACK_INVOKED.store(false, Ordering::SeqCst);
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -431,6 +452,7 @@ fn test_callback_definitely_invoked() {
 #[cfg(feature = "json")]
 #[test]
 fn test_callback_data_lifetime() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // This test verifies that data passed to callback is valid
         static mut DATA_PTR: *const c_char = ptr::null();
@@ -453,7 +475,7 @@ fn test_callback_data_lifetime() {
             let _ = String::from_utf8_lossy(slice);
         }
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -469,10 +491,11 @@ fn test_callback_data_lifetime() {
 #[cfg(feature = "json")]
 #[test]
 fn test_callback_with_metadata_flag() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         get_callback_buffer().lock().unwrap().clear();
 
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 

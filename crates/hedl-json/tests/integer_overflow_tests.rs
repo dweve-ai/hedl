@@ -25,7 +25,6 @@
 //! - Various numeric representations work correctly
 
 // Allow approximate float constants in tests - these are intentional test values
-#![allow(clippy::approx_constant)]
 
 use hedl_core::{Item, Value};
 use hedl_json::{from_json, hedl_to_json, json_to_hedl, FromJsonConfig};
@@ -241,10 +240,10 @@ fn test_f64_max() {
 
 #[test]
 fn test_negative_float() {
-    let json = r#"{"value": -3.14159}"#;
+    let json = r#"{"value": -4.56789}"#;
     let doc = json_to_hedl(json).unwrap();
     let f = get_float_value(&doc.root["value"]).unwrap();
-    assert!((f - (-3.14159)).abs() < 0.00001);
+    assert!((f - (-4.56789)).abs() < 0.00001);
 }
 
 #[test]
@@ -408,13 +407,13 @@ fn test_roundtrip_negative_integer() {
 
 #[test]
 fn test_roundtrip_float() {
-    let json = r#"{"value": 3.14159}"#;
+    let json = r#"{"value": 4.56789}"#;
     let doc = json_to_hedl(json).unwrap();
     let output = hedl_to_json(&doc).unwrap();
 
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
     let f = parsed["value"].as_f64().unwrap();
-    assert!((f - 3.14159).abs() < 0.00001);
+    assert!((f - 4.56789).abs() < 0.00001);
 }
 
 // =============================================================================
@@ -433,12 +432,12 @@ fn test_multiple_integer_fields() {
 
 #[test]
 fn test_mixed_int_and_float() {
-    let json = r#"{"int": 42, "float": 3.14}"#;
+    let json = r#"{"int": 42, "float": 4.56}"#;
     let doc = json_to_hedl(json).unwrap();
 
     assert_eq!(get_int_value(&doc.root["int"]), Some(42));
     let f = get_float_value(&doc.root["float"]).unwrap();
-    assert!((f - 3.14).abs() < 0.001);
+    assert!((f - 4.56).abs() < 0.001);
 }
 
 #[test]

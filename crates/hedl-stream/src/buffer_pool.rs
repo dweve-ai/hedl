@@ -23,7 +23,7 @@
 //!
 //! # Design
 //!
-//! - **Type-specific pools**: Separate pools for String and Vec<Value>
+//! - **Type-specific pools**: Separate pools for String and `Vec<Value>`
 //! - **Capacity limits**: Configurable maximum pool sizes to prevent unbounded growth
 //! - **Clear-on-release**: Buffers are cleared but capacity is retained
 //! - **Lazy growth**: Pools grow on demand up to configured limits
@@ -202,7 +202,7 @@ impl MemoryLimits {
     }
 }
 
-/// Buffer pool for String and Vec<Value> reuse.
+/// Buffer pool for String and `Vec<Value>` reuse.
 ///
 /// Maintains pools of pre-allocated buffers to reduce allocation overhead
 /// during high-throughput parsing operations.
@@ -296,7 +296,7 @@ impl BufferPool {
     ///
     /// - `max_pool_size`: Maximum buffers to pool per type
     /// - `string_capacity_hint`: Initial capacity for String buffers
-    /// - `value_capacity_hint`: Initial capacity for Vec<Value> buffers
+    /// - `value_capacity_hint`: Initial capacity for `Vec<Value>` buffers
     ///
     /// # Examples
     ///
@@ -370,7 +370,7 @@ impl BufferPool {
         // Otherwise drop the buffer
     }
 
-    /// Acquire a Vec<Value> buffer from the pool.
+    /// Acquire a `Vec<Value>` buffer from the pool.
     ///
     /// Returns a pooled buffer if available, otherwise allocates a new one
     /// with the configured capacity hint.
@@ -392,7 +392,7 @@ impl BufferPool {
             .unwrap_or_else(|| Vec::with_capacity(self.value_capacity_hint))
     }
 
-    /// Release a Vec<Value> buffer back to the pool.
+    /// Release a `Vec<Value>` buffer back to the pool.
     ///
     /// The buffer is cleared but retains its capacity. If the pool is full,
     /// the buffer is dropped.
@@ -441,7 +441,7 @@ impl BufferPool {
         self.string_pool.len()
     }
 
-    /// Get the current number of Vec<Value> buffers in the pool.
+    /// Get the current number of `Vec<Value>` buffers in the pool.
     ///
     /// # Examples
     ///

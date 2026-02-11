@@ -23,10 +23,10 @@ c: "test"
 const MATRIX_HEDL: &str = r"%VERSION: 1.0
 ---
 @STRUCT Person[name, age]
-people: @Person[id, name, age]
-  |p1,Alice,30
-  |p2,Bob,25
-  |p3,Charlie,35
+people:@Person[id, name, age]
+ |p1,Alice,30
+ |p2,Bob,25
+ |p3,Charlie,35
 ";
 
 const SIMPLE_JSON: &str = r#"{"a":1,"b":2,"c":"test"}"#;
@@ -145,7 +145,8 @@ fn test_from_json_valid() {
 
     assert!(result.is_ok());
     let hedl = read_file_content(output.path());
-    assert!(hedl.contains("%VERSION:"));
+    // Compact format uses %V: prefix
+    assert!(hedl.contains("%V:"));
     assert!(hedl.contains("a:"));
     assert!(hedl.contains("b:"));
 }
@@ -216,7 +217,8 @@ fn test_from_yaml_valid() {
 
     assert!(result.is_ok());
     let hedl = read_file_content(output.path());
-    assert!(hedl.contains("%VERSION:"));
+    // Compact format uses %V: prefix
+    assert!(hedl.contains("%V:"));
 }
 
 #[test]

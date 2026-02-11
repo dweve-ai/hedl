@@ -134,7 +134,7 @@ pub enum Value {
     Expression(Box<Expression>), // Boxed to reduce enum size
 }
 
-// Parsing interface (from hedl-core/src/parser.rs)
+// Parsing interface (from hedl-core/src/parser/)
 pub fn parse(input: &[u8]) -> HedlResult<Document>;
 pub fn parse_with_limits(input: &[u8], options: ParseOptions) -> HedlResult<Document>;
 ```
@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_parse_basic() {
-        let input = b"%VERSION: 1.0\n---\nkey: value";
+        let input = b"%V:2.0\n---\nkey: value";
         let doc = parse(input).unwrap();
         assert_eq!(doc.root.len(), 1);
     }
@@ -559,7 +559,7 @@ mod tests {
 
     #[test]
     fn test_json_roundtrip() {
-        let hedl_input = b"%VERSION: 1.0\n---\nkey: value";
+        let hedl_input = b"%V:2.0\n---\nkey: value";
         let doc = parse(hedl_input).unwrap();
         let json = to_json(&doc, &Default::default()).unwrap();
         let doc2 = from_json(&json, &Default::default()).unwrap();
@@ -576,7 +576,7 @@ Test layer interactions:
 // Test Application Layer → Format Layer → Core Layer
 #[test]
 fn test_cli_conversion() {
-    let input = b"%VERSION: 1.0\n---\nkey: value";
+    let input = b"%V:2.0\n---\nkey: value";
     let doc = hedl::parse(input).unwrap();
     let json = hedl_json::to_json(&doc, &Default::default()).unwrap();
     assert!(json.contains("\"key\""));
@@ -708,11 +708,11 @@ pub fn parse(input: &str) -> Result<Document> {
 
 ### Chosen Trade-offs
 
-| Aspect | Trade-off | Rationale |
+ |Aspect |Trade-off |Rationale |
 |--------|-----------|-----------|
-| Modularity vs. Simplicity | Favor modularity | Benefits outweigh complexity |
-| Performance vs. Safety | Safety first | Optimize hot paths only |
-| Flexibility vs. Stability | Stable core, flexible formats | Core must be rock-solid |
+ |Modularity vs. Simplicity |Favor modularity |Benefits outweigh complexity |
+ |Performance vs. Safety |Safety first |Optimize hot paths only |
+ |Flexibility vs. Stability |Stable core, flexible formats |Core must be rock-solid |
 
 ## Related Documentation
 

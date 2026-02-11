@@ -1,0 +1,31 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Knowledge graph example with complex relationships
+# Shows HEDL's graph database capabilities
+%S:Concept:[id,name,category]
+%S:Relation:[id,from,to,type,strength]
+%S:Property:[id,key,value]
+%N:Concept>Property
+---
+# Concepts in the knowledge graph
+concepts:@Concept
+ |c1,"Binary Neural Networks",ml
+  @Property#3:
+  |p1,description,"Neural networks with binary weights"
+  |p2,efficiency,"226x less power than traditional"
+  |p3,precision,"1-bit quantization"
+ |c2,"SIMD",optimization
+  @Property#2:
+  |p4,type,"Vector processing"
+  |p5,variants,"AVX2, NEON, SVE"
+ |c3,"Constraint Discovery",algorithm
+  @Property#2:
+  |p6,approach,"Finite binary constraints"
+  |p7,advantage,"100% explainability"
+
+# Relationships between concepts
+relations:@Relation
+ |r1,@c1,@c2,uses,0.9
+ |r2,@c1,@c3,implements,0.95
+ |r3,@c2,@c3,enables,0.8

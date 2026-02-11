@@ -62,6 +62,7 @@ use std::fmt;
 /// assert_eq!(pos.column(), 1);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SourcePos {
     /// Line number (typically 1-indexed, but 0 is allowed for unknown positions).
     line: usize,
@@ -163,6 +164,7 @@ impl fmt::Display for SourcePos {
 /// assert!(span.is_single_line());
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Span {
     /// Start position (inclusive).
     start: SourcePos,

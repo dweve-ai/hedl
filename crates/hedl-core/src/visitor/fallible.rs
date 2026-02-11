@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn test_default_implementations_return_ok_continue() {
         let mut visitor = NoOpFallibleVisitor;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         assert_eq!(
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn test_fallible_visitor_returns_error_on_null() {
         let mut visitor = StrictValidator;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let result = visitor.visit_scalar("key", &Value::Null, &ctx);
@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn test_fallible_visitor_accepts_non_null() {
         let mut visitor = StrictValidator;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let result = visitor.visit_scalar("key", &Value::Int(42), &ctx);
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn test_fallible_visitor_validates_node_ids() {
         let mut visitor = StrictValidator;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let empty_id_node = Node::new("User", "", vec![]);
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn test_fallible_visitor_can_stop_early() {
         let mut visitor = EarlyStopOnError;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let normal_node = Node::new("User", "1", vec![]);
@@ -369,7 +369,7 @@ mod tests {
             count: 0,
             max_count: 2,
         };
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let node = Node::new("User", "1", vec![]);

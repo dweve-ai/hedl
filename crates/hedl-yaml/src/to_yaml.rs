@@ -40,7 +40,6 @@ use std::collections::BTreeMap;
 static TYPE_KEY: Lazy<YamlValue> = Lazy::new(|| YamlValue::String("__type__".to_string()));
 static SCHEMA_KEY: Lazy<YamlValue> = Lazy::new(|| YamlValue::String("__schema__".to_string()));
 static ITEMS_KEY: Lazy<YamlValue> = Lazy::new(|| YamlValue::String("items".to_string()));
-static ID_KEY: Lazy<YamlValue> = Lazy::new(|| YamlValue::String("id".to_string()));
 static REF_KEY: Lazy<YamlValue> = Lazy::new(|| YamlValue::String("@ref".to_string()));
 
 // Field name cache for common indices (0-99)
@@ -99,32 +98,37 @@ pub fn to_yaml(doc: &Document, config: &ToYamlConfig) -> Result<String, String> 
 
 /// Convert Document to `serde_yaml::Value`
 pub fn to_yaml_value(doc: &Document, config: &ToYamlConfig) -> Result<YamlValue, String> {
-    root_to_yaml(&doc.root, config)
+    root_to_yaml(&doc.root, doc, config)
 }
 
-fn root_to_yaml(root: &BTreeMap<String, Item>, config: &ToYamlConfig) -> Result<YamlValue, String> {
+fn root_to_yaml(
+    root: &BTreeMap<String, Item>,
+    doc: &Document,
+    config: &ToYamlConfig,
+) -> Result<YamlValue, String> {
     // Pre-allocate mapping with capacity hint for better performance
     let mut map = Mapping::new();
     map.reserve(root.len());
 
     for (key, item) in root {
-        let yaml_value = item_to_yaml(item, config)?;
+        let yaml_value = item_to_yaml(item, doc, config)?;
         map.insert(YamlValue::String(key.clone()), yaml_value);
     }
 
     Ok(YamlValue::Mapping(map))
 }
 
-fn item_to_yaml(item: &Item, config: &ToYamlConfig) -> Result<YamlValue, String> {
+fn item_to_yaml(item: &Item, doc: &Document, config: &ToYamlConfig) -> Result<YamlValue, String> {
     match item {
         Item::Scalar(value) => Ok(value_to_yaml(value)),
-        Item::Object(obj) => object_to_yaml(obj, config),
-        Item::List(list) => matrix_list_to_yaml(list, config),
+        Item::Object(obj) => object_to_yaml(obj, doc, config),
+        Item::List(list) => matrix_list_to_yaml(list, doc, config),
     }
 }
 
 fn object_to_yaml(
     obj: &BTreeMap<String, Item>,
+    doc: &Document,
     config: &ToYamlConfig,
 ) -> Result<YamlValue, String> {
     // Pre-allocate mapping with capacity hint
@@ -132,7 +136,7 @@ fn object_to_yaml(
     map.reserve(obj.len());
 
     for (key, item) in obj {
-        let yaml_value = item_to_yaml(item, config)?;
+        let yaml_value = item_to_yaml(item, doc, config)?;
         map.insert(YamlValue::String(key.clone()), yaml_value);
     }
 
@@ -164,6 +168,10 @@ fn value_to_yaml(value: &Value) -> YamlValue {
             s.push(')');
             YamlValue::String(s)
         }
+        Value::List(items) => {
+            // Convert list to YAML sequence
+            YamlValue::Sequence(items.iter().map(value_to_yaml).collect())
+        }
     }
 }
 
@@ -175,7 +183,11 @@ fn tensor_to_yaml(tensor: &Tensor) -> YamlValue {
     }
 }
 
-fn matrix_list_to_yaml(list: &MatrixList, config: &ToYamlConfig) -> Result<YamlValue, String> {
+fn matrix_list_to_yaml(
+    list: &MatrixList,
+    doc: &Document,
+    config: &ToYamlConfig,
+) -> Result<YamlValue, String> {
     // Pre-allocate array capacity
     let mut array = Vec::with_capacity(list.rows.len());
 
@@ -224,7 +236,7 @@ fn matrix_list_to_yaml(list: &MatrixList, config: &ToYamlConfig) -> Result<YamlV
         if config.include_children {
             if let Some(children_map) = row.children() {
                 for (child_type, child_nodes) in children_map {
-                    let child_yaml = nodes_to_yaml(&list.type_name, child_nodes, config)?;
+                    let child_yaml = nodes_to_yaml(child_type, child_nodes, doc, config)?;
                     row_obj.insert(YamlValue::String(child_type.clone()), child_yaml);
                 }
             }
@@ -249,10 +261,18 @@ fn matrix_list_to_yaml(list: &MatrixList, config: &ToYamlConfig) -> Result<YamlV
 fn nodes_to_yaml(
     type_name: &str,
     nodes: &[Node],
+    doc: &Document,
     config: &ToYamlConfig,
 ) -> Result<YamlValue, String> {
     // Pre-allocate array capacity
     let mut array = Vec::with_capacity(nodes.len());
+
+    // Look up the schema for this type from the Document
+    let schema = doc
+        .structs
+        .get(type_name)
+        .map(|s| s.as_slice())
+        .unwrap_or(&[]);
 
     // Pre-allocate type name YamlValue if metadata is enabled
     let type_value = if config.include_metadata {
@@ -263,19 +283,24 @@ fn nodes_to_yaml(
 
     for node in nodes {
         // Pre-allocate object mapping with expected size
-        let expected_size = 1 // id
-            + node.fields.len()
+        let expected_size = schema.len()
             + usize::from(config.include_metadata)
-            + if config.include_children { node.children().map_or(0, std::collections::BTreeMap::len) } else { 0 };
+            + if config.include_children {
+                node.children().map_or(0, std::collections::BTreeMap::len)
+            } else {
+                0
+            };
         let mut obj = Mapping::new();
         obj.reserve(expected_size);
 
-        // Insert ID using constant
-        obj.insert(ID_KEY.clone(), YamlValue::String(node.id.clone()));
-
-        // Add fields using cached field names
+        // Add fields using schema column names
         for (i, value) in node.fields.iter().enumerate() {
-            obj.insert(get_field_name(i), value_to_yaml(value));
+            let key = if let Some(col_name) = schema.get(i) {
+                YamlValue::String(col_name.clone())
+            } else {
+                get_field_name(i)
+            };
+            obj.insert(key, value_to_yaml(value));
         }
 
         // Add metadata if configured
@@ -287,7 +312,7 @@ fn nodes_to_yaml(
         if config.include_children {
             if let Some(children_map) = node.children() {
                 for (child_type, child_nodes) in children_map {
-                    let child_yaml = nodes_to_yaml(child_type, child_nodes, config)?;
+                    let child_yaml = nodes_to_yaml(child_type, child_nodes, doc, config)?;
                     obj.insert(YamlValue::String(child_type.clone()), child_yaml);
                 }
             }
@@ -706,11 +731,23 @@ mod tests {
 
     // ==================== object_to_yaml tests ====================
 
+    fn empty_doc() -> Document {
+        Document {
+            version: (1, 0),
+            root: BTreeMap::new(),
+            structs: BTreeMap::new(),
+            nests: BTreeMap::new(),
+            schema_versions: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+        }
+    }
+
     #[test]
     fn test_object_to_yaml_empty() {
         let obj = BTreeMap::new();
         let config = ToYamlConfig::default();
-        let yaml = object_to_yaml(&obj, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = object_to_yaml(&obj, &doc, &config).unwrap();
         assert_eq!(yaml, YamlValue::Mapping(Mapping::new()));
     }
 
@@ -724,7 +761,8 @@ mod tests {
         obj.insert("age".to_string(), Item::Scalar(Value::Int(42)));
 
         let config = ToYamlConfig::default();
-        let yaml = object_to_yaml(&obj, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = object_to_yaml(&obj, &doc, &config).unwrap();
 
         if let YamlValue::Mapping(map) = yaml {
             assert_eq!(map.len(), 2);
@@ -751,7 +789,8 @@ mod tests {
         outer.insert("point".to_string(), Item::Object(inner));
 
         let config = ToYamlConfig::default();
-        let yaml = object_to_yaml(&outer, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = object_to_yaml(&outer, &doc, &config).unwrap();
 
         if let YamlValue::Mapping(map) = yaml {
             if let Some(YamlValue::Mapping(point)) = map.get(YamlValue::String("point".to_string()))
@@ -778,7 +817,8 @@ mod tests {
         );
 
         let config = ToYamlConfig::default();
-        let yaml = object_to_yaml(&obj, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = object_to_yaml(&obj, &doc, &config).unwrap();
 
         if let YamlValue::Mapping(map) = yaml {
             assert_eq!(map.len(), 5);
@@ -793,7 +833,8 @@ mod tests {
     fn test_item_to_yaml_scalar() {
         let item = Item::Scalar(Value::Int(42));
         let config = ToYamlConfig::default();
-        let yaml = item_to_yaml(&item, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = item_to_yaml(&item, &doc, &config).unwrap();
         assert_eq!(yaml, YamlValue::Number(42.into()));
     }
 
@@ -804,7 +845,8 @@ mod tests {
         let item = Item::Object(obj);
 
         let config = ToYamlConfig::default();
-        let yaml = item_to_yaml(&item, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = item_to_yaml(&item, &doc, &config).unwrap();
 
         if let YamlValue::Mapping(map) = yaml {
             assert_eq!(map.len(), 1);
@@ -828,7 +870,8 @@ mod tests {
             flatten_lists: false,
             include_children: true,
         };
-        let yaml = item_to_yaml(&item, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = item_to_yaml(&item, &doc, &config).unwrap();
 
         if let YamlValue::Sequence(seq) = yaml {
             assert_eq!(seq.len(), 1);
@@ -859,7 +902,8 @@ mod tests {
             flatten_lists: false,
             include_children: true,
         };
-        let yaml = matrix_list_to_yaml(&list, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = matrix_list_to_yaml(&list, &doc, &config).unwrap();
 
         if let YamlValue::Sequence(seq) = yaml {
             assert_eq!(seq.len(), 1);
@@ -900,7 +944,8 @@ mod tests {
             flatten_lists: false,
             include_children: true,
         };
-        let yaml = matrix_list_to_yaml(&list, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = matrix_list_to_yaml(&list, &doc, &config).unwrap();
 
         if let YamlValue::Mapping(wrapper) = yaml {
             assert!(wrapper.contains_key(YamlValue::String("__type__".to_string())));
@@ -925,7 +970,8 @@ mod tests {
             flatten_lists: true,
             include_children: true,
         };
-        let yaml = matrix_list_to_yaml(&list, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = matrix_list_to_yaml(&list, &doc, &config).unwrap();
 
         // With flatten_lists, should be a sequence not a mapping
         if let YamlValue::Sequence(seq) = yaml {
@@ -944,7 +990,8 @@ mod tests {
             flatten_lists: false,
             include_children: true,
         };
-        let yaml = matrix_list_to_yaml(&list, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = matrix_list_to_yaml(&list, &doc, &config).unwrap();
 
         if let YamlValue::Sequence(seq) = yaml {
             assert!(seq.is_empty());
@@ -978,7 +1025,11 @@ mod tests {
             flatten_lists: false,
             include_children: true,
         };
-        let yaml = matrix_list_to_yaml(&list, &config).unwrap();
+        let mut doc = empty_doc();
+        // Add Post schema so children can look it up
+        doc.structs
+            .insert("Post".to_string(), vec!["id".to_string()]);
+        let yaml = matrix_list_to_yaml(&list, &doc, &config).unwrap();
 
         if let YamlValue::Sequence(seq) = yaml {
             if let YamlValue::Mapping(row) = &seq[0] {
@@ -1006,7 +1057,8 @@ mod tests {
             flatten_lists: false,
             include_children: false,
         };
-        let yaml = matrix_list_to_yaml(&list, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = matrix_list_to_yaml(&list, &doc, &config).unwrap();
 
         if let YamlValue::Sequence(seq) = yaml {
             if let YamlValue::Mapping(row) = &seq[0] {
@@ -1026,7 +1078,8 @@ mod tests {
     fn test_root_to_yaml_empty() {
         let root = BTreeMap::new();
         let config = ToYamlConfig::default();
-        let yaml = root_to_yaml(&root, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = root_to_yaml(&root, &doc, &config).unwrap();
         assert_eq!(yaml, YamlValue::Mapping(Mapping::new()));
     }
 
@@ -1040,7 +1093,8 @@ mod tests {
         root.insert("count".to_string(), Item::Scalar(Value::Int(42)));
 
         let config = ToYamlConfig::default();
-        let yaml = root_to_yaml(&root, &config).unwrap();
+        let doc = empty_doc();
+        let yaml = root_to_yaml(&root, &doc, &config).unwrap();
 
         if let YamlValue::Mapping(map) = yaml {
             assert_eq!(map.len(), 2);
@@ -1102,5 +1156,116 @@ mod tests {
         let config = ToYamlConfig::default();
         let value = to_yaml_value(&doc, &config).unwrap();
         assert!(matches!(value, YamlValue::Mapping(_)));
+    }
+
+    // ==================== Value::List tests ====================
+
+    #[test]
+    fn test_value_to_yaml_list_strings() {
+        let list = Value::List(Box::new(vec![
+            Value::String("admin".to_string().into()),
+            Value::String("editor".to_string().into()),
+            Value::String("viewer".to_string().into()),
+        ]));
+        let yaml = value_to_yaml(&list);
+        if let YamlValue::Sequence(seq) = yaml {
+            assert_eq!(seq.len(), 3);
+            assert_eq!(seq[0], YamlValue::String("admin".to_string()));
+            assert_eq!(seq[1], YamlValue::String("editor".to_string()));
+            assert_eq!(seq[2], YamlValue::String("viewer".to_string()));
+        } else {
+            panic!("Expected sequence");
+        }
+    }
+
+    #[test]
+    fn test_value_to_yaml_list_bools() {
+        let list = Value::List(Box::new(vec![
+            Value::Bool(true),
+            Value::Bool(false),
+            Value::Bool(true),
+        ]));
+        let yaml = value_to_yaml(&list);
+        if let YamlValue::Sequence(seq) = yaml {
+            assert_eq!(seq.len(), 3);
+            assert_eq!(seq[0], YamlValue::Bool(true));
+            assert_eq!(seq[1], YamlValue::Bool(false));
+            assert_eq!(seq[2], YamlValue::Bool(true));
+        } else {
+            panic!("Expected sequence");
+        }
+    }
+
+    #[test]
+    fn test_value_to_yaml_list_mixed() {
+        let list = Value::List(Box::new(vec![
+            Value::String("test".to_string().into()),
+            Value::Int(42),
+            Value::Bool(true),
+            Value::Null,
+        ]));
+        let yaml = value_to_yaml(&list);
+        if let YamlValue::Sequence(seq) = yaml {
+            assert_eq!(seq.len(), 4);
+            assert_eq!(seq[0], YamlValue::String("test".to_string()));
+            assert_eq!(seq[1], YamlValue::Number(42.into()));
+            assert_eq!(seq[2], YamlValue::Bool(true));
+            assert_eq!(seq[3], YamlValue::Null);
+        } else {
+            panic!("Expected sequence");
+        }
+    }
+
+    #[test]
+    fn test_value_to_yaml_list_empty() {
+        let list = Value::List(Box::default());
+        let yaml = value_to_yaml(&list);
+        if let YamlValue::Sequence(seq) = yaml {
+            assert!(seq.is_empty());
+        } else {
+            panic!("Expected sequence");
+        }
+    }
+
+    #[test]
+    fn test_value_to_yaml_list_with_references() {
+        let list = Value::List(Box::new(vec![
+            Value::Reference(Reference::local("user1")),
+            Value::Reference(Reference::qualified("User", "user2")),
+        ]));
+        let yaml = value_to_yaml(&list);
+        if let YamlValue::Sequence(seq) = yaml {
+            assert_eq!(seq.len(), 2);
+            if let YamlValue::Mapping(map) = &seq[0] {
+                assert_eq!(
+                    map.get(YamlValue::String("@ref".to_string())),
+                    Some(&YamlValue::String("@user1".to_string()))
+                );
+            } else {
+                panic!("Expected mapping for reference");
+            }
+        } else {
+            panic!("Expected sequence");
+        }
+    }
+
+    #[test]
+    fn test_value_to_yaml_list_nested() {
+        let inner_list = Value::List(Box::new(vec![Value::Int(1), Value::Int(2)]));
+        let outer_list = Value::List(Box::new(vec![
+            inner_list,
+            Value::List(Box::new(vec![Value::Int(3), Value::Int(4)])),
+        ]));
+        let yaml = value_to_yaml(&outer_list);
+        if let YamlValue::Sequence(outer) = yaml {
+            assert_eq!(outer.len(), 2);
+            if let YamlValue::Sequence(inner) = &outer[0] {
+                assert_eq!(inner.len(), 2);
+            } else {
+                panic!("Expected nested sequence");
+            }
+        } else {
+            panic!("Expected sequence");
+        }
     }
 }

@@ -117,7 +117,7 @@ impl From<&QueryConfig> for ToJsonConfig {
 /// # Arguments
 ///
 /// * `doc` - The HEDL document to query
-/// * `path` - `JSONPath` expression (e.g., "$.users[*].name")
+/// * `path` - `JSONPath` expression (e.g., `$.users[*].name`)
 /// * `config` - Query configuration
 ///
 /// # Returns
@@ -243,7 +243,8 @@ pub fn query_single(doc: &Document, path: &str, config: &QueryConfig) -> QueryRe
         0 => Err(QueryError::ExecutionError(
             "Query returned no results".to_string(),
         )),
-        1 => Ok(results.into_iter().next().unwrap()),
+        // SAFETY: len == 1 guarantees next() returns Some
+        1 => Ok(results.into_iter().next().expect("single-element vec")),
         n => Err(QueryError::ExecutionError(format!(
             "Query returned {n} results, expected exactly 1"
         ))),
@@ -404,9 +405,9 @@ mod tests {
                 }
                 (header_lines.join("\n"), body_lines.join("\n"))
             };
-            format!("%VERSION: 1.0\n{header}\n---\n{body}")
+            format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n{header}\n---\n{body}")
         } else {
-            format!("%VERSION: 1.0\n---\n{input}")
+            format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{input}")
         };
         parse(hedl.as_bytes()).unwrap()
     }
@@ -425,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_query_nested_field() {
-        let doc = parse_hedl("user:\n  name: \"Bob\"\n  age: 25");
+        let doc = parse_hedl("user:\n name: \"Bob\"\n age: 25");
         let config = QueryConfig::default();
 
         let results = query(&doc, "$.user.name", &config).unwrap();
@@ -621,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_query_nested_objects() {
-        let doc = parse_hedl("user:\n  profile:\n    name: \"Alice\"\n    age: 30");
+        let doc = parse_hedl("user:\n profile:\n  name: \"Alice\"\n  age: 30");
         let config = QueryConfig::default();
 
         let results = query(&doc, "$.user.profile.name", &config).unwrap();

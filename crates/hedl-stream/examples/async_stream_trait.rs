@@ -16,7 +16,7 @@ const SAMPLE_HEDL: &str = r#"
 %VERSION 1.0
 %STRUCT Metric[id, name, value, unit]
 ---
-metrics: @Metric
+metrics:@Metric
   | cpu_usage, "CPU Usage", 45.5, percent
   | mem_usage, "Memory Usage", 72.3, percent
   | disk_io, "Disk I/O", 1024, MB/s

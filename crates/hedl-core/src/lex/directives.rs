@@ -22,7 +22,7 @@
 //! - %ALIAS: %key: "expansion value"
 //! - %NEST: ParentType > ChildType
 
-use super::error::LexError;
+use super::error::{LexError, SourcePos};
 use super::span::Span;
 use super::tokens::{is_valid_key_token, is_valid_type_name};
 use std::collections::HashMap;
@@ -257,12 +257,6 @@ pub fn parse_nest_with_span(payload: &str, span: Span) -> Result<NestDirective, 
     })
 }
 
-/// Parse a column list: `[col1, col2, ...]`
-#[allow(dead_code)]
-fn parse_column_list(s: &str) -> Result<Vec<String>, LexError> {
-    parse_column_list_with_span(s, Span::synthetic())
-}
-
 /// Parse a column list with source span for error reporting.
 fn parse_column_list_with_span(s: &str, span: Span) -> Result<Vec<String>, LexError> {
     let s = s.trim();
@@ -307,22 +301,6 @@ fn parse_column_list_with_span(s: &str, span: Span) -> Result<Vec<String>, LexEr
     Ok(columns)
 }
 
-/// Parse a quoted string value.
-///
-/// Handles escape sequences:
-/// - `""` - literal quote (CSV-style)
-/// - `\"` - literal quote (backslash-style)
-/// - `\\` - literal backslash
-/// - `\n` - newline
-/// - `\t` - tab
-/// - `\r` - carriage return
-///
-/// This matches the escape handling in CSV quoted fields for consistency.
-#[allow(dead_code)]
-fn parse_quoted_string(s: &str) -> Result<String, LexError> {
-    parse_quoted_string_with_span(s, Span::synthetic())
-}
-
 /// Parse a quoted string value with source span for error reporting.
 fn parse_quoted_string_with_span(s: &str, span: Span) -> Result<String, LexError> {
     let s = s.trim();
@@ -362,10 +340,6 @@ fn parse_quoted_string_with_span(s: &str, span: Span) -> Result<String, LexError
                         chars.next();
                         result.push('\t');
                     }
-                    'r' => {
-                        chars.next();
-                        result.push('\r');
-                    }
                     '\\' => {
                         chars.next();
                         result.push('\\');
@@ -375,8 +349,11 @@ fn parse_quoted_string_with_span(s: &str, span: Span) -> Result<String, LexError
                         result.push('"');
                     }
                     _ => {
-                        // Unknown escape, keep the backslash
-                        result.push(ch);
+                        // Only \", \\, \n, \t are valid escapes
+                        return Err(LexError::InvalidEscape {
+                            sequence: format!("\\{}", next_ch),
+                            pos: SourcePos::new(span.start().line(), span.start().column()),
+                        });
                     }
                 }
             } else {
@@ -488,9 +465,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_alias_backslash_carriage_return_escape() {
-        let a = parse_alias(r#"%crlf: "line\r\n""#).unwrap();
-        assert_eq!(a.value, "line\r\n");
+    fn test_parse_alias_backslash_carriage_return_invalid() {
+        // \r is NOT a valid escape sequence (only \", \\, \n, \t are valid)
+        let result = parse_alias(r#"%crlf: "line\r\n""#);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            LexError::InvalidEscape { .. }
+        ));
     }
 
     #[test]
@@ -500,10 +482,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_alias_unknown_backslash_escape_preserved() {
-        // Unknown escape sequences keep the backslash
-        let a = parse_alias(r#"%unknown: "test\x""#).unwrap();
-        assert_eq!(a.value, "test\\x");
+    fn test_parse_alias_unknown_backslash_escape_error() {
+        // Unknown escape sequences return an error (only \", \\, \n, \t are valid)
+        let result = parse_alias(r#"%unknown: "test\x""#);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            LexError::InvalidEscape { .. }
+        ));
     }
 
     #[test]

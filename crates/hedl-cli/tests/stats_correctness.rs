@@ -231,10 +231,10 @@ fn test_matrix_list() {
         r"%VERSION: 1.0
 %STRUCT: Data: [id,name,score]
 ---
-items: @Data
-  |d1,Alice,95.5
-  |d2,Bob,87.3
-  |d3,Carol,92.1
+items:@Data
+ |d1,Alice,95.5
+ |d2,Bob,87.3
+ |d3,Carol,92.1
 ",
     );
 

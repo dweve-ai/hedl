@@ -25,9 +25,6 @@
 //! - Integration with actual Parquet reading
 //! - Property-based testing for batch size calculations
 
-// Allow constant assertions - these are intentional compile-time sanity checks
-#![allow(clippy::assertions_on_constants)]
-
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_parquet::{
     from_parquet_bytes_with_config, to_parquet_bytes, BatchSize, FromParquetConfig,
@@ -38,9 +35,8 @@ use proptest::prelude::*;
 // BatchSize Unit Tests
 // ============================================================================
 
-#[test]
-fn test_batch_size_constants() {
-    // Verify constants are sensible
+// Compile-time verification that BatchSize constants are sensible
+const _: () = {
     assert!(BatchSize::MIN_BATCH_SIZE > 0);
     assert!(BatchSize::MIN_BATCH_SIZE <= 1000);
     assert!(BatchSize::MAX_BATCH_SIZE >= 10_000);
@@ -57,7 +53,7 @@ fn test_batch_size_constants() {
 
     // Wide tables should use smaller batches than narrow tables
     assert!(BatchSize::DEFAULT_WIDE_BATCH_SIZE < BatchSize::DEFAULT_NARROW_BATCH_SIZE);
-}
+};
 
 #[test]
 fn test_batch_size_validate_clamps_minimum() {
@@ -303,7 +299,7 @@ fn create_test_document(num_rows: usize, num_columns: usize) -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: std::collections::BTreeMap::new(),
         aliases: std::collections::BTreeMap::new(),
         structs: std::collections::BTreeMap::new(),

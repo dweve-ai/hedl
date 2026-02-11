@@ -12,11 +12,13 @@ use hedl::{parse, canonicalize, to_json, validate};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse a HEDL document
     let hedl = r#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
+users:@User
+ |alice,Alice Smith,alice@example.com
     "#;
 
     let doc = parse(hedl)?;
@@ -55,7 +57,7 @@ pub fn parse(input: &str) -> Result<Document, HedlError>
 
 **Example**:
 ```rust
-let doc = hedl::parse("%VERSION: 1.0\n---\nkey: value")?;
+let doc = hedl::parse("%V:2.0\n---\nkey: value")?;
 assert_eq!(doc.version, (1, 0));
 ```
 
@@ -74,7 +76,7 @@ pub fn parse_lenient(input: &str) -> Result<Document, HedlError>
 **Example**:
 ```rust
 // This will succeed even with invalid references
-let doc = hedl::parse_lenient("%VERSION: 1.0\n---\nuser: @InvalidRef")?;
+let doc = hedl::parse_lenient("%V:2.0\n---\nuser:@InvalidRef")?;
 ```
 
 ---
@@ -168,13 +170,12 @@ pub fn canonicalize(doc: &Document) -> Result<String, HedlError>
 
 **Features**:
 - Sorted keys for deterministic output
-- Ditto operator optimization
 - Consistent whitespace
 - Suitable for hashing and diffing
 
 **Example**:
 ```rust
-let doc = hedl::parse("%VERSION: 1.0\n---\nz: 3\na: 1")?;
+let doc = hedl::parse("%V:2.0\n---\nz: 3\na: 1")?;
 let canonical = hedl::canonicalize(&doc)?;
 // Keys are sorted: a appears before z
 ```
@@ -759,7 +760,6 @@ use hedl::c14n::{canonicalize_with_config, CanonicalConfig, QuotingStrategy};
 
 let config = CanonicalConfig::new()
     .with_quoting(QuotingStrategy::Minimal)
-    .with_ditto(true)
     .with_sort_keys(true);
 
 let canonical = canonicalize_with_config(&doc, &config)?;
@@ -1230,7 +1230,7 @@ let doc = parse_with_limits(untrusted_input.as_bytes(), options)?;
 
 ```toml
 [dependencies]
-hedl = { version = "1.2", default-features = false }
+hedl = { version = "2.0", default-features = false }
 ```
 
 ---

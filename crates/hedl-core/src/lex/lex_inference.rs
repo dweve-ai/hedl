@@ -44,6 +44,11 @@ pub enum Value {
     Expression(Expression),
     /// Tensor/array literal.
     Tensor(Vec<TensorValue>),
+    /// List of scalar values (from `(...)` syntax).
+    ///
+    /// Lists can contain any scalar values including strings, bools, numbers,
+    /// references, expressions, and nulls, unlike tensors which are numeric-only.
+    List(Vec<Value>),
 }
 
 /// Recursive tensor value structure.
@@ -69,7 +74,18 @@ pub enum TensorValue {
 ///
 /// Note: Ditto (^) in Key-Value context is treated as literal string "^".
 pub fn infer_value(s: &str, aliases: Option<&HashMap<String, String>>) -> Result<Value, LexError> {
-    infer_value_impl(s, aliases, false, None)
+    infer_value_with_null_char(s, aliases, '~')
+}
+
+/// Infer value from an unquoted string with configurable null character.
+///
+/// This version allows specifying a custom null character from the %NULL directive.
+pub fn infer_value_with_null_char(
+    s: &str,
+    aliases: Option<&HashMap<String, String>>,
+    null_char: char,
+) -> Result<Value, LexError> {
+    infer_value_impl(s, aliases, false, None, null_char)
 }
 
 /// Infer value from an unquoted string in matrix cell context.
@@ -90,7 +106,26 @@ pub fn infer_cell_value(
     prev_row: Option<&[Value]>,
     aliases: Option<&HashMap<String, String>>,
 ) -> Result<Value, LexError> {
-    infer_value_impl(s, aliases, true, prev_row.and_then(|r| r.get(column_idx)))
+    infer_cell_value_with_null_char(s, column_idx, prev_row, aliases, '~')
+}
+
+/// Infer value from an unquoted string in matrix cell context with configurable null character.
+///
+/// This version allows specifying a custom null character from the %NULL directive.
+pub fn infer_cell_value_with_null_char(
+    s: &str,
+    column_idx: usize,
+    prev_row: Option<&[Value]>,
+    aliases: Option<&HashMap<String, String>>,
+    null_char: char,
+) -> Result<Value, LexError> {
+    infer_value_impl(
+        s,
+        aliases,
+        true,
+        prev_row.and_then(|r| r.get(column_idx)),
+        null_char,
+    )
 }
 
 /// Internal implementation of value inference.
@@ -99,11 +134,18 @@ fn infer_value_impl(
     aliases: Option<&HashMap<String, String>>,
     allow_ditto: bool,
     prev_value: Option<&Value>,
+    null_char: char,
 ) -> Result<Value, LexError> {
     let trimmed = s.trim();
 
     // Detect the value type
-    let value_type = detect_value_type(trimmed, allow_ditto, prev_value.is_some(), aliases)?;
+    let value_type = detect_value_type(
+        trimmed,
+        allow_ditto,
+        prev_value.is_some(),
+        aliases,
+        null_char,
+    )?;
 
     // Construct the value based on detected type
     construct_value(value_type, trimmed, aliases, prev_value)
@@ -114,6 +156,7 @@ fn infer_value_impl(
 enum ValueType {
     Null,
     Ditto,
+    List,
     Tensor,
     Reference,
     Expression,
@@ -131,9 +174,10 @@ fn detect_value_type(
     allow_ditto: bool,
     has_prev_value: bool,
     aliases: Option<&HashMap<String, String>>,
+    null_char: char,
 ) -> Result<ValueType, LexError> {
-    // 1. Null
-    if trimmed == "~" {
+    // 1. Null (using configurable null_char from %NULL directive)
+    if trimmed.len() == 1 && trimmed.starts_with(null_char) {
         return Ok(ValueType::Null);
     }
 
@@ -149,22 +193,27 @@ fn detect_value_type(
         }
     }
 
-    // 3. Tensor literal
+    // 3. List literal
+    if trimmed.starts_with('(') {
+        return Ok(ValueType::List);
+    }
+
+    // 4. Tensor literal
     if trimmed.starts_with('[') {
         return Ok(ValueType::Tensor);
     }
 
-    // 4. Reference
+    // 5. Reference
     if trimmed.starts_with('@') {
         return Ok(ValueType::Reference);
     }
 
-    // 5. Expression
+    // 6. Expression
     if trimmed.starts_with("$(") {
         return Ok(ValueType::Expression);
     }
 
-    // 6. Alias expansion
+    // 7. Alias expansion
     if let Some(key) = trimmed.strip_prefix('%') {
         if let Some(aliases_map) = aliases {
             if aliases_map.contains_key(key) {
@@ -174,7 +223,7 @@ fn detect_value_type(
         // If no alias found, fall through to other inference steps
     }
 
-    // 7. Boolean
+    // 8. Boolean
     if trimmed == "true" {
         return Ok(ValueType::Boolean(true));
     }
@@ -182,12 +231,12 @@ fn detect_value_type(
         return Ok(ValueType::Boolean(false));
     }
 
-    // 8. Number
+    // 9. Number
     if is_number(trimmed) {
         return Ok(ValueType::Number);
     }
 
-    // 9. String (default)
+    // 10. String (default)
     Ok(ValueType::String)
 }
 
@@ -201,17 +250,26 @@ fn construct_value(
     match value_type {
         ValueType::Null => Ok(Value::Null),
         ValueType::Ditto => {
-            // Safety: prev_value is guaranteed to be Some by detect_value_type
-            Ok(prev_value.unwrap().clone())
+            // SAFETY: prev_value is guaranteed to be Some by detect_value_type
+            Ok(prev_value
+                .expect("detect_value_type guarantees prev_value")
+                .clone())
+        }
+        ValueType::List => {
+            let (value, _consumed) = parse_list_literal(trimmed, 0)?;
+            Ok(value)
         }
         ValueType::Tensor => parse_tensor(trimmed).map(Value::Tensor),
         ValueType::Reference => parse_reference(trimmed).map(Value::Reference),
         ValueType::Expression => parse_expression_token(trimmed).map(Value::Expression),
         ValueType::Alias(key) => {
-            // Safety: alias key is guaranteed to exist by detect_value_type
-            let expanded = aliases.unwrap().get(&key).unwrap();
-            // Recursively infer the expanded value
-            infer_value_impl(expanded, None, false, None)
+            // SAFETY: detect_value_type guarantees aliases is Some and key exists
+            let alias_map = aliases.expect("detect_value_type guarantees aliases");
+            let expanded = alias_map
+                .get(&key)
+                .expect("detect_value_type guarantees key exists");
+            // Recursively infer the expanded value (use default null_char for expanded aliases)
+            infer_value_impl(expanded, None, false, None, '~')
         }
         ValueType::Boolean(b) => Ok(Value::Bool(b)),
         ValueType::Number => parse_number(trimmed),
@@ -348,6 +406,187 @@ fn parse_tensor_element(s: &str) -> Result<TensorValue, LexError> {
         })?;
         Ok(TensorValue::Number(num))
     }
+}
+
+/// Strip surrounding double quotes from a string if present.
+///
+/// Also handles CSV-style doubled quotes ("") inside the string.
+fn strip_quotes(s: &str) -> &str {
+    if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+/// Parse a list literal: (elem1, elem2, ...)
+///
+/// Lists can contain any scalar values including strings, bools, numbers,
+/// references, expressions, and nulls. Unlike tensors, lists are not
+/// restricted to numeric values.
+///
+/// # Arguments
+///
+/// * `input` - The input string containing the list literal
+/// * `pos` - Starting position in the input string
+///
+/// # Returns
+///
+/// Returns a tuple of (Value::List, bytes_consumed) on success.
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::lex::{parse_list_literal, Value};
+///
+/// // Empty list
+/// let (val, consumed) = parse_list_literal("()", 0).unwrap();
+/// assert!(matches!(val, Value::List(ref v) if v.is_empty()));
+/// assert_eq!(consumed, 2);
+///
+/// // String list
+/// let (val, _) = parse_list_literal("(admin, editor)", 0).unwrap();
+/// if let Value::List(items) = val {
+///     assert_eq!(items.len(), 2);
+/// }
+///
+/// // Boolean list
+/// let (val, _) = parse_list_literal("(true, false, true)", 0).unwrap();
+/// if let Value::List(items) = val {
+///     assert_eq!(items.len(), 3);
+/// }
+///
+/// // Mixed types
+/// let (val, _) = parse_list_literal("(1, \"two\", true, ~)", 0).unwrap();
+/// if let Value::List(items) = val {
+///     assert_eq!(items.len(), 4);
+/// }
+/// ```
+///
+/// # Errors
+///
+/// Returns `LexError::InvalidToken` if:
+/// - The input doesn't start with `(`
+/// - The list is not properly closed with `)`
+/// - Elements contain invalid syntax
+/// - Consecutive commas are found (e.g., `(a,,b)`)
+/// - Trailing comma is found (e.g., `(a,)`)
+pub fn parse_list_literal(input: &str, pos: usize) -> Result<(Value, usize), LexError> {
+    // Work with char indices instead of byte indices for proper UTF-8 handling
+    let chars: Vec<char> = input.chars().collect();
+
+    // Ensure we're within bounds
+    if pos >= chars.len() {
+        return Err(LexError::InvalidToken {
+            message: "unexpected end of input, expected '('".to_string(),
+            pos: SourcePos::default(),
+        });
+    }
+
+    // Check for opening parenthesis
+    if chars[pos] != '(' {
+        return Err(LexError::InvalidToken {
+            message: format!("expected '(' to start list, found '{}'", chars[pos]),
+            pos: SourcePos::default(),
+        });
+    }
+
+    let mut current_pos = pos + 1; // Skip '('
+    let mut elements = Vec::new();
+    let mut current_element = String::new();
+    let mut in_quotes = false;
+    let mut in_expression = false;
+    let mut paren_depth = 0;
+    let mut bracket_depth = 0;
+
+    while current_pos < chars.len() {
+        let ch = chars[current_pos];
+
+        match ch {
+            '"' if !in_expression => {
+                in_quotes = !in_quotes;
+                current_element.push(ch);
+            }
+            '$' if !in_quotes && current_pos + 1 < chars.len() && chars[current_pos + 1] == '(' => {
+                in_expression = true;
+                current_element.push(ch);
+            }
+            '(' if !in_quotes => {
+                if in_expression {
+                    paren_depth += 1;
+                }
+                current_element.push(ch);
+            }
+            ')' if !in_quotes => {
+                if in_expression && paren_depth > 0 {
+                    paren_depth -= 1;
+                    current_element.push(ch);
+                    if paren_depth == 0 {
+                        in_expression = false;
+                    }
+                } else {
+                    // End of list
+                    let trimmed = current_element.trim();
+                    if !trimmed.is_empty() {
+                        // Strip surrounding quotes if present
+                        let unquoted = strip_quotes(trimmed);
+                        // Parse the final element (use default null_char for list elements)
+                        let value = infer_value_impl(unquoted, None, false, None, '~')?;
+                        elements.push(value);
+                    } else if !elements.is_empty() {
+                        // Trailing comma case: (a, b,)
+                        return Err(LexError::InvalidToken {
+                            message: "trailing comma in list not allowed".to_string(),
+                            pos: SourcePos::default(),
+                        });
+                    }
+                    return Ok((Value::List(elements), current_pos + 1 - pos));
+                }
+            }
+            '[' if !in_quotes && !in_expression => {
+                bracket_depth += 1;
+                current_element.push(ch);
+            }
+            ']' if !in_quotes && !in_expression => {
+                bracket_depth -= 1;
+                if bracket_depth < 0 {
+                    return Err(LexError::InvalidToken {
+                        message: "unmatched ']' in list element".to_string(),
+                        pos: SourcePos::default(),
+                    });
+                }
+                current_element.push(ch);
+            }
+            ',' if !in_quotes && !in_expression && paren_depth == 0 && bracket_depth == 0 => {
+                // Element separator
+                let trimmed = current_element.trim();
+                if trimmed.is_empty() {
+                    // Empty element: consecutive commas or leading comma
+                    return Err(LexError::InvalidToken {
+                        message: "empty element in list (consecutive commas)".to_string(),
+                        pos: SourcePos::default(),
+                    });
+                }
+                // Strip surrounding quotes if present
+                let unquoted = strip_quotes(trimmed);
+                // Parse this element (use default null_char for list elements)
+                let value = infer_value_impl(unquoted, None, false, None, '~')?;
+                elements.push(value);
+                current_element.clear();
+            }
+            _ => {
+                current_element.push(ch);
+            }
+        }
+
+        current_pos += 1;
+    }
+
+    // If we reach here, the list was not closed
+    Err(LexError::InvalidToken {
+        message: "unclosed list literal, expected ')'".to_string(),
+        pos: SourcePos::default(),
+    })
 }
 
 #[cfg(test)]

@@ -1,0 +1,311 @@
+{
+  "difficulty": "hard",
+  "questions": [
+    {
+      "id": "ml-1",
+      "type": "Filtering",
+      "prompt": "Which experiment achieved the highest val_acc in its final recorded epoch? Give the experiment name.",
+      "ground_truth": "ResNet18-CIFAR10",
+      "answer_type": "String",
+      "notes": "exp-001 reaches 0.9495 val_acc at epoch 40, highest among all experiments' final epochs"
+    },
+    {
+      "id": "ml-2",
+      "type": "Aggregation",
+      "prompt": "What is the total parameter count for VGG16-ImageNet (exp-002)? Sum all layer params.",
+      "ground_truth": "138357544",
+      "answer_type": "Integer",
+      "notes": "Sum of params for l-025 through l-048"
+    },
+    {
+      "id": "ml-3",
+      "type": "Filtering",
+      "prompt": "Which experiment is currently still running? Give the experiment name, not the ID.",
+      "ground_truth": "MobileNetV2-CIFAR100",
+      "answer_type": "String"
+    },
+    {
+      "id": "ml-4",
+      "type": "Aggregation",
+      "prompt": "What is the average epoch duration in seconds for VGG16-ImageNet training?",
+      "ground_truth": "3244.5",
+      "answer_type": "Number",
+      "notes": "Average of duration_sec for e-041 through e-060"
+    },
+    {
+      "id": "ml-5",
+      "type": "FieldRetrieval",
+      "prompt": "What was the initial training loss for BERT-Base-SQuAD at epoch 1?",
+      "ground_truth": "1.8923",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ml-6",
+      "type": "Filtering",
+      "prompt": "How many convolutional layers does ResNet18-CIFAR10 have?",
+      "ground_truth": "8",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ml-7",
+      "type": "FieldRetrieval",
+      "prompt": "What is the output vocabulary size of GPT2-WikiText? Look at the final layer's output shape.",
+      "ground_truth": "50257",
+      "answer_type": "Integer",
+      "notes": "l-072 output_shape is [1024, 50257]"
+    },
+    {
+      "id": "ml-8",
+      "type": "Filtering",
+      "prompt": "Which experiment was stopped before completion? Give the experiment name, not the ID.",
+      "ground_truth": "EfficientNetB0-Flowers",
+      "answer_type": "String"
+    },
+    {
+      "id": "ml-9",
+      "type": "FieldRetrieval",
+      "prompt": "What learning rate did ResNet18-CIFAR10 use at epoch 21?",
+      "ground_truth": "0.0005",
+      "answer_type": "Number",
+      "notes": "Learning rate decayed from 0.001 to 0.0008 at epoch 11, then 0.0005 at epoch 21"
+    },
+    {
+      "id": "ml-10",
+      "type": "Aggregation",
+      "prompt": "How many epochs of VGG16-ImageNet training do we have recorded data for?",
+      "ground_truth": "20",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ml-11",
+      "type": "FieldRetrieval",
+      "prompt": "What is the kernel size of the first convolutional layer in MobileNetV2-CIFAR100?",
+      "ground_truth": "[3, 3]",
+      "answer_type": "String"
+    },
+    {
+      "id": "ml-12",
+      "type": "Filtering",
+      "prompt": "How many dropout layers does VGG16-ImageNet have?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "l-045, l-047"
+    },
+    {
+      "id": "ml-13",
+      "type": "FieldRetrieval",
+      "prompt": "What is the weight standard deviation for the first conv layer of ResNet18?",
+      "ground_truth": "0.0287",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ml-14",
+      "type": "Aggregation",
+      "prompt": "What is the total training time for all 40 epochs of ResNet18-CIFAR10? Sum the duration_sec values and convert to hours. Answer in hours.",
+      "ground_truth": "0.5",
+      "answer_type": "Number",
+      "notes": "Sum of duration_sec for e-001 to e-040 = ~1800 sec / 3600 = 0.5 hours"
+    },
+    {
+      "id": "ml-15",
+      "type": "Filtering",
+      "prompt": "Which experiments use batch size 32? Give the experiment names, not the IDs.",
+      "ground_truth": "BERT-Base-SQuAD, EfficientNetB0-Flowers",
+      "answer_type": "String"
+    },
+    {
+      "id": "ml-16",
+      "type": "FieldRetrieval",
+      "prompt": "What is the hidden dimension size in BERT-Base-SQuAD? Look at the fc layer units.",
+      "ground_truth": "768",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ml-17",
+      "type": "FieldRetrieval",
+      "prompt": "How many classes does the Flowers102 dataset have based on the model output?",
+      "ground_truth": "102",
+      "answer_type": "Integer",
+      "notes": "l-079 has output [102]"
+    },
+    {
+      "id": "ml-18",
+      "type": "Filtering",
+      "prompt": "What activation function is used in BERT layers?",
+      "ground_truth": "GELU",
+      "answer_type": "String"
+    },
+    {
+      "id": "ml-19",
+      "type": "FieldRetrieval",
+      "prompt": "What is the validation accuracy improvement from epoch 1 to epoch 40 for ResNet18-CIFAR10?",
+      "ground_truth": "0.8339",
+      "answer_type": "Number",
+      "notes": "0.9495 - 0.1156 = 0.8339"
+    },
+    {
+      "id": "ml-20",
+      "type": "FieldRetrieval",
+      "prompt": "What is the sequence length used in GPT2-WikiText based on layer input shapes?",
+      "ground_truth": "1024",
+      "answer_type": "Integer",
+      "notes": "l-067 input_shape is [1024, 768]"
+    },
+    {
+      "id": "ml-21",
+      "type": "Aggregation",
+      "prompt": "How many experiments are there in total?",
+      "ground_truth": "6",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 6' comment"
+    },
+    {
+      "id": "ml-22",
+      "type": "Aggregation",
+      "prompt": "How many layers are defined in the data?",
+      "ground_truth": "79",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 79' comment"
+    },
+    {
+      "id": "ml-23",
+      "type": "Aggregation",
+      "prompt": "How many epoch records are there in total?",
+      "ground_truth": "83",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 83' comment"
+    },
+    {
+      "id": "ml-24",
+      "type": "Aggregation",
+      "prompt": "How many weight samples are recorded?",
+      "ground_truth": "15",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 15' comment"
+    },
+    {
+      "id": "ml-25",
+      "type": "FieldRetrieval",
+      "prompt": "What is the batch size of exp-004 (BERT-Base-SQuAD)?",
+      "ground_truth": "32",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ml-26",
+      "type": "FieldRetrieval",
+      "prompt": "What is the dataset used by exp-005 (GPT2-WikiText)?",
+      "ground_truth": "wikitext",
+      "answer_type": "String"
+    },
+    {
+      "id": "ml-27",
+      "type": "FieldRetrieval",
+      "prompt": "What is the parameter count of layer l-024?",
+      "ground_truth": "5130",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ml-28",
+      "type": "FieldRetrieval",
+      "prompt": "What is the duration in seconds of epoch e-041?",
+      "ground_truth": "3245.6",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ml-29",
+      "type": "FieldRetrieval",
+      "prompt": "Which layer does weight record w-005 reference? Give the layer ID.",
+      "ground_truth": "l-011",
+      "answer_type": "String",
+      "notes": "HEDL shows @Layer:l-011"
+    },
+    {
+      "id": "ml-30",
+      "type": "FieldRetrieval",
+      "prompt": "Which layer does weight record w-012 reference? Give the layer ID.",
+      "ground_truth": "l-049",
+      "answer_type": "String",
+      "notes": "HEDL shows @Layer:l-049"
+    },
+    {
+      "id": "ml-31",
+      "type": "FieldRetrieval",
+      "prompt": "Which experiment does layer l-049 belong to? Give the experiment ID.",
+      "ground_truth": "exp-003",
+      "answer_type": "String",
+      "notes": "HEDL shows @Experiment:exp-003"
+    },
+    {
+      "id": "ml-32",
+      "type": "FieldRetrieval",
+      "prompt": "Weight w-009 references a layer. Which experiment does that layer belong to? Give the experiment ID.",
+      "ground_truth": "exp-002",
+      "answer_type": "String",
+      "notes": "w-009 -> l-025 -> exp-002"
+    },
+    {
+      "id": "ml-33",
+      "type": "FieldRetrieval",
+      "prompt": "In the Layer schema, what is the 5th field (column)?",
+      "ground_truth": "activation",
+      "answer_type": "String",
+      "notes": "HEDL %STRUCT: Layer: [id, type, units, kernel_size, activation, ...] - experiment implicit via nesting"
+    },
+    {
+      "id": "ml-34",
+      "type": "Aggregation",
+      "prompt": "How many fields does the Experiment schema have?",
+      "ground_truth": "8",
+      "answer_type": "Integer",
+      "notes": "HEDL %STRUCT: Experiment: [id, name, dataset, optimizer, learning_rate, batch_size, total_epochs, status]"
+    },
+    {
+      "id": "ml-35",
+      "type": "FieldRetrieval",
+      "prompt": "In the Epoch schema, what is the 3rd field (column)?",
+      "ground_truth": "train_loss",
+      "answer_type": "String",
+      "notes": "HEDL %STRUCT: Epoch: [id, epoch_num, train_loss, ...] - experiment implicit via nesting"
+    },
+    {
+      "id": "ml-36",
+      "type": "FieldRetrieval",
+      "prompt": "In the Weights schema, what is the last field (column)?",
+      "ground_truth": "std",
+      "answer_type": "String",
+      "notes": "HEDL %STRUCT: Weights: [..., mean, std]"
+    },
+    {
+      "id": "ml-37",
+      "type": "FieldRetrieval",
+      "prompt": "What is the full optimizer name used by exp-004? Give the complete name, not abbreviated.",
+      "ground_truth": "Adam",
+      "answer_type": "String",
+      "notes": "HEDL ENUM: adam -> Adam"
+    },
+    {
+      "id": "ml-38",
+      "type": "FieldRetrieval",
+      "prompt": "What is the full status of exp-006? Give the complete status word.",
+      "ground_truth": "stopped",
+      "answer_type": "String",
+      "notes": "HEDL ENUM: stop -> stopped"
+    },
+    {
+      "id": "ml-39",
+      "type": "FieldRetrieval",
+      "prompt": "Which experiment does layer l-040 belong to? Give the experiment ID.",
+      "ground_truth": "exp-002",
+      "answer_type": "String",
+      "notes": "Requires tracing ditto markers back to l-025 which has @Experiment:exp-002"
+    },
+    {
+      "id": "ml-40",
+      "type": "FieldRetrieval",
+      "prompt": "What is the learning rate for epoch e-015?",
+      "ground_truth": "0.0008",
+      "answer_type": "Number",
+      "notes": "Requires tracing ditto marker back to e-011 where LR changed to 0.0008"
+    }
+  ]
+}

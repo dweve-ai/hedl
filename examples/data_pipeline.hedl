@@ -1,0 +1,46 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Data pipeline configuration example
+# Shows practical ML/AI workflow structure
+%S:Stage:[id,name,type,enabled]
+%S:Transform:[id,operation,params]
+%S:Validator:[id,rule,threshold]
+---
+pipeline:
+ name: "Binary Classification Pipeline"
+ version: 2.1
+ mode: production
+
+stages:@Stage
+ |s1,ingestion,source,true
+ |s2,preprocessing,transform,true
+ |s3,feature_extraction,transform,true
+ |s4,validation,check,true
+ |s5,inference,model,true
+
+ingestion:
+ source: s3://dweve-data/raw
+ format: parquet
+ batch_size: 1000
+
+transforms:@Transform
+ |t1,normalize,[0,1]
+ |t2,quantize,8bit
+ |t3,binarize,0.5
+
+validators:@Validator
+ |v1,range_check,1.0
+ |v2,null_check,0.99
+ |v3,schema_check,1.0
+
+model:
+ type: binary_neural_network
+ weights: s3://dweve-models/bnn-v2.bin
+ quantization: 1bit
+ device: cpu
+
+output:
+ destination: s3://dweve-results
+ format: hedl
+ compression: true

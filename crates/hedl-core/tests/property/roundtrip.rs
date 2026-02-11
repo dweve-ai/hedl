@@ -38,7 +38,7 @@ proptest! {
         value in -1000_i64..1000
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id, value]\n---\nitems: @{type_name}\n  | {id}, {value}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, value]\n---\nitems:@{type_name}\n |{id}, {value}\n"
         );
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -50,14 +50,14 @@ proptest! {
     /// Property: Valid documents with varying nesting depths always parse.
     #[test]
     fn prop_nested_objects_parse(depth in 0_usize..10) {
-        let mut doc = String::from("%VERSION: 1.0\n---\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
         for d in 0..depth {
-            let indent = "  ".repeat(d);
+            let indent = " ".repeat(d);
             doc.push_str(&format!("{indent}level{d}:\n"));
         }
 
-        let indent = "  ".repeat(depth);
+        let indent = " ".repeat(depth);
         doc.push_str(&format!("{indent}value: 42\n"));
 
         let result = parse(doc.as_bytes());
@@ -67,7 +67,12 @@ proptest! {
     /// Property: Document version is preserved.
     #[test]
     fn prop_version_preserved(major in 0_u32..10, minor in 0_u32..20) {
-        let doc = format!("%VERSION: {major}.{minor}\n---\nvalue: 1\n");
+        // v2.0+ requires compact syntax and %NULL/%QUOTE directives
+        let doc = if (major, minor) >= (2, 0) {
+            format!("%V:{major}.{minor}\n%NULL:~\n%QUOTE:\"\n---\nvalue: 1\n")
+        } else {
+            format!("%VERSION: {major}.{minor}\n---\nvalue: 1\n")
+        };
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -80,7 +85,7 @@ proptest! {
     #[test]
     fn prop_type_name_preserved(type_name in "[A-Z][a-zA-Z0-9]{0,20}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | id1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n |id1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -98,12 +103,12 @@ proptest! {
     ) {
         let unique_fields: Vec<String> = fields.into_iter()
             .enumerate()
-            .map(|(i, f)| format!("{f}_{i}"))
+            .map(|(i, f)|format!("{f}_{i}"))
             .collect();
 
         let field_list = unique_fields.join(", ");
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [{field_list}]\n---\nitems: @T\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[{field_list}]\n---\nitems:@T\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -121,7 +126,7 @@ proptest! {
     /// Property: Integer values preserve their exact value.
     #[test]
     fn prop_integer_value_preserved(value in i64::MIN..i64::MAX) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {value}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {value}\n");
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -134,7 +139,7 @@ proptest! {
     /// Property: String values preserve their content (trimmed of trailing whitespace).
     #[test]
     fn prop_string_value_preserved(s in "[a-zA-Z][a-zA-Z0-9_-]{0,99}") {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {s}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {s}\n");
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -147,7 +152,7 @@ proptest! {
     /// Property: Boolean values preserve their exact value.
     #[test]
     fn prop_bool_value_preserved(value: bool) {
-        let doc = format!("%VERSION: 1.0\n---\nvalue: {value}\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {value}\n");
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -160,7 +165,7 @@ proptest! {
     /// Property: Null values are preserved.
     #[test]
     fn prop_null_value_preserved(_n in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\nvalue: ~\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: ~\n";
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -173,9 +178,9 @@ proptest! {
     /// Property: List row count is preserved.
     #[test]
     fn prop_list_row_count_preserved(row_count in 1_usize..100) {
-        let mut doc = String::from("%VERSION: 1.0\n%STRUCT: T: [id]\n---\nitems: @T\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id]\n---\nitems:@T\n");
         for i in 0..row_count {
-            doc.push_str(&format!("  | id{i}\n"));
+            doc.push_str(&format!(" |id{i}\n"));
         }
 
         let result = parse(doc.as_bytes());
@@ -189,7 +194,7 @@ proptest! {
     /// Property: Empty documents parse correctly.
     #[test]
     fn prop_empty_document_parses(_n in 0..100_u32) {
-        let doc = "%VERSION: 1.0\n---\n";
+        let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Empty document should parse");
@@ -201,7 +206,7 @@ proptest! {
     /// Property: Single-character keys work.
     #[test]
     fn prop_single_char_key_preserved(c in "[a-z]") {
-        let doc = format!("%VERSION: 1.0\n---\n{c}: 1\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{c}: 1\n");
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -213,7 +218,7 @@ proptest! {
     /// Property: Very long keys (up to 100 chars) are preserved.
     #[test]
     fn prop_long_key_preserved(key in "[a-z][a-z0-9_]{50,99}") {
-        let doc = format!("%VERSION: 1.0\n---\n{key}: 1\n");
+        let doc = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{key}: 1\n");
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
@@ -230,7 +235,7 @@ proptest! {
         str_val in "[a-zA-Z]{1,20}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, int_col, bool_col, str_col]\n---\nitems: @T\n  | id1, {int_val}, {bool_val}, {str_val}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,int_col,bool_col,str_col]\n---\nitems:@T\n |id1, {int_val}, {bool_val}, {str_val}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -248,9 +253,9 @@ proptest! {
     /// Property: Large documents (1000+ nodes) parse correctly.
     #[test]
     fn prop_large_document_parses(node_count in 100_usize..1000) {
-        let mut doc = String::from("%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\nitems: @T\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\nitems:@T\n");
         for i in 0..node_count {
-            doc.push_str(&format!("  | id{}, {}\n", i, i * 10));
+            doc.push_str(&format!(" |id{}, {}\n", i, i * 10));
         }
 
         let result = parse(doc.as_bytes());
@@ -265,7 +270,7 @@ proptest! {
     #[test]
     fn prop_empty_list_parses(type_name in "[A-Z][a-zA-Z0-9]{0,15}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n"
         );
 
         let result = parse(doc.as_bytes());

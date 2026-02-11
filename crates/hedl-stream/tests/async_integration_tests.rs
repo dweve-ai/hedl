@@ -18,14 +18,14 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_async_basic_parsing() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-";
+users:@User
+ | alice, Alice
+ | bob, Bob
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -41,13 +41,13 @@ users: @User
 
 #[tokio::test]
 async fn test_async_header_access() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | alice, Alice
-";
+users:@User
+ | alice, Alice
+"#;
 
     let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -83,14 +83,14 @@ async fn test_async_missing_version() {
 
 #[tokio::test]
 async fn test_async_shape_mismatch() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-  | id1, val1
-  | id2
-";
+data:@Data
+ | id1, val1
+ | id2
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -113,14 +113,14 @@ data: @Data
 
 #[tokio::test]
 async fn test_async_with_config() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-";
+items:@Item
+ | a
+ | b
+"#;
 
     let config = StreamingParserConfig::default();
 
@@ -140,13 +140,13 @@ items: @Item
 
 #[tokio::test]
 async fn test_async_with_timeout_config() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig {
         timeout: Some(Duration::from_secs(5)),
@@ -169,15 +169,15 @@ items: @Item
 
 #[tokio::test]
 async fn test_async_list_events() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-";
+items:@Item
+ | a
+ | b
+ | c
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -204,12 +204,12 @@ items: @Item
 
 #[tokio::test]
 async fn test_async_object_events() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 ---
 config:
-  timeout: 30
-";
+ timeout: 30
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -232,17 +232,17 @@ config:
 
 #[tokio::test]
 async fn test_async_nested_data() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Parent: [id]
 %STRUCT: Child: [id]
 %NEST: Parent > Child
 ---
-data: @Parent
-  | parent1
-    | child1
-    | child2
-";
+data:@Parent
+ | parent1
+  | child1
+  | child2
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -263,32 +263,32 @@ data: @Parent
 
 #[tokio::test]
 async fn test_async_concurrent_parsers() {
-    let input1 = r"
+    let input1 = r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 ---
-a: @A
-  | a1
-";
+a:@A
+ | a1
+"#;
 
-    let input2 = r"
+    let input2 = r#"
 %VERSION: 1.0
 %STRUCT: B: [id]
 ---
-b: @B
-  | b1
-  | b2
-";
+b:@B
+ | b1
+ | b2
+"#;
 
-    let input3 = r"
+    let input3 = r#"
 %VERSION: 1.0
 %STRUCT: C: [id]
 ---
-c: @C
-  | c1
-  | c2
-  | c3
-";
+c:@C
+ | c1
+ | c2
+ | c3
+"#;
 
     async fn count_nodes(input: &str) -> usize {
         let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
@@ -316,9 +316,9 @@ c: @C
 
 #[tokio::test]
 async fn test_async_many_rows() {
-    let mut input = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\nitems: @Item\n");
+    let mut input = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\nitems:@Item\n");
     for i in 0..100 {
-        input.push_str(&format!("  | item{i}\n"));
+        input.push_str(&format!(" | item{i}\n"));
     }
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
@@ -337,7 +337,7 @@ async fn test_async_many_rows() {
 
 #[tokio::test]
 async fn test_async_scalar_values() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 ---
 name: Alice
@@ -345,7 +345,7 @@ age: 30
 active: true
 score: 95.5
 optional: null
-";
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -363,14 +363,14 @@ optional: null
 
 #[tokio::test]
 async fn test_async_unicode_data() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Text: [id, content]
 ---
-texts: @Text
-  | text1, Hello 世界 🌍
-  | text2, Привет мир
-";
+texts:@Text
+ | text1, Hello 世界 🌍
+ | text2, Привет мир
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -388,12 +388,12 @@ texts: @Text
 
 #[tokio::test]
 async fn test_async_empty_list() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-";
+items:@Item
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -410,16 +410,16 @@ items: @Item
 
 #[tokio::test]
 async fn test_async_comments() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
 # This is a comment
-items: @Item
-  | a
+items:@Item
+ | a
   # Another comment
-  | b
-";
+ | b
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -437,17 +437,17 @@ items: @Item
 
 #[tokio::test]
 async fn test_async_multiple_lists() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: A: [id]
 %STRUCT: B: [id]
 ---
-a: @A
-  | a1
-  | a2
-b: @B
-  | b1
-";
+a:@A
+ | a1
+ | a2
+b:@B
+ | b1
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -472,17 +472,17 @@ b: @B
 
 #[tokio::test]
 async fn test_async_early_termination() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-  | d
-  | e
-";
+items:@Item
+ | a
+ | b
+ | c
+ | d
+ | e
+"#;
 
     let mut parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 
@@ -503,13 +503,13 @@ items: @Item
 
 #[tokio::test]
 async fn test_async_header_available_before_iteration() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id]
 ---
-users: @User
-  | alice
-";
+users:@User
+ | alice
+"#;
 
     let parser = AsyncStreamingParser::new(Cursor::new(input)).await.unwrap();
 

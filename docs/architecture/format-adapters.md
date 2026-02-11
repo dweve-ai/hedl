@@ -476,7 +476,7 @@ pub struct ToToonConfig {
 pub enum Delimiter {
     Comma,   // ","
     Tab,     // "\t"
-    Pipe,    // " | "
+    Pipe,    // " |"
 }
 
 pub struct FromToonConfig {
@@ -495,7 +495,7 @@ users[2]{id,name}:
 // Expanded format (complex structures)
 orders[1]:
   - id: ord1
-    customer: @User:u1
+    customer:@User:u1
     total: 150.00
 ```
 
@@ -549,14 +549,14 @@ fn test_roundtrip() {
 
 ## Adapter Comparison
 
-| Format | Streaming | Schema | Binary | Complexity |
+| Format |Streaming |Schema |Binary |Complexity |
 |--------|-----------|--------|--------|------------|
-| JSON | Yes | Cache | No | Low |
-| YAML | No | No | No | Medium |
-| XML | Yes | Validation | No | High |
-| CSV | Yes | Inference | No | Low |
-| Parquet | Yes | Arrow | Yes | High |
-| Neo4j | Yes | Graph | No | High |
+| JSON |Yes |Cache |No |Low |
+| YAML |No |No |No |Medium |
+| XML |Yes |Validation |No |High |
+| CSV |Yes |Inference |No |Low |
+| Parquet |Yes |Arrow |Yes |High |
+| Neo4j |Yes |Graph |No |High |
 
 ## Extension Points
 

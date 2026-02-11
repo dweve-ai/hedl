@@ -69,7 +69,7 @@ impl TraversalResult {
 ///     }
 /// }
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let mut counter = Counter { count: 0 };
 /// let result = traverse(&doc, &mut counter, &TraversalConfig::default());
 /// ```
@@ -200,13 +200,17 @@ fn traverse_item<V: Visitor>(
 }
 
 /// Traverse a node recursively.
-#[allow(clippy::only_used_in_recursion)]
 fn traverse_node<V: Visitor>(
     node: &Node,
     visitor: &mut V,
     ctx: &mut VisitorContext<'_>,
     config: &TraversalConfig,
 ) -> TraversalResult {
+    // Check depth limit before processing node children
+    if config.is_depth_limit_reached(ctx.depth) {
+        return TraversalResult::DepthLimitReached(ctx.stats().clone());
+    }
+
     ctx.record_node_visit();
 
     let decision = visitor.visit_node(node, ctx);
@@ -362,13 +366,17 @@ fn traverse_item_fallible<V: FallibleVisitor>(
 }
 
 /// Traverse node with fallible visitor.
-#[allow(clippy::only_used_in_recursion)]
 fn traverse_node_fallible<V: FallibleVisitor>(
     node: &Node,
     visitor: &mut V,
     ctx: &mut VisitorContext<'_>,
     config: &TraversalConfig,
 ) -> Result<(), V::Error> {
+    // Check depth limit before processing node children
+    if config.is_depth_limit_reached(ctx.depth) {
+        return Ok(());
+    }
+
     ctx.record_node_visit();
     let decision = visitor.visit_node(node, ctx)?;
 
@@ -503,7 +511,7 @@ mod tests {
 
     #[test]
     fn test_traverse_empty_document() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut visitor = CountingVisitor {
             nodes: 0,
             scalars: 0,
@@ -542,7 +550,7 @@ mod tests {
 
     #[test]
     fn test_traverse_early_stop() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut visitor = EarlyStopVisitor;
         let result = traverse(&doc, &mut visitor, &TraversalConfig::default());
 

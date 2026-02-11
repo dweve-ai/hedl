@@ -1,6 +1,7 @@
 # Build artifacts
 /target/
 **/*.rs.bk
+**/target
 
 # Cargo
 Cargo.lock
@@ -75,13 +76,14 @@ logs/
 
 # Proptest regressions
 *.proptest-regressions
-.backup
 crates/hedl-bench/target/
 
-# Dweve
-.analysis
-.plan
+# Fuzz artifacts
+**/fuzz/corpus/
+**/fuzz/artifacts/
 
-# Deprecated files
-.deprecated/
-*.proptest-regressions
+# wasm-pack build output (not playground/pkg/ which is pre-built)
+crates/hedl-wasm/pkg/
+
+# Dweve internal project tracking
+.dweve/

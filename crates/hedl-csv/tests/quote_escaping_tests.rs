@@ -401,15 +401,13 @@ fn test_many_quotes() {
 
 #[test]
 fn test_quoted_numbers() {
-    let csv = "id,value\n1,\"42\"\n2,\"3.14\"\n";
+    let csv = "id,value\n1,\"42\"\n2,\"4.56\"\n";
     let doc = from_csv_with_config(csv, "Item", &["value"], FromCsvConfig::default()).unwrap();
 
     let list = doc.get("items").unwrap().as_list().unwrap();
     // Even quoted, numbers are still type-inferred
     assert_eq!(list.rows[0].fields[1], Value::Int(42));
-    #[allow(clippy::approx_constant)]
-    const PI_APPROX: f64 = 3.14;
-    assert_eq!(list.rows[1].fields[1], Value::Float(PI_APPROX));
+    assert_eq!(list.rows[1].fields[1], Value::Float(4.56));
 }
 
 #[test]

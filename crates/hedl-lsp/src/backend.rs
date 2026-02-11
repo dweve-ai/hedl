@@ -33,9 +33,11 @@
 //! See OPTIMIZATION.md for detailed performance analysis and trade-offs.
 
 use crate::analysis::AnalyzedDocument;
+use crate::code_actions::get_inline_child_code_actions;
 use crate::completion::get_completions;
 use crate::constants::{DEBOUNCE_MS, POSITION_ZERO};
-use crate::document_manager::{CacheStatistics, DocumentManager};
+use crate::diagnostics::check_inline_child_lists;
+use crate::document_manager::{CacheStatistics, DocumentCache};
 use crate::hover::get_hover;
 use crate::rename::{self, RenameOperation};
 use crate::symbols::{get_document_symbols, get_workspace_symbols};
@@ -46,6 +48,7 @@ use tokio::sync::mpsc;
 use tokio::time::sleep;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
+    CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
     DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
@@ -64,13 +67,13 @@ use tracing::{debug, error, info, warn};
 /// HEDL Language Server backend.
 ///
 /// This backend handles LSP protocol implementation and delegates document
-/// management to the `DocumentManager`. This provides a clean separation of
+/// management to the `DocumentCache`. This provides a clean separation of
 /// concerns between protocol handling and document lifecycle management.
 pub struct HedlLanguageServer {
     /// LSP client connection.
     client: Client,
     /// Document manager for storage and caching.
-    document_manager: Arc<DocumentManager>,
+    document_manager: Arc<DocumentCache>,
     /// Debounce channels: URI -> sender for triggering analysis.
     debounce_channels: DashMap<Url, mpsc::UnboundedSender<()>>,
 }
@@ -126,7 +129,7 @@ impl HedlLanguageServer {
     pub fn with_config(client: Client, max_cache_size: usize, max_document_size: usize) -> Self {
         Self {
             client,
-            document_manager: Arc::new(DocumentManager::new(max_cache_size, max_document_size)),
+            document_manager: Arc::new(DocumentCache::new(max_cache_size, max_document_size)),
             debounce_channels: DashMap::new(),
         }
     }
@@ -214,8 +217,13 @@ impl HedlLanguageServer {
         self.document_manager
             .update_analysis(uri, Arc::clone(&analysis));
 
-        // Send diagnostics
-        let diagnostics = analysis.to_lsp_diagnostics();
+        // Collect diagnostics from analysis (parse errors + lint)
+        let mut diagnostics = analysis.to_lsp_diagnostics();
+
+        // Add LSP-specific diagnostics (inline child lists)
+        let lsp_diagnostics = check_inline_child_lists(&content, analysis.as_ref());
+        diagnostics.extend(lsp_diagnostics);
+
         debug!("Publishing {} diagnostics for {}", diagnostics.len(), uri);
         self.client
             .publish_diagnostics(uri.clone(), diagnostics, None)
@@ -263,8 +271,13 @@ impl HedlLanguageServer {
                     // Update state
                     document_manager.update_analysis(&uri_clone, Arc::clone(&analysis));
 
-                    // Send diagnostics
-                    let diagnostics = analysis.to_lsp_diagnostics();
+                    // Collect diagnostics from analysis (parse errors + lint)
+                    let mut diagnostics = analysis.to_lsp_diagnostics();
+
+                    // Add LSP-specific diagnostics (inline child lists)
+                    let lsp_diagnostics = check_inline_child_lists(&content, analysis.as_ref());
+                    diagnostics.extend(lsp_diagnostics);
+
                     client
                         .publish_diagnostics(uri_clone.clone(), diagnostics, None)
                         .await;
@@ -321,6 +334,13 @@ impl LanguageServer for HedlLanguageServer {
                     prepare_provider: Some(true),
                     work_done_progress_options: Default::default(),
                 })),
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: None,
+                        work_done_progress_options: Default::default(),
+                        resolve_provider: Some(false),
+                    },
+                )),
                 semantic_tokens_provider: Some(
                     SemanticTokensServerCapabilities::SemanticTokensOptions(
                         SemanticTokensOptions {
@@ -514,7 +534,7 @@ impl LanguageServer for HedlLanguageServer {
                 let ref_content = ref_str.strip_prefix('@').unwrap_or(ref_str);
 
                 if let Some(colon_pos) = ref_content.find(':') {
-                    // Qualified reference: @Type:id
+                    // Qualified reference:@Type:id
                     let type_name = &ref_content[..colon_pos];
                     let id = &ref_content[colon_pos + 1..];
 
@@ -527,7 +547,7 @@ impl LanguageServer for HedlLanguageServer {
                         })));
                     }
                 } else {
-                    // Unqualified reference: @id - search across all types
+                    // Unqualified reference:@id - search across all types
                     let id = ref_content;
                     for type_name in analysis.entities.keys() {
                         if let Some(def_loc) =
@@ -570,7 +590,7 @@ impl LanguageServer for HedlLanguageServer {
                     let ref_content = ref_str.strip_prefix('@').unwrap_or(ref_str);
 
                     if let Some(colon_pos) = ref_content.find(':') {
-                        // Qualified reference: @Type:id
+                        // Qualified reference:@Type:id
                         let type_name = &ref_content[..colon_pos];
                         let id = &ref_content[colon_pos + 1..];
 
@@ -583,7 +603,7 @@ impl LanguageServer for HedlLanguageServer {
                             });
                         }
                     } else {
-                        // Unqualified reference: @id - find definition across all types
+                        // Unqualified reference:@id - find definition across all types
                         let id = ref_content;
                         for type_name in analysis.entities.keys() {
                             if let Some(def_loc) =
@@ -846,6 +866,31 @@ impl LanguageServer for HedlLanguageServer {
         }
 
         warn!("Document not found: {}", uri);
+        Ok(None)
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = &params.text_document.uri;
+        let range = params.range;
+
+        debug!(
+            "Code action request for {} at line {}",
+            uri, range.start.line
+        );
+
+        if let Some((content, _analysis)) = self.document_manager.get(uri) {
+            let actions = get_inline_child_code_actions(uri, &content, range);
+
+            if actions.is_empty() {
+                debug!("No code actions available for {}", uri);
+                return Ok(None);
+            }
+
+            debug!("Providing {} code actions for {}", actions.len(), uri);
+            return Ok(Some(actions));
+        }
+
+        debug!("No code actions available (document not found): {}", uri);
         Ok(None)
     }
 }

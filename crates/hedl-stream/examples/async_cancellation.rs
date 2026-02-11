@@ -19,7 +19,7 @@ const LARGE_HEDL: &str = r#"
 %VERSION 1.0
 %STRUCT DataPoint[id, value, timestamp]
 ---
-data: @DataPoint
+data:@DataPoint
   | p1, 100, 2024-01-01T00:00:00Z
   | p2, 200, 2024-01-01T01:00:00Z
   | p3, 300, 2024-01-01T02:00:00Z

@@ -29,7 +29,7 @@ We'll add a function that counts all items (objects and lists) in a document usi
 ```rust
 use hedl_core::{parse, visitor::NodeCollector};
 
-let doc = parse(b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer")?;
+let doc = parse(b"%V:2.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer")?;
 let collector = NodeCollector::new();
 let count = collector.collect(&doc).len();
 // count = 2 (user object, profile object - scalars not counted)
@@ -90,7 +90,7 @@ pub struct Node {
 The `visitor` module in `hedl-core` provides traversal patterns:
 
 ```bash
-cat crates/hedl-core/src/visitor.rs
+ls crates/hedl-core/src/visitor/
 ```
 
 The existing `NodeCollector` visitor collects nodes during traversal. For this tutorial, we'll demonstrate extending the `hedl-test` crate with a new counting utility that leverages the existing visitor infrastructure.
@@ -131,7 +131,7 @@ use hedl_core::{Document, Item};
 /// use hedl_core::parse;
 /// use hedl_test::count_items;
 ///
-/// let doc = parse(b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Dev").unwrap();
+/// let doc = parse(b"%V:2.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Dev").unwrap();
 /// let count = count_items(&doc);
 /// assert_eq!(count, 2); // user object, profile object
 /// ```
@@ -199,19 +199,19 @@ use hedl_test::count_items;
 
 #[test]
 fn test_count_items_empty() {
-    let doc = parse(b"%VERSION: 1.0\n---\n").unwrap();
+    let doc = parse(b"%V:2.0\n---\n").unwrap();
     assert_eq!(count_items(&doc), 0); // No items
 }
 
 #[test]
 fn test_count_items_scalar_only() {
-    let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+    let doc = parse(b"%V:2.0\n---\nname: Alice\nage: 30").unwrap();
     assert_eq!(count_items(&doc), 0); // Scalars don't count
 }
 
 #[test]
 fn test_count_items_nested() {
-    let hedl = b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer";
+    let hedl = b"%V:2.0\n---\nuser:\n  name: Alice\n  profile:\n    bio: Developer";
     let doc = parse(hedl).unwrap();
     // user object + profile object = 2
     assert_eq!(count_items(&doc), 2);
@@ -219,7 +219,7 @@ fn test_count_items_nested() {
 
 #[test]
 fn test_count_items_deep_nesting() {
-    let hedl = b"%VERSION: 1.0\n---\na:\n  b:\n    c:\n      d:\n        e: value";
+    let hedl = b"%V:2.0\n---\na:\n  b:\n    c:\n      d:\n        e: value";
     let doc = parse(hedl).unwrap();
     // a + b + c + d objects = 4 (e is scalar)
     assert_eq!(count_items(&doc), 4);
@@ -227,7 +227,7 @@ fn test_count_items_deep_nesting() {
 
 #[test]
 fn test_count_items_mixed() {
-    let hedl = b"%VERSION: 1.0\n---\nparent:\n  child1:\n    nested: value\n  child2:\n    nested: value\nscalar: data";
+    let hedl = b"%V:2.0\n---\nparent:\n  child1:\n    nested: value\n  child2:\n    nested: value\nscalar: data";
     let doc = parse(hedl).unwrap();
     // parent + child1 + child2 = 3 (scalars don't count)
     assert_eq!(count_items(&doc), 3);
@@ -566,7 +566,7 @@ fn test_count_items_with_matrix() { }
 Congratulations! You've added your first feature. Next:
 
 1. **More Complex Features**: Try [Adding Format Support](03-adding-format-support.md)
-2. **Explore Existing Code**: Read through `hedl-core/src/parser.rs`
+2. **Explore Existing Code**: Read through `hedl-core/src/parser/`
 3. **Pick an Issue**: Find "good first issue" tags on GitHub
 4. **Improve Documentation**: Add examples to existing functions
 

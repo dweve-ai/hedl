@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 %VERSION: 1.0
 %STRUCT: Product: [id, name, price]
 ---
-products: @Product
+products:@Product
   | p1, Widget, 9.99
   | p2, Gadget, 19.99
   | p3, Doohickey, 29.99
@@ -65,7 +65,7 @@ products: @Product
 %VERSION: 1.0
 %STRUCT: Customer: [id, name, tier]
 ---
-customers: @Customer
+customers:@Customer
   | c1, Alice, Gold
   | c2, Bob, Silver
   | c3, Carol, Bronze
@@ -76,7 +76,7 @@ customers: @Customer
 %VERSION: 1.0
 %STRUCT: Transaction: [id, amount, type]
 ---
-transactions: @Transaction
+transactions:@Transaction
   | t1, 100.00, debit
   | t2, 50.00, credit
   | t3, 75.00, debit

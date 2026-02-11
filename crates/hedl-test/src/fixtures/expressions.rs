@@ -71,7 +71,7 @@ pub fn expressions() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),

@@ -21,12 +21,40 @@
 //! and linting multiple HEDL files in parallel or sequentially.
 
 use crate::batch::{
-    BatchConfig, BatchProcessor, FormatOperation, LintOperation, ValidationOperation,
+    BatchConfig, BatchExecutor, FormatOperation, LintOperation, ValidationOperation,
 };
 use crate::error::CliError;
 use crate::file_discovery::{DiscoveryConfig, FileDiscovery};
 use colored::Colorize;
 use std::path::PathBuf;
+
+/// Parameters for batch format operations.
+///
+/// Groups all configuration for formatting multiple HEDL files,
+/// avoiding excessive function arguments.
+#[derive(Debug, Clone)]
+pub struct BatchFormatParams {
+    /// File patterns (glob patterns or explicit paths)
+    pub patterns: Vec<String>,
+    /// Optional output directory for formatted files
+    pub output_dir: Option<String>,
+    /// If `true`, checks if files are already canonical without modifying them
+    pub check: bool,
+    /// If `true`, enables ditto optimization in output
+    pub ditto: bool,
+    /// If `true`, includes line/value counts in output
+    pub with_counts: bool,
+    /// Enable recursive directory traversal
+    pub recursive: bool,
+    /// Maximum recursion depth for directory traversal
+    pub max_depth: usize,
+    /// If `true`, processes files in parallel
+    pub parallel: bool,
+    /// If `true`, shows detailed progress information
+    pub verbose: bool,
+    /// Optional override for the maximum number of files to process
+    pub max_files_override: Option<Option<usize>>,
+}
 
 /// Batch validate multiple HEDL files.
 ///
@@ -134,7 +162,7 @@ pub fn batch_validate_with_config(
     // Warn if processing many files
     crate::batch::warn_large_batch(paths.len(), verbose);
 
-    let processor = BatchProcessor::new(config);
+    let processor = BatchExecutor::new(config);
     let operation = ValidationOperation { strict };
 
     let results = processor.process(&paths, operation, true)?;
@@ -194,16 +222,22 @@ pub fn batch_validate_with_config(
 /// # Examples
 ///
 /// ```no_run
-/// use hedl_cli::commands::batch_format;
+/// use hedl_cli::commands::{batch_format, BatchFormatParams};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Format files to output directory
-/// let patterns = vec!["*.hedl".to_string()];
-/// batch_format(patterns, Some("formatted/".to_string()), false, true, false, false, 10, true, false)?;
-///
-/// // Check if files are canonical
-/// let patterns = vec!["**/*.hedl".to_string()];
-/// batch_format(patterns, None, true, true, false, true, 10, true, false)?;
+/// batch_format(BatchFormatParams {
+///     patterns: vec!["*.hedl".to_string()],
+///     output_dir: Some("formatted/".to_string()),
+///     check: false,
+///     ditto: true,
+///     with_counts: false,
+///     recursive: false,
+///     max_depth: 10,
+///     parallel: true,
+///     verbose: false,
+///     max_files_override: None,
+/// })?;
 /// # Ok(())
 /// # }
 /// ```
@@ -219,19 +253,15 @@ pub fn batch_validate_with_config(
 ///
 /// Automatically uses parallel processing when beneficial (4+ files by default).
 /// Can be forced with the `parallel` flag for smaller file sets.
-#[allow(clippy::too_many_arguments)]
-pub fn batch_format(
-    patterns: Vec<String>,
-    output_dir: Option<String>,
-    check: bool,
-    ditto: bool,
-    with_counts: bool,
-    recursive: bool,
-    max_depth: usize,
-    parallel: bool,
-    verbose: bool,
-) -> Result<(), CliError> {
-    batch_format_with_config(
+pub fn batch_format(params: BatchFormatParams) -> Result<(), CliError> {
+    batch_format_with_config(params)
+}
+
+/// Batch format with custom configuration.
+///
+/// Like `batch_format`, but allows overriding the max files limit.
+pub fn batch_format_with_config(params: BatchFormatParams) -> Result<(), CliError> {
+    let BatchFormatParams {
         patterns,
         output_dir,
         check,
@@ -241,26 +271,8 @@ pub fn batch_format(
         max_depth,
         parallel,
         verbose,
-        None,
-    )
-}
-
-/// Batch format with custom configuration.
-///
-/// Like `batch_format`, but allows overriding the max files limit.
-#[allow(clippy::too_many_arguments)]
-pub fn batch_format_with_config(
-    patterns: Vec<String>,
-    output_dir: Option<String>,
-    check: bool,
-    ditto: bool,
-    with_counts: bool,
-    recursive: bool,
-    max_depth: usize,
-    parallel: bool,
-    verbose: bool,
-    max_files_override: Option<Option<usize>>,
-) -> Result<(), CliError> {
+        max_files_override,
+    } = params;
     // Discover files from patterns
     let discovery_config = DiscoveryConfig {
         max_depth: Some(max_depth),
@@ -289,7 +301,7 @@ pub fn batch_format_with_config(
     // Warn if processing many files
     crate::batch::warn_large_batch(paths.len(), verbose);
 
-    let processor = BatchProcessor::new(config);
+    let processor = BatchExecutor::new(config);
     let operation = FormatOperation {
         check,
         ditto,
@@ -448,7 +460,7 @@ pub fn batch_lint_with_config(
     // Warn if processing many files
     crate::batch::warn_large_batch(paths.len(), verbose);
 
-    let processor = BatchProcessor::new(config);
+    let processor = BatchExecutor::new(config);
     let operation = LintOperation { warn_error };
 
     let results = processor.process(&paths, operation, true)?;

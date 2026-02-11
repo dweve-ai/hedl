@@ -142,13 +142,13 @@ mod tests {
     #[test]
     fn test_default_implementations_preserve_values() {
         let mut transformer = NoOpTransformer;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
-        // Test document transformation
-        let doc2 = Document::new((1, 0));
+        // Test document transformation - NoOp should preserve the version
+        let doc2 = Document::new((2, 0));
         let transformed = transformer.transform_document(doc2, &ctx);
-        assert_eq!(transformed.version, (1, 0));
+        assert_eq!(transformed.version, (2, 0));
 
         // Test item transformation
         let item = Item::Scalar(Value::Int(42));
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_transformer_can_modify_values() {
         let mut transformer = ValueDoubler;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let value = Value::Int(21);
@@ -211,7 +211,7 @@ mod tests {
         let mut transformer = NodeFilter {
             allowed_type: "User".to_string(),
         };
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let user_node = Node::new("User", "1", vec![]);
@@ -250,7 +250,7 @@ mod tests {
             old_key: "old_name".to_string(),
             new_key: "new_name".to_string(),
         };
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let item = Item::Scalar(Value::Int(42));
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn test_transformer_can_filter_items() {
         let mut transformer = ItemFilter;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let null_item = Item::Scalar(Value::Null);
@@ -309,7 +309,7 @@ mod tests {
         let mut transformer = NodeIdPrefixer {
             prefix: "tenant1".to_string(),
         };
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let node = Node::new("User", "alice", vec![]);
@@ -333,8 +333,8 @@ mod tests {
         let mut transformer = DocumentVersionUpdater {
             new_version: (2, 0),
         };
-        let doc = Document::new((1, 0));
-        let temp_doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
+        let temp_doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&temp_doc);
 
         let result = transformer.transform_document(doc, &ctx);

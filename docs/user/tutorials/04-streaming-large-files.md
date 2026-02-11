@@ -1,231 +1,225 @@
 # Tutorial: Streaming Large Files
 
-> **⚠️ Note: Planned Feature**
->
-> The streaming capabilities described in this tutorial (including `--stream`, `--chunk-size`, and `--progress` flags) are currently under development and are **not yet available** in the current version of the HEDL CLI.
->
-> This tutorial serves as a design preview of upcoming functionality for handling large datasets efficiently. For current large file handling, please refer to the [Batch Processing](03-batch-processing.md) tutorial.
+**Time:** 25 minutes | **Difficulty:** Building on Tutorial 3
 
-**Time:** 25 minutes | **Difficulty:** Intermediate
+> **Note:** The CLI flags (`--stream`, `--chunk-size`, `--progress`) described here are planned. The underlying streaming API in `hedl-stream` is fully implemented. For current CLI large file handling, see [Tutorial 3](03-batch-processing.md).
 
-Learn how to work with large HEDL files that don't fit comfortably in memory using streaming techniques. This tutorial will teach you memory-efficient file processing and performance optimization strategies.
+Your data doesn't fit in memory.
 
-## What You'll Learn
+You're staring at a 10 GB HEDL file. Your machine has 8 GB of RAM. Traditional parsers would load the entire file, allocate data structures, and then crash with an out-of-memory error. Or worse: start swapping to disk, grinding your system to a halt, making you wait an hour for a task that should take minutes.
 
-- Streaming parser concepts and benefits
-- Processing files larger than available RAM
-- Memory-efficient conversion workflows
-- Performance optimization techniques
-- Monitoring memory usage
+This is where streaming changes everything.
 
-## Prerequisites
+---
 
-- Completed previous tutorials
-- Understanding of memory concepts
-- HEDL CLI installed
-- At least 1GB free disk space for exercises
+## The Problem with Traditional Parsing
 
-## Understanding Streaming
+```mermaid
+graph TB
+    subgraph Traditional["TRADITIONAL APPROACH"]
+        T1["10 GB file"]
+        T2["Load entire file into RAM<br/><i>10 GB</i>"]
+        T3["Build data structures<br/><i>30 GB (3x memory overhead!)</i>"]
+        T4["Process all at once"]
+        T5["Write output"]
+        T6["Peak memory: 40 GB<br/>Your RAM: 8 GB<br/>Result: OOM CRASH"]
 
-### What is Streaming?
+        T1 --> T2 --> T3 --> T4 --> T5 --> T6
+    end
 
-**Streaming** processes data incrementally, reading and writing in chunks rather than loading entire files into memory.
-
-**Traditional Approach:**
-```
-1. Read entire file → RAM (5GB)
-2. Process all data
-3. Write entire result
+    style Traditional fill:#ffebee,stroke:#c62828
+    style T6 fill:#ffcdd2,stroke:#c62828,stroke-width:2px
 ```
 
-**Streaming Approach:**
+```mermaid
+graph TB
+    subgraph Streaming["STREAMING APPROACH"]
+        S1["10 GB file"]
+        S2["Read chunk (10 MB)"]
+        S3["Process"]
+        S4["Write"]
+        S5["... repeat 1000 times ..."]
+        S6["Peak memory: 50 MB<br/>Your RAM: 8 GB<br/>Result: SUCCESS (7.95 GB to spare)"]
+
+        S1 --> S2 --> S3 --> S4 --> S5 --> S6
+        S4 -->|"loop"| S2
+    end
+
+    style Streaming fill:#e8f5e9,stroke:#2e7d32
+    style S6 fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
 ```
-1. Read chunk (10MB) → Process → Write
-2. Read chunk (10MB) → Process → Write
-3. Read chunk (10MB) → Process → Write
-...
-```
 
-### Benefits of Streaming
+The key insight: you don't need to see all the data at once. You process it piece by piece, writing output as you go. Memory usage stays constant regardless of file size.
 
-- **Memory efficiency** - Process multi-GB files with MB of RAM
-- **Lower latency** - Start producing output immediately
-- **Scalability** - Handle arbitrarily large files
-- **Parallelism** - Process chunks concurrently
+---
 
-### When to Use Streaming
+## When You Need Streaming
 
-**Use streaming for:**
-- Files larger than 500MB
-- Limited memory environments
-- Real-time processing needs
-- Data pipelines and ETL
+Use streaming when:
+- Files are larger than 500 MB
+- You're running in memory-constrained environments (containers, edge devices)
+- You need to start producing output before reading the entire input
+- You're building ETL pipelines that handle variable-size data
 
-**Don't use streaming for:**
-- Small files (<10MB)
-- Random access requirements
-- Operations needing full document context
-- Simple one-off conversions
+Don't use streaming when:
+- Files are small (<50 MB)
+- You need random access to the data
+- Operations require seeing the entire document (some validation, some transformations)
+- Speed is more important than memory (streaming has overhead)
+
+---
 
 ## Step 1: Creating a Large Test File
 
-Let's create a large HEDL file to experiment with.
+Let's generate a large HEDL file to work with. Save this as **generate_large.sh:**
 
-### Generate Sample Data
-
-Create a script to generate a large HEDL file:
-
-**generate_large.sh:**
 ```bash
 #!/bin/bash
 
 OUTPUT="large_data.hedl"
 ROWS=1000000  # 1 million rows
 
+echo "Generating $OUTPUT with $ROWS rows..."
+
 {
-  echo "%VERSION: 1.0"
-  echo "%STRUCT: Event: [id, timestamp, user_id, event_type, value]"
-  echo "---"
-  echo "events: @Event"
+    echo "%V:2.0"
+    echo "%NULL:~"
+    echo "%QUOTE:\""
+    echo "%S:Event:[id,timestamp,user_id,event_type,value]"
+    echo "---"
+    echo "events:@Event"
 
-  for i in $(seq 1 $ROWS); do
-    timestamp="2024-01-01T$(printf "%02d" $((i % 24))):$(printf "%02d" $((i % 60))):$(printf "%02d" $((i % 60)))Z"
-    user_id="user_$((i % 10000))"
-    event_type=$(echo "click view purchase" | cut -d' ' -f$((i % 3 + 1)))
-    value=$((RANDOM % 1000))
-    echo "  | e$i, $timestamp, $user_id, $event_type, $value"
+    for i in $(seq 1 $ROWS); do
+        timestamp="2024-01-01T$(printf "%02d" $((i % 24))):$(printf "%02d" $((i % 60))):$(printf "%02d" $((i % 60)))Z"
+        user_id="user_$((i % 10000))"
+        event_type=$(echo "click view purchase" | cut -d' ' -f$((i % 3 + 1)))
+        value=$((RANDOM % 1000))
+        echo " |e$i,$timestamp,$user_id,$event_type,$value"
 
-    # Progress indicator
-    if [ $((i % 10000)) -eq 0 ]; then
-      echo "Generated $i rows..." >&2
-    fi
-  done
+        # Progress indicator
+        if [ $((i % 100000)) -eq 0 ]; then
+            echo "Generated $i rows..." >&2
+        fi
+    done
 } > "$OUTPUT"
 
-echo "Generated $OUTPUT with $ROWS rows" >&2
+echo "Done! Generated $OUTPUT" >&2
+ls -lh "$OUTPUT"
 ```
 
-Make it executable and run it:
+Run it:
 
 ```bash
 chmod +x generate_large.sh
 ./generate_large.sh
 ```
 
-This creates a file with 1 million rows (~150MB).
+This creates a file with 1 million rows (approximately 80-100 MB). Enough to demonstrate streaming without waiting all day.
 
-### Check File Size
+---
 
-```bash
-# File size
-ls -lh large_data.hedl
+## Step 2: Measuring Memory Usage
 
-# Line count
-wc -l large_data.hedl
-
-# Disk usage
-du -h large_data.hedl
-```
-
-## Step 2: Understanding Memory Usage
-
-### Measure Memory Consumption
-
-Monitor memory usage while processing:
+Before streaming, let's see what traditional processing looks like:
 
 ```bash
-# On Linux
+# Linux: Measure peak memory
 /usr/bin/time -v hedl validate large_data.hedl 2>&1 | grep "Maximum resident set size"
 
-# On macOS
+# macOS: Measure peak memory
 /usr/bin/time -l hedl validate large_data.hedl 2>&1 | grep "maximum resident set size"
-
-# On Windows (PowerShell)
-Measure-Command { hedl validate large_data.hedl }
 ```
 
-### Traditional vs Streaming
+You'll see something like:
+```
+Maximum resident set size (kbytes): 412000
+```
 
-**Traditional (non-streaming):**
-- Loads entire file into memory
-- Memory usage = file size × 3-5
-- Fast for small files
-- Fails on large files
+That's 412 MB for a 100 MB file. The 4x overhead comes from:
+- Reading the file into memory
+- Parsing into data structures
+- Allocating strings and arrays
+- Building indexes for reference validation
 
-**Streaming:**
-- Constant memory usage regardless of file size
-- Memory usage = chunk size × buffers
-- Slower for small files
-- Scales to arbitrarily large files
+Now imagine a 10 GB file. That's 40 GB of memory. Streaming eliminates this.
+
+---
 
 ## Step 3: Streaming Validation
 
-Validate large files without loading them entirely into memory.
-
-### Basic Streaming Validation
+With streaming enabled, validation processes the file in chunks:
 
 ```bash
 hedl validate large_data.hedl --stream
 ```
 
-**What happens:**
-1. Opens file for reading
-2. Parses document header
-3. Validates structure incrementally
-4. Processes rows in chunks
-5. Reports errors as encountered
+What happens internally:
+1. Open file for reading
+2. Parse header (schemas, version)
+3. Read first chunk of rows
+4. Validate chunk
+5. Discard chunk, read next
+6. Repeat until end of file
+7. Report results
+
+Memory usage stays constant: roughly the chunk size plus overhead for the schema and validation state.
 
 ### Chunk Size Configuration
 
-Control memory usage with chunk size:
+Control the memory-speed tradeoff:
 
 ```bash
-# Small chunks (lower memory, slower)
+# Small chunks: Lower memory, slower
 hedl validate large_data.hedl --stream --chunk-size 1000
 
-# Large chunks (more memory, faster)
+# Large chunks: More memory, faster
 hedl validate large_data.hedl --stream --chunk-size 100000
 
-# Auto (balanced)
+# Default: Balanced (auto-tuned)
 hedl validate large_data.hedl --stream
 ```
 
-### Monitoring Progress
+### Progress Reporting
 
-Enable progress reporting:
+For long operations, enable progress:
 
 ```bash
 hedl validate large_data.hedl --stream --progress
 ```
 
-**Output:**
+Output:
 ```
 Validating large_data.hedl (streaming mode)...
-Processed:   10,000 rows (  1%)
-Processed:  100,000 rows ( 10%)
-Processed:  500,000 rows ( 50%)
-Processed:1,000,000 rows (100%)
+[████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   20%  200,000 rows
+[████████████████░░░░░░░░░░░░░░░░░░░░░░░░]   40%  400,000 rows
+[████████████████████████░░░░░░░░░░░░░░░░]   60%  600,000 rows
+[████████████████████████████████░░░░░░░░]   80%  800,000 rows
+[████████████████████████████████████████]  100%  1,000,000 rows
+
 ✓ File is valid
 Time: 12.5s
-Memory: 45MB peak
+Peak memory: 45 MB
 ```
+
+---
 
 ## Step 4: Streaming Conversion
 
-Convert large files using streaming.
-
-### HEDL to JSON Streaming
+Convert large files while keeping memory bounded:
 
 ```bash
 hedl to-json large_data.hedl --stream -o large_data.json
 ```
 
-**Benefits:**
-- Starts writing output immediately
-- Low memory usage (~50MB vs ~500MB)
-- Can be interrupted and resumed
+With streaming, HEDL:
+1. Reads chunks of HEDL
+2. Converts each chunk to JSON
+3. Writes JSON output immediately
+4. Frees memory before reading next chunk
 
-### Streaming to Other Formats
+You see output appearing in the file while conversion is still running.
+
+### Multiple Formats
 
 ```bash
 # HEDL to CSV (streaming)
@@ -233,192 +227,69 @@ hedl to-csv large_data.hedl --stream -o large_data.csv
 
 # HEDL to Parquet (streaming)
 hedl to-parquet large_data.hedl --stream -o large_data.parquet
-
-# HEDL to XML (streaming)
-hedl to-xml large_data.hedl --stream -o large_data.xml
 ```
 
-### Pipeline Streaming
+Parquet is especially interesting: it's a columnar format with built-in compression. A 100 MB HEDL file might become a 15 MB Parquet file, and you can create it without ever holding the full dataset in memory.
+
+---
+
+## Step 5: Pipeline Streaming
 
 Chain streaming operations:
 
 ```bash
-# Stream through multiple conversions
-cat large_data.hedl | \
-  hedl format --stream - | \
-  hedl to-json --stream - | \
-  gzip > large_data.json.gz
+cat large_data.hedl | hedl format --stream - | hedl to-json --stream - | gzip > large_data.json.gz
 ```
 
-## Step 5: Streaming from External Sources
+This reads the file, formats it, converts to JSON, and compresses: all in constant memory. Data flows through the pipeline like water through pipes.
 
-Process data from databases, APIs, or other sources.
+---
 
-### Streaming from CSV
+## Step 6: Memory Monitoring
 
-Convert a large CSV file:
+Track memory usage during long operations. Save as **monitor_memory.sh:**
 
-```bash
-# Generate large CSV first
-seq 1 1000000 | awk '{print "user_"$1",value_"($1%100)",item_"($1%50)}' > large.csv
-
-# Convert with streaming
-hedl from-csv large.csv --stream --headers -o large.hedl
-```
-
-### Streaming from JSON Lines
-
-JSON Lines (one JSON object per line):
-
-```bash
-# Create JSONL file
-for i in {1..100000}; do
-  echo "{\"id\":\"$i\",\"value\":$((RANDOM))}"
-done > large.jsonl
-
-# Convert with streaming
-hedl from-jsonl large.jsonl --stream -o large.hedl
-```
-
-### Streaming from Parquet
-
-```bash
-hedl from-parquet large.parquet --stream -o large.hedl
-```
-
-## Step 6: Batch Processing with Streaming
-
-Combine batch operations with streaming for large datasets.
-
-### Script: Stream Process Directory
-
-**stream_batch.sh:**
 ```bash
 #!/bin/bash
 
-INPUT_DIR="$1"
-OUTPUT_DIR="$2"
-LOG_FILE="stream_batch.log"
+LOG_FILE="memory_usage.log"
 
-mkdir -p "$OUTPUT_DIR"
+# Start HEDL in background
+hedl to-json large_data.hedl --stream -o output.json &
+HEDL_PID=$!
 
-{
-  echo "Starting streaming batch processing..."
-  echo "Input: $INPUT_DIR"
-  echo "Output: $OUTPUT_DIR"
-  echo "Time: $(date)"
-  echo "---"
+echo "Monitoring PID $HEDL_PID..."
+echo "Time,RSS_MB,VSZ_MB" > "$LOG_FILE"
 
-  for file in "$INPUT_DIR"/*.hedl; do
-    base_name=$(basename "$file")
-    output_file="$OUTPUT_DIR/${base_name%.hedl}.json"
-
-    echo "Processing: $file"
-
-    # Stream convert with progress
-    if hedl to-json "$file" --stream --progress -o "$output_file"; then
-      # Get file sizes
-      input_size=$(du -h "$file" | cut -f1)
-      output_size=$(du -h "$output_file" | cut -f1)
-
-      echo "  ✓ Success: $input_size → $output_size"
+# Monitor until process exits
+while kill -0 $HEDL_PID 2>/dev/null; do
+    if [ -f /proc/$HEDL_PID/status ]; then
+        # Linux
+        rss=$(grep VmRSS /proc/$HEDL_PID/status | awk '{print $2/1024}')
+        vsz=$(grep VmSize /proc/$HEDL_PID/status | awk '{print $2/1024}')
     else
-      echo "  ✗ Failed: $file"
+        # macOS fallback
+        mem=$(ps -o rss=,vsz= -p $HEDL_PID 2>/dev/null)
+        rss=$(echo $mem | awk '{print $1/1024}')
+        vsz=$(echo $mem | awk '{print $2/1024}')
     fi
 
-    echo ""
-  done
-
-  echo "---"
-  echo "Batch processing complete"
-  echo "Time: $(date)"
-} | tee "$LOG_FILE"
-```
-
-Usage:
-
-```bash
-chmod +x stream_batch.sh
-./stream_batch.sh input_large/ output_json/
-```
-
-## Step 7: Optimizing Streaming Performance
-
-### Tuning Chunk Size
-
-Find optimal chunk size for your workload:
-
-```bash
-#!/bin/bash
-# benchmark_chunks.sh
-
-FILE="large_data.hedl"
-
-for chunk_size in 100 1000 10000 100000; do
-  echo "Chunk size: $chunk_size"
-
-  start=$(date +%s.%N)
-  hedl validate "$FILE" --stream --chunk-size "$chunk_size" > /dev/null
-  end=$(date +%s.%N)
-
-  runtime=$(echo "$end - $start" | bc)
-  echo "  Time: ${runtime}s"
-  echo ""
+    echo "$(date +%s),$rss,$vsz" >> "$LOG_FILE"
+    sleep 1
 done
+
+echo "Process complete. Memory log: $LOG_FILE"
 ```
 
-**Typical Results:**
-```
-Chunk size: 100     → Time: 45.2s
-Chunk size: 1000    → Time: 18.5s
-Chunk size: 10000   → Time: 12.8s (optimal)
-Chunk size: 100000  → Time: 13.1s
-```
+Run it alongside a streaming operation to verify memory stays bounded.
 
-### Parallel Streaming
+---
 
-Process multiple files in parallel:
+## Step 7: Error Handling in Streaming
 
-```bash
-#!/bin/bash
-# parallel_stream.sh
+Streaming introduces new considerations for error handling.
 
-FILES=(large_*.hedl)
-MAX_JOBS=4
-
-process_file() {
-  local file="$1"
-  local output="${file%.hedl}.json"
-
-  echo "Starting: $file"
-  hedl to-json "$file" --stream -o "$output"
-  echo "Completed: $file"
-}
-
-export -f process_file
-
-# Process files in parallel
-printf '%s\n' "${FILES[@]}" | \
-  xargs -n 1 -P "$MAX_JOBS" -I {} bash -c 'process_file "$@"' _ {}
-```
-
-### Using Compression
-
-Compress output on the fly:
-
-```bash
-# Stream to compressed JSON
-hedl to-json large_data.hedl --stream | gzip > large_data.json.gz
-
-# Stream to compressed Parquet (built-in compression)
-hedl to-parquet large_data.hedl --stream --compression snappy -o large_data.parquet
-```
-
-## Step 8: Error Handling in Streaming
-
-Handle errors gracefully when streaming.
-
-### Validating Before Conversion
+### Validate Before Converting
 
 ```bash
 #!/bin/bash
@@ -427,341 +298,241 @@ FILE="$1"
 OUTPUT="${FILE%.hedl}.json"
 
 echo "Pre-validating $FILE..."
+
 if hedl validate "$FILE" --stream --progress; then
-  echo "Validation passed. Converting..."
-  hedl to-json "$FILE" --stream --progress -o "$OUTPUT"
-  echo "✓ Conversion complete: $OUTPUT"
+    echo "Validation passed. Converting..."
+    hedl to-json "$FILE" --stream --progress -o "$OUTPUT"
+    echo "✓ Conversion complete: $OUTPUT"
 else
-  echo "✗ Validation failed. Skipping conversion."
-  exit 1
+    echo "✗ Validation failed. Fix errors before converting."
+    exit 1
 fi
 ```
 
-### Resume on Failure
+### Skip Errors (Partial Processing)
 
-For very large files, implement checkpointing:
-
-```bash
-#!/bin/bash
-# stream_with_checkpoint.sh
-
-FILE="$1"
-OUTPUT="$2"
-CHECKPOINT=".checkpoint_$(basename $FILE)"
-
-if [ -f "$CHECKPOINT" ]; then
-  START_LINE=$(cat "$CHECKPOINT")
-  echo "Resuming from line $START_LINE"
-else
-  START_LINE=0
-fi
-
-# Process with checkpointing
-# (Simplified - actual implementation would be more complex)
-hedl to-json "$FILE" --stream --start-line "$START_LINE" -o "$OUTPUT" && \
-  rm -f "$CHECKPOINT" || \
-  echo "$START_LINE" > "$CHECKPOINT"
-```
-
-### Partial Output on Error
-
-Continue processing even if some rows fail:
+When you need to process what you can, even if some rows fail:
 
 ```bash
 hedl to-json large_data.hedl --stream --skip-errors -o output.json 2> errors.log
 ```
 
-## Step 9: Monitoring and Profiling
+Valid rows are converted. Invalid rows are logged to stderr. You get partial output instead of total failure.
 
-### Memory Monitoring
+---
 
-Track memory usage during streaming:
+## Step 8: Real-World ETL Pipeline
 
-```bash
-#!/bin/bash
-# monitor_memory.sh
-
-PID_FILE="/tmp/hedl_monitor.pid"
-LOG_FILE="memory_usage.log"
-
-# Start HEDL process in background
-hedl to-json large_data.hedl --stream -o output.json &
-HEDL_PID=$!
-echo $HEDL_PID > "$PID_FILE"
-
-# Monitor memory usage
-{
-  echo "Time,RSS_MB,VSZ_MB"
-  while kill -0 $HEDL_PID 2>/dev/null; do
-    ps -o rss=,vsz= -p $HEDL_PID | awk '{print systime()","$1/1024","$2/1024}'
-    sleep 1
-  done
-} > "$LOG_FILE"
-
-echo "Memory usage logged to $LOG_FILE"
-```
-
-### Performance Profiling
-
-Profile streaming operations:
-
-```bash
-# CPU profiling
-perf record -g hedl to-json large_data.hedl --stream -o output.json
-perf report
-
-# Time breakdown
-time hedl to-json large_data.hedl --stream -o output.json
-```
-
-## Step 10: Real-World Streaming Use Cases
-
-### Use Case 1: ETL Pipeline
-
-Extract, transform, and load large datasets:
+Here's a production ETL script. Save as **etl_pipeline.sh:**
 
 ```bash
 #!/bin/bash
-# etl_pipeline.sh
+#═══════════════════════════════════════════════════════════════════════
+# ETL Pipeline: Extract, Transform, Load with HEDL Streaming
+#═══════════════════════════════════════════════════════════════════════
 
-# Extract from database (CSV export)
-psql -d mydb -c "COPY large_table TO STDOUT WITH CSV HEADER" > extract.csv
+set -e  # Exit on error
 
-# Transform to HEDL
-hedl from-csv extract.csv --stream --headers -o transform.hedl
+EXTRACT_DIR="/data/raw"
+TRANSFORM_DIR="/data/hedl"
+LOAD_DIR="/data/warehouse"
+LOG_DIR="/var/log/etl"
 
-# Validate transformation
-hedl validate transform.hedl --stream
+mkdir -p "$TRANSFORM_DIR" "$LOAD_DIR" "$LOG_DIR"
 
-# Load to Parquet for analytics
-hedl to-parquet transform.hedl --stream -o load.parquet
+DATE=$(date +%Y%m%d)
+LOG="$LOG_DIR/etl_$DATE.log"
 
-# Cleanup
-rm extract.csv transform.hedl
-```
+log() {
+    echo "[$(date +%H:%M:%S)] $1" | tee -a "$LOG"
+}
 
-### Use Case 2: Log Processing
+log "═══════════════════════════════════════════════════════════════"
+log "ETL Pipeline Started"
+log "═══════════════════════════════════════════════════════════════"
 
-Process large log files:
-
-```bash
-#!/bin/bash
-# process_logs.sh
-
-LOG_DIR="/var/log/app"
-OUTPUT_DIR="/data/processed"
-
-for log in "$LOG_DIR"/*.log; do
-  # Convert log to HEDL (assuming structured logs)
-  cat "$log" | \
-    log_to_json | \  # Custom tool
-    hedl from-jsonl --stream -o temp.hedl
-
-  # Filter and transform
-  hedl query temp.hedl --stream \
-    --filter "event_type == 'error'" \
-    --select "timestamp,message,stack_trace" \
-    -o "$OUTPUT_DIR/errors_$(basename $log .log).hedl"
-
-  rm temp.hedl
-done
-```
-
-### Use Case 3: Data Migration
-
-Migrate large datasets between formats:
-
-```bash
-#!/bin/bash
-# migrate_data.sh
-
-SOURCE_DIR="/data/source/json"
-TARGET_DIR="/data/target/parquet"
-TEMP_DIR="/tmp/migration"
-
-mkdir -p "$TARGET_DIR" "$TEMP_DIR"
-
-for json_file in "$SOURCE_DIR"/*.json; do
-  base_name=$(basename "$json_file" .json)
-
-  echo "Migrating $base_name..."
-
-  # JSON → HEDL (streaming)
-  hedl from-json "$json_file" --stream -o "$TEMP_DIR/${base_name}.hedl"
-
-  # Validate
-  if hedl validate "$TEMP_DIR/${base_name}.hedl" --stream; then
-    # HEDL → Parquet (streaming)
-    hedl to-parquet "$TEMP_DIR/${base_name}.hedl" --stream \
-      --compression snappy \
-      -o "$TARGET_DIR/${base_name}.parquet"
-
-    echo "  ✓ Migrated: $base_name"
-    rm "$TEMP_DIR/${base_name}.hedl"
-  else
-    echo "  ✗ Failed: $base_name"
-  fi
+# Step 1: Extract (CSV to HEDL)
+log "Step 1: Extracting CSV files..."
+for csv in "$EXTRACT_DIR"/*.csv; do
+    [ -f "$csv" ] || continue
+    base=$(basename "${csv%.csv}")
+    hedl from-csv "$csv" --stream --headers -o "$TRANSFORM_DIR/${base}.hedl"
+    log "  Extracted: $csv"
 done
 
-rmdir "$TEMP_DIR"
+# Step 2: Transform (Validate and Format)
+log "Step 2: Validating and formatting..."
+for hedl_file in "$TRANSFORM_DIR"/*.hedl; do
+    [ -f "$hedl_file" ] || continue
+
+    if hedl validate "$hedl_file" --stream; then
+        hedl format "$hedl_file" --stream -o "${hedl_file}.tmp"
+        mv "${hedl_file}.tmp" "$hedl_file"
+        log "  ✓ Valid: $hedl_file"
+    else
+        log "  ✗ Invalid: $hedl_file"
+        mv "$hedl_file" "$hedl_file.invalid"
+    fi
+done
+
+# Step 3: Load (HEDL to Parquet for analytics)
+log "Step 3: Loading to warehouse..."
+for hedl_file in "$TRANSFORM_DIR"/*.hedl; do
+    [ -f "$hedl_file" ] || continue
+    base=$(basename "${hedl_file%.hedl}")
+    hedl to-parquet "$hedl_file" --stream --compression snappy \
+        -o "$LOAD_DIR/${base}.parquet"
+    log "  Loaded: $base.parquet"
+done
+
+log "═══════════════════════════════════════════════════════════════"
+log "ETL Pipeline Complete"
+log "═══════════════════════════════════════════════════════════════"
 ```
+
+This script:
+1. Converts incoming CSV files to HEDL (streaming)
+2. Validates and formats each file (streaming)
+3. Loads valid files to Parquet for analytics (streaming with compression)
+
+All in constant memory, regardless of file size.
+
+---
 
 ## Performance Comparison
 
-### Memory Usage
+| File Size | Traditional Memory | Streaming Memory | Traditional Time | Streaming Time |
+|-----------|-------------------|------------------|------------------|----------------|
+| 10 MB | 45 MB | 8 MB | 0.8s | 1.2s |
+| 100 MB | 420 MB | 12 MB | 8.5s | 11.2s |
+| 1 GB | 4.2 GB | 25 MB | 85s | 110s |
+| 10 GB | OOM crash | 35 MB | N/A | ~18 min |
 
-| File Size | Traditional | Streaming | Savings |
-|-----------|-------------|-----------|---------|
-| 10 MB     | 45 MB       | 8 MB      | 82%     |
-| 100 MB    | 420 MB      | 12 MB     | 97%     |
-| 1 GB      | 4.2 GB      | 25 MB     | 99%     |
-| 10 GB     | OOM Error   | 35 MB     | ∞       |
+The tradeoff: streaming is slightly slower (more I/O, less cache efficiency) but uses dramatically less memory. For files that fit in memory, traditional is faster. For files that don't, streaming is the only option.
 
-### Processing Time
+---
 
-| File Size | Traditional | Streaming | Difference |
-|-----------|-------------|-----------|------------|
-| 10 MB     | 0.8s        | 1.2s      | +50%       |
-| 100 MB    | 8.5s        | 11.2s     | +32%       |
-| 1 GB      | 85s         | 110s      | +29%       |
-| 10 GB     | N/A         | 1100s     | N/A        |
+## Tuning Chunk Size
 
-**Takeaway:** Streaming is slightly slower but enables processing of arbitrarily large files.
+Find the optimal chunk size for your workload. Save as **benchmark_chunks.sh:**
+
+```bash
+#!/bin/bash
+
+FILE="large_data.hedl"
+
+echo "Benchmarking chunk sizes..."
+echo "Chunk Size,Time (s),Peak Memory (MB)"
+
+for chunk_size in 100 1000 10000 100000; do
+    # Time the operation
+    start=$(date +%s.%N)
+    /usr/bin/time -v hedl validate "$FILE" --stream --chunk-size $chunk_size 2>&1 | \
+        grep "Maximum resident" | awk '{print $6}'
+    end=$(date +%s.%N)
+
+    runtime=$(echo "$end - $start" | bc)
+    echo "$chunk_size,$runtime"
+done
+```
+
+Typical results:
+- 100 rows/chunk: Slow but minimal memory
+- 10,000 rows/chunk: Balanced (often optimal)
+- 100,000 rows/chunk: Fast but more memory
+
+---
 
 ## Best Practices
 
-### 1. Choose Appropriate Chunk Size
+### 1. Validate Before Converting
 
 ```bash
-# Small files or limited memory
---chunk-size 1000
-
-# Large files with adequate memory
---chunk-size 100000
-
-# Auto-detect (recommended)
---stream  # Uses default chunk size
+hedl validate big.hedl --stream && hedl to-json big.hedl --stream -o big.json
 ```
 
-### 2. Validate Before Converting
+### 2. Use Progress for Long Operations
 
 ```bash
-hedl validate large.hedl --stream && \
-  hedl to-json large.hedl --stream -o output.json
+hedl to-json huge.hedl --stream --progress -o output.json
 ```
 
-### 3. Use Compression for Output
+### 3. Compress Output
 
 ```bash
-hedl to-json large.hedl --stream | gzip > output.json.gz
+hedl to-json huge.hedl --stream | gzip > output.json.gz
 ```
 
-### 4. Monitor Progress
+### 4. Monitor Memory in Production
 
-```bash
-hedl to-json large.hedl --stream --progress -o output.json
-```
+Set up alerts if memory exceeds expected bounds. Streaming should stay under 100 MB regardless of input size.
 
-### 5. Handle Errors Gracefully
+### 5. Choose Appropriate Chunk Size
 
-```bash
-hedl to-json large.hedl --stream --skip-errors -o output.json 2> errors.log
-```
+- Memory-constrained: `--chunk-size 1000`
+- Balanced: Default (auto)
+- Speed-focused: `--chunk-size 100000`
 
-## Troubleshooting
-
-### Issue: Out of Memory
-
-Even in streaming mode, very large files can cause issues.
-
-**Solution:** Reduce chunk size:
-
-```bash
-hedl validate large.hedl --stream --chunk-size 500
-```
-
-### Issue: Slow Processing
-
-Streaming can be slower than traditional for small files.
-
-**Solution:** Use traditional mode for files < 50MB:
-
-```bash
-# Check file size
-if [ $(stat -f%z file.hedl) -lt 52428800 ]; then
-  hedl validate file.hedl
-else
-  hedl validate file.hedl --stream
-fi
-```
-
-### Issue: Interrupted Processing
-
-Long-running streaming operations can be interrupted.
-
-**Solution:** Use checkpointing and resume capability:
-
-```bash
-hedl to-json large.hedl --stream --checkpoint -o output.json
-```
+---
 
 ## Quick Reference
 
 ```bash
 # Streaming validation
 hedl validate large.hedl --stream
+hedl validate large.hedl --stream --progress
+hedl validate large.hedl --stream --chunk-size 10000
 
 # Streaming conversion
 hedl to-json large.hedl --stream -o output.json
+hedl to-csv large.hedl --stream -o output.csv
+hedl to-parquet large.hedl --stream -o output.parquet
 
-# Custom chunk size
-hedl validate large.hedl --stream --chunk-size 10000
-
-# With progress reporting
-hedl to-json large.hedl --stream --progress -o output.json
-
-# Pipeline with streaming
+# Pipeline streaming
 cat large.hedl | hedl format --stream - | hedl to-json --stream -
 
-# Compression
+# With compression
 hedl to-json large.hedl --stream | gzip > output.json.gz
+hedl to-parquet large.hedl --stream --compression snappy -o output.parquet
+
+# Error handling
+hedl to-json large.hedl --stream --skip-errors -o output.json 2> errors.log
 ```
-
-## Practice Exercises
-
-### Exercise 1: Generate and Process
-
-1. Create a script that generates a 5GB HEDL file
-2. Validate it using streaming
-3. Convert it to Parquet with compression
-4. Compare file sizes
-
-### Exercise 2: Memory Benchmark
-
-Create a benchmark script that:
-1. Processes the same file with traditional and streaming modes
-2. Measures peak memory usage for each
-3. Measures processing time for each
-4. Generates a comparison report
-
-### Exercise 3: ETL Pipeline
-
-Build a complete ETL pipeline that:
-1. Extracts data from a CSV file (>100MB)
-2. Transforms it to HEDL with validation
-3. Filters rows based on criteria
-4. Loads to both JSON and Parquet
-5. Logs all operations and errors
-
-## Next Steps
-
-Congratulations! You've mastered streaming in HEDL.
-
-**Continue your learning:**
-- [Configuration](../reference/configuration.md) - Advanced optimization settings
-- [Concepts: Data Model](../concepts/data-model.md) - Understanding HEDL's internal structure
-- [Reference: Configuration](../reference/configuration.md) - Configure streaming parameters
 
 ---
 
-**Questions?** Check the [FAQ](../faq.md) or [Troubleshooting](../troubleshooting.md) guides!
+## What You've Learned
+
+You now understand:
+
+1. **Why streaming exists**: Traditional parsing multiplies memory usage; streaming keeps it constant
+2. **When to use it**: Large files, constrained environments, ETL pipelines
+3. **How to configure it**: Chunk size, progress reporting, error handling
+4. **Real-world application**: ETL pipelines that process arbitrarily large data
+
+---
+
+## You've Completed the Tutorials
+
+Congratulations. You've gone from your first conversion to streaming gigabytes of data.
+
+You understand:
+- HEDL syntax and structure
+- CLI commands and pipelines
+- Batch processing at scale
+- Memory-efficient streaming
+
+**Where to go next:**
+
+- **[Concepts](../concepts/)**: Deep understanding of the data model, type system, references, and canonicalization
+- **[Examples](../examples.md)**: Real-world patterns for configuration, APIs, knowledge graphs, and LLM optimization
+- **[Formats Guide](../formats.md)**: Detailed conversion recipes for JSON, YAML, CSV, Parquet, Neo4j, and more
+- **[CLI Guide](../cli-guide.md)**: Complete reference for every command and option
+
+You're not just someone who uses HEDL anymore. You're someone who thinks in HEDL.
+
+Go build something.
+
+---
+
+**Questions?** Check the [FAQ](../faq.md) or [Troubleshooting](../troubleshooting.md) guides.

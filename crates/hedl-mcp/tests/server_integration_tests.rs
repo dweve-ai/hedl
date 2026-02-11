@@ -195,7 +195,7 @@ fn test_tools_list() {
     assert!(response["result"]["tools"].is_array());
 
     let tools = response["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 11); // Total number of tools
+    assert_eq!(tools.len(), 11);
 
     // Verify key tools are present
     let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();

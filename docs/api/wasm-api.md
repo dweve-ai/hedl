@@ -34,11 +34,13 @@ await init();
 
 // Parse HEDL
 const hedl = `
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
+users:@User
+ |alice,Alice Smith, alice@example.com
 `;
 
 const doc = parse(hedl);
@@ -66,7 +68,7 @@ const hedl = require('hedl-wasm');
 async function main() {
     await hedl.default();  // Initialize
 
-    const doc = hedl.parse('%VERSION: 1.0\n---\nkey: value');
+    const doc = hedl.parse('%V:2.0\n---\nkey: value');
     console.log(doc.version);
 }
 
@@ -135,7 +137,7 @@ Represents a parsed HEDL document.
 ```typescript
 interface HedlDocument {
     // Read-only properties
-    readonly version: string;           // e.g., "1.0"
+    readonly version: string;           // e.g., "2.0"
     readonly schemaCount: number;       // Number of STRUCT definitions
     readonly aliasCount: number;        // Number of ALIAS definitions
     readonly nestCount: number;         // Number of NEST definitions
@@ -143,7 +145,7 @@ interface HedlDocument {
 
     // Methods for schema inspection
     getSchemaNames(): string[];
-    getSchema(typeName: string): string[] | undefined;
+    getSchema(typeName: string): string[] |undefined;
     getAliases(): Record<string, string>;      // Returns alias mappings
     getNests(): Record<string, string[]>;      // Returns nest mappings (parent -> child types)
 
@@ -151,7 +153,7 @@ interface HedlDocument {
     countEntities(): { [typeName: string]: number };  // Count entities by type
 
     // Format conversion methods (standalone functions also available)
-    toHedl(useDitto?: boolean): string;                     // Convert to HEDL string
+    toHedl(): string;                                        // Convert to HEDL string
     toJson(): JsonValue;                                    // Requires: json feature
     toJsonString(pretty?: boolean): string;                 // Requires: json feature
 
@@ -287,11 +289,8 @@ console.log(jsonStr);  // String with pretty formatting
 Convert the parsed document back to canonical HEDL format.
 
 ```typescript
-toHedl(useDitto?: boolean): string
+toHedl(): string
 ```
-
-**Parameters**:
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: Canonical HEDL string
 
@@ -332,17 +331,16 @@ console.log(json);
 
 ---
 
-#### `fromJson(json, useDitto)` (standalone function)
+#### `fromJson(json)` (standalone function)
 
 Convert JSON string to HEDL string.
 
 ```typescript
-function fromJson(json: string, useDitto?: boolean): string
+function fromJson(json: string): string
 ```
 
 **Parameters**:
 - `json`: JSON string
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: HEDL string
 
@@ -380,19 +378,18 @@ console.log(yaml);
 
 ---
 
-#### `fromYaml(yaml, useDitto)` (standalone function)
+#### `fromYaml(yaml)` (standalone function)
 
 Convert YAML string to HEDL string.
 
 > **Feature Required**: This function requires the `yaml` build feature.
 
 ```typescript
-function fromYaml(yaml: string, useDitto?: boolean): string
+function fromYaml(yaml: string): string
 ```
 
 **Parameters**:
 - `yaml`: YAML string
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: HEDL string
 
@@ -430,19 +427,18 @@ console.log(xml);
 
 ---
 
-#### `fromXml(xml, useDitto)` (standalone function)
+#### `fromXml(xml)` (standalone function)
 
 Convert XML string to HEDL string.
 
 > **Feature Required**: This function requires the `xml` build feature.
 
 ```typescript
-function fromXml(xml: string, useDitto?: boolean): string
+function fromXml(xml: string): string
 ```
 
 **Parameters**:
 - `xml`: XML string
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: HEDL string
 
@@ -480,20 +476,19 @@ console.log(csv);
 
 ---
 
-#### `fromCsv(csv, typeName, useDitto)` (standalone function)
+#### `fromCsv(csv, typeName)` (standalone function)
 
 Convert CSV string to HEDL string.
 
 > **Feature Required**: This function requires the `csv` build feature.
 
 ```typescript
-function fromCsv(csv: string, typeName?: string, useDitto?: boolean): string
+function fromCsv(csv: string, typeName?: string): string
 ```
 
 **Parameters**:
 - `csv`: CSV string (header row required)
 - `typeName`: Type name for entities (default: `"Row"`)
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: HEDL string
 
@@ -531,19 +526,18 @@ console.log(toon);
 
 ---
 
-#### `fromToon(toon, useDitto)` (standalone function)
+#### `fromToon(toon)` (standalone function)
 
 Convert TOON string to HEDL string.
 
 > **Feature Required**: This function requires the `toon` build feature.
 
 ```typescript
-function fromToon(toon: string, useDitto?: boolean): string
+function fromToon(toon: string): string
 ```
 
 **Parameters**:
 - `toon`: TOON string
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: HEDL string
 
@@ -556,17 +550,16 @@ console.log(hedl);
 
 ---
 
-#### `format(hedl, useDitto)` (standalone function)
+#### `format(hedl)` (standalone function)
 
 Format HEDL to canonical form.
 
 ```typescript
-function format(hedl: string, useDitto?: boolean): string
+function format(hedl: string): string
 ```
 
 **Parameters**:
 - `hedl`: HEDL document string
-- `useDitto`: Enable ditto optimization (default: `true`)
 
 **Returns**: Formatted HEDL string
 
@@ -744,7 +737,7 @@ console.log(`HEDL version: ${version()}`);
 /**
  * Represents a JSON primitive value.
  */
-export type JsonPrimitive = string | number | boolean | null;
+export type JsonPrimitive = string |number |boolean |null;
 
 /**
  * Represents a JSON array (recursive).
@@ -759,7 +752,7 @@ export type JsonObject = { [key: string]: JsonValue };
 /**
  * Represents any valid JSON value.
  */
-export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+export type JsonValue = JsonPrimitive |JsonObject |JsonArray;
 ```
 
 ---
@@ -780,12 +773,12 @@ try {
 
 ### Common Error Types
 
-| Error Message Pattern | Cause |
+ |Error Message Pattern |Cause |
 |----------------------|-------|
-| `Parse error at line N` | Syntax error in HEDL |
-| `Input size (X bytes) exceeds maximum` | Input too large |
-| `Invalid JSON` | Malformed JSON input |
-| `Conversion error` | Format conversion failed |
+ |`Parse error at line N` |Syntax error in HEDL |
+ |`Input size (X bytes) exceeds maximum` |Input too large |
+ |`Invalid JSON` |Malformed JSON input |
+ |`Conversion error` |Format conversion failed |
 
 ---
 
@@ -842,7 +835,7 @@ import init, { parse, getStats } from 'hedl-wasm';
 
 function HedlViewer() {
     const [initialized, setInitialized] = useState(false);
-    const [hedl, setHedl] = useState('%VERSION: 1.0\n---\n');
+    const [hedl, setHedl] = useState('%V:2.0\n---\n');
     const [stats, setStats] = useState(null);
 
     useEffect(() => {
@@ -901,7 +894,7 @@ import init, { getStats } from 'hedl-wasm';
 export default {
     data() {
         return {
-            hedl: '%VERSION: 1.0\n---\n',
+            hedl: '%V:2.0\n---\n',
             stats: null,
             initialized: false
         };

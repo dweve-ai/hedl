@@ -9,9 +9,6 @@
 //! This test suite validates that performance optimizations maintain correctness
 //! while reducing allocations and improving throughput.
 
-// Allow approximate float constants in tests - these are intentional test values
-#![allow(clippy::approx_constant)]
-
 use hedl_json::string_cache::{clear_string_cache, string_cache_stats};
 use hedl_json::{from_json, from_json_value_owned, FromJsonConfig};
 use serde_json::json;
@@ -185,7 +182,7 @@ fn test_numeric_values() {
     let json = json!({
         "integer": 42,
         "negative": -17,
-        "float": 3.14159,
+        "float": 4.56789,
         "scientific": 1.23e-4,
         "large": 9223372036854775807i64
     });

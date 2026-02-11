@@ -34,8 +34,8 @@
 
 use crate::error::{McpError, McpResult};
 use crate::protocol::{CallToolResult, Content};
-use crate::tools::helpers::{parse_args, resolve_safe_path, validate_input_size};
-use crate::tools::json_utils::count_entities;
+use crate::tools::argument_parsing::{parse_args, resolve_safe_path, validate_input_size};
+use crate::tools::json_serialization::count_entities;
 use crate::tools::types::{ReadArgs, WriteArgs, MAX_INPUT_SIZE};
 use hedl_core::parse;
 use hedl_json::{to_json_value, ToJsonConfig};
@@ -407,7 +407,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.hedl");
 
         let hedl_content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         fs::write(&file_path, hedl_content).unwrap();
 
         let args = json!({ "path": "test.hedl" });
@@ -427,9 +427,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         // Create multiple HEDL files
-        let hedl1 =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
-        let hedl2 = "%VERSION: 1.0\n%STRUCT: Product: [id, title]\n---\nproducts: @Product\n  | widget, Widget\n";
+        let hedl1 = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
+        let hedl2 = "%VERSION: 1.0\n%STRUCT: Product: [id, title]\n---\nproducts:@Product\n | widget, Widget\n";
 
         fs::write(temp_dir.path().join("users.hedl"), hedl1).unwrap();
         fs::write(temp_dir.path().join("products.hedl"), hedl2).unwrap();
@@ -461,7 +460,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.hedl");
 
         let hedl_content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         fs::write(&file_path, hedl_content).unwrap();
 
         let args = json!({ "path": "test.hedl", "include_json": true });
@@ -481,8 +480,7 @@ mod tests {
     #[test]
     fn test_hedl_write_valid() {
         let temp_dir = TempDir::new().unwrap();
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
 
         let args = json!({
             "path": "output.hedl",
@@ -506,8 +504,7 @@ mod tests {
     #[test]
     fn test_hedl_write_with_format() {
         let temp_dir = TempDir::new().unwrap();
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
 
         let args = json!({
             "path": "formatted.hedl",
@@ -620,7 +617,7 @@ mod tests {
         // Create 10 HEDL files
         for i in 0..10 {
             let content = format!(
-                "%VERSION: 1.0\n%STRUCT: Item: [id, name]\n---\nitems{i}: @Item\n  | item{i}, Item {i}\n"
+                "%VERSION: 1.0\n%STRUCT: Item: [id, name]\n---\nitems{i}:@Item\n | item{i}, Item {i}\n"
             );
             fs::write(temp_dir.path().join(format!("file{i}.hedl")), content).unwrap();
         }
@@ -655,7 +652,7 @@ mod tests {
         // Create 5 HEDL files
         for i in 0..5 {
             let content = format!(
-                "%VERSION: 1.0\n%STRUCT: Data: [id, value]\n---\ndata{i}: @Data\n  | data{i}, {i}\n"
+                "%VERSION: 1.0\n%STRUCT: Data: [id, value]\n---\ndata{i}:@Data\n | data{i}, {i}\n"
             );
             fs::write(temp_dir.path().join(format!("data{i}.hedl")), content).unwrap();
         }
@@ -682,9 +679,8 @@ mod tests {
 
         // Create valid files
         for i in 0..3 {
-            let content = format!(
-                "%VERSION: 1.0\n%STRUCT: Valid: [id]\n---\ndata{i}: @Valid\n  | valid{i}\n"
-            );
+            let content =
+                format!("%VERSION: 1.0\n%STRUCT: Valid: [id]\n---\ndata{i}:@Valid\n | valid{i}\n");
             fs::write(temp_dir.path().join(format!("valid{i}.hedl")), content).unwrap();
         }
 

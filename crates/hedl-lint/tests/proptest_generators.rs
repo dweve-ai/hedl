@@ -33,7 +33,7 @@
 //! ```text
 //! %VERSION: 1.0
 //! ---
-//! items: @User[id]
+//! items:@User[id]
 //!   | a
 //!   | b
 //! ```
@@ -42,7 +42,7 @@
 //! ```text
 //! %VERSION: 1.0
 //! ---
-//! users: @User[id, name]
+//! users:@User[id, name]
 //!   | alice_smith, "Alice Smith"
 //!   | bob_jones, "Bob Jones"
 //! ```
@@ -147,7 +147,7 @@ pub fn hedl_string() -> impl Strategy<Value = String> {
 /// Useful for testing basic lint functionality.
 pub fn simple_document() -> impl Strategy<Value = Document> {
     (valid_id(), hedl_string()).prop_map(|(key, value)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert(key, Item::Scalar(Value::String(value.into())));
         doc
@@ -160,7 +160,7 @@ pub fn simple_document() -> impl Strategy<Value = Document> {
 /// guaranteed to be unique.
 pub fn multi_field_document() -> impl Strategy<Value = Document> {
     prop::collection::hash_set((valid_id(), hedl_string()), 1..20).prop_map(|fields| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         for (key, value) in fields {
             doc.root
                 .insert(key, Item::Scalar(Value::String(value.into())));
@@ -175,7 +175,7 @@ pub fn multi_field_document() -> impl Strategy<Value = Document> {
 /// that conform to best practices and should NOT trigger the id-naming rule.
 pub fn valid_list_document() -> impl Strategy<Value = Document> {
     (type_name(), prop::collection::hash_set(good_id(), 1..10)).prop_map(|(type_name, ids)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new(&type_name, vec!["id".to_string()]);
 
         for id in ids {
@@ -193,7 +193,7 @@ pub fn valid_list_document() -> impl Strategy<Value = Document> {
 /// trigger the id-naming rule with Hint severity.
 pub fn short_id_list_document() -> impl Strategy<Value = Document> {
     (type_name(), prop::collection::hash_set(short_id(), 1..20)).prop_map(|(type_name, ids)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new(&type_name, vec!["id".to_string()]);
 
         for id in ids {
@@ -211,7 +211,7 @@ pub fn short_id_list_document() -> impl Strategy<Value = Document> {
 /// should trigger the id-naming rule.
 pub fn numeric_id_list_document() -> impl Strategy<Value = Document> {
     (type_name(), prop::collection::hash_set(numeric_id(), 1..10)).prop_map(|(type_name, ids)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new(&type_name, vec!["id".to_string()]);
 
         for id in ids {
@@ -233,7 +233,7 @@ pub fn unused_schema_document() -> impl Strategy<Value = Document> {
         prop::collection::hash_set(type_name(), 1..5),  // used schemas
     )
         .prop_map(|(unused, used)| {
-            let mut doc = Document::new((1, 0));
+            let mut doc = Document::new((2, 0));
 
             // Define unused schemas
             for schema in unused {
@@ -261,7 +261,7 @@ pub fn unused_schema_document() -> impl Strategy<Value = Document> {
 /// defined but no rows, triggering the empty-list rule.
 pub fn empty_list_document() -> impl Strategy<Value = Document> {
     (type_name(), 1..5usize).prop_map(|(type_name, count)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         for i in 0..count {
             let list = MatrixList::new(&type_name, vec!["id".to_string()]);
@@ -278,7 +278,7 @@ pub fn empty_list_document() -> impl Strategy<Value = Document> {
 /// of qualified references like `@Type:id`, triggering the unqualified-kv-ref rule.
 pub fn unqualified_ref_document() -> impl Strategy<Value = Document> {
     (valid_id(), valid_id()).prop_map(|(key, target_id)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         // Add unqualified reference
         doc.root.insert(
@@ -296,7 +296,7 @@ pub fn unqualified_ref_document() -> impl Strategy<Value = Document> {
 /// `@User:alice`, which should NOT trigger the unqualified-kv-ref rule.
 pub fn qualified_ref_document() -> impl Strategy<Value = Document> {
     (valid_id(), type_name(), valid_id()).prop_map(|(key, type_name, target_id)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         // Add qualified reference
         doc.root.insert(
@@ -316,7 +316,7 @@ pub fn qualified_ref_document() -> impl Strategy<Value = Document> {
 /// depth handling and nested diagnostics.
 pub fn nested_object_document() -> impl Strategy<Value = Document> {
     (1..5usize, good_id()).prop_map(|(depth, id)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let mut current = &mut doc.root;
         for i in 0..depth {
@@ -346,7 +346,7 @@ pub fn nested_object_document() -> impl Strategy<Value = Document> {
 /// (short IDs) to test recursive violation detection.
 pub fn nested_violation_document() -> impl Strategy<Value = Document> {
     (1..5usize, short_id()).prop_map(|(depth, id)| {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let mut current = &mut doc.root;
         for i in 0..depth {
@@ -385,7 +385,7 @@ pub fn well_formed_document() -> impl Strategy<Value = Document> {
         prop::collection::hash_set(good_id(), 2..5),
     )
         .prop_map(|(type_names, ids)| {
-            let mut doc = Document::new((1, 0));
+            let mut doc = Document::new((2, 0));
             let ids_vec: Vec<_> = ids.into_iter().collect();
 
             for type_name in type_names {
@@ -434,7 +434,7 @@ pub fn mixed_violation_document() -> impl Strategy<Value = Document> {
         type_name(),
     )
         .prop_map(|(short_ids, unused_schemas, used_type)| {
-            let mut doc = Document::new((1, 0));
+            let mut doc = Document::new((2, 0));
 
             // Add short IDs (id-naming violation)
             let mut list = MatrixList::new(&used_type, vec!["id".to_string()]);
@@ -493,19 +493,19 @@ mod tests {
         )| {
             // All generators should produce valid Document structures
             // (no panics, no invalid states)
-            assert_eq!(doc1.version, (1, 0));
-            assert_eq!(doc2.version, (1, 0));
-            assert_eq!(doc3.version, (1, 0));
-            assert_eq!(doc4.version, (1, 0));
-            assert_eq!(doc5.version, (1, 0));
-            assert_eq!(doc6.version, (1, 0));
-            assert_eq!(doc7.version, (1, 0));
-            assert_eq!(doc8.version, (1, 0));
-            assert_eq!(doc9.version, (1, 0));
-            assert_eq!(doc10.version, (1, 0));
-            assert_eq!(doc11.version, (1, 0));
-            assert_eq!(doc12.version, (1, 0));
-            assert_eq!(doc13.version, (1, 0));
+            assert_eq!(doc1.version, (2, 0));
+            assert_eq!(doc2.version, (2, 0));
+            assert_eq!(doc3.version, (2, 0));
+            assert_eq!(doc4.version, (2, 0));
+            assert_eq!(doc5.version, (2, 0));
+            assert_eq!(doc6.version, (2, 0));
+            assert_eq!(doc7.version, (2, 0));
+            assert_eq!(doc8.version, (2, 0));
+            assert_eq!(doc9.version, (2, 0));
+            assert_eq!(doc10.version, (2, 0));
+            assert_eq!(doc11.version, (2, 0));
+            assert_eq!(doc12.version, (2, 0));
+            assert_eq!(doc13.version, (2, 0));
         });
     }
 

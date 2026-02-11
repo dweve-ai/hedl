@@ -1,0 +1,140 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Address:[id,street,city,state,postal,country,lat,lng]
+%S:Customer:[id,name,email,phone,tier,created,lifetime_value]
+%S:Product:[id,sku,name,category,price,weight,dimensions,stock]
+%S:Order:[id,status,payment,subtotal,tax,shipping,total,placed,updated]
+%S:Item:[id,product,qty,price,discount,line_total]
+%S:Shipment:[id,carrier,tracking,weight,shipped,estimated,delivered]
+%S:Review:[id,customer,order,rating,title,verified,votes,created]
+%S:Inventory:[id,warehouse,available,reserved,reorder_point,last_restock]
+%C:Address.total=12
+%C:Customer.total=10
+%C:Product.total=15
+%C:Order.total=15
+%C:Item.total=31
+%C:Shipment.total=10
+%C:Review.total=15
+%C:Inventory.total=30
+%C:Order.status:delivered=7,shipped=3,processing=2,pending=1,cancelled=1,returned=1
+%C:Order.payment:credit_card=8,paypal=4,bank_transfer=2,cryptocurrency=1
+%C:Customer.tier:gold=3,platinum=2,silver=3,bronze=2
+%C:Product.category:electronics=9,sports=2,home_garden=2,clothing=1,books=1
+%C:Review.rating:5=7,4=6,3=1,2=1
+%C:Address.country:USA=6,GBR=1,FRA=1,DEU=1,ITA=1,ESP=1,JPN=1
+%C:Shipment.carrier:FedEx=3,UPS=3,DHL=3,USPS=1
+%N:Customer>Address
+%N:Customer>Order
+%N:Order>Item
+%N:Order>Shipment
+%N:Product>Review
+%N:Product>Inventory
+---
+products:@Product
+ |prod-001,SKU-LAPTOP-001,ProBook 15 Laptop,electronics,1299.99,2.1,[38,25,2],45
+  @Review#3:|rev-001,cust-001,ord-001,5,Excellent laptop,true,45,2023-11-25|rev-006,cust-005,ord-005,5,Best purchase,true,67,2023-11-22|rev-010,cust-009,ord-009,4,Solid performance,true,41,2023-11-18
+  @Inventory#2:|inv-001,warehouse-east,23,5,20,2023-11-01|inv-002,warehouse-west,22,3,20,2023-11-05
+ |prod-002,SKU-PHONE-001,SmartPhone X12,electronics,899.99,0.18,[15,7,1],128
+  @Review#2:|rev-004,cust-002,ord-002,4,Fast phone,true,56,2023-11-29|rev-005,cust-003,ord-003,3,Average battery,true,34,2023-12-01
+  @Inventory#2:|inv-003,warehouse-east,67,12,50,2023-11-10|inv-004,warehouse-west,61,8,50,2023-11-08
+ |prod-003,SKU-TABLET-001,TabletPro 11,electronics,649.99,0.47,[25,18,1],67
+  @Inventory#2:|inv-005,warehouse-east,34,4,30,2023-11-12|inv-006,warehouse-west,33,2,30,2023-11-15
+ |prod-004,SKU-WATCH-001,SmartWatch V3,electronics,349.99,0.045,[4,4,1],234
+  @Review#1:|rev-012,cust-003,ord-013,2,Returned defective,true,15,2023-11-28
+  @Inventory#2:|inv-007,warehouse-east,120,15,100,2023-11-03|inv-008,warehouse-west,114,10,100,2023-11-07
+ |prod-005,SKU-JACKET-001,Winter Parka XL,clothing,189.99,1.2,[~,~,~],89
+  @Inventory#2:|inv-009,warehouse-east,45,6,40,2023-10-25|inv-010,warehouse-west,44,3,40,2023-10-28
+ |prod-006,SKU-SHOES-001,Running Shoes Pro,sports,129.99,0.65,[30,12,11],156
+  @Review#1:|rev-013,cust-010,ord-010,4,Great running shoes,true,38,2023-12-02
+  @Inventory#2:|inv-011,warehouse-east,80,8,60,2023-11-14|inv-012,warehouse-west,76,5,60,2023-11-16
+ |prod-007,SKU-HEADPH-001,Wireless Headphones,electronics,249.99,0.25,[18,17,8],312
+  @Review#1:|rev-002,cust-001,ord-001,4,Good sound quality,true,23,2023-11-26
+  @Inventory#2:|inv-013,warehouse-east,160,20,100,2023-11-02|inv-014,warehouse-west,152,15,100,2023-11-06
+ |prod-008,SKU-CAMERA-001,Mirrorless Camera,electronics,1899.99,0.68,[13,9,7],23
+  @Review#4:|rev-003,cust-002,ord-002,5,Professional quality camera,true,89,2023-11-28|rev-007,cust-005,ord-005,4,Minor focus issues,true,28,2023-11-23|rev-008,cust-007,ord-007,5,Outstanding image quality,true,112,2023-11-20|rev-014,cust-002,ord-012,5,Second purchase love it,true,54,2023-11-24
+  @Inventory#2:|inv-015,warehouse-east,12,2,15,2023-11-18|inv-016,warehouse-west,11,1,15,2023-11-20
+ |prod-009,SKU-DRILL-001,Cordless Drill Set,home_garden,159.99,2.3,[35,25,12],78
+  @Inventory#2:|inv-017,warehouse-east,40,3,35,2023-10-30|inv-018,warehouse-west,38,2,35,2023-11-02
+ |prod-010,SKU-BOOK-001,Rust Programming Guide,books,49.99,0.85,[24,19,3],567
+  @Inventory#2:|inv-019,warehouse-east,290,25,200,2023-11-11|inv-020,warehouse-west,277,18,200,2023-11-13
+ |prod-011,SKU-TENT-001,4-Person Camping Tent,sports,299.99,5.4,[55,20,20],34
+  @Review#1:|rev-015,cust-001,ord-011,4,Easy to setup,false,12,2023-12-05
+  @Inventory#2:|inv-021,warehouse-east,18,2,20,2023-10-20|inv-022,warehouse-west,16,1,20,2023-10-22
+ |prod-012,SKU-CHAIR-001,Ergonomic Office Chair,home_garden,449.99,18.5,[65,65,120],42
+  @Review#1:|rev-009,cust-007,ord-007,5,Very comfortable,true,78,2023-11-21
+  @Inventory#2:|inv-023,warehouse-east,22,3,25,2023-11-09|inv-024,warehouse-west,20,2,25,2023-11-12
+ |prod-013,SKU-MONITOR-001,27in 4K Monitor,electronics,549.99,6.2,[61,36,5],89
+  @Review#1:|rev-011,cust-009,ord-009,5,Crystal clear display,true,93,2023-11-19
+  @Inventory#2:|inv-025,warehouse-east,45,5,40,2023-11-04|inv-026,warehouse-west,44,4,40,2023-11-08
+ |prod-014,SKU-KEYBOARD-001,Mechanical Keyboard,electronics,149.99,1.1,[44,14,4],245
+  @Inventory#2:|inv-027,warehouse-east,125,12,100,2023-11-06|inv-028,warehouse-west,120,8,100,2023-11-10
+ |prod-015,SKU-MOUSE-001,Wireless Gaming Mouse,electronics,79.99,0.12,[13,7,4],389
+  @Inventory#2:|inv-029,warehouse-east,200,18,150,2023-11-01|inv-030,warehouse-west,189,14,150,2023-11-05
+
+customers:@Customer
+ |cust-001,Alice Johnson,alice.j@email.com,+1-555-0101,gold,2019-03-15,12458.50
+  @Address#1:|addr-001,742 Evergreen Terrace,Springfield,IL,62701,USA,39.7817,-89.6501
+  @Order#2:
+ |ord-001,delivered,credit_card,1549.97,123.99,15.99,1689.95,2023-11-15T09:23:45Z,2023-11-22T14:30:00Z
+   @Item#2:|item-001,prod-001,1,1299.99,0,1299.99|item-002,prod-007,1,249.99,0,249.99
+   @Shipment#1:|ship-001,FedEx,FX123456789US,2.35,2023-11-16,2023-11-21,2023-11-20
+ |ord-011,processing,credit_card,299.99,24.00,12.99,336.98,2023-11-21T08:23:11Z,2023-11-22T14:30:00Z
+   @Item#1:|item-021,prod-011,1,299.99,0,299.99
+ |cust-002,Bob Smith,bob.smith@email.com,+1-555-0102,platinum,2018-07-22,34521.75
+  @Address#2:|addr-003,1600 Pennsylvania Ave,Washington,DC,20500,USA,38.8977,-77.0365|addr-004,350 Fifth Avenue,New York,NY,10118,USA,40.7484,-73.9857
+  @Order#2:
+ |ord-002,delivered,paypal,2799.97,223.99,0.00,3023.96,2023-11-16T14:56:12Z,2023-11-24T10:15:00Z
+   @Item#2:|item-003,prod-008,1,1899.99,0,1899.99|item-004,prod-002,1,899.99,0,899.99
+   @Shipment#1:|ship-002,UPS,1Z999AA10123456784,0.93,2023-11-17,2023-11-23,2023-11-22
+ |ord-012,delivered,paypal,1949.97,155.99,0.00,2105.96,2023-11-12T17:45:33Z,2023-11-19T13:15:00Z
+   @Item#2:|item-022,prod-008,1,1899.99,0,1899.99|item-023,prod-010,1,49.99,0,49.99
+   @Shipment#1:|ship-008,FedEx,FX567891234US,0.85,2023-11-14,2023-11-18,2023-11-17
+ |cust-003,Carol Williams,carol.w@email.com,+44-20-7946-0958,silver,2020-01-10,5234.25
+  @Address#1:|addr-002,221B Baker Street,London,~,NW1 6XE,GBR,51.5237,-0.1585
+  @Order#2:
+ |ord-003,shipped,credit_card,899.99,180.00,25.00,1104.99,2023-11-18T08:12:33Z,2023-11-20T16:45:00Z
+   @Item#1:|item-005,prod-002,1,899.99,0,899.99
+   @Shipment#1:|ship-003,DHL,JD014600001234567890,0.18,2023-11-20,2023-11-28,~
+ |ord-013,returned,credit_card,349.99,70.00,12.00,431.99,2023-11-14T09:12:45Z,2023-11-25T10:30:00Z
+   @Item#1:|item-024,prod-004,1,349.99,0,349.99
+ |cust-004,David Chen,david.chen@email.com,+1-555-0104,bronze,2021-06-18,1876.00
+  @Address#1:|addr-005,1 Infinite Loop,Cupertino,CA,95014,USA,37.3318,-122.0312
+  @Order#1:|ord-004,processing,bank_transfer,649.99,52.00,12.99,714.98,2023-11-20T11:34:56Z,2023-11-20T11:34:56Z
+   @Item#1:|item-006,prod-003,1,649.99,0,649.99
+ |cust-005,Emma Garcia,emma.g@email.com,+33-1-42-68-53-00,gold,2019-11-03,18934.50
+  @Address#1:|addr-006,Champs-Elysees 101,Paris,~,75008,FRA,48.8698,2.3078
+  @Order#2:
+ |ord-005,delivered,credit_card,3149.97,315.00,0.00,3464.97,2023-11-10T16:45:23Z,2023-11-18T09:20:00Z
+   @Item#3:|item-007,prod-001,1,1299.99,0,1299.99|item-008,prod-008,1,1899.99,5,1804.99|item-009,prod-010,1,49.99,10,44.99
+   @Shipment#1:|ship-004,FedEx,FX987654321US,2.93,2023-11-12,2023-11-17,2023-11-16
+ |ord-014,delivered,credit_card,579.98,57.99,8.99,646.96,2023-11-09T14:34:22Z,2023-11-16T11:45:00Z
+   @Item#5:|item-025,prod-007,1,249.99,0,249.99|item-026,prod-006,1,129.99,0,129.99|item-027,prod-015,1,79.99,0,79.99|item-028,prod-010,2,49.99,0,99.98|item-029,prod-014,1,149.99,20,119.99
+   @Shipment#1:|ship-009,DHL,JD014600005678912340,1.22,2023-11-11,2023-11-15,2023-11-14
+ |cust-006,Frank Mueller,frank.m@email.com,+49-30-1234567,silver,2020-04-25,7823.25
+  @Address#1:|addr-007,Alexanderplatz 1,Berlin,~,10178,DEU,52.5219,13.4132
+  @Order#1:|ord-006,cancelled,paypal,449.99,85.50,15.00,550.49,2023-11-19T10:23:45Z,2023-11-19T12:00:00Z
+   @Item#1:|item-010,prod-012,1,449.99,0,449.99
+ |cust-007,Giulia Rossi,giulia.r@email.com,+39-02-1234567,platinum,2017-09-12,45678.00
+  @Address#1:|addr-008,Via Roma 25,Milan,~,20121,ITA,45.4642,9.1900
+  @Order#2:
+ |ord-007,delivered,credit_card,2349.97,517.00,0.00,2866.97,2023-11-08T07:56:12Z,2023-11-15T11:30:00Z
+   @Item#2:|item-011,prod-008,1,1899.99,0,1899.99|item-012,prod-012,1,449.99,0,449.99
+   @Shipment#1:|ship-005,DHL,JD014600009876543210,19.18,2023-11-10,2023-11-16,2023-11-15
+ |ord-015,shipped,bank_transfer,1199.98,264.00,0.00,1463.98,2023-11-18T11:56:44Z,2023-11-20T09:30:00Z
+   @Item#2:|item-030,prod-013,1,549.99,0,549.99|item-031,prod-003,1,649.99,0,649.99
+   @Shipment#1:|ship-010,UPS,1Z999AA10567891234,6.67,2023-11-20,2023-11-25,~
+ |cust-008,Hans Weber,hans.w@email.com,+34-91-1234567,bronze,2022-02-28,2341.50
+  @Address#1:|addr-009,Gran Via 32,Madrid,~,28013,ESP,40.4200,-3.7025
+  @Order#1:|ord-008,pending,cryptocurrency,159.99,33.60,18.50,212.09,2023-11-21T15:12:33Z,2023-11-21T15:12:33Z
+   @Item#1:|item-013,prod-009,1,159.99,0,159.99
+ |cust-009,Yuki Tanaka,yuki.t@email.com,+81-3-1234-5678,gold,2019-08-07,23456.75
+  @Address#1:|addr-010,Shibuya 1-2-3,Tokyo,~,150-0002,JPN,35.6595,139.7004
+  @Order#1:|ord-009,delivered,credit_card,4199.96,420.00,0.00,4619.96,2023-11-05T22:34:56Z,2023-11-12T08:45:00Z
+   @Item#3:|item-014,prod-001,2,1299.99,0,2599.98|item-015,prod-013,2,549.99,0,1099.98|item-016,prod-010,10,49.99,0,499.90
+   @Shipment#1:|ship-006,UPS,1Z999AA10987654321,14.94,2023-11-07,2023-11-11,2023-11-10
+ |cust-010,Kevin Brown,kevin.b@email.com,+1-555-0110,silver,2020-12-15,8765.25
+  @Address#2:|addr-011,123 Tech Park Dr,Austin,TX,78701,USA,30.2672,-97.7431|addr-012,456 Innovation Blvd,Seattle,WA,98101,USA,47.6062,-122.3321
+  @Order#1:|ord-010,shipped,paypal,679.97,54.40,9.99,744.36,2023-11-17T13:45:23Z,2023-11-19T14:20:00Z
+   @Item#4:|item-017,prod-006,2,129.99,0,259.98|item-018,prod-005,1,189.99,0,189.99|item-019,prod-014,1,149.99,0,149.99|item-020,prod-015,1,79.99,0,79.99
+   @Shipment#1:|ship-007,USPS,9400111899223334445566,2.07,2023-11-19,2023-11-24,~

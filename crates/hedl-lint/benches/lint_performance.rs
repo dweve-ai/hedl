@@ -16,10 +16,10 @@ use std::hint::black_box;
 /// Generate a HEDL document with the specified number of nodes.
 fn generate_document(node_count: usize) -> String {
     let mut doc =
-        String::from("%VERSION: 1.0\n%STRUCT: User: [id,name,email,age]\n---\nusers: @User\n");
+        String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name,email,age]\n---\nusers:@User\n");
     for i in 0..node_count {
         doc.push_str(&format!(
-            "  |user{},User {},user{}@example.com,{}\n",
+            " |user{},User {},user{}@example.com,{}\n",
             i,
             i,
             i,
@@ -51,13 +51,7 @@ fn bench_lint_scaling(c: &mut Criterion) {
 
 /// Benchmark linting a small document (baseline).
 fn bench_lint_small(c: &mut Criterion) {
-    let doc_str = r"%VERSION: 1.0
-%STRUCT: User: [id,name]
----
-users: @User
-  |alice,Alice Smith
-  |bob,Bob Jones
-";
+    let doc_str = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n---\nusers:@User\n |alice,Alice Smith\n |bob,Bob Jones\n";
     let doc = parse(doc_str.as_bytes()).expect("Failed to parse document");
 
     c.bench_function("lint_small", |b| {
@@ -71,16 +65,16 @@ users: @User
 /// Benchmark linting a document with deeply nested structures.
 fn bench_lint_nested(c: &mut Criterion) {
     let mut doc_str = String::from(
-        "%VERSION: 1.0\n%STRUCT: Department: [id,name]\n%STRUCT: Team: [id,name]\n%STRUCT: Employee: [id,name]\n%NEST: Department > Team\n%NEST: Team > Employee\n---\ndepartments: @Department\n",
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Department:[id,name]\n%S:Team:[id,name]\n%S:Employee:[id,name]\n%N:Department>Team\n%N:Team>Employee\n---\ndepartments:@Department\n",
     );
 
     // Create 10 departments with 5 teams each with 10 employees
     for d in 0..10 {
-        doc_str.push_str(&format!("  |[{d}] dept{d},Department {d}\n"));
+        doc_str.push_str(&format!(" |dept{d},Department {d}\n"));
         for t in 0..5 {
-            doc_str.push_str(&format!("    |[{t}] team{d}_{t},Team {t}\n"));
+            doc_str.push_str(&format!("  |team{d}_{t},Team {t}\n"));
             for e in 0..10 {
-                doc_str.push_str(&format!("      |emp{d}_{t}_{e},Employee {e}\n"));
+                doc_str.push_str(&format!("   |emp{d}_{t}_{e},Employee {e}\n"));
             }
         }
     }
@@ -98,18 +92,18 @@ fn bench_lint_nested(c: &mut Criterion) {
 /// Benchmark linting a document with many references.
 fn bench_lint_references(c: &mut Criterion) {
     let mut doc_str = String::from(
-        "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,title,author]\n---\nusers: @User\n",
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Post:[id,title,author]\n---\nusers:@User\n",
     );
 
     // Create 100 users
     for i in 0..100 {
-        doc_str.push_str(&format!("  |user{i},User {i}\n"));
+        doc_str.push_str(&format!(" |user{i},User {i}\n"));
     }
 
-    doc_str.push_str("posts: @Post\n");
+    doc_str.push_str("posts:@Post\n");
     // Create 500 posts referencing users
     for i in 0..500 {
-        doc_str.push_str(&format!("  |post{},Post {},@User:user{}\n", i, i, i % 100));
+        doc_str.push_str(&format!(" |post{},Post {},@User:user{}\n", i, i, i % 100));
     }
 
     let doc = parse(doc_str.as_bytes()).expect("Failed to parse document with references");

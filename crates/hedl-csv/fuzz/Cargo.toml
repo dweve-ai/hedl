@@ -13,6 +13,9 @@ libfuzzer-sys = "0.4"
 [dependencies.hedl-csv]
 path = ".."
 
+[dependencies.hedl-core]
+path = "../../hedl-core"
+
 # Prevent this from interfering with workspace
 [workspace]
 members = ["."]
@@ -26,5 +29,11 @@ doc = false
 [[bin]]
 name = "fuzz_parse_value"
 path = "fuzz_targets/fuzz_parse_value.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_to_csv"
+path = "fuzz_targets/fuzz_to_csv.rs"
 test = false
 doc = false

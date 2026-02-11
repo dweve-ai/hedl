@@ -1,0 +1,9 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Item:[id,name,count,price]
+---
+data:@Item
+ |i1,Apple,5,1.99
+ |i2,^,3,^
+ |i3,Orange,^,2.49

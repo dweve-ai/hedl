@@ -76,12 +76,6 @@ fn hedl_int() -> impl Strategy<Value = i64> {
     any::<i64>()
 }
 
-/// Generate valid HEDL floats (avoiding NaN and infinity)
-#[allow(dead_code)]
-fn hedl_float() -> impl Strategy<Value = f64> {
-    any::<f64>().prop_filter("Must be finite", |f| f.is_finite())
-}
-
 /// Generate simple valid HEDL documents with scalar values
 fn simple_hedl_document() -> impl Strategy<Value = String> {
     (identifier(), hedl_string()).prop_map(|(key, value)| {
@@ -152,7 +146,7 @@ fn boolean_document() -> impl Strategy<Value = String> {
     })
 }
 
-/// Generate HEDL documents with matrix lists
+/// Generate HEDL documents with matrix lists (v2.0 compliant)
 fn matrix_list_document() -> impl Strategy<Value = String> {
     (
         type_name(),
@@ -160,7 +154,10 @@ fn matrix_list_document() -> impl Strategy<Value = String> {
         prop::collection::vec((identifier(), hedl_string()), 1..5),
     )
         .prop_map(|(type_name, list_name, rows)| {
-            let mut doc = format!("%VERSION: 1.0\n---\n{list_name}: @{type_name}[id, name]\n");
+            // v2.0 requires %V:2.0, %NULL:~, %QUOTE:" headers and %S: schema
+            let mut doc = format!(
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id,name]\n---\n{list_name}:@{type_name}\n"
+            );
             let mut used_ids = std::collections::HashSet::new();
             for (id, name) in &rows {
                 // Ensure unique row IDs
@@ -172,7 +169,7 @@ fn matrix_list_document() -> impl Strategy<Value = String> {
                 }
                 // Quote the name value to handle commas and special characters properly
                 doc.push_str(&format!(
-                    "  | {}, \"{}\"\n",
+                    " |{},\"{}\"\n",
                     unique_id,
                     name.replace('\\', "\\\\").replace('"', "\\\"")
                 ));
@@ -377,11 +374,10 @@ proptest! {
 
         let formatted_content = fs::read_to_string(output.path()).unwrap();
 
-        // Count hints should be present in the formatted output
-        // Format is: type_name(N): @Type[...]
+        // Count hints should be present in the formatted output as %C: directives (v2.0)
         prop_assert!(
-            formatted_content.contains('(') && formatted_content.contains("):"),
-            "Formatted output missing count hints"
+            formatted_content.contains("%C:") && formatted_content.contains(".total="),
+            "Formatted output missing %C: count directives"
         );
     }
 }
@@ -397,7 +393,7 @@ proptest! {
     fn prop_validate_accepts_parseable(doc in simple_hedl_document()) {
         let file = create_temp_file(&doc, ".hedl");
 
-        let result = validate(file.path().to_str().unwrap(), false);
+        let result = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_ok(), "Validation rejected parseable document: {:?}", result.err());
     }
@@ -417,7 +413,7 @@ proptest! {
             false,
         ).unwrap();
 
-        let result = validate(output.path().to_str().unwrap(), false);
+        let result = validate(output.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_ok(), "Formatted document failed validation: {:?}", result.err());
     }
@@ -428,8 +424,8 @@ proptest! {
     fn prop_validation_is_consistent(doc in integer_document()) {
         let file = create_temp_file(&doc, ".hedl");
 
-        let result1 = validate(file.path().to_str().unwrap(), false);
-        let result2 = validate(file.path().to_str().unwrap(), false);
+        let result1 = validate(file.path().to_str().unwrap(), false, false);
+        let result2 = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert_eq!(
             result1.is_ok(),
@@ -556,7 +552,7 @@ proptest! {
         let invalid_doc = format!("%VERSION: 1.0\n---\n{key}:invalid");
         let file = create_temp_file(&invalid_doc, ".hedl");
 
-        let result = validate(file.path().to_str().unwrap(), false);
+        let result = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_err(), "Validation should fail for invalid syntax");
     }
@@ -569,7 +565,7 @@ proptest! {
         let no_version = doc.replace("%VERSION: 1.0\n", "");
         let file = create_temp_file(&no_version, ".hedl");
 
-        let result = validate(file.path().to_str().unwrap(), false);
+        let result = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_err(), "Validation should fail for missing version");
     }
@@ -653,7 +649,7 @@ proptest! {
         let doc = "%VERSION: 1.0\n---\n";
         let file = create_temp_file(doc, ".hedl");
 
-        let result = validate(file.path().to_str().unwrap(), false);
+        let result = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_ok(), "Empty document should be valid");
     }
@@ -665,7 +661,7 @@ proptest! {
         // Default file size limit (1GB) is adequate for test documents
         let file = create_temp_file(&doc, ".hedl");
 
-        let result = validate(file.path().to_str().unwrap(), false);
+        let result = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_ok(), "Null-only document should be valid: {:?}", result.err());
     }
@@ -677,7 +673,7 @@ proptest! {
         // Default file size limit (1GB) is adequate for test documents
         let file = create_temp_file(&doc, ".hedl");
 
-        let result = validate(file.path().to_str().unwrap(), false);
+        let result = validate(file.path().to_str().unwrap(), false, false);
 
         prop_assert!(result.is_ok(), "Mixed-type document should be valid: {:?}", result.err());
     }
@@ -786,7 +782,7 @@ proptest! {
             .assert();
 
         // Validate via library
-        let lib_result = validate(file.path().to_str().unwrap(), false);
+        let lib_result = validate(file.path().to_str().unwrap(), false, false);
 
         // Results should agree
         prop_assert_eq!(

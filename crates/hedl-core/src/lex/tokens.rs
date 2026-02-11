@@ -293,6 +293,42 @@ pub fn parse_reference_at(s: &str, pos: SourcePos) -> Result<Reference, LexError
     }
 }
 
+/// Returns true if the character starts a list literal.
+///
+/// List literals in HEDL use parentheses: `(...)`.
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::lex::is_list_start;
+///
+/// assert!(is_list_start('('));
+/// assert!(!is_list_start('['));
+/// assert!(!is_list_start('{'));
+/// ```
+#[inline]
+pub fn is_list_start(c: char) -> bool {
+    c == '('
+}
+
+/// Returns true if the character ends a list literal.
+///
+/// List literals in HEDL use parentheses: `(...)`.
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::lex::is_list_end;
+///
+/// assert!(is_list_end(')'));
+/// assert!(!is_list_end(']'));
+/// assert!(!is_list_end('}'));
+/// ```
+#[inline]
+pub fn is_list_end(c: char) -> bool {
+    c == ')'
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,5 +488,37 @@ mod tests {
         let r1 = Reference::qualified("User", "user_1");
         let r2 = r1.clone();
         assert_eq!(r1, r2);
+    }
+
+    // ==================== is_list_start/is_list_end tests ====================
+
+    #[test]
+    fn test_is_list_start_valid() {
+        assert!(is_list_start('('));
+    }
+
+    #[test]
+    fn test_is_list_start_invalid() {
+        assert!(!is_list_start('['));
+        assert!(!is_list_start('{'));
+        assert!(!is_list_start(')'));
+        assert!(!is_list_start('a'));
+        assert!(!is_list_start('1'));
+        assert!(!is_list_start(' '));
+    }
+
+    #[test]
+    fn test_is_list_end_valid() {
+        assert!(is_list_end(')'));
+    }
+
+    #[test]
+    fn test_is_list_end_invalid() {
+        assert!(!is_list_end(']'));
+        assert!(!is_list_end('}'));
+        assert!(!is_list_end('('));
+        assert!(!is_list_end('a'));
+        assert!(!is_list_end('1'));
+        assert!(!is_list_end(' '));
     }
 }

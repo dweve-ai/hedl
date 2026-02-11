@@ -153,10 +153,12 @@ let doc = hedl_core::parse_with_limits(input, opts)?;
 The header section contains directives like `%VERSION`, `%STRUCT`, `%ALIAS`, and `%NEST`:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%ALIAS: %u: "User"
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
+%A:%u: "User"
+%N:User>Post
 ---
 ```
 
@@ -190,10 +192,10 @@ user:
   name: Alice
   age: 30
 
-# Matrix list (requires %STRUCT: User: [id, name, email] in header)
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Johnson, bob@example.com
+# Matrix list (requires %S:User:[id,name,email] in header)
+users:@User
+ |alice,Alice Smith, alice@example.com
+ |bob,Bob Johnson, bob@example.com
 ```
 
 ### Reference Resolution
@@ -285,7 +287,7 @@ pub struct Limits {
 }
 ```
 
-See parser.rs documentation for detailed security rationale.
+See the `parser/` module documentation for detailed security rationale.
 
 ## Testing Strategy
 
@@ -319,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_parse_matrix_list() {
-        let input = b"%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob";
+        let input = b"%S:User:[id,name]\n---\nusers:@User\n |alice,Alice\n |bob,Bob";
         let doc = parse(input).unwrap();
 
         if let Some(Item::List(list)) = doc.root.get("users") {

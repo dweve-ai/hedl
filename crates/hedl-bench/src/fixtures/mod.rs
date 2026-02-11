@@ -23,8 +23,11 @@
 //! - **cache**: In-memory fixture caching
 //! - **validator**: Fixture validation utilities
 
+/// Fixture caching for performance.
 pub mod cache;
+/// Fixture file loading utilities.
 pub mod loader;
+/// Fixture validation utilities.
 pub mod validator;
 
 // Re-export commonly used types and functions

@@ -1,0 +1,1097 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecommerce_orders>
+  <addresses>
+    <address id="addr-001">
+      <street>742 Evergreen Terrace</street>
+      <city>Springfield</city>
+      <state>IL</state>
+      <postal>62701</postal>
+      <country>USA</country>
+      <lat>39.7817</lat>
+      <lng>-89.6501</lng>
+    </address>
+    <address id="addr-002">
+      <street>221B Baker Street</street>
+      <city>London</city>
+      <state/>
+      <postal>NW1 6XE</postal>
+      <country>GBR</country>
+      <lat>51.5237</lat>
+      <lng>-0.1585</lng>
+    </address>
+    <address id="addr-003">
+      <street>1600 Pennsylvania Ave</street>
+      <city>Washington</city>
+      <state>DC</state>
+      <postal>20500</postal>
+      <country>USA</country>
+      <lat>38.8977</lat>
+      <lng>-77.0365</lng>
+    </address>
+    <address id="addr-004">
+      <street>350 Fifth Avenue</street>
+      <city>New York</city>
+      <state>NY</state>
+      <postal>10118</postal>
+      <country>USA</country>
+      <lat>40.7484</lat>
+      <lng>-73.9857</lng>
+    </address>
+    <address id="addr-005">
+      <street>1 Infinite Loop</street>
+      <city>Cupertino</city>
+      <state>CA</state>
+      <postal>95014</postal>
+      <country>USA</country>
+      <lat>37.3318</lat>
+      <lng>-122.0312</lng>
+    </address>
+    <address id="addr-006">
+      <street>Champs-Elysees 101</street>
+      <city>Paris</city>
+      <state/>
+      <postal>75008</postal>
+      <country>FRA</country>
+      <lat>48.8698</lat>
+      <lng>2.3078</lng>
+    </address>
+    <address id="addr-007">
+      <street>Alexanderplatz 1</street>
+      <city>Berlin</city>
+      <state/>
+      <postal>10178</postal>
+      <country>DEU</country>
+      <lat>52.5219</lat>
+      <lng>13.4132</lng>
+    </address>
+    <address id="addr-008">
+      <street>Via Roma 25</street>
+      <city>Milan</city>
+      <state/>
+      <postal>20121</postal>
+      <country>ITA</country>
+      <lat>45.4642</lat>
+      <lng>9.19</lng>
+    </address>
+    <address id="addr-009">
+      <street>Gran Via 32</street>
+      <city>Madrid</city>
+      <state/>
+      <postal>28013</postal>
+      <country>ESP</country>
+      <lat>40.42</lat>
+      <lng>-3.7025</lng>
+    </address>
+    <address id="addr-010">
+      <street>Shibuya 1-2-3</street>
+      <city>Tokyo</city>
+      <state/>
+      <postal>150-0002</postal>
+      <country>JPN</country>
+      <lat>35.6595</lat>
+      <lng>139.7004</lng>
+    </address>
+    <address id="addr-011">
+      <street>123 Tech Park Dr</street>
+      <city>Austin</city>
+      <state>TX</state>
+      <postal>78701</postal>
+      <country>USA</country>
+      <lat>30.2672</lat>
+      <lng>-97.7431</lng>
+    </address>
+    <address id="addr-012">
+      <street>456 Innovation Blvd</street>
+      <city>Seattle</city>
+      <state>WA</state>
+      <postal>98101</postal>
+      <country>USA</country>
+      <lat>47.6062</lat>
+      <lng>-122.3321</lng>
+    </address>
+    <address id="addr-013">
+      <street>789 Startup Lane</street>
+      <city>San Francisco</city>
+      <state>CA</state>
+      <postal>94102</postal>
+      <country>USA</country>
+      <lat>37.7749</lat>
+      <lng>-122.4194</lng>
+    </address>
+    <address id="addr-014">
+      <street>321 Commerce St</street>
+      <city>Chicago</city>
+      <state>IL</state>
+      <postal>60601</postal>
+      <country>USA</country>
+      <lat>41.8781</lat>
+      <lng>-87.6298</lng>
+    </address>
+    <address id="addr-015">
+      <street>555 Market Square</street>
+      <city>Boston</city>
+      <state>MA</state>
+      <postal>02108</postal>
+      <country>USA</country>
+      <lat>42.3601</lat>
+      <lng>-71.0589</lng>
+    </address>
+  </addresses>
+
+  <customers>
+    <customer id="cust-001">
+      <name>Alice Johnson</name>
+      <email>alice.j@email.com</email>
+      <phone>+1-555-0101</phone>
+      <tier>gold</tier>
+      <billing_addr>addr-001</billing_addr>
+      <shipping_addr>addr-001</shipping_addr>
+      <created>2019-03-15</created>
+      <lifetime_value>12458.50</lifetime_value>
+    </customer>
+    <customer id="cust-002">
+      <name>Bob Smith</name>
+      <email>bob.smith@email.com</email>
+      <phone>+1-555-0102</phone>
+      <tier>platinum</tier>
+      <billing_addr>addr-003</billing_addr>
+      <shipping_addr>addr-004</shipping_addr>
+      <created>2018-07-22</created>
+      <lifetime_value>34521.75</lifetime_value>
+    </customer>
+    <customer id="cust-003">
+      <name>Carol Williams</name>
+      <email>carol.w@email.com</email>
+      <phone>+44-20-7946-0958</phone>
+      <tier>silver</tier>
+      <billing_addr>addr-002</billing_addr>
+      <shipping_addr>addr-002</shipping_addr>
+      <created>2020-01-10</created>
+      <lifetime_value>5234.25</lifetime_value>
+    </customer>
+    <customer id="cust-004">
+      <name>David Chen</name>
+      <email>david.chen@email.com</email>
+      <phone>+1-555-0104</phone>
+      <tier>bronze</tier>
+      <billing_addr>addr-005</billing_addr>
+      <shipping_addr>addr-005</shipping_addr>
+      <created>2021-06-18</created>
+      <lifetime_value>1876.00</lifetime_value>
+    </customer>
+    <customer id="cust-005">
+      <name>Emma Garcia</name>
+      <email>emma.g@email.com</email>
+      <phone>+33-1-42-68-53-00</phone>
+      <tier>gold</tier>
+      <billing_addr>addr-006</billing_addr>
+      <shipping_addr>addr-006</shipping_addr>
+      <created>2019-11-03</created>
+      <lifetime_value>18934.50</lifetime_value>
+    </customer>
+    <customer id="cust-006">
+      <name>Frank Mueller</name>
+      <email>frank.m@email.com</email>
+      <phone>+49-30-1234567</phone>
+      <tier>silver</tier>
+      <billing_addr>addr-007</billing_addr>
+      <shipping_addr>addr-007</shipping_addr>
+      <created>2020-04-25</created>
+      <lifetime_value>7823.25</lifetime_value>
+    </customer>
+    <customer id="cust-007">
+      <name>Giulia Rossi</name>
+      <email>giulia.r@email.com</email>
+      <phone>+39-02-1234567</phone>
+      <tier>platinum</tier>
+      <billing_addr>addr-008</billing_addr>
+      <shipping_addr>addr-008</shipping_addr>
+      <created>2017-09-12</created>
+      <lifetime_value>45678.00</lifetime_value>
+    </customer>
+    <customer id="cust-008">
+      <name>Hans Weber</name>
+      <email>hans.w@email.com</email>
+      <phone>+34-91-1234567</phone>
+      <tier>bronze</tier>
+      <billing_addr>addr-009</billing_addr>
+      <shipping_addr>addr-009</shipping_addr>
+      <created>2022-02-28</created>
+      <lifetime_value>2341.50</lifetime_value>
+    </customer>
+    <customer id="cust-009">
+      <name>Yuki Tanaka</name>
+      <email>yuki.t@email.com</email>
+      <phone>+81-3-1234-5678</phone>
+      <tier>gold</tier>
+      <billing_addr>addr-010</billing_addr>
+      <shipping_addr>addr-010</shipping_addr>
+      <created>2019-08-07</created>
+      <lifetime_value>23456.75</lifetime_value>
+    </customer>
+    <customer id="cust-010">
+      <name>Kevin Brown</name>
+      <email>kevin.b@email.com</email>
+      <phone>+1-555-0110</phone>
+      <tier>silver</tier>
+      <billing_addr>addr-011</billing_addr>
+      <shipping_addr>addr-012</shipping_addr>
+      <created>2020-12-15</created>
+      <lifetime_value>8765.25</lifetime_value>
+    </customer>
+  </customers>
+
+  <products>
+    <product id="prod-001">
+      <sku>SKU-LAPTOP-001</sku>
+      <name>ProBook 15 Laptop</name>
+      <category>electronics</category>
+      <price>1299.99</price>
+      <weight_kg>2.1</weight_kg>
+      <dimensions>38.1,25.4,1.8</dimensions>
+      <stock_qty>45</stock_qty>
+    </product>
+    <product id="prod-002">
+      <sku>SKU-PHONE-001</sku>
+      <name>SmartPhone X12</name>
+      <category>electronics</category>
+      <price>899.99</price>
+      <weight_kg>0.18</weight_kg>
+      <dimensions>15.0,7.1,0.8</dimensions>
+      <stock_qty>128</stock_qty>
+    </product>
+    <product id="prod-003">
+      <sku>SKU-TABLET-001</sku>
+      <name>TabletPro 11</name>
+      <category>electronics</category>
+      <price>649.99</price>
+      <weight_kg>0.47</weight_kg>
+      <dimensions>24.8,17.9,0.6</dimensions>
+      <stock_qty>67</stock_qty>
+    </product>
+    <product id="prod-004">
+      <sku>SKU-WATCH-001</sku>
+      <name>SmartWatch V3</name>
+      <category>electronics</category>
+      <price>349.99</price>
+      <weight_kg>0.045</weight_kg>
+      <dimensions>4.4,3.8,1.1</dimensions>
+      <stock_qty>234</stock_qty>
+    </product>
+    <product id="prod-005">
+      <sku>SKU-JACKET-001</sku>
+      <name>Winter Parka XL</name>
+      <category>clothing</category>
+      <price>189.99</price>
+      <weight_kg>1.2</weight_kg>
+      <dimensions/>
+      <stock_qty>89</stock_qty>
+    </product>
+    <product id="prod-006">
+      <sku>SKU-SHOES-001</sku>
+      <name>Running Shoes Pro</name>
+      <category>sports</category>
+      <price>129.99</price>
+      <weight_kg>0.65</weight_kg>
+      <dimensions>30.0,12.0,11.0</dimensions>
+      <stock_qty>156</stock_qty>
+    </product>
+    <product id="prod-007">
+      <sku>SKU-HEADPH-001</sku>
+      <name>Wireless Headphones</name>
+      <category>electronics</category>
+      <price>249.99</price>
+      <weight_kg>0.25</weight_kg>
+      <dimensions>18.0,17.0,8.0</dimensions>
+      <stock_qty>312</stock_qty>
+    </product>
+    <product id="prod-008">
+      <sku>SKU-CAMERA-001</sku>
+      <name>Mirrorless Camera</name>
+      <category>electronics</category>
+      <price>1899.99</price>
+      <weight_kg>0.68</weight_kg>
+      <dimensions>13.2,9.1,7.3</dimensions>
+      <stock_qty>23</stock_qty>
+    </product>
+    <product id="prod-009">
+      <sku>SKU-DRILL-001</sku>
+      <name>Cordless Drill Set</name>
+      <category>home_garden</category>
+      <price>159.99</price>
+      <weight_kg>2.3</weight_kg>
+      <dimensions>35.0,25.0,12.0</dimensions>
+      <stock_qty>78</stock_qty>
+    </product>
+    <product id="prod-010">
+      <sku>SKU-BOOK-001</sku>
+      <name>Rust Programming Guide</name>
+      <category>books</category>
+      <price>49.99</price>
+      <weight_kg>0.85</weight_kg>
+      <dimensions>23.5,19.0,2.5</dimensions>
+      <stock_qty>567</stock_qty>
+    </product>
+    <product id="prod-011">
+      <sku>SKU-TENT-001</sku>
+      <name>4-Person Camping Tent</name>
+      <category>sports</category>
+      <price>299.99</price>
+      <weight_kg>5.4</weight_kg>
+      <dimensions>55.0,20.0,20.0</dimensions>
+      <stock_qty>34</stock_qty>
+    </product>
+    <product id="prod-012">
+      <sku>SKU-CHAIR-001</sku>
+      <name>Ergonomic Office Chair</name>
+      <category>home_garden</category>
+      <price>449.99</price>
+      <weight_kg>18.5</weight_kg>
+      <dimensions>65.0,65.0,120.0</dimensions>
+      <stock_qty>42</stock_qty>
+    </product>
+    <product id="prod-013">
+      <sku>SKU-MONITOR-001</sku>
+      <name>27in 4K Monitor</name>
+      <category>electronics</category>
+      <price>549.99</price>
+      <weight_kg>6.2</weight_kg>
+      <dimensions>61.4,36.4,5.1</dimensions>
+      <stock_qty>89</stock_qty>
+    </product>
+    <product id="prod-014">
+      <sku>SKU-KEYBOARD-001</sku>
+      <name>Mechanical Keyboard</name>
+      <category>electronics</category>
+      <price>149.99</price>
+      <weight_kg>1.1</weight_kg>
+      <dimensions>44.0,14.0,4.0</dimensions>
+      <stock_qty>245</stock_qty>
+    </product>
+    <product id="prod-015">
+      <sku>SKU-MOUSE-001</sku>
+      <name>Wireless Gaming Mouse</name>
+      <category>electronics</category>
+      <price>79.99</price>
+      <weight_kg>0.12</weight_kg>
+      <dimensions>12.5,6.8,4.0</dimensions>
+      <stock_qty>389</stock_qty>
+    </product>
+  </products>
+
+  <orders>
+    <order id="ord-001" customer="cust-001">
+      <status>delivered</status>
+      <payment>credit_card</payment>
+      <subtotal>1549.97</subtotal>
+      <tax>123.99</tax>
+      <shipping_cost>15.99</shipping_cost>
+      <total>1689.95</total>
+      <placed_at>2023-11-15T09:23:45Z</placed_at>
+      <updated_at>2023-11-22T14:30:00Z</updated_at>
+    </order>
+    <order id="ord-002" customer="cust-002">
+      <status>delivered</status>
+      <payment>paypal</payment>
+      <subtotal>2799.97</subtotal>
+      <tax>223.99</tax>
+      <shipping_cost>0.00</shipping_cost>
+      <total>3023.96</total>
+      <placed_at>2023-11-16T14:56:12Z</placed_at>
+      <updated_at>2023-11-24T10:15:00Z</updated_at>
+    </order>
+    <order id="ord-003" customer="cust-003">
+      <status>shipped</status>
+      <payment>credit_card</payment>
+      <subtotal>899.99</subtotal>
+      <tax>180.00</tax>
+      <shipping_cost>25.00</shipping_cost>
+      <total>1104.99</total>
+      <placed_at>2023-11-18T08:12:33Z</placed_at>
+      <updated_at>2023-11-20T16:45:00Z</updated_at>
+    </order>
+    <order id="ord-004" customer="cust-004">
+      <status>processing</status>
+      <payment>bank_transfer</payment>
+      <subtotal>649.99</subtotal>
+      <tax>52.00</tax>
+      <shipping_cost>12.99</shipping_cost>
+      <total>714.98</total>
+      <placed_at>2023-11-20T11:34:56Z</placed_at>
+      <updated_at>2023-11-20T11:34:56Z</updated_at>
+    </order>
+    <order id="ord-005" customer="cust-005">
+      <status>delivered</status>
+      <payment>credit_card</payment>
+      <subtotal>3149.97</subtotal>
+      <tax>315.00</tax>
+      <shipping_cost>0.00</shipping_cost>
+      <total>3464.97</total>
+      <placed_at>2023-11-10T16:45:23Z</placed_at>
+      <updated_at>2023-11-18T09:20:00Z</updated_at>
+    </order>
+    <order id="ord-006" customer="cust-006">
+      <status>cancelled</status>
+      <payment>paypal</payment>
+      <subtotal>449.99</subtotal>
+      <tax>85.50</tax>
+      <shipping_cost>15.00</shipping_cost>
+      <total>550.49</total>
+      <placed_at>2023-11-19T10:23:45Z</placed_at>
+      <updated_at>2023-11-19T12:00:00Z</updated_at>
+    </order>
+    <order id="ord-007" customer="cust-007">
+      <status>delivered</status>
+      <payment>credit_card</payment>
+      <subtotal>2349.97</subtotal>
+      <tax>517.00</tax>
+      <shipping_cost>0.00</shipping_cost>
+      <total>2866.97</total>
+      <placed_at>2023-11-08T07:56:12Z</placed_at>
+      <updated_at>2023-11-15T11:30:00Z</updated_at>
+    </order>
+    <order id="ord-008" customer="cust-008">
+      <status>pending</status>
+      <payment>cryptocurrency</payment>
+      <subtotal>159.99</subtotal>
+      <tax>33.60</tax>
+      <shipping_cost>18.50</shipping_cost>
+      <total>212.09</total>
+      <placed_at>2023-11-21T15:12:33Z</placed_at>
+      <updated_at>2023-11-21T15:12:33Z</updated_at>
+    </order>
+    <order id="ord-009" customer="cust-009">
+      <status>delivered</status>
+      <payment>credit_card</payment>
+      <subtotal>4199.96</subtotal>
+      <tax>420.00</tax>
+      <shipping_cost>0.00</shipping_cost>
+      <total>4619.96</total>
+      <placed_at>2023-11-05T22:34:56Z</placed_at>
+      <updated_at>2023-11-12T08:45:00Z</updated_at>
+    </order>
+    <order id="ord-010" customer="cust-010">
+      <status>shipped</status>
+      <payment>paypal</payment>
+      <subtotal>679.97</subtotal>
+      <tax>54.40</tax>
+      <shipping_cost>9.99</shipping_cost>
+      <total>744.36</total>
+      <placed_at>2023-11-17T13:45:23Z</placed_at>
+      <updated_at>2023-11-19T14:20:00Z</updated_at>
+    </order>
+    <order id="ord-011" customer="cust-001">
+      <status>processing</status>
+      <payment>credit_card</payment>
+      <subtotal>299.99</subtotal>
+      <tax>24.00</tax>
+      <shipping_cost>12.99</shipping_cost>
+      <total>336.98</total>
+      <placed_at>2023-11-21T08:23:11Z</placed_at>
+      <updated_at>2023-11-21T08:23:11Z</updated_at>
+    </order>
+    <order id="ord-012" customer="cust-002">
+      <status>delivered</status>
+      <payment>paypal</payment>
+      <subtotal>1949.97</subtotal>
+      <tax>155.99</tax>
+      <shipping_cost>0.00</shipping_cost>
+      <total>2105.96</total>
+      <placed_at>2023-11-12T17:45:33Z</placed_at>
+      <updated_at>2023-11-19T13:15:00Z</updated_at>
+    </order>
+    <order id="ord-013" customer="cust-003">
+      <status>returned</status>
+      <payment>credit_card</payment>
+      <subtotal>349.99</subtotal>
+      <tax>70.00</tax>
+      <shipping_cost>12.00</shipping_cost>
+      <total>431.99</total>
+      <placed_at>2023-11-14T09:12:45Z</placed_at>
+      <updated_at>2023-11-25T10:30:00Z</updated_at>
+    </order>
+    <order id="ord-014" customer="cust-005">
+      <status>delivered</status>
+      <payment>credit_card</payment>
+      <subtotal>579.98</subtotal>
+      <tax>57.99</tax>
+      <shipping_cost>8.99</shipping_cost>
+      <total>646.96</total>
+      <placed_at>2023-11-09T14:34:22Z</placed_at>
+      <updated_at>2023-11-16T11:45:00Z</updated_at>
+    </order>
+    <order id="ord-015" customer="cust-007">
+      <status>shipped</status>
+      <payment>bank_transfer</payment>
+      <subtotal>1199.98</subtotal>
+      <tax>264.00</tax>
+      <shipping_cost>0.00</shipping_cost>
+      <total>1463.98</total>
+      <placed_at>2023-11-18T11:56:44Z</placed_at>
+      <updated_at>2023-11-20T09:30:00Z</updated_at>
+    </order>
+  </orders>
+
+  <order_items>
+    <item id="item-001" order="ord-001" product="prod-001">
+      <quantity>1</quantity>
+      <unit_price>1299.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>1299.99</line_total>
+    </item>
+    <item id="item-002" order="ord-001" product="prod-007">
+      <quantity>1</quantity>
+      <unit_price>249.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>249.99</line_total>
+    </item>
+    <item id="item-003" order="ord-002" product="prod-008">
+      <quantity>1</quantity>
+      <unit_price>1899.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>1899.99</line_total>
+    </item>
+    <item id="item-004" order="ord-002" product="prod-002">
+      <quantity>1</quantity>
+      <unit_price>899.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>899.99</line_total>
+    </item>
+    <item id="item-005" order="ord-003" product="prod-002">
+      <quantity>1</quantity>
+      <unit_price>899.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>899.99</line_total>
+    </item>
+    <item id="item-006" order="ord-004" product="prod-003">
+      <quantity>1</quantity>
+      <unit_price>649.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>649.99</line_total>
+    </item>
+    <item id="item-007" order="ord-005" product="prod-001">
+      <quantity>1</quantity>
+      <unit_price>1299.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>1299.99</line_total>
+    </item>
+    <item id="item-008" order="ord-005" product="prod-008">
+      <quantity>1</quantity>
+      <unit_price>1899.99</unit_price>
+      <discount_pct>5</discount_pct>
+      <line_total>1804.99</line_total>
+    </item>
+    <item id="item-009" order="ord-005" product="prod-010">
+      <quantity>1</quantity>
+      <unit_price>49.99</unit_price>
+      <discount_pct>10</discount_pct>
+      <line_total>44.99</line_total>
+    </item>
+    <item id="item-010" order="ord-006" product="prod-012">
+      <quantity>1</quantity>
+      <unit_price>449.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>449.99</line_total>
+    </item>
+    <item id="item-011" order="ord-007" product="prod-008">
+      <quantity>1</quantity>
+      <unit_price>1899.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>1899.99</line_total>
+    </item>
+    <item id="item-012" order="ord-007" product="prod-012">
+      <quantity>1</quantity>
+      <unit_price>449.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>449.99</line_total>
+    </item>
+    <item id="item-013" order="ord-008" product="prod-009">
+      <quantity>1</quantity>
+      <unit_price>159.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>159.99</line_total>
+    </item>
+    <item id="item-014" order="ord-009" product="prod-001">
+      <quantity>2</quantity>
+      <unit_price>1299.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>2599.98</line_total>
+    </item>
+    <item id="item-015" order="ord-009" product="prod-013">
+      <quantity>2</quantity>
+      <unit_price>549.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>1099.98</line_total>
+    </item>
+    <item id="item-016" order="ord-009" product="prod-010">
+      <quantity>10</quantity>
+      <unit_price>49.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>499.90</line_total>
+    </item>
+    <item id="item-017" order="ord-010" product="prod-006">
+      <quantity>2</quantity>
+      <unit_price>129.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>259.98</line_total>
+    </item>
+    <item id="item-018" order="ord-010" product="prod-005">
+      <quantity>1</quantity>
+      <unit_price>189.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>189.99</line_total>
+    </item>
+    <item id="item-019" order="ord-010" product="prod-014">
+      <quantity>1</quantity>
+      <unit_price>149.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>149.99</line_total>
+    </item>
+    <item id="item-020" order="ord-010" product="prod-015">
+      <quantity>1</quantity>
+      <unit_price>79.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>79.99</line_total>
+    </item>
+    <item id="item-021" order="ord-011" product="prod-011">
+      <quantity>1</quantity>
+      <unit_price>299.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>299.99</line_total>
+    </item>
+    <item id="item-022" order="ord-012" product="prod-008">
+      <quantity>1</quantity>
+      <unit_price>1899.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>1899.99</line_total>
+    </item>
+    <item id="item-023" order="ord-012" product="prod-010">
+      <quantity>1</quantity>
+      <unit_price>49.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>49.99</line_total>
+    </item>
+    <item id="item-024" order="ord-013" product="prod-004">
+      <quantity>1</quantity>
+      <unit_price>349.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>349.99</line_total>
+    </item>
+    <item id="item-025" order="ord-014" product="prod-007">
+      <quantity>1</quantity>
+      <unit_price>249.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>249.99</line_total>
+    </item>
+    <item id="item-026" order="ord-014" product="prod-006">
+      <quantity>1</quantity>
+      <unit_price>129.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>129.99</line_total>
+    </item>
+    <item id="item-027" order="ord-014" product="prod-015">
+      <quantity>1</quantity>
+      <unit_price>79.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>79.99</line_total>
+    </item>
+    <item id="item-028" order="ord-014" product="prod-010">
+      <quantity>2</quantity>
+      <unit_price>49.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>99.98</line_total>
+    </item>
+    <item id="item-029" order="ord-014" product="prod-014">
+      <quantity>1</quantity>
+      <unit_price>149.99</unit_price>
+      <discount_pct>20</discount_pct>
+      <line_total>119.99</line_total>
+    </item>
+    <item id="item-030" order="ord-015" product="prod-013">
+      <quantity>1</quantity>
+      <unit_price>549.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>549.99</line_total>
+    </item>
+    <item id="item-031" order="ord-015" product="prod-003">
+      <quantity>1</quantity>
+      <unit_price>649.99</unit_price>
+      <discount_pct>0</discount_pct>
+      <line_total>649.99</line_total>
+    </item>
+  </order_items>
+
+  <shipments>
+    <shipment id="ship-001" order="ord-001">
+      <carrier>FedEx</carrier>
+      <tracking>FX123456789US</tracking>
+      <weight_kg>2.35</weight_kg>
+      <ship_date>2023-11-16</ship_date>
+      <est_delivery>2023-11-21</est_delivery>
+      <actual_delivery>2023-11-20</actual_delivery>
+    </shipment>
+    <shipment id="ship-002" order="ord-002">
+      <carrier>UPS</carrier>
+      <tracking>1Z999AA10123456784</tracking>
+      <weight_kg>0.93</weight_kg>
+      <ship_date>2023-11-17</ship_date>
+      <est_delivery>2023-11-23</est_delivery>
+      <actual_delivery>2023-11-22</actual_delivery>
+    </shipment>
+    <shipment id="ship-003" order="ord-003">
+      <carrier>DHL</carrier>
+      <tracking>JD014600001234567890</tracking>
+      <weight_kg>0.18</weight_kg>
+      <ship_date>2023-11-20</ship_date>
+      <est_delivery>2023-11-28</est_delivery>
+      <actual_delivery/>
+    </shipment>
+    <shipment id="ship-004" order="ord-005">
+      <carrier>FedEx</carrier>
+      <tracking>FX987654321US</tracking>
+      <weight_kg>2.93</weight_kg>
+      <ship_date>2023-11-12</ship_date>
+      <est_delivery>2023-11-17</est_delivery>
+      <actual_delivery>2023-11-16</actual_delivery>
+    </shipment>
+    <shipment id="ship-005" order="ord-007">
+      <carrier>DHL</carrier>
+      <tracking>JD014600009876543210</tracking>
+      <weight_kg>19.18</weight_kg>
+      <ship_date>2023-11-10</ship_date>
+      <est_delivery>2023-11-16</est_delivery>
+      <actual_delivery>2023-11-15</actual_delivery>
+    </shipment>
+    <shipment id="ship-006" order="ord-009">
+      <carrier>UPS</carrier>
+      <tracking>1Z999AA10987654321</tracking>
+      <weight_kg>14.94</weight_kg>
+      <ship_date>2023-11-07</ship_date>
+      <est_delivery>2023-11-11</est_delivery>
+      <actual_delivery>2023-11-10</actual_delivery>
+    </shipment>
+    <shipment id="ship-007" order="ord-010">
+      <carrier>USPS</carrier>
+      <tracking>9400111899223334445566</tracking>
+      <weight_kg>2.07</weight_kg>
+      <ship_date>2023-11-19</ship_date>
+      <est_delivery>2023-11-24</est_delivery>
+      <actual_delivery/>
+    </shipment>
+    <shipment id="ship-008" order="ord-012">
+      <carrier>FedEx</carrier>
+      <tracking>FX567891234US</tracking>
+      <weight_kg>0.85</weight_kg>
+      <ship_date>2023-11-14</ship_date>
+      <est_delivery>2023-11-18</est_delivery>
+      <actual_delivery>2023-11-17</actual_delivery>
+    </shipment>
+    <shipment id="ship-009" order="ord-014">
+      <carrier>DHL</carrier>
+      <tracking>JD014600005678912340</tracking>
+      <weight_kg>1.22</weight_kg>
+      <ship_date>2023-11-11</ship_date>
+      <est_delivery>2023-11-15</est_delivery>
+      <actual_delivery>2023-11-14</actual_delivery>
+    </shipment>
+    <shipment id="ship-010" order="ord-015">
+      <carrier>UPS</carrier>
+      <tracking>1Z999AA10567891234</tracking>
+      <weight_kg>6.67</weight_kg>
+      <ship_date>2023-11-20</ship_date>
+      <est_delivery>2023-11-25</est_delivery>
+      <actual_delivery/>
+    </shipment>
+  </shipments>
+
+  <reviews>
+    <review id="rev-001" product="prod-001" customer="cust-001" order="ord-001">
+      <rating>5_star</rating>
+      <title>Excellent laptop for work</title>
+      <verified>true</verified>
+      <helpful_votes>45</helpful_votes>
+      <created>2023-11-25T10:30:00Z</created>
+    </review>
+    <review id="rev-002" product="prod-007" customer="cust-001" order="ord-001">
+      <rating>4_star</rating>
+      <title>Good sound but pricey</title>
+      <verified>true</verified>
+      <helpful_votes>23</helpful_votes>
+      <created>2023-11-26T14:15:00Z</created>
+    </review>
+    <review id="rev-003" product="prod-008" customer="cust-002" order="ord-002">
+      <rating>5_star</rating>
+      <title>Professional quality camera</title>
+      <verified>true</verified>
+      <helpful_votes>89</helpful_votes>
+      <created>2023-11-28T09:45:00Z</created>
+    </review>
+    <review id="rev-004" product="prod-002" customer="cust-002" order="ord-002">
+      <rating>4_star</rating>
+      <title>Fast phone great screen</title>
+      <verified>true</verified>
+      <helpful_votes>56</helpful_votes>
+      <created>2023-11-29T11:20:00Z</created>
+    </review>
+    <review id="rev-005" product="prod-002" customer="cust-003" order="ord-003">
+      <rating>3_star</rating>
+      <title>Average battery life</title>
+      <verified>true</verified>
+      <helpful_votes>34</helpful_votes>
+      <created>2023-12-01T16:30:00Z</created>
+    </review>
+    <review id="rev-006" product="prod-001" customer="cust-005" order="ord-005">
+      <rating>5_star</rating>
+      <title>Best purchase this year</title>
+      <verified>true</verified>
+      <helpful_votes>67</helpful_votes>
+      <created>2023-11-22T08:45:00Z</created>
+    </review>
+    <review id="rev-007" product="prod-008" customer="cust-005" order="ord-005">
+      <rating>4_star</rating>
+      <title>Minor focus issues</title>
+      <verified>true</verified>
+      <helpful_votes>28</helpful_votes>
+      <created>2023-11-23T13:10:00Z</created>
+    </review>
+    <review id="rev-008" product="prod-008" customer="cust-007" order="ord-007">
+      <rating>5_star</rating>
+      <title>Outstanding image quality</title>
+      <verified>true</verified>
+      <helpful_votes>112</helpful_votes>
+      <created>2023-11-20T10:00:00Z</created>
+    </review>
+    <review id="rev-009" product="prod-012" customer="cust-007" order="ord-007">
+      <rating>5_star</rating>
+      <title>Very comfortable chair</title>
+      <verified>true</verified>
+      <helpful_votes>78</helpful_votes>
+      <created>2023-11-21T15:30:00Z</created>
+    </review>
+    <review id="rev-010" product="prod-001" customer="cust-009" order="ord-009">
+      <rating>4_star</rating>
+      <title>Solid performance</title>
+      <verified>true</verified>
+      <helpful_votes>41</helpful_votes>
+      <created>2023-11-18T12:45:00Z</created>
+    </review>
+    <review id="rev-011" product="prod-013" customer="cust-009" order="ord-009">
+      <rating>5_star</rating>
+      <title>Crystal clear display</title>
+      <verified>true</verified>
+      <helpful_votes>93</helpful_votes>
+      <created>2023-11-19T09:15:00Z</created>
+    </review>
+    <review id="rev-012" product="prod-004" customer="cust-003" order="ord-013">
+      <rating>2_star</rating>
+      <title>Returned due to defect</title>
+      <verified>true</verified>
+      <helpful_votes>15</helpful_votes>
+      <created>2023-11-28T14:00:00Z</created>
+    </review>
+    <review id="rev-013" product="prod-006" customer="cust-010" order="ord-010">
+      <rating>4_star</rating>
+      <title>Great running shoes</title>
+      <verified>true</verified>
+      <helpful_votes>38</helpful_votes>
+      <created>2023-12-02T11:30:00Z</created>
+    </review>
+    <review id="rev-014" product="prod-008" customer="cust-002" order="ord-012">
+      <rating>5_star</rating>
+      <title>Second purchase love it</title>
+      <verified>true</verified>
+      <helpful_votes>54</helpful_votes>
+      <created>2023-11-24T16:45:00Z</created>
+    </review>
+    <review id="rev-015" product="prod-011" customer="cust-001" order="ord-011">
+      <rating>4_star</rating>
+      <title>Easy to set up</title>
+      <verified>false</verified>
+      <helpful_votes>12</helpful_votes>
+      <created>2023-12-05T10:20:00Z</created>
+    </review>
+  </reviews>
+
+  <inventory>
+    <inventory_record id="inv-001" product="prod-001" warehouse="warehouse-east">
+      <qty_available>23</qty_available>
+      <qty_reserved>5</qty_reserved>
+      <reorder_point>20</reorder_point>
+      <last_restock>2023-11-01</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-002" product="prod-001" warehouse="warehouse-west">
+      <qty_available>22</qty_available>
+      <qty_reserved>3</qty_reserved>
+      <reorder_point>20</reorder_point>
+      <last_restock>2023-11-05</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-003" product="prod-002" warehouse="warehouse-east">
+      <qty_available>67</qty_available>
+      <qty_reserved>12</qty_reserved>
+      <reorder_point>50</reorder_point>
+      <last_restock>2023-11-10</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-004" product="prod-002" warehouse="warehouse-west">
+      <qty_available>61</qty_available>
+      <qty_reserved>8</qty_reserved>
+      <reorder_point>50</reorder_point>
+      <last_restock>2023-11-08</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-005" product="prod-003" warehouse="warehouse-east">
+      <qty_available>34</qty_available>
+      <qty_reserved>4</qty_reserved>
+      <reorder_point>30</reorder_point>
+      <last_restock>2023-11-12</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-006" product="prod-003" warehouse="warehouse-west">
+      <qty_available>33</qty_available>
+      <qty_reserved>2</qty_reserved>
+      <reorder_point>30</reorder_point>
+      <last_restock>2023-11-15</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-007" product="prod-004" warehouse="warehouse-east">
+      <qty_available>120</qty_available>
+      <qty_reserved>15</qty_reserved>
+      <reorder_point>100</reorder_point>
+      <last_restock>2023-11-03</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-008" product="prod-004" warehouse="warehouse-west">
+      <qty_available>114</qty_available>
+      <qty_reserved>10</qty_reserved>
+      <reorder_point>100</reorder_point>
+      <last_restock>2023-11-07</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-009" product="prod-005" warehouse="warehouse-east">
+      <qty_available>45</qty_available>
+      <qty_reserved>6</qty_reserved>
+      <reorder_point>40</reorder_point>
+      <last_restock>2023-10-25</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-010" product="prod-005" warehouse="warehouse-west">
+      <qty_available>44</qty_available>
+      <qty_reserved>3</qty_reserved>
+      <reorder_point>40</reorder_point>
+      <last_restock>2023-10-28</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-011" product="prod-006" warehouse="warehouse-east">
+      <qty_available>80</qty_available>
+      <qty_reserved>8</qty_reserved>
+      <reorder_point>60</reorder_point>
+      <last_restock>2023-11-14</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-012" product="prod-006" warehouse="warehouse-west">
+      <qty_available>76</qty_available>
+      <qty_reserved>5</qty_reserved>
+      <reorder_point>60</reorder_point>
+      <last_restock>2023-11-16</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-013" product="prod-007" warehouse="warehouse-east">
+      <qty_available>160</qty_available>
+      <qty_reserved>20</qty_reserved>
+      <reorder_point>100</reorder_point>
+      <last_restock>2023-11-02</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-014" product="prod-007" warehouse="warehouse-west">
+      <qty_available>152</qty_available>
+      <qty_reserved>15</qty_reserved>
+      <reorder_point>100</reorder_point>
+      <last_restock>2023-11-06</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-015" product="prod-008" warehouse="warehouse-east">
+      <qty_available>12</qty_available>
+      <qty_reserved>2</qty_reserved>
+      <reorder_point>15</reorder_point>
+      <last_restock>2023-11-18</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-016" product="prod-008" warehouse="warehouse-west">
+      <qty_available>11</qty_available>
+      <qty_reserved>1</qty_reserved>
+      <reorder_point>15</reorder_point>
+      <last_restock>2023-11-20</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-017" product="prod-009" warehouse="warehouse-east">
+      <qty_available>40</qty_available>
+      <qty_reserved>3</qty_reserved>
+      <reorder_point>35</reorder_point>
+      <last_restock>2023-10-30</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-018" product="prod-009" warehouse="warehouse-west">
+      <qty_available>38</qty_available>
+      <qty_reserved>2</qty_reserved>
+      <reorder_point>35</reorder_point>
+      <last_restock>2023-11-02</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-019" product="prod-010" warehouse="warehouse-east">
+      <qty_available>290</qty_available>
+      <qty_reserved>25</qty_reserved>
+      <reorder_point>200</reorder_point>
+      <last_restock>2023-11-11</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-020" product="prod-010" warehouse="warehouse-west">
+      <qty_available>277</qty_available>
+      <qty_reserved>18</qty_reserved>
+      <reorder_point>200</reorder_point>
+      <last_restock>2023-11-13</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-021" product="prod-011" warehouse="warehouse-east">
+      <qty_available>18</qty_available>
+      <qty_reserved>2</qty_reserved>
+      <reorder_point>20</reorder_point>
+      <last_restock>2023-10-20</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-022" product="prod-011" warehouse="warehouse-west">
+      <qty_available>16</qty_available>
+      <qty_reserved>1</qty_reserved>
+      <reorder_point>20</reorder_point>
+      <last_restock>2023-10-22</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-023" product="prod-012" warehouse="warehouse-east">
+      <qty_available>22</qty_available>
+      <qty_reserved>3</qty_reserved>
+      <reorder_point>25</reorder_point>
+      <last_restock>2023-11-09</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-024" product="prod-012" warehouse="warehouse-west">
+      <qty_available>20</qty_available>
+      <qty_reserved>2</qty_reserved>
+      <reorder_point>25</reorder_point>
+      <last_restock>2023-11-12</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-025" product="prod-013" warehouse="warehouse-east">
+      <qty_available>45</qty_available>
+      <qty_reserved>5</qty_reserved>
+      <reorder_point>40</reorder_point>
+      <last_restock>2023-11-04</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-026" product="prod-013" warehouse="warehouse-west">
+      <qty_available>44</qty_available>
+      <qty_reserved>4</qty_reserved>
+      <reorder_point>40</reorder_point>
+      <last_restock>2023-11-08</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-027" product="prod-014" warehouse="warehouse-east">
+      <qty_available>125</qty_available>
+      <qty_reserved>12</qty_reserved>
+      <reorder_point>100</reorder_point>
+      <last_restock>2023-11-06</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-028" product="prod-014" warehouse="warehouse-west">
+      <qty_available>120</qty_available>
+      <qty_reserved>8</qty_reserved>
+      <reorder_point>100</reorder_point>
+      <last_restock>2023-11-10</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-029" product="prod-015" warehouse="warehouse-east">
+      <qty_available>200</qty_available>
+      <qty_reserved>18</qty_reserved>
+      <reorder_point>150</reorder_point>
+      <last_restock>2023-11-01</last_restock>
+    </inventory_record>
+    <inventory_record id="inv-030" product="prod-015" warehouse="warehouse-west">
+      <qty_available>189</qty_available>
+      <qty_reserved>14</qty_reserved>
+      <reorder_point>150</reorder_point>
+      <last_restock>2023-11-05</last_restock>
+    </inventory_record>
+  </inventory>
+</ecommerce_orders>

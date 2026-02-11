@@ -254,9 +254,6 @@ enum CompressionWriterInner<W: std::io::Write> {
     Zstd(Box<zstd::Encoder<'static, W>>),
     #[cfg(feature = "compression-lz4")]
     Lz4(Box<lz4_flex::frame::FrameEncoder<W>>),
-    // Reserved for future interior-mutability pattern where finish doesn't consume self
-    #[allow(dead_code)]
-    Finished,
 }
 
 #[cfg(feature = "compression")]
@@ -318,11 +315,6 @@ impl<W: std::io::Write + 'static> CompressionWriter<W> {
             CompressionWriterInner::Lz4(w) => w
                 .finish()
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())),
-
-            CompressionWriterInner::Finished => Err(io::Error::new(
-                io::ErrorKind::Other,
-                "Writer already finished",
-            )),
         }
     }
 }
@@ -339,11 +331,6 @@ impl<W: std::io::Write + 'static> std::io::Write for CompressionWriter<W> {
 
             #[cfg(feature = "compression-lz4")]
             CompressionWriterInner::Lz4(w) => w.write(buf),
-
-            CompressionWriterInner::Finished => Err(io::Error::new(
-                io::ErrorKind::Other,
-                "Writer already finished",
-            )),
         }
     }
 
@@ -357,8 +344,6 @@ impl<W: std::io::Write + 'static> std::io::Write for CompressionWriter<W> {
 
             #[cfg(feature = "compression-lz4")]
             CompressionWriterInner::Lz4(w) => w.flush(),
-
-            CompressionWriterInner::Finished => Ok(()),
         }
     }
 }

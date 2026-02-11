@@ -17,14 +17,54 @@
 
 //! Import functions (from_*) for FFI.
 
+// Imports are feature-gated since all functions in this module require format features.
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "parquet",
+    feature = "toon"
+))]
 use crate::error::{clear_error, set_error};
-use crate::types::{
-    HedlDocument, HEDL_ERR_JSON, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET, HEDL_ERR_TOON, HEDL_ERR_XML,
-    HEDL_ERR_YAML, HEDL_OK,
-};
-use crate::utils::get_input_string;
-use std::os::raw::{c_char, c_int};
+#[cfg(any(feature = "json", feature = "yaml", feature = "xml", feature = "toon"))]
+use crate::ffi_strings::get_input_string;
+#[cfg(feature = "json")]
+use crate::types::HEDL_ERR_JSON;
+#[cfg(feature = "parquet")]
+use crate::types::HEDL_ERR_PARQUET;
+#[cfg(feature = "toon")]
+use crate::types::HEDL_ERR_TOON;
+#[cfg(feature = "xml")]
+use crate::types::HEDL_ERR_XML;
+#[cfg(feature = "yaml")]
+use crate::types::HEDL_ERR_YAML;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "parquet",
+    feature = "toon"
+))]
+use crate::types::{HedlDocument, HEDL_ERR_NULL_PTR, HEDL_OK};
+#[cfg(any(feature = "json", feature = "yaml", feature = "xml", feature = "toon"))]
+use std::os::raw::c_char;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "parquet",
+    feature = "toon"
+))]
+use std::os::raw::c_int;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "parquet",
+    feature = "toon"
+))]
 use std::ptr;
+#[cfg(feature = "parquet")]
 use std::slice;
 
 // =============================================================================

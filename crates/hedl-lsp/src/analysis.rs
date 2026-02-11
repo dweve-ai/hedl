@@ -91,11 +91,14 @@ pub struct AnalyzedDocument {
     /// Deprecated: Use `reference_index_v2` for new code.
     /// This eliminates O(n) linear search bottleneck for find-references operations.
     pub reference_index: HashMap<String, Vec<usize>>,
-    /// Nest relationships: parent -> (child, line number).
-    pub nests: HashMap<String, (String, usize)>,
+    /// Nest relationships: parent -> vec of (child, line number).
+    /// A parent type can have multiple child types.
+    pub nests: HashMap<String, Vec<(String, usize)>>,
     /// Cached line number where header ends (--- delimiter).
     /// This eliminates O(n) scan on every completion context determination.
     pub header_end_line: Option<usize>,
+    /// Document version: (major, minor), e.g. (2, 0) for v2.0.
+    pub version: Option<(u32, u32)>,
 }
 
 impl AnalyzedDocument {
@@ -140,6 +143,7 @@ impl AnalyzedDocument {
             reference_index: HashMap::new(),
             nests: HashMap::new(),
             header_end_line: None,
+            version: None,
         };
 
         debug!(
@@ -226,7 +230,31 @@ impl AnalyzedDocument {
                 break; // End of header
             }
 
-            if line.starts_with("%STRUCT") {
+            // Extract version from %V: or %VERSION: directive
+            if line.starts_with("%V:") {
+                if let Some(ver_str) = line.strip_prefix("%V:") {
+                    let ver_str = ver_str.trim();
+                    if let Some((major, minor)) = ver_str.split_once('.') {
+                        if let (Ok(maj), Ok(min)) = (major.parse::<u32>(), minor.parse::<u32>()) {
+                            self.version = Some((maj, min));
+                        }
+                    }
+                }
+            } else if line.starts_with("%VERSION") {
+                if let Some(rest) = line.strip_prefix("%VERSION") {
+                    let rest = rest.trim().strip_prefix(':').unwrap_or(rest.trim()).trim();
+                    if let Some((major, minor)) = rest.split_once('.') {
+                        if let (Ok(maj), Ok(min)) =
+                            (major.trim().parse::<u32>(), minor.trim().parse::<u32>())
+                        {
+                            self.version = Some((maj, min));
+                        }
+                    }
+                }
+            }
+
+            // Handle both %STRUCT (verbose) and %S (compact)
+            if line.starts_with("%STRUCT") || line.starts_with("%S:") || line.starts_with("%S ") {
                 match parse_struct_directive(line) {
                     Some(def) => {
                         // Convert 0-based line_num to 1-based line number for storage
@@ -249,7 +277,7 @@ impl AnalyzedDocument {
                         );
                     }
                 }
-            } else if line.starts_with("%ALIAS") {
+            } else if line.starts_with("%ALIAS") || line.starts_with("%A:") {
                 match parse_alias_directive(line) {
                     Some((alias, value)) => {
                         self.aliases.insert(
@@ -271,13 +299,18 @@ impl AnalyzedDocument {
                         );
                     }
                 }
-            } else if line.starts_with("%NEST") {
+            // Handle both %NEST (verbose) and %N (compact)
+            } else if line.starts_with("%NEST")
+                || line.starts_with("%N:")
+                || line.starts_with("%N ")
+            {
                 match parse_nest_directive(line) {
                     Some((parent, child)) => {
-                        self.nests.insert(
-                            parent.clone(),
-                            (child.clone(), line_num + LINE_NUMBER_OFFSET),
-                        );
+                        // Support multiple children per parent
+                        self.nests
+                            .entry(parent.clone())
+                            .or_default()
+                            .push((child.clone(), line_num + LINE_NUMBER_OFFSET));
                         debug!(
                             "Parsed NEST directive at line {}: {} > {}",
                             line_num + LINE_NUMBER_OFFSET,
@@ -580,7 +613,7 @@ impl AnalyzedDocument {
                         let ref_content = &ref_str[1..]; // Remove '@'
 
                         if let Some(colon_pos) = ref_content.find(':') {
-                            // Qualified reference: @Type:id or @Type:"id"
+                            // Qualified reference:@Type:id or @Type:"id"
                             let type_name = ref_content[..colon_pos].to_string();
                             let id = ref_content[colon_pos + 1..].to_string();
 
@@ -588,7 +621,7 @@ impl AnalyzedDocument {
                             self.reference_index_v2
                                 .add_reference(Some(type_name), id, location);
                         } else {
-                            // Unqualified reference: @id or @"id"
+                            // Unqualified reference:@id or @"id"
                             let id = ref_content.to_string();
                             let location = RefLocation::new(line_num as u32, start_char, end_char);
                             self.reference_index_v2.add_reference(None, id, location);
@@ -667,6 +700,16 @@ impl AnalyzedDocument {
             .unwrap_or_default()
     }
 
+    /// Check if ditto operator is allowed (only in pre-v2.0 documents).
+    #[must_use]
+    pub fn ditto_allowed(&self) -> bool {
+        match self.version {
+            Some((1, minor)) => minor < 3,
+            None => true, // permissive if unknown
+            _ => true,
+        }
+    }
+
     /// Get all type names.
     #[must_use]
     pub fn get_type_names(&self) -> Vec<String> {
@@ -692,8 +735,18 @@ impl AnalyzedDocument {
 // --- Helper Functions ---
 
 fn parse_struct_directive(line: &str) -> Option<(String, Vec<String>)> {
-    // %STRUCT: TypeName: [col1, col2, col3]
-    let rest = line.strip_prefix("%STRUCT")?.trim();
+    // Supports both:
+    // %S:TypeName:[col1, col2, col3]
+    // %S:TypeName:[col1, col2, col3] (compact syntax)
+    let rest = if let Some(r) = line.strip_prefix("%STRUCT") {
+        r
+    } else if let Some(r) = line.strip_prefix("%S") {
+        r
+    } else {
+        return None;
+    };
+
+    let rest = rest.trim();
     // Strip leading colon if present (HEDL format uses colons)
     let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
     let bracket_start = rest.find('[')?;
@@ -712,19 +765,28 @@ fn parse_struct_directive(line: &str) -> Option<(String, Vec<String>)> {
 }
 
 fn parse_alias_directive(line: &str) -> Option<(String, String)> {
-    // %ALIAS: %short: "long value" or %ALIAS: short = "long value"
-    let rest = line.strip_prefix("%ALIAS")?.trim();
+    // Supports both:
+    // %ALIAS: short = "long value" (verbose syntax)
+    // %A:%short:"long value" (v2.0 compact)
+    let rest = if let Some(r) = line.strip_prefix("%ALIAS") {
+        r
+    } else if let Some(r) = line.strip_prefix("%A:") {
+        r
+    } else {
+        return None;
+    };
+    let rest = rest.trim();
     // Strip leading colon if present
     let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
 
-    // Try the `short = "value"` format first
+    // Try the `short = "value"` format first (verbose)
     if let Some(eq_pos) = rest.find('=') {
         let alias = rest[..eq_pos].trim().trim_start_matches('%').to_string();
         let value = rest[eq_pos + 1..].trim().trim_matches('"').to_string();
         return Some((alias, value));
     }
 
-    // Try the `%short: "value"` format
+    // Try the `%short:"value"` format (v2.0 compact)
     if let Some(colon_pos) = rest.rfind(':') {
         let alias = rest[..colon_pos].trim().trim_start_matches('%').to_string();
         let value = rest[colon_pos + 1..].trim().trim_matches('"').to_string();
@@ -735,8 +797,18 @@ fn parse_alias_directive(line: &str) -> Option<(String, String)> {
 }
 
 fn parse_nest_directive(line: &str) -> Option<(String, String)> {
-    // %NEST: Parent > Child
-    let rest = line.strip_prefix("%NEST")?.trim();
+    // Supports both:
+    // %N:Parent>Child
+    // %N:Parent>Child (compact syntax)
+    let rest = if let Some(r) = line.strip_prefix("%NEST") {
+        r
+    } else if let Some(r) = line.strip_prefix("%N") {
+        r
+    } else {
+        return None;
+    };
+
+    let rest = rest.trim();
     // Strip leading colon if present
     let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
     let arrow_pos = rest.find('>')?;

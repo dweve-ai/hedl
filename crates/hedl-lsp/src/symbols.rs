@@ -38,6 +38,57 @@ use tower_lsp::lsp_types::{
 };
 use tracing::{debug, warn};
 
+/// Construct a `DocumentSymbol` without triggering the deprecated `deprecated` field warning.
+///
+/// The `deprecated` field on `DocumentSymbol` is deprecated in lsp-types in favor of
+/// `tags` (using `SymbolTag::DEPRECATED`). Since we must still set the field in struct
+/// literals (no `Default` impl), this helper centralizes the suppression in one place.
+fn make_document_symbol(
+    name: String,
+    detail: Option<String>,
+    kind: SymbolKind,
+    range: Range,
+    selection_range: Range,
+    children: Option<Vec<DocumentSymbol>>,
+) -> DocumentSymbol {
+    // The `deprecated` field on DocumentSymbol is deprecated in lsp-types.
+    // The replacement is `tags` with `SymbolTag::DEPRECATED`. Since we never
+    // mark symbols as deprecated, both fields are None. We must still set the
+    // struct field because DocumentSymbol does not implement Default.
+    #[allow(deprecated)]
+    DocumentSymbol {
+        name,
+        detail,
+        kind,
+        tags: None,
+        deprecated: None,
+        range,
+        selection_range,
+        children,
+    }
+}
+
+/// Construct a `SymbolInformation` without triggering the deprecated `deprecated` field warning.
+///
+/// Same rationale as [`make_document_symbol`]: the `deprecated` field is deprecated
+/// in favor of `tags`.
+fn make_symbol_information(
+    name: String,
+    kind: SymbolKind,
+    location: Location,
+    container_name: Option<String>,
+) -> SymbolInformation {
+    #[allow(deprecated)]
+    SymbolInformation {
+        name,
+        kind,
+        tags: None,
+        deprecated: None,
+        location,
+        container_name,
+    }
+}
+
 /// Get document symbols for outline view.
 ///
 /// # Error Handling
@@ -45,7 +96,6 @@ use tracing::{debug, warn};
 /// - Empty content: Returns empty symbol list
 /// - Missing header delimiter: Treated as header-only document
 /// - Invalid line numbers: Clamped to valid ranges
-#[allow(deprecated)]
 pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<DocumentSymbol> {
     let mut symbols = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -73,16 +123,14 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                 cols.len(),
                 line
             );
-            header_children.push(DocumentSymbol {
-                name: type_name.clone(),
-                detail: Some(format!("[{}]", cols.join(", "))),
-                kind: SymbolKind::STRUCT,
-                tags: None,
-                deprecated: None,
-                range: line_range(*line),
-                selection_range: line_range(*line),
-                children: None,
-            });
+            header_children.push(make_document_symbol(
+                type_name.clone(),
+                Some(format!("[{}]", cols.join(", "))),
+                SymbolKind::STRUCT,
+                line_range(*line),
+                line_range(*line),
+                None,
+            ));
         }
 
         // Add aliases
@@ -91,34 +139,32 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                 "Adding alias symbol: {} = '{}' at line {}",
                 alias, value, line
             );
-            header_children.push(DocumentSymbol {
-                name: format!("${alias}"),
-                detail: Some(format!("= \"{value}\"")),
-                kind: SymbolKind::CONSTANT,
-                tags: None,
-                deprecated: None,
-                range: line_range(*line),
-                selection_range: line_range(*line),
-                children: None,
-            });
+            header_children.push(make_document_symbol(
+                format!("${alias}"),
+                Some(format!("= \"{value}\"")),
+                SymbolKind::CONSTANT,
+                line_range(*line),
+                line_range(*line),
+                None,
+            ));
         }
 
         // Add nests
-        for (parent, (child, line)) in &analysis.nests {
-            debug!(
-                "Adding nest symbol: {} > {} at line {}",
-                parent, child, line
-            );
-            header_children.push(DocumentSymbol {
-                name: format!("{parent} > {child}"),
-                detail: Some("Nesting relationship".to_string()),
-                kind: SymbolKind::INTERFACE,
-                tags: None,
-                deprecated: None,
-                range: line_range(*line),
-                selection_range: line_range(*line),
-                children: None,
-            });
+        for (parent, child_list) in &analysis.nests {
+            for (child, line) in child_list {
+                debug!(
+                    "Adding nest symbol: {} > {} at line {}",
+                    parent, child, line
+                );
+                header_children.push(make_document_symbol(
+                    format!("{parent} > {child}"),
+                    Some("Nesting relationship".to_string()),
+                    SymbolKind::INTERFACE,
+                    line_range(*line),
+                    line_range(*line),
+                    None,
+                ));
+            }
         }
 
         if !header_children.is_empty() {
@@ -126,13 +172,11 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                 "Adding header container with {} directives",
                 header_children.len()
             );
-            symbols.push(DocumentSymbol {
-                name: "Header".to_string(),
-                detail: Some(format!("{} directives", header_children.len())),
-                kind: SymbolKind::NAMESPACE,
-                tags: None,
-                deprecated: None,
-                range: Range {
+            symbols.push(make_document_symbol(
+                "Header".to_string(),
+                Some(format!("{} directives", header_children.len())),
+                SymbolKind::NAMESPACE,
+                Range {
                     start: Position {
                         line: POSITION_ZERO,
                         character: POSITION_ZERO,
@@ -142,7 +186,7 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                         character: POSITION_ZERO,
                     },
                 },
-                selection_range: Range {
+                Range {
                     start: Position {
                         line: POSITION_ZERO,
                         character: POSITION_ZERO,
@@ -152,8 +196,8 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                         character: HEADER_SELECTION_CHAR,
                     },
                 },
-                children: Some(header_children),
-            });
+                Some(header_children),
+            ));
         }
     }
 
@@ -167,16 +211,14 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
         let mut entity_children = Vec::new();
 
         for (id, line) in entities {
-            entity_children.push(DocumentSymbol {
-                name: id.clone(),
-                detail: None,
-                kind: SymbolKind::OBJECT,
-                tags: None,
-                deprecated: None,
-                range: line_range(*line),
-                selection_range: line_range(*line),
-                children: None,
-            });
+            entity_children.push(make_document_symbol(
+                id.clone(),
+                None,
+                SymbolKind::OBJECT,
+                line_range(*line),
+                line_range(*line),
+                None,
+            ));
         }
 
         // Sort by line number
@@ -193,13 +235,11 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
             last_line
         );
 
-        symbols.push(DocumentSymbol {
-            name: type_name.clone(),
-            detail: Some(format!("{} entities", entities.len())),
-            kind: SymbolKind::CLASS,
-            tags: None,
-            deprecated: None,
-            range: Range {
+        symbols.push(make_document_symbol(
+            type_name.clone(),
+            Some(format!("{} entities", entities.len())),
+            SymbolKind::CLASS,
+            Range {
                 start: Position {
                     line: first_line as u32,
                     character: POSITION_ZERO,
@@ -209,7 +249,7 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                     character: SYMBOL_LINE_END_CHAR,
                 },
             },
-            selection_range: Range {
+            Range {
                 start: Position {
                     line: first_line as u32,
                     character: POSITION_ZERO,
@@ -219,8 +259,8 @@ pub fn get_document_symbols(analysis: &AnalyzedDocument, content: &str) -> Vec<D
                     character: type_name.len() as u32,
                 },
             },
-            children: Some(entity_children),
-        });
+            Some(entity_children),
+        ));
     }
 
     debug!(
@@ -251,18 +291,16 @@ pub fn get_workspace_symbols(analysis: &AnalyzedDocument, query: &str) -> Vec<Sy
     for (type_name, (_cols, line)) in &analysis.schemas {
         if type_name.to_lowercase().contains(&query_lower) {
             debug!("Schema '{}' matches query '{}'", type_name, query);
-            #[allow(deprecated)]
-            symbols.push(SymbolInformation {
-                name: type_name.clone(),
-                kind: SymbolKind::STRUCT,
-                tags: None,
-                deprecated: None,
-                location: Location {
-                    uri: Url::parse("file:///").unwrap(), // Will be replaced by caller
+            symbols.push(make_symbol_information(
+                type_name.clone(),
+                SymbolKind::STRUCT,
+                Location {
+                    // SAFETY: "file:///" is a valid URL constant
+                    uri: Url::parse("file:///").expect("valid file URL"),
                     range: line_range(*line),
                 },
-                container_name: Some("Schema".to_string()),
-            });
+                Some("Schema".to_string()),
+            ));
         }
     }
 
@@ -272,18 +310,16 @@ pub fn get_workspace_symbols(analysis: &AnalyzedDocument, query: &str) -> Vec<Sy
             if id.to_lowercase().contains(&query_lower)
                 || type_name.to_lowercase().contains(&query_lower)
             {
-                #[allow(deprecated)]
-                symbols.push(SymbolInformation {
-                    name: id.clone(),
-                    kind: SymbolKind::OBJECT,
-                    tags: None,
-                    deprecated: None,
-                    location: Location {
-                        uri: Url::parse("file:///").unwrap(),
+                symbols.push(make_symbol_information(
+                    id.clone(),
+                    SymbolKind::OBJECT,
+                    Location {
+                        // SAFETY: "file:///" is a valid URL constant
+                        uri: Url::parse("file:///").expect("valid file URL"),
                         range: line_range(*line),
                     },
-                    container_name: Some(type_name.clone()),
-                });
+                    Some(type_name.clone()),
+                ));
             }
         }
     }
@@ -292,18 +328,16 @@ pub fn get_workspace_symbols(analysis: &AnalyzedDocument, query: &str) -> Vec<Sy
     for (alias, (_, line)) in &analysis.aliases {
         if alias.to_lowercase().contains(&query_lower) {
             debug!("Alias '{}' matches query '{}'", alias, query);
-            #[allow(deprecated)]
-            symbols.push(SymbolInformation {
-                name: format!("${alias}"),
-                kind: SymbolKind::CONSTANT,
-                tags: None,
-                deprecated: None,
-                location: Location {
-                    uri: Url::parse("file:///").unwrap(),
+            symbols.push(make_symbol_information(
+                format!("${alias}"),
+                SymbolKind::CONSTANT,
+                Location {
+                    // SAFETY: "file:///" is a valid URL constant
+                    uri: Url::parse("file:///").expect("valid file URL"),
                     range: line_range(*line),
                 },
-                container_name: Some("Alias".to_string()),
-            });
+                Some("Alias".to_string()),
+            ));
         }
     }
 

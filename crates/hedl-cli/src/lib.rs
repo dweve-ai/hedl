@@ -67,11 +67,14 @@
 //! use hedl_cli::commands::validate;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! // Validate a HEDL file
-//! validate("example.hedl", false)?;
+//! // Validate a HEDL file (strict=false, lenient=false)
+//! validate("example.hedl", false, false)?;
 //!
 //! // Strict validation (all references must resolve)
-//! validate("example.hedl", true)?;
+//! validate("example.hedl", true, false)?;
+//!
+//! // Lenient validation (allow constraint violations)
+//! validate("example.hedl", false, true)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -126,10 +129,15 @@
 //! where applicable.
 
 #![cfg_attr(not(test), warn(missing_docs))]
+/// Batch processing for multiple HEDL files with parallel execution and progress reporting.
 pub mod batch;
+/// CLI command definitions and argument parsing.
 pub mod cli;
+/// CLI command implementations.
 pub mod commands;
+/// Structured error types for the HEDL CLI.
 pub mod error;
+/// File discovery with glob patterns and recursive traversal.
 pub mod file_discovery;
 
 use clap::{Command, CommandFactory, Parser};

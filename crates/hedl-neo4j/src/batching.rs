@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(dead_code)]
-
 //! Adaptive batching utilities for optimal memory and performance.
 //!
 //! This module provides functions for creating batches of items based on

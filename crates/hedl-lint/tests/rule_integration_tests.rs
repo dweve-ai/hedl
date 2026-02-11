@@ -27,7 +27,7 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_moderate_nesting_allowed() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create nested objects within reasonable limit
     let mut current = BTreeMap::new();
@@ -51,7 +51,7 @@ fn test_moderate_nesting_allowed() {
 
 #[test]
 fn test_nested_children_within_limit() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create nested node children within reasonable limit
     let mut list = MatrixList::new("Root", vec!["id".to_string()]);
@@ -88,7 +88,7 @@ fn test_nested_children_within_limit() {
 
 #[test]
 fn test_unused_schema_used_in_nested_reference() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Define schemas
     doc.structs
@@ -120,7 +120,7 @@ fn test_unused_schema_used_in_nested_reference() {
 
 #[test]
 fn test_unused_schema_multiple_levels_deep() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Define schemas
     doc.structs.insert("A".to_string(), vec!["id".to_string()]);
@@ -159,7 +159,7 @@ fn test_unused_schema_multiple_levels_deep() {
 
 #[test]
 fn test_unused_schema_used_in_multiple_contexts() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.structs
         .insert("User".to_string(), vec!["id".to_string()]);
@@ -192,7 +192,7 @@ fn test_unused_schema_used_in_multiple_contexts() {
 
 #[test]
 fn test_id_naming_with_special_characters() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "user-alice", vec![])); // Hyphen
@@ -213,7 +213,7 @@ fn test_id_naming_with_special_characters() {
 
 #[test]
 fn test_id_naming_only_underscores() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "___", vec![]));
@@ -234,7 +234,7 @@ fn test_id_naming_only_underscores() {
 
 #[test]
 fn test_id_naming_mixed_case() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "UserAlice", vec![]));
@@ -265,7 +265,7 @@ fn test_diagnostic_limit_with_many_short_ids() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
 
     // Add 100 nodes with short IDs
@@ -297,7 +297,7 @@ fn test_diagnostic_limit_zero() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "a", vec![]));
     doc.root.insert("items".to_string(), Item::List(list));
@@ -317,7 +317,7 @@ fn test_diagnostic_limit_with_multiple_rule_types() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create violations for multiple rules
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
@@ -352,7 +352,7 @@ fn test_diagnostic_limit_with_multiple_rule_types() {
 
 #[test]
 fn test_empty_list_nested_in_objects() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut nested = BTreeMap::new();
     let empty_list = MatrixList::new("Empty", vec!["id".to_string()]);
@@ -373,7 +373,7 @@ fn test_empty_list_nested_in_objects() {
 
 #[test]
 fn test_empty_list_multiple_levels() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Level 1
     let mut level1 = BTreeMap::new();
@@ -405,7 +405,7 @@ fn test_empty_list_multiple_levels() {
 
 #[test]
 fn test_unqualified_reference_deeply_nested() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut level1 = BTreeMap::new();
     let mut level2 = BTreeMap::new();
@@ -430,7 +430,7 @@ fn test_unqualified_reference_deeply_nested() {
 
 #[test]
 fn test_qualified_reference_no_warning() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.root.insert(
         "ref".to_string(),
@@ -449,7 +449,7 @@ fn test_qualified_reference_no_warning() {
 
 #[test]
 fn test_non_reference_scalars_no_warning() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.root.insert(
         "string".to_string(),
@@ -485,7 +485,7 @@ fn test_min_severity_filters_hints() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create hint: short ID
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
@@ -507,7 +507,7 @@ fn test_min_severity_allows_warnings_and_errors() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create warning: unqualified reference
     doc.root.insert(
@@ -538,7 +538,7 @@ fn test_escalate_warning_to_error() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs
         .insert("Unused".to_string(), vec!["id".to_string()]);
 
@@ -561,7 +561,7 @@ fn test_escalate_multiple_rules() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "a", vec![]));

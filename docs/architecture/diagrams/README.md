@@ -12,6 +12,7 @@ This section provides comprehensive architectural diagrams using Mermaid for vis
 - [Data Flow](data-flow.md) - Data transformation pipelines
 - [Component Relationships](component-relationships.md) - Component dependencies
 - [Sequence Diagrams](sequence-diagrams.md) - Interaction sequences
+- [LSP Message Flow](lsp-message-flow.md) - Language Server Protocol request/response sequences
 
 ## Quick Reference Diagrams
 
@@ -104,6 +105,9 @@ flowchart LR
 - [Data Flow Diagrams](data-flow.md)
 - [Component Diagrams](component-relationships.md)
 - [Sequence Diagrams](sequence-diagrams.md)
+- [LSP Message Flow Diagrams](lsp-message-flow.md)
+- [LSP Component Architecture](../components/lsp.md)
+- [LSP Implementation Guide](../../developer/guides/lsp-implementation.md)
 
 ---
 

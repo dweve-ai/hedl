@@ -842,10 +842,10 @@ impl<R: Read> Iterator for JsonLinesStreamer<R> {
 /// let mut buffer = Vec::new();
 /// let mut writer = JsonLinesWriter::new(&mut buffer);
 ///
-/// let doc1 = Document::new((1, 0));
+/// let doc1 = Document::new((2, 0));
 /// writer.write_document(&doc1)?;
 ///
-/// let doc2 = Document::new((1, 0));
+/// let doc2 = Document::new((2, 0));
 /// writer.write_document(&doc2)?;
 ///
 /// writer.flush()?;
@@ -897,7 +897,7 @@ impl<W: std::io::Write> JsonLinesWriter<W> {
     /// let mut buffer = Vec::new();
     /// let mut writer = JsonLinesWriter::new(&mut buffer);
     ///
-    /// let doc = Document::new((1, 0));
+    /// let doc = Document::new((2, 0));
     /// writer.write_document(&doc)?;
     /// # Ok(())
     /// # }
@@ -930,7 +930,7 @@ impl<W: std::io::Write> JsonLinesWriter<W> {
     /// let mut buffer = Vec::new();
     /// let mut writer = JsonLinesWriter::new(&mut buffer);
     ///
-    /// let doc = Document::new((1, 0));
+    /// let doc = Document::new((2, 0));
     /// writer.write_document(&doc)?;
     /// writer.flush()?;
     /// # Ok(())
@@ -1180,14 +1180,14 @@ mod tests {
         let mut buffer = Vec::new();
         let mut writer = JsonLinesWriter::new(&mut buffer);
 
-        let mut doc1 = Document::new((1, 0));
+        let mut doc1 = Document::new((2, 0));
         doc1.root.insert(
             "id".to_string(),
             Item::Scalar(Value::String("1".to_string().into())),
         );
         writer.write_document(&doc1).unwrap();
 
-        let mut doc2 = Document::new((1, 0));
+        let mut doc2 = Document::new((2, 0));
         doc2.root.insert(
             "id".to_string(),
             Item::Scalar(Value::String("2".to_string().into())),
@@ -1208,7 +1208,7 @@ mod tests {
         let mut buffer = Vec::new();
         let mut writer = JsonLinesWriter::new(&mut buffer);
 
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         writer.write_document(&doc).unwrap();
         writer.flush().unwrap();
 
@@ -1223,7 +1223,7 @@ mod tests {
         let mut writer = JsonLinesWriter::new(&mut buffer);
 
         for i in 1..=3 {
-            let mut doc = Document::new((1, 0));
+            let mut doc = Document::new((2, 0));
             doc.root.insert(
                 "id".to_string(),
                 Item::Scalar(Value::String(i.to_string().into())),

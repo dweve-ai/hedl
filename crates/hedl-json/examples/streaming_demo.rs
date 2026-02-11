@@ -73,7 +73,7 @@ fn main() {
     let mut writer = JsonLinesWriter::new(&mut buffer);
 
     for i in 1..=5 {
-        let mut doc = hedl_core::Document::new((1, 0));
+        let mut doc = hedl_core::Document::new((2, 0));
         doc.root.insert(
             "id".to_string(),
             hedl_core::Item::Scalar(hedl_core::Value::String(i.to_string().into())),

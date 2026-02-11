@@ -229,11 +229,14 @@ pub fn comprehensive() -> Document {
         vec!["id".to_string(), "name".to_string(), "color".to_string()],
     );
 
-    let mut nests = BTreeMap::new();
-    nests.insert("User".to_string(), "Post".to_string());
+    let mut nests: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    nests
+        .entry("User".to_string())
+        .or_default()
+        .push("Post".to_string());
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         aliases: BTreeMap::new(),
         structs,
         nests,
@@ -1399,7 +1402,7 @@ pub fn blog() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         aliases: BTreeMap::new(),
         structs,
         nests: BTreeMap::new(),

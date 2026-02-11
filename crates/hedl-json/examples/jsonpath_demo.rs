@@ -33,12 +33,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 STRUCT User: id, name, email, age, active
 STRUCT Post: id, title, author, views
 
-users: @User
+users:@User
   u1, Alice, alice@example.com, 30, true
   u2, Bob, bob@example.com, 25, true
   u3, Charlie, charlie@example.com, 35, false
 
-posts: @Post
+posts:@Post
   p1, "First Post", @User:u1, 1500
   p2, "Second Post", @User:u2, 2300
   p3, "Third Post", @User:u1, 800

@@ -30,13 +30,15 @@
 //! - `hedl_stream`: Stream parse a large HEDL document
 //! - `batch`: Execute multiple operations in a single request
 
+/// Argument parsing utilities for MCP tool inputs.
+pub mod argument_parsing;
 mod batch_tool;
 mod conversion;
 mod file_ops;
 mod formatting;
-pub mod helpers;
 mod inspection;
-mod json_utils;
+/// JSON serialization utilities for HEDL data structures.
+pub mod json_serialization;
 #[macro_use]
 mod schema_macros;
 mod streaming;
@@ -113,7 +115,6 @@ pub fn get_tools() -> Vec<Tool> {
                 properties: {
                     json: schema_string!("JSON content to convert to HEDL"),
                     ditto: ditto_arg!(),
-                    compact: schema_bool!("Minimize whitespace in output", default: false)
                 }
             },
         },

@@ -60,13 +60,13 @@ mod tests {
 %NEST: B > C
 %NEST: C > D
 ---
-items: @A
-  | a1
-    | b1
-      | c1
-        | d1
-        | d2
-        | d3
+items:@A
+ | a1
+  | b1
+   | c1
+    | d1
+    | d2
+    | d3
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -89,11 +89,11 @@ items: @A
 %NEST: A > B
 %NEST: B > C
 ---
-items: @A
-  | a1
-    | b1
-      | c1, 100
-      | c2, hello
+items:@A
+ | a1
+  | b1
+   | c1, 100
+   | c2, hello
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -119,11 +119,11 @@ items: @A
 %NEST: A > B
 %NEST: B > C
 ---
-items: @A
-  | a1
-    | b1
-      | c1
-      | c_unused
+items:@A
+ | a1
+  | b1
+   | c1
+   | c_unused
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -155,11 +155,11 @@ items: @A
 %NEST: A > B
 %NEST: B > C
 ---
-items: @A
-  | a1
-    | b1
-      | c1, @A:a1
-      | c2, @A:a1
+items:@A
+ | a1
+  | b1
+   | c1, @A:a1
+   | c2, @A:a1
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -186,13 +186,13 @@ items: @A
 %NEST: L3 > L4
 %NEST: L4 > L5
 ---
-items: @L1
-  | root
-    | level2
-      | level3
-        | level4
-          | leaf1, 42
-          | leaf2, hello
+items:@L1
+ | root
+  | level2
+   | level3
+    | level4
+     | leaf1, 42
+     | leaf2, hello
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 

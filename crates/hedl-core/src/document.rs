@@ -22,7 +22,7 @@
 //! This module includes several memory optimizations:
 //! - SmallVec for inline field storage (avoids allocations for ≤4 fields)
 //! - Lazy BTreeMap allocation for children (None until first child added)
-//! - Compact child_count representation (u16 instead of Option<usize>)
+//! - Compact child_count representation (u16 instead of `Option<usize>`)
 //! - Type names can be interned during parsing to reduce duplication
 
 use crate::Value;
@@ -36,7 +36,7 @@ use std::collections::BTreeMap;
 /// Size reduced from ~120 bytes to ~80 bytes per node:
 /// - `fields`: Uses SmallVec to inline up to 4 values (typical case)
 /// - `children`: Lazy allocation - None until first child added (saves 24 bytes for leaf nodes)
-/// - `child_count`: Uses u16 (2 bytes) with 0 = no hint (vs 16 bytes for Option<usize>)
+/// - `child_count`: Uses u16 (2 bytes) with 0 = no hint (vs 16 bytes for `Option<usize>`)
 ///
 /// For 10,000 nodes: ~400KB saved in struct overhead alone.
 #[derive(Debug, Clone, PartialEq)]
@@ -114,7 +114,7 @@ impl Node {
     ///
     /// # Arguments
     /// - `type_name`: The type name from the schema
-    /// - `fields`: Field values where fields[0] MUST be the node ID (a string)
+    /// - `fields`: Field values where `fields[0]` MUST be the node ID (a string)
     /// - `child_count`: Expected number of children (for LLM hints)
     pub fn with_child_count(
         type_name: impl Into<String>,
@@ -151,7 +151,7 @@ pub struct MatrixList {
     pub schema: Vec<String>,
     /// Row data as nodes.
     pub rows: Vec<Node>,
-    /// Optional count hint for LLM comprehension (e.g., `teams(3): @Team`).
+    /// Optional count hint for LLM comprehension (e.g., `teams(3):@Team`).
     pub count_hint: Option<usize>,
 }
 
@@ -250,8 +250,9 @@ pub struct Document {
     pub aliases: BTreeMap<String, String>,
     /// Struct definitions (type -> columns).
     pub structs: BTreeMap<String, Vec<String>>,
-    /// Nest relationships (parent -> child).
-    pub nests: BTreeMap<String, String>,
+    /// Nest relationships (parent -> children).
+    /// A parent type can have multiple child types.
+    pub nests: BTreeMap<String, Vec<String>>,
     /// Root body content.
     pub root: BTreeMap<String, Item>,
 }
@@ -296,8 +297,9 @@ impl Document {
         self.structs.get(type_name)
     }
 
-    /// Get the child type for a parent type (from NEST).
-    pub fn get_child_type(&self, parent_type: &str) -> Option<&String> {
+    /// Get the child types for a parent type (from NEST).
+    /// A parent type can have multiple child types (e.g., Customer > Address, Customer > Order).
+    pub fn get_child_types(&self, parent_type: &str) -> Option<&Vec<String>> {
         self.nests.get(parent_type)
     }
 
@@ -572,8 +574,8 @@ mod tests {
 
     #[test]
     fn test_document_new() {
-        let doc = Document::new((1, 0));
-        assert_eq!(doc.version, (1, 0));
+        let doc = Document::new((2, 0));
+        assert_eq!(doc.version, (2, 0));
         assert!(doc.aliases.is_empty());
         assert!(doc.structs.is_empty());
         assert!(doc.nests.is_empty());
@@ -582,7 +584,7 @@ mod tests {
 
     #[test]
     fn test_document_get() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("key".to_string(), Item::Scalar(Value::Int(42)));
         assert!(doc.get("key").is_some());
@@ -591,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_document_get_schema() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.structs.insert(
             "User".to_string(),
             vec!["id".to_string(), "name".to_string()],
@@ -602,16 +604,17 @@ mod tests {
     }
 
     #[test]
-    fn test_document_get_child_type() {
-        let mut doc = Document::new((1, 0));
-        doc.nests.insert("User".to_string(), "Post".to_string());
-        assert_eq!(doc.get_child_type("User"), Some(&"Post".to_string()));
-        assert!(doc.get_child_type("Post").is_none());
+    fn test_document_get_child_types() {
+        let mut doc = Document::new((2, 0));
+        doc.nests
+            .insert("User".to_string(), vec!["Post".to_string()]);
+        assert_eq!(doc.get_child_types("User"), Some(&vec!["Post".to_string()]));
+        assert!(doc.get_child_types("Post").is_none());
     }
 
     #[test]
     fn test_document_expand_alias() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.aliases.insert("active".to_string(), "true".to_string());
         assert_eq!(doc.expand_alias("active"), Some(&"true".to_string()));
         assert!(doc.expand_alias("missing").is_none());
@@ -619,14 +622,14 @@ mod tests {
 
     #[test]
     fn test_document_equality() {
-        let a = Document::new((1, 0));
-        let b = Document::new((1, 0));
+        let a = Document::new((2, 0));
+        let b = Document::new((2, 0));
         assert_eq!(a, b);
     }
 
     #[test]
     fn test_document_clone() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.aliases.insert("key".to_string(), "value".to_string());
         let cloned = doc.clone();
         assert_eq!(doc, cloned);
@@ -634,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_document_debug() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let debug = format!("{:?}", doc);
         assert!(debug.contains("version"));
         assert!(debug.contains("aliases"));
@@ -708,14 +711,14 @@ mod tests {
 
     #[test]
     fn test_document_schema_versions_empty() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         assert!(doc.schema_versions.is_empty());
     }
 
     #[test]
     fn test_document_set_schema_version() {
         use crate::schema_version::SchemaVersion;
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.set_schema_version("User".to_string(), SchemaVersion::new(1, 2, 3));
         assert_eq!(doc.schema_versions.len(), 1);
         assert!(doc.schema_versions.contains_key("User"));
@@ -724,7 +727,7 @@ mod tests {
     #[test]
     fn test_document_get_schema_version() {
         use crate::schema_version::SchemaVersion;
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let version = SchemaVersion::new(2, 0, 0);
         doc.set_schema_version("Post".to_string(), version);
         assert_eq!(doc.get_schema_version("Post"), Some(version));
@@ -734,7 +737,7 @@ mod tests {
     #[test]
     fn test_document_multiple_schema_versions() {
         use crate::schema_version::SchemaVersion;
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.set_schema_version("User".to_string(), SchemaVersion::new(1, 0, 0));
         doc.set_schema_version("Post".to_string(), SchemaVersion::new(2, 1, 0));
         doc.set_schema_version("Comment".to_string(), SchemaVersion::new(1, 5, 2));
@@ -757,7 +760,7 @@ mod tests {
     #[test]
     fn test_document_replace_schema_version() {
         use crate::schema_version::SchemaVersion;
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.set_schema_version("User".to_string(), SchemaVersion::new(1, 0, 0));
         doc.set_schema_version("User".to_string(), SchemaVersion::new(2, 0, 0));
 
@@ -771,7 +774,7 @@ mod tests {
     #[test]
     fn test_document_schema_version_with_clone() {
         use crate::schema_version::SchemaVersion;
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.set_schema_version("User".to_string(), SchemaVersion::new(1, 0, 0));
         let cloned = doc.clone();
 
@@ -785,10 +788,10 @@ mod tests {
     #[test]
     fn test_document_schema_version_equality() {
         use crate::schema_version::SchemaVersion;
-        let mut a = Document::new((1, 0));
+        let mut a = Document::new((2, 0));
         a.set_schema_version("User".to_string(), SchemaVersion::new(1, 0, 0));
 
-        let mut b = Document::new((1, 0));
+        let mut b = Document::new((2, 0));
         b.set_schema_version("User".to_string(), SchemaVersion::new(1, 0, 0));
 
         assert_eq!(a, b);
@@ -797,10 +800,10 @@ mod tests {
     #[test]
     fn test_document_schema_version_inequality() {
         use crate::schema_version::SchemaVersion;
-        let mut a = Document::new((1, 0));
+        let mut a = Document::new((2, 0));
         a.set_schema_version("User".to_string(), SchemaVersion::new(1, 0, 0));
 
-        let mut b = Document::new((1, 0));
+        let mut b = Document::new((2, 0));
         b.set_schema_version("User".to_string(), SchemaVersion::new(2, 0, 0));
 
         assert_ne!(a, b);

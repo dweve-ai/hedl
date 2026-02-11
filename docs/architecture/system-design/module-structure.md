@@ -77,7 +77,7 @@ pub struct ParseOptions { /* ... */ }
 hedl-core/
 ├── src/
 │   ├── lib.rs           # Public API
-│   ├── parser.rs        # Parsing logic
+│   ├── parser/          # Parsing logic (mod.rs, context.rs, line_parsing.rs, options.rs, utils.rs)
 │   ├── value.rs         # Value types
 │   ├── error.rs         # Error types
 │   ├── document.rs      # Document structure
@@ -172,7 +172,6 @@ pub fn canonicalize_with_config(doc: &Document, config: &CanonicalConfig) -> Res
 
 pub struct CanonicalConfig {
     pub quoting: QuotingStrategy,
-    pub use_ditto: bool,
     pub sort_keys: bool,
     pub inline_schemas: bool,
 }
@@ -538,8 +537,8 @@ futures = "0.3"
 hedl-stream/
 ├── src/
 │   ├── lib.rs
-│   ├── parser.rs        # Streaming parser
-│   ├── async_parser.rs  # Async parser
+│   ├── parser/          # Streaming parser (mod.rs + submodules)
+│   ├── async_parser/    # Async parser (mod.rs + submodules)
 │   └── buffer.rs        # Buffer management
 └── Cargo.toml
 ```
@@ -564,7 +563,7 @@ hedl-test/
 │   │   ├── documents.rs # Test documents
 │   │   └── expressions.rs # Test expressions
 │   └── utils/
-│       ├── expr_utils.rs
+│       ├── expression_parsing.rs
 │       └── generators.rs # PropTest generators
 └── Cargo.toml
 ```
@@ -705,7 +704,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Dweve B.V. <opensource@dweve.com>"]
@@ -715,8 +714,8 @@ rust-version = "1.70"
 
 [workspace.dependencies]
 # Internal crates
-hedl = { version = "1.0.0", path = "crates/hedl" }
-hedl-core = { version = "1.0.0", path = "crates/hedl-core" }
+hedl = { version = "2.0.0", path = "crates/hedl" }
+hedl-core = { version = "2.0.0", path = "crates/hedl-core" }
 # ... all internal crates
 
 # External dependencies
@@ -794,7 +793,7 @@ All format adapters follow same pattern:
 
 Each crate has internal unit tests:
 ```rust
-// In hedl-core/src/parser.rs
+// In hedl-core/src/parser/
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -862,13 +861,13 @@ cargo publish -p hedl-cli
 Users choose features:
 ```toml
 # Minimal: core + JSON only
-hedl = "1.2"
+hedl = "2.0"
 
 # With YAML support
-hedl = { version = "1.2", features = ["yaml"] }
+hedl = { version = "2.0", features = ["yaml"] }
 
 # All formats
-hedl = { version = "1.2", features = ["all-formats"] }
+hedl = { version = "2.0", features = ["all-formats"] }
 ```
 
 ## Related Documentation

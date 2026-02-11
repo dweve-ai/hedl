@@ -1,0 +1,87 @@
+devices[5]{id,name,location,zone,ip_address,firmware,status,installed_date}:
+  dev-001,Factory Floor Monitor,"Building A, Floor 1",zone-north,192.168.1.101,v2.4.1,online,2023-01-15
+  dev-002,Warehouse Controller,"Building B, Floor 1",zone-south,192.168.1.102,v2.4.1,online,2023-02-20
+  dev-003,HVAC Monitor,"Building A, Roof",zone-north,192.168.1.103,v2.3.8,maintenance,2022-11-10
+  dev-004,Assembly Line Unit,"Building A, Floor 2",zone-east,192.168.1.104,v2.4.2,online,2023-06-01
+  dev-005,Cold Storage Monitor,"Building C, Floor 1",zone-west,192.168.1.105,v2.4.0,error,2023-03-15
+sensors[12]{id,device,type,unit,min_threshold,max_threshold,calibration_date}:
+  s-001,dev-001,temperature,Celsius,15.0,35.0,2024-01-10
+  s-002,dev-001,humidity,Percent,30.0,70.0,2024-01-10
+  s-003,dev-001,pressure,Pascal,99000,103000,2024-01-10
+  s-004,dev-002,temperature,Celsius,10.0,25.0,2024-01-12
+  s-005,dev-002,humidity,Percent,40.0,80.0,2024-01-12
+  s-006,dev-003,temperature,Celsius,-5.0,45.0,2023-12-05
+  s-007,dev-003,fan_speed,RPM,500,3000,2023-12-05
+  s-008,dev-004,vibration,Millimeters,0.0,2.5,2024-02-01
+  s-009,dev-004,motor_temp,Celsius,20.0,80.0,2024-02-01
+  s-010,dev-004,operational,Boolean,0,1,2024-02-01
+  s-011,dev-005,temperature,Celsius,-25.0,-15.0,2024-01-20
+  s-012,dev-005,door_open,Boolean,0,1,2024-01-20
+readings[60]{id,sensor,timestamp,value,alert_level}:
+  r-001,s-001,2024-06-15T08:00:00Z,22.4,none
+  r-002,s-001,2024-06-15T08:15:00Z,22.6,none
+  r-003,s-001,2024-06-15T08:30:00Z,23.1,none
+  r-004,s-001,2024-06-15T08:45:00Z,24.8,none
+  r-005,s-001,2024-06-15T09:00:00Z,26.2,none
+  r-006,s-001,2024-06-15T09:15:00Z,28.5,none
+  r-007,s-001,2024-06-15T09:30:00Z,31.2,none
+  r-008,s-001,2024-06-15T09:45:00Z,33.8,none
+  r-009,s-001,2024-06-15T10:00:00Z,36.1,warning
+  r-010,s-001,2024-06-15T10:15:00Z,34.2,none
+  r-011,s-002,2024-06-15T08:00:00Z,45.2,none
+  r-012,s-002,2024-06-15T08:15:00Z,46.1,none
+  r-013,s-002,2024-06-15T08:30:00Z,47.8,none
+  r-014,s-002,2024-06-15T08:45:00Z,52.3,none
+  r-015,s-002,2024-06-15T09:00:00Z,58.9,none
+  r-016,s-002,2024-06-15T09:15:00Z,65.4,none
+  r-017,s-002,2024-06-15T09:30:00Z,71.2,warning
+  r-018,s-002,2024-06-15T09:45:00Z,68.5,none
+  r-019,s-002,2024-06-15T10:00:00Z,62.1,none
+  r-020,s-002,2024-06-15T10:15:00Z,55.8,none
+  r-021,s-004,2024-06-15T08:00:00Z,18.2,none
+  r-022,s-004,2024-06-15T08:15:00Z,18.5,none
+  r-023,s-004,2024-06-15T08:30:00Z,19.1,none
+  r-024,s-004,2024-06-15T08:45:00Z,19.8,none
+  r-025,s-004,2024-06-15T09:00:00Z,20.4,none
+  r-026,s-004,2024-06-15T09:15:00Z,21.2,none
+  r-027,s-004,2024-06-15T09:30:00Z,22.8,none
+  r-028,s-004,2024-06-15T09:45:00Z,24.1,none
+  r-029,s-004,2024-06-15T10:00:00Z,25.6,warning
+  r-030,s-004,2024-06-15T10:15:00Z,24.3,none
+  r-031,s-008,2024-06-15T08:00:00Z,0.8,none
+  r-032,s-008,2024-06-15T08:15:00Z,0.9,none
+  r-033,s-008,2024-06-15T08:30:00Z,1.1,none
+  r-034,s-008,2024-06-15T08:45:00Z,1.4,none
+  r-035,s-008,2024-06-15T09:00:00Z,1.8,none
+  r-036,s-008,2024-06-15T09:15:00Z,2.2,none
+  r-037,s-008,2024-06-15T09:30:00Z,2.6,warning
+  r-038,s-008,2024-06-15T09:45:00Z,2.9,critical
+  r-039,s-008,2024-06-15T10:00:00Z,1.5,none
+  r-040,s-008,2024-06-15T10:15:00Z,1.2,none
+  r-041,s-011,2024-06-15T08:00:00Z,-20.5,none
+  r-042,s-011,2024-06-15T08:15:00Z,-20.2,none
+  r-043,s-011,2024-06-15T08:30:00Z,-19.8,none
+  r-044,s-011,2024-06-15T08:45:00Z,-18.9,none
+  r-045,s-011,2024-06-15T09:00:00Z,-17.5,none
+  r-046,s-011,2024-06-15T09:15:00Z,-15.8,none
+  r-047,s-011,2024-06-15T09:30:00Z,-14.2,warning
+  r-048,s-011,2024-06-15T09:45:00Z,-12.5,critical
+  r-049,s-011,2024-06-15T10:00:00Z,-16.8,none
+  r-050,s-011,2024-06-15T10:15:00Z,-19.2,none
+  r-051,s-009,2024-06-15T08:00:00Z,45.2,none
+  r-052,s-009,2024-06-15T08:15:00Z,48.6,none
+  r-053,s-009,2024-06-15T08:30:00Z,52.1,none
+  r-054,s-009,2024-06-15T08:45:00Z,58.4,none
+  r-055,s-009,2024-06-15T09:00:00Z,65.2,none
+  r-056,s-009,2024-06-15T09:15:00Z,72.8,none
+  r-057,s-009,2024-06-15T09:30:00Z,78.5,none
+  r-058,s-009,2024-06-15T09:45:00Z,82.3,warning
+  r-059,s-009,2024-06-15T10:00:00Z,75.1,none
+  r-060,s-009,2024-06-15T10:15:00Z,68.4,none
+alerts[6]{id,reading,message,acknowledged,acknowledged_by}:
+  a-001,r-009,Temperature exceeded 35.0C threshold,true,john.smith
+  a-002,r-017,Humidity exceeded 70.0% threshold,true,jane.doe
+  a-003,r-029,Temperature exceeded 25.0C threshold,false,null
+  a-004,r-038,Vibration exceeded 2.5mm critical level,true,mike.wilson
+  a-005,r-048,Cold storage temperature above -15.0C,true,jane.doe
+  a-006,r-058,Motor temperature exceeded 80.0C threshold,false,null

@@ -31,19 +31,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== HEDL Quick Start Example ===\n");
 
     // 1. Define a simple HEDL document
-    let hedl_text = r"%VERSION: 1.0
-%STRUCT: Product: [id, name, price, category]
+    let hedl_text = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id,name,price,category]
 ---
 # Product catalog
-products: @Product
-  | laptop, ThinkPad X1, 1299.99, electronics
-  | mouse, Wireless Mouse, 29.99, accessories
-  | keyboard, Mechanical Keyboard, 149.99, accessories
+products:@Product
+ |laptop,ThinkPad X1,1299.99,electronics
+ |mouse,Wireless Mouse,29.99,accessories
+ |keyboard,Mechanical Keyboard,149.99,accessories
 
 # Simple key-value pairs
 store_name: Tech Paradise
 location: San Francisco
-";
+"#;
 
     println!("Input HEDL document:");
     println!("{hedl_text}");

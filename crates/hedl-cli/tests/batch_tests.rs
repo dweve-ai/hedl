@@ -261,10 +261,10 @@ fn test_batch_format_with_ditto() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
-  | y,1
-  | z,1
+d:@T
+ | x,1
+ | y,1
+ | z,1
 ";
     fs::write(&path, content).expect("Failed to write test file");
 
@@ -281,12 +281,14 @@ fn test_batch_format_with_counts() {
     let dir = tempdir().expect("Failed to create temp dir");
     let path = dir.path().join("test.hedl");
 
-    let content = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+    let content = "%V:2.0
+%NULL:~
+%QUOTE:\"
+%S:Team:[id,name]
 ---
-teams: @Team
-  | t1,Warriors
-  | t2,Lakers
+teams:@Team
+ |t1,Warriors
+ |t2,Lakers
 ";
     fs::write(&path, content).expect("Failed to write test file");
 
@@ -303,7 +305,8 @@ teams: @Team
 
     let output_file = output_dir.path().join("test.hedl");
     let formatted = fs::read_to_string(&output_file).expect("Failed to read output");
-    assert!(formatted.contains("(2)"));
+    // v2.0 uses %C:Type.total=N directives instead of Type(N) syntax
+    assert!(formatted.contains("%C:") && formatted.contains(".total=2"));
 }
 
 #[test]

@@ -19,10 +19,12 @@ async function main() {
 
   // Example HEDL document
   const hedl = `
-%VERSION: 1.0
-%STRUCT: User: [id, name, email, age]
-%STRUCT: Post: [id, title, content]
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email,age]
+%S:Post:[id,title,content]
+%N:User>Post
 ---
 users: @User
   | alice | Alice Smith | alice@example.com | 30

@@ -74,12 +74,8 @@
 //! ```
 
 use crate::error::{StreamError, StreamResult};
+use memchr::memchr;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
-
-/// Simple memchr implementation - finds the first occurrence of a byte in a slice.
-fn memchr_byte(needle: u8, haystack: &[u8]) -> Option<usize> {
-    haystack.iter().position(|&b| b == needle)
-}
 
 /// Buffered async line reader with line number tracking.
 ///
@@ -382,7 +378,7 @@ impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
             }
 
             // Find newline in available data
-            if let Some(newline_pos) = memchr_byte(b'\n', available) {
+            if let Some(newline_pos) = memchr(b'\n', available) {
                 // Check limit BEFORE appending
                 if self.buffer.len() + newline_pos > self.max_line_length {
                     // CRITICAL: Consume the oversized line data to prevent infinite loop
@@ -470,7 +466,7 @@ impl<R: AsyncRead + Unpin> AsyncLineReader<R> {
                 return Ok(());
             }
 
-            if let Some(newline_pos) = memchr_byte(b'\n', available) {
+            if let Some(newline_pos) = memchr(b'\n', available) {
                 // Found newline, consume up to and including it
                 self.reader.consume(newline_pos + 1);
                 return Ok(());

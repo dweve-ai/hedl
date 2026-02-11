@@ -73,7 +73,7 @@ pub enum HedlErrorKind {
     Schema,      // Schema violation or mismatch
     Alias,       // Duplicate or invalid alias
     Shape,       // Wrong number of cells in row
-    Semantic,    // Logical error (ditto in ID, null in ID)
+    Semantic,    // Logical error (null in ID, etc.)
     OrphanRow,   // Child row without NEST rule
     Collision,   // Duplicate ID within type
     Reference,   // Unresolved reference in strict mode
@@ -118,11 +118,11 @@ Schema validation ensures matrix list rows match their struct definitions:
 
 ```rust
 // Given:
-// %STRUCT: User: [id, name, email]
+// %S:User:[id,name,email]
 //
-// users: @User
-//   | alice, Alice, alice@example.com  ✓ Valid (3 fields)
-//   | bob, Bob                          ✗ Error (2 fields, expected 3)
+// users:@User
+//   |alice,Alice, alice@example.com  ✓ Valid (3 fields)
+//   |bob,Bob                          ✗ Error (2 fields, expected 3)
 ```
 
 Errors occur when:
@@ -157,12 +157,14 @@ IDs must be unique within their type:
 
 ```hedl
 # Error: duplicate ID 'alice' in User
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | alice, Alice Johnson, alice2@example.com
+users:@User
+ |alice,Alice Smith, alice@example.com
+ |alice,Alice Johnson, alice2@example.com
 # ✗ Collision - second 'alice' ID is invalid
 ```
 
@@ -172,23 +174,27 @@ Child rows must have a corresponding NEST declaration:
 
 ```hedl
 # Valid: NEST declared
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,title]
+%N:User>Post
 ---
-users: @User
-  | alice, Alice
-    | p1, First Post
+users:@User
+ |alice,Alice
+ |p1,First Post
 
 # Invalid: No NEST declared
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,title]
 ---
-users: @User
-  | alice, Alice
-    | p1, First Post
+users:@User
+ |alice,Alice
+ |p1,First Post
 # ✗ OrphanRow error - no NEST declaration for Post under User
 ```
 
@@ -198,14 +204,14 @@ users: @User
 use hedl_core::parse;
 
 // Schema mismatch
-let input = b"%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice";
+let input = b"%S:User:[id,name]\n---\nusers:@User\n |alice";
 assert!(matches!(
     parse(input),
     Err(HedlError { kind: HedlErrorKind::Shape, .. })
 ));
 
 // Unresolved reference (strict mode)
-let input = b"post:\n  author: @unknown";
+let input = b"post:\n  author:@unknown";
 assert!(matches!(
     parse(input),
     Err(HedlError { kind: HedlErrorKind::Reference, .. })

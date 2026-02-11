@@ -40,7 +40,7 @@ async fn create_test_file(dir: &TempDir, name: &str, content: &str) -> std::path
 }
 
 fn create_test_document() -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "name".to_string(),
         Item::Scalar(Value::String("test".to_string().into())),
@@ -132,7 +132,7 @@ async fn test_async_string_parsing() {
 
 #[tokio::test]
 async fn test_async_string_generation() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("test".to_string(), Item::Scalar(Value::Int(999)));
 
@@ -195,11 +195,11 @@ async fn test_concurrent_file_writes() {
     let dir = TempDir::new().unwrap();
 
     // Create documents
-    let mut doc1 = Document::new((1, 0));
+    let mut doc1 = Document::new((2, 0));
     doc1.root
         .insert("id".to_string(), Item::Scalar(Value::Int(1)));
 
-    let mut doc2 = Document::new((1, 0));
+    let mut doc2 = Document::new((2, 0));
     doc2.root
         .insert("id".to_string(), Item::Scalar(Value::Int(2)));
 
@@ -284,7 +284,7 @@ async fn test_async_invalid_xml() {
 
 #[tokio::test]
 async fn test_async_write_invalid_path() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let config = ToXmlConfig::default();
 
     let result = to_xml_file_async(&doc, "/invalid/\0/path.xml", &config).await;
@@ -328,7 +328,7 @@ async fn test_async_unicode() {
 
 #[tokio::test]
 async fn test_async_empty_document() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let config = ToXmlConfig::default();
 
     let xml = to_xml_async(&doc, &config).await.unwrap();
@@ -377,7 +377,7 @@ async fn test_concurrent_writes_batch() {
     let mut paths = Vec::new();
 
     for i in 0..15 {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("id".to_string(), Item::Scalar(Value::Int(i)));
         docs.push(doc);
@@ -413,7 +413,7 @@ async fn test_async_custom_config() {
 
     let config = ToXmlConfig {
         pretty: true,
-        indent: "  ".to_string(),
+        indent: " ".to_string(),
         root_element: "custom".to_string(),
         include_metadata: true,
         use_attributes: false,
@@ -428,7 +428,7 @@ async fn test_async_custom_config() {
 
 #[tokio::test]
 async fn test_async_compact_output() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 

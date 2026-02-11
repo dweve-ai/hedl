@@ -28,7 +28,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple() {
-        let input = b"%VERSION: 1.0\n---\nkey: value";
+        let input = b"%V:2.0\n---\nkey: value";
         let doc = parse(input).unwrap();
         assert_eq!(doc.root.len(), 1);
         assert!(doc.root.contains_key("key"));
@@ -44,7 +44,7 @@ mod tests {
 // tests/roundtrip_tests.rs
 #[test]
 fn test_json_roundtrip() {
-    let hedl = b"%VERSION: 1.0\n---\nkey: value";
+    let hedl = b"%V:2.0\n---\nkey: value";
     let doc = hedl_core::parse(hedl).unwrap();
     let json = hedl_json::to_json(&doc, &Default::default()).unwrap();
     let doc2 = hedl_json::from_json(&json, &Default::default()).unwrap();
@@ -62,7 +62,7 @@ use proptest::prelude::*;
 proptest! {
     #[test]
     fn test_parse_never_panics(input in ".*") {
-        let hedl_input = format!("%VERSION: 1.0\n---\n{}", input);
+        let hedl_input = format!("%V:2.0\n---\n{}", input);
         let _ = hedl_core::parse(hedl_input.as_bytes());
     }
 }

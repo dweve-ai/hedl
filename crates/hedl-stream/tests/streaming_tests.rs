@@ -24,15 +24,17 @@ use std::io::Cursor;
 
 #[test]
 fn test_basic_streaming() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name, email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
-  | charlie, Charlie Brown, charlie@example.com
-";
+users:@User
+ |alice, Alice Smith, alice@example.com
+ |bob, Bob Jones, bob@example.com
+ |charlie, Charlie Brown, charlie@example.com
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -81,7 +83,9 @@ users: @User
 #[test]
 fn test_header_parsing() {
     let input = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 %STRUCT: Product: [id, title, price]
 %ALIAS active = "Active"
@@ -94,7 +98,7 @@ fn test_header_parsing() {
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
-    assert_eq!(header.version, (1, 0));
+    assert_eq!(header.version, (2, 0));
     assert_eq!(header.structs.len(), 2);
     assert_eq!(header.aliases.len(), 2);
     assert_eq!(header.nests.len(), 2);
@@ -102,21 +106,23 @@ fn test_header_parsing() {
     assert!(header.structs.contains_key("User"));
     assert!(header.structs.contains_key("Product"));
     assert_eq!(header.aliases.get("active"), Some(&"Active".to_string()));
-    assert_eq!(header.nests.get("User"), Some(&"Order".to_string()));
+    assert_eq!(header.nests.get("User"), Some(&vec!["Order".to_string()]));
 }
 
 // ==================== Node Event Tests ====================
 
 #[test]
 fn test_node_field_access() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Product: [id, name, price, available]
 ---
-products: @Product
-  | prod1, Widget, 19.99, true
-  | prod2, Gadget, 29.99, false
-";
+products:@Product
+ |prod1, Widget, 19.99, true
+ |prod2, Gadget, 29.99, false
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -149,17 +155,19 @@ products: @Product
 
 #[test]
 fn test_node_parent_info() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 %STRUCT: Order: [id, total]
 %NEST: User > Order
 ---
-users: @User
-  | alice, Alice Smith
-    | order1, 100.00
-    | order2, 200.00
-";
+users:@User
+ |alice, Alice Smith
+  |order1, 100.00
+  |order2, 200.00
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -189,10 +197,12 @@ users: @User
 
 #[test]
 fn test_missing_version_error() {
-    let input = r"
+    let input = r#"
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 ---
-";
+"#;
 
     let result = StreamingParser::new(Cursor::new(input));
     assert!(result.is_err());
@@ -207,10 +217,12 @@ fn test_missing_version_error() {
 
 #[test]
 fn test_invalid_version_error() {
-    let input = r"
-%VERSION: abc
+    let input = r#"
+%V:abc
+%NULL:~
+%QUOTE:"
 ---
-";
+"#;
 
     let result = StreamingParser::new(Cursor::new(input));
     assert!(result.is_err());
@@ -218,13 +230,15 @@ fn test_invalid_version_error() {
 
 #[test]
 fn test_shape_mismatch_error() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name, email]
 ---
-users: @User
-  | alice, Alice Smith
-";
+users:@User
+ |alice, Alice Smith
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
@@ -235,12 +249,14 @@ users: @User
 
 #[test]
 fn test_undefined_type_error() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-users: @User
-  | alice, Alice
-";
+users:@User
+ |alice, Alice
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
@@ -251,12 +267,14 @@ users: @User
 
 #[test]
 fn test_orphan_row_error() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
-| orphan
-";
+|orphan
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
@@ -268,12 +286,14 @@ fn test_orphan_row_error() {
 #[test]
 fn test_missing_space_after_colon_in_key_value() {
     // Core parser requires "key: value", not "key:value"
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 config:
-  timeout:30
-";
+ timeout:30
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
@@ -286,35 +306,40 @@ config:
 }
 
 #[test]
-fn test_missing_space_after_colon_in_list_start() {
-    // Core parser requires "key: @Type", not "key:@Type"
-    let input = r"
-%VERSION: 1.0
+fn test_v20_canonical_format_no_space_after_colon() {
+    // v2.0 canonical format: key:@Type (no space after colon)
+    // Both formats are accepted: key:@Type and key: @Type
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
 data:@Data
-  | row1
-";
+ |row1
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
 
-    // Should get a syntax error for missing space
+    // v2.0 canonical format (no space) should be accepted
     assert!(
-        events.iter().any(std::result::Result::is_err),
-        "Expected error for missing space after colon before @"
+        events.iter().all(std::result::Result::is_ok),
+        "v2.0 canonical format (key:@Type) should be accepted"
     );
 }
 
 #[test]
 fn test_improper_indent_level() {
     // Nested key-value should be indent+1, not indent+2
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 config:
-    timeout: 30
-";
+  timeout: 30
+"#;
     // Note: "config:" is at indent 0, so child should be at indent 1 (2 spaces)
     // but "timeout" is at indent 2 (4 spaces) which is wrong
 
@@ -331,14 +356,16 @@ config:
 #[test]
 fn test_key_value_inside_list_context() {
     // Cannot add key-value pair inside a list
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
-data: @Data
-  | row1
-  key: value
-";
+data:@Data
+ |row1
+ key: value
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect();
@@ -352,45 +379,42 @@ data: @Data
 
 #[test]
 fn test_child_count_prefix_parsed() {
-    // Tests |[N] syntax for expected child counts
-    let input = r"
-%VERSION: 1.0
+    // Tests v2.0 inline child block syntax (@Type#N:|row1|row2|...)
+    // Note: Block-form child lists (@Type#N: on own line) not yet supported in streaming parser
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Parent: [id, name]
 %STRUCT: Child: [id]
 %NEST: Parent > Child
 ---
-items: @Parent
-  |[2] parent1, Parent One
-    | child1
-    | child2
-  |[0] parent2, Parent Two
-  |[1] parent3, Parent Three
-    | child3
-";
+items:@Parent
+ |parent1, Parent One
+  @Child#2:|child1|child2
+ |parent2, Parent Two
+ |parent3, Parent Three
+  @Child#1:|child3
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
     let nodes: Vec<_> = events.iter().filter_map(|e| e.as_node()).collect();
 
+    // 3 parents + 3 children = 6 nodes total
     assert_eq!(nodes.len(), 6);
 
-    // parent1 should have child_count = 2
+    // parent1 with 2 inline children
     assert_eq!(nodes[0].id, "parent1");
-    assert_eq!(nodes[0].child_count, Some(2));
-
-    // child1, child2 should have no child_count
     assert_eq!(nodes[1].id, "child1");
-    assert_eq!(nodes[1].child_count, None);
     assert_eq!(nodes[2].id, "child2");
-    assert_eq!(nodes[2].child_count, None);
 
-    // parent2 should have child_count = 0 (no children)
+    // parent2 with no children
     assert_eq!(nodes[3].id, "parent2");
-    assert_eq!(nodes[3].child_count, Some(0));
 
-    // parent3 should have child_count = 1
+    // parent3 with 1 inline child
     assert_eq!(nodes[4].id, "parent3");
-    assert_eq!(nodes[4].child_count, Some(1));
+    assert_eq!(nodes[5].id, "child3");
 
     // child3 should have no child_count
     assert_eq!(nodes[5].id, "child3");
@@ -399,15 +423,17 @@ items: @Parent
 
 #[test]
 fn test_child_count_prefix_without_count() {
-    // Tests that regular rows without |[N] still work
-    let input = r"
-%VERSION: 1.0
+    // Tests that regular rows without child blocks still work
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-  | row1, value1
-  | row2, value2
-";
+data:@Data
+ |row1, value1
+ |row2, value2
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -423,17 +449,19 @@ data: @Data
 #[test]
 fn test_streaming_1000_rows() {
     let mut input = String::from(
-        r"
-%VERSION: 1.0
+        r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id, value, flag]
 ---
-data: @Data
-",
+data:@Data
+"#,
     );
 
     // Generate 1000 rows
     for i in 0..1000 {
-        input.push_str(&format!("  | row{}, value{}, true\n", i, i * 10));
+        input.push_str(&format!(" |row{}, value{}, true\n", i, i * 10));
     }
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -452,17 +480,19 @@ data: @Data
 #[test]
 fn test_streaming_10000_rows() {
     let mut input = String::from(
-        r"
-%VERSION: 1.0
+        r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id, x, y]
 ---
-data: @Data
-",
+data:@Data
+"#,
     );
 
     // Generate 10000 rows
     for i in 0..10000 {
-        input.push_str(&format!("  | id{}, {}, {}\n", i, i % 100, i % 50));
+        input.push_str(&format!(" |id{}, {}, {}\n", i, i % 100, i % 50));
     }
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -491,17 +521,19 @@ data: @Data
 fn test_memory_efficient_streaming() {
     // This test verifies that we can stream without holding all events in memory
     let mut input = String::from(
-        r"
-%VERSION: 1.0
+        r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Record: [id, data]
 ---
-records: @Record
-",
+records:@Record
+"#,
     );
 
     // Generate 5000 rows
     for i in 0..5000 {
-        input.push_str(&format!("  | rec{i}, data_{i}\n"));
+        input.push_str(&format!(" |rec{i}, data_{i}\n"));
     }
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -526,13 +558,15 @@ records: @Record
 #[test]
 fn test_scalar_events() {
     let input = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 config:
-  timeout: 30
-  retries: 5
-  enabled: true
-  server: "localhost"
+ timeout: 30
+ retries: 5
+ enabled: true
+ server: "localhost"
 "#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -548,14 +582,16 @@ config:
 
 #[test]
 fn test_object_events() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 ---
 database:
-  users: @User
-    | alice, Alice
-";
+ users:@User
+  |alice, Alice
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -568,18 +604,20 @@ database:
 
 #[test]
 fn test_multiple_lists() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 %STRUCT: Product: [id, title]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-products: @Product
-  | prod1, Widget
-  | prod2, Gadget
-";
+users:@User
+ |alice, Alice
+ |bob, Bob
+products:@Product
+ |prod1, Widget
+ |prod2, Gadget
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -605,13 +643,15 @@ products: @Product
 
 #[test]
 fn test_all_value_types() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: AllTypes: [id, null_val, bool_val, int_val, float_val, str_val, ref_val]
 ---
-data: @AllTypes
-  | row1, ~, true, 42, 3.14, hello, @User:alice
-";
+data:@AllTypes
+ |row1, ~, true, 42, 3.14, hello, @User:alice
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -631,14 +671,16 @@ data: @AllTypes
 
 #[test]
 fn test_reference_values() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Order: [id, user, product]
 ---
-orders: @Order
-  | order1, @User:alice, @Product:widget
-  | order2, @bob, @gadget
-";
+orders:@Order
+ |order1, @User:alice, @Product:widget
+ |order2, @bob, @gadget
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -667,16 +709,18 @@ orders: @Order
 
 #[test]
 fn test_ditto_values() {
-    let input = r"
-%VERSION: 1.0
+    // Test ditto operator (^) with pre-v2.0 document for backwards compatibility
+    // Ditto is forbidden in v2.0+ but must work when parsing pre-v2.0 documents
+    let input = r#"
+%V:1.2
 %STRUCT: Data: [id, category, status]
 ---
-data: @Data
-  | row1, CategoryA, Active
-  | row2, ^, ^
-  | row3, ^, Inactive
-  | row4, CategoryB, ^
-";
+data:@Data
+ |row1, CategoryA, Active
+ |row2, ^, ^
+ |row3, ^, Inactive
+ |row4, CategoryB, ^
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -730,14 +774,16 @@ data: @Data
 #[test]
 fn test_alias_substitution() {
     let input = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 %ALIAS active = "Active"
 %ALIAS inactive = "Inactive"
 %STRUCT: User: [id, status]
 ---
-users: @User
-  | alice, $active
-  | bob, $inactive
+users:@User
+ |alice, $active
+ |bob, $inactive
 "#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -761,13 +807,15 @@ users: @User
 
 #[test]
 fn test_inline_schema() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-items: @Item[id, name, price]
-  | item1, Widget, 19.99
-  | item2, Gadget, 29.99
-";
+items:@Item[id, name, price]
+ |item1, Widget, 19.99
+ |item2, Gadget, 29.99
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -788,15 +836,17 @@ items: @Item[id, name, price]
 
 #[test]
 fn test_unicode_content() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name, emoji]
 ---
-users: @User
-  | 用户1, 张三, 🎉
-  | user2, Émilie, ✨
-  | пользователь3, Иван, 🚀
-";
+users:@User
+ | 用户1, 张三, 🎉
+ |user2, Émilie, ✨
+ | пользователь3, Иван, 🚀
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -811,13 +861,15 @@ users: @User
 #[test]
 fn test_quoted_strings_with_special_chars() {
     let input = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id, text]
 ---
-data: @Data
-  | row1, "Hello, World!"
-  | row2, "Line with \"quotes\""
-  | row3, "Text with #comment"
+data:@Data
+ |row1, "Hello, World!"
+ |row2, "Line with \"quotes\""
+ |row3, "Text with #comment"
 "#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
@@ -837,16 +889,18 @@ data: @Data
 
 #[test]
 fn test_comment_stripping() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 ---
 # This is a header comment
-users: @User  # inline comment
-  | alice, Alice  # user comment
+users:@User  # inline comment
+ |alice, Alice  # user comment
   # Comment between rows
-  | bob, Bob
-";
+ |bob, Bob
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -861,13 +915,15 @@ users: @User  # inline comment
 
 #[test]
 fn test_custom_config() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
-data: @Data
-  | row1
-";
+data:@Data
+ |row1
+"#;
 
     let config = StreamingParserConfig {
         max_line_length: 100,
@@ -886,16 +942,18 @@ data: @Data
 
 #[test]
 fn test_max_indent_depth_enforcement() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
 level1:
-  level2:
-    level3:
-      data: @Data
-        | row1
-";
+ level2:
+  level3:
+   data:@Data
+    |row1
+"#;
 
     let config = StreamingParserConfig {
         max_indent_depth: 2,
@@ -913,19 +971,21 @@ level1:
 
 #[test]
 fn test_nested_lists() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: User: [id, name]
 %STRUCT: Order: [id, amount]
 %NEST: User > Order
 ---
-users: @User
-  | alice, Alice Smith
-    | order1, 100.00
-    | order2, 150.00
-  | bob, Bob Jones
-    | order3, 200.00
-";
+users:@User
+ |alice, Alice Smith
+  |order1, 100.00
+  |order2, 150.00
+ |bob, Bob Jones
+  |order3, 200.00
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -959,14 +1019,16 @@ users: @User
 
 #[test]
 fn test_event_line_numbers() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
-data: @Data
-  | row1
-  | row2
-";
+data:@Data
+ |row1
+ |row2
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -987,10 +1049,12 @@ data: @Data
 
 #[test]
 fn test_empty_document() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-";
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -1001,12 +1065,14 @@ fn test_empty_document() {
 
 #[test]
 fn test_empty_list() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id]
 ---
-data: @Data
-";
+data:@Data
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -1019,13 +1085,15 @@ data: @Data
 
 #[test]
 fn test_single_row() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-  | single, value
-";
+data:@Data
+ |single, value
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
@@ -1037,20 +1105,22 @@ data: @Data
 
 #[test]
 fn test_blank_lines_ignored() {
-    let input = r"
-%VERSION: 1.0
+    let input = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 
 %STRUCT: Data: [id]
 
 ---
 
-data: @Data
+data:@Data
 
-  | row1
+ |row1
 
-  | row2
+ |row2
 
-";
+"#;
 
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let events: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();

@@ -22,11 +22,11 @@
 //!
 //! # Supported Elements
 //!
-//! - **Directives**: Documentation for %VERSION, %STRUCT, %ALIAS, %NEST
+//! - **Directives**: Documentation for %V, %S, %A, %N (and legacy %VERSION, %STRUCT, %ALIAS, %NEST)
 //! - **References**: Entity validation and type information for @Type:id
 //! - **Aliases**: Expansion of $alias with definition location
 //! - **Types**: Schema definition with entity count and nesting info
-//! - **Special Tokens**: Explanation of ^ (ditto) and ~ (null)
+//! - **Special Tokens**: Explanation of ~ (null) and ^ (ditto, removed in v2.0)
 //!
 //! # Examples
 //!
@@ -36,7 +36,7 @@
 //! - The User schema definition
 //! - Line number where it's defined
 //!
-//! Hovering over `^` shows documentation about the ditto operator and
+//! Hovering over `^` in pre-v2.0 documents shows documentation about the ditto operator and
 //! its role in reducing token usage.
 
 use crate::analysis::AnalyzedDocument;
@@ -75,8 +75,13 @@ pub fn get_hover(analysis: &AnalyzedDocument, content: &str, position: Position)
         // Header directive
         get_directive_hover(line)
     } else if word.starts_with('@') {
-        // Reference
-        get_reference_hover(analysis, &word)
+        // Check for inline child list syntax first
+        if let Some(hover) = get_inline_child_hover(analysis, &word, line) {
+            Some(hover)
+        } else {
+            // Regular reference
+            get_reference_hover(analysis, &word)
+        }
     } else if let Some(alias_name) = word.strip_prefix('$') {
         // Alias usage
         get_alias_hover(analysis, alias_name)
@@ -84,9 +89,10 @@ pub fn get_hover(analysis: &AnalyzedDocument, content: &str, position: Position)
         // Ditto operator
         Some(create_hover_content(
             "**Ditto Operator** (`^`)",
-            "Repeats the value from the same column in the previous row.\n\n\
-             This is a key optimization feature in HEDL that reduces token usage \
-             when consecutive rows share the same values in a column.",
+            "⚠️ **DEPRECATED**: Ditto is NOT allowed in v2.0.\n\n\
+             In pre-v2.0 documents, this repeated the value from the same column in the previous row.\n\
+             It was a key optimization feature that reduced token usage.\n\n\
+             **v2.0 Migration**: Replace all `^` with explicit values.",
         ))
     } else if word == "~" {
         // Null
@@ -97,7 +103,7 @@ pub fn get_hover(analysis: &AnalyzedDocument, content: &str, position: Position)
     } else if is_type_name(&word, analysis) {
         // Type name
         get_type_hover(analysis, &word)
-    } else if line.contains(": @") && line.contains(&word) {
+    } else if (line.contains(":@") || line.contains(": @")) && line.contains(&word) {
         // Could be a list key or type
         get_list_hover(analysis, line, &word)
     } else {
@@ -105,16 +111,24 @@ pub fn get_hover(analysis: &AnalyzedDocument, content: &str, position: Position)
         get_entity_id_hover(analysis, &word, line)
     }?;
 
+    // Adjust range if word starts with | (from matrix row entity ID detection)
+    // The hover range should only cover the entity ID, not the pipe
+    let (adjusted_start, adjusted_end) = if word.starts_with('|') && !word.starts_with("@") {
+        (word_start + 1, word_end)
+    } else {
+        (word_start, word_end)
+    };
+
     Some(Hover {
         contents: HoverContents::Markup(hover_content),
         range: Some(Range {
             start: Position {
                 line: position.line,
-                character: word_start as u32,
+                character: adjusted_start as u32,
             },
             end: Position {
                 line: position.line,
-                character: word_end as u32,
+                character: adjusted_end as u32,
             },
         }),
     })
@@ -136,8 +150,17 @@ fn find_word_at(line: &str, pos: usize) -> Option<(String, usize, usize)> {
     }
 
     // Find word boundaries
-    let is_word_char =
-        |c: char| c.is_alphanumeric() || c == '_' || c == '@' || c == '$' || c == ':' || c == '-';
+    // Include # and | for inline child syntax (@Type#N:|)
+    let is_word_char = |c: char| {
+        c.is_alphanumeric()
+            || c == '_'
+            || c == '@'
+            || c == '$'
+            || c == ':'
+            || c == '-'
+            || c == '#'
+            || c == '|'
+    };
 
     let mut start = pos;
     while start > 0 && is_word_char(chars[start - 1]) {
@@ -160,34 +183,92 @@ fn find_word_at(line: &str, pos: usize) -> Option<(String, usize, usize)> {
 fn get_directive_hover(line: &str) -> Option<MarkupContent> {
     let trimmed = line.trim();
 
-    if trimmed.starts_with("%VERSION") {
+    // v2.0 compact directives (check first due to prefix overlap)
+    if trimmed.starts_with("%V:") {
         Some(create_hover_content(
-            "**%VERSION Directive**",
+            "**%V: Directive** (v2.0)",
             "Declares the HEDL version for this document.\n\n\
-             ```hedl\n%VERSION 1.0\n```\n\n\
-             Must be the first directive in the header.",
+             ```hedl\n%V:2.0\n```\n\n\
+             Must be the first directive in the header.\n\n\
+             v2.0 features:\n\
+             - 1-space indentation\n\
+             - Required %NULL: and %QUOTE: directives\n\
+             - Ditto (^) is forbidden\n\
+             - Inline children:@Type#N:|row1|row2|...",
+        ))
+    } else if trimmed.starts_with("%NULL:") {
+        Some(create_hover_content(
+            "**%NULL: Directive** (v2.0 required)",
+            "Defines the null literal character.\n\n\
+             ```hedl\n%NULL:~\n```\n\n\
+             Common choice: `~` (tilde)\n\n\
+             This directive is required in v2.0 documents.",
+        ))
+    } else if trimmed.starts_with("%QUOTE:") {
+        Some(create_hover_content(
+            "**%QUOTE: Directive** (v2.0 required)",
+            "Defines the quote character for strings.\n\n\
+             ```hedl\n%QUOTE:\"\n```\n\n\
+             Common choice: `\"` (double quote)\n\n\
+             This directive is required in v2.0 documents.",
+        ))
+    } else if trimmed.starts_with("%S:") {
+        Some(create_hover_content(
+            "**%S: Directive** (v2.0 compact schema)",
+            "Defines a schema for a typed matrix list.\n\n\
+             ```hedl\n%S:User:[id,name,email]\n```\n\n\
+             - First column is always the unique entity ID\n\
+             - Columns define the structure for all rows of this type\n\n\
+             Equivalent to legacy `%S:User:[id, name, email]`",
+        ))
+    } else if trimmed.starts_with("%N:") {
+        Some(create_hover_content(
+            "**%N: Directive** (v2.0 compact nesting)",
+            "Declares a parent-child nesting relationship.\n\n\
+             ```hedl\n%N:Order>OrderItem\n```\n\n\
+             Allows child rows to be indented under parent rows.\n\n\
+             Equivalent to legacy `%N:Order>OrderItem`",
+        ))
+    } else if trimmed.starts_with("%C:") {
+        Some(create_hover_content(
+            "**%C: Directive** (v2.0 count hint)",
+            "Declares authoritative count information for a type.\n\n\
+             ```hedl\n%C:User.total=100\n%C:User.status:active=80,inactive=20\n```\n\n\
+             Count hints are authoritative for counting questions.\n\
+             Use `.total=N` for total count, `.field:value=N` for field breakdowns.",
+        ))
+    // Legacy verbose directives
+    } else if trimmed.starts_with("%VERSION") {
+        Some(create_hover_content(
+            "**%VERSION Directive** (legacy)",
+            "Declares the HEDL version for this document.\n\n\
+             ```hedl\n%V:2.0\n%NULL:~\n%QUOTE:\"\n```\n\n\
+             Must be the first directive in the header.\n\n\
+             For v2.0 documents, use `%V:2.0` instead.",
         ))
     } else if trimmed.starts_with("%STRUCT") {
         Some(create_hover_content(
-            "**%STRUCT Directive**",
+            "**%STRUCT Directive** (legacy)",
             "Defines a schema for a typed matrix list.\n\n\
-             ```hedl\n%STRUCT User[id, name, email]\n```\n\n\
+             ```hedl\n%S:User:[id, name, email]\n```\n\n\
              - First column is always the unique entity ID\n\
-             - Columns define the structure for all rows of this type",
+             - Columns define the structure for all rows of this type\n\n\
+             For v2.0 documents, use `%S:User:[id,name,email]` instead.",
         ))
-    } else if trimmed.starts_with("%ALIAS") {
+    } else if trimmed.starts_with("%ALIAS") || trimmed.starts_with("%A:") {
         Some(create_hover_content(
             "**%ALIAS Directive**",
             "Defines an alias for frequently used values.\n\n\
-             ```hedl\n%ALIAS active = \"Active Status\"\n```\n\n\
+             ```hedl\n%A:%active:\"Active Status\"\n```\n\n\
              Use with `$alias_name` in the body to reduce repetition.",
         ))
     } else if trimmed.starts_with("%NEST") {
         Some(create_hover_content(
-            "**%NEST Directive**",
+            "**%NEST Directive** (legacy)",
             "Declares a parent-child nesting relationship.\n\n\
-             ```hedl\n%NEST Order > OrderItem\n```\n\n\
-             Allows child rows to be indented under parent rows.",
+             ```hedl\n%N:Order>OrderItem\n```\n\n\
+             Allows child rows to be indented under parent rows.\n\n\
+             For v2.0 documents, use `%N:Order>OrderItem` instead.",
         ))
     } else {
         None
@@ -198,9 +279,9 @@ fn get_reference_hover(analysis: &AnalyzedDocument, reference: &str) -> Option<M
     let ref_content = reference.strip_prefix('@')?;
 
     let (type_name, id) = if let Some(colon_pos) = ref_content.find(':') {
-        let t = &ref_content[..colon_pos];
-        let i = &ref_content[colon_pos + 1..];
-        (Some(t), i)
+        let type_part = &ref_content[..colon_pos];
+        let id_part = &ref_content[colon_pos + 1..];
+        (Some(type_part), id_part)
     } else {
         (None, ref_content)
     };
@@ -256,8 +337,12 @@ fn get_type_hover(analysis: &AnalyzedDocument, type_name: &str) -> Option<Markup
     );
 
     // Add nest info
-    if let Some((child, _)) = analysis.nests.get(type_name) {
-        description.push_str(&format!("\n\n**Nests**: `{child}` children"));
+    if let Some(children) = analysis.nests.get(type_name) {
+        let child_names: Vec<&str> = children.iter().map(|(name, _)| name.as_str()).collect();
+        description.push_str(&format!(
+            "\n\n**Nests**: `{}` children",
+            child_names.join(", ")
+        ));
     }
 
     Some(create_hover_content(
@@ -267,8 +352,8 @@ fn get_type_hover(analysis: &AnalyzedDocument, type_name: &str) -> Option<Markup
 }
 
 fn get_list_hover(analysis: &AnalyzedDocument, line: &str, word: &str) -> Option<MarkupContent> {
-    // Check if this is a list declaration like "users: @User"
-    if line.contains(&format!(": @{word}")) {
+    // Check if this is a list declaration like "users:@User" or "users: @User"
+    if line.contains(&format!(":@{word}")) || line.contains(&format!(": @{word}")) {
         return get_type_hover(analysis, word);
     }
 
@@ -327,14 +412,18 @@ fn get_entity_id_hover(
         }
     };
 
+    // Strip leading pipe from word if present (from find_word_at including | in word chars)
+    let word_to_check = word.strip_prefix('|').unwrap_or(word);
+
     // Only show hover if word matches the first field (entity ID column)
-    if first_field.trim() != word && first_field.trim().trim_matches('"') != word {
+    if first_field.trim() != word_to_check && first_field.trim().trim_matches('"') != word_to_check
+    {
         return None;
     }
 
     // Check if this word appears as an entity ID in any type
     for (type_name, entities) in &analysis.entities {
-        if entities.contains_key(word) {
+        if entities.contains_key(word_to_check) {
             // Found the entity, provide hover info
             let description = if let Some(schema) = analysis.get_schema(type_name) {
                 format!(
@@ -347,7 +436,7 @@ fn get_entity_id_hover(
             };
 
             return Some(create_hover_content(
-                &format!("**Entity ID** `{word}`"),
+                &format!("**Entity ID** `{word_to_check}`"),
                 &format!("{description}\n\nThis is the entity definition."),
             ));
         }
@@ -361,4 +450,83 @@ fn create_hover_content(title: &str, description: &str) -> MarkupContent {
         kind: MarkupKind::Markdown,
         value: format!("{title}\n\n---\n\n{description}"),
     }
+}
+
+/// Get hover information for inline child list syntax.
+///
+/// Detects patterns like `@ChildType#N:|data` and provides hover info
+/// including validation warnings if count exceeds recommended maximum.
+fn get_inline_child_hover(
+    analysis: &AnalyzedDocument,
+    word: &str,
+    line: &str,
+) -> Option<MarkupContent> {
+    // Check if this is an inline child list declaration
+    // Pattern:@TypeName#N:|data
+    let word_content = word.strip_prefix('@')?;
+
+    // Must contain # for count hint
+    let hash_pos = word_content.find('#')?;
+    let type_name = &word_content[..hash_pos];
+
+    // Parse the count hint
+    let after_hash = &word_content[hash_pos + 1..];
+    let colon_pos = after_hash.find(':')?;
+    let count_str = &after_hash[..colon_pos];
+    let count = count_str.parse::<usize>().ok()?;
+
+    // Check if the full line matches the inline child pattern
+    let trimmed = line.trim_start();
+    if !trimmed.starts_with(&format!("@{type_name}#{count}:|")) {
+        return None;
+    }
+
+    // Get schema for the child type
+    let schema = analysis.get_schema(type_name);
+    let schema_str = schema.map_or_else(
+        || "Unknown type".to_string(),
+        |cols| format!("**Schema**: `[{}]`", cols.join(", ")),
+    );
+
+    // Count actual children in the line
+    let after_decl = trimmed.strip_prefix(&format!("@{type_name}#{count}:|"))?;
+    let actual_count = after_decl
+        .split('|')
+        .filter(|s| !s.trim().is_empty())
+        .count();
+
+    // Build description with validation warnings
+    let mut description = format!(
+        "Inline child list of `{type_name}` with declared count: {count}\n\n\
+         {schema_str}\n\n\
+         Actual children found: {actual_count}"
+    );
+
+    // Validation warnings
+    if actual_count != count {
+        description.push_str(&format!(
+            "\n\n⚠️ **Warning**: Count mismatch! Declared {count} but found {actual_count} children."
+        ));
+    }
+
+    if count > 10 {
+        description.push_str(&format!(
+            "\n\n⚠️ **Style**: Inline children > 10 ({count} declared).\n\
+             Style guideline recommends N <= 10 for readability. Consider expanded format:\n\n\
+             ```hedl\n @{type_name}#N:\n |child1\n |child2\n ...\n```"
+        ));
+    }
+
+    // Check for space after |
+    if after_decl.starts_with(' ') {
+        description.push_str(
+            "\n\n⚠️ **Warning**: Space after `|` detected. \
+             Inline children should have no space after the pipe for optimal token efficiency.",
+        );
+    }
+
+    Some(create_hover_content(
+        &format!("**Inline Child List** `@{type_name}#{count}:`"),
+        &description,
+    ))
 }

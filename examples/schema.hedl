@@ -1,0 +1,21 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates schema definitions with type metadata
+# Schemas define structure for matrix lists
+%S:Person:[id,name,email,age,created]
+%S:Address:[id,street,city,state,zip]
+%S:Order:[id,customer,total,status,date]
+%N:Person>Address
+%N:Person>Order
+---
+# People with nested addresses and orders
+people:@Person
+ |p1,Alice,alice@example.com,28,2024-01-15
+  @Address#1:|a1,"123 Main St",Springfield,IL,62701
+  @Order#2:
+  |o1,@p1,149.99,shipped,2024-02-01
+  |o2,@p1,79.99,delivered,2024-01-20
+ |p2,Bob,bob@example.com,34,2023-11-20
+  @Address#1:|a2,"456 Oak Ave",Portland,OR,97201
+  @Order#1:|o3,@p2,299.99,pending,2024-02-05

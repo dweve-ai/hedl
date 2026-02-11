@@ -27,7 +27,7 @@ proptest! {
     #[test]
     fn prop_valid_reference_ids(id in "[a-z][a-z0-9_-]{0,50}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,ref]\n---\ndata:@T\n |{id}, @{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -45,7 +45,7 @@ proptest! {
     #[test]
     fn prop_qualified_references(type_name in "[A-Z][a-zA-Z0-9]{0,20}", id in "[a-z][a-z0-9_-]{0,30}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n%STRUCT: Other: [id, ref]\n---\nitems: @{type_name}\n  | {id}\nothers: @Other\n  | other1, @{type_name}:{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n%S:Other:[id,ref]\n---\nitems:@{type_name}\n |{id}\nothers:@Other\n |other1, @{type_name}:{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -66,9 +66,9 @@ proptest! {
             ids.push(format!("id{i}"));
         }
 
-        let mut doc = String::from("%VERSION: 1.0\n%STRUCT: T: [id]\n---\ndata: @T\n");
+        let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id]\n---\ndata:@T\n");
         for id in &ids {
-            doc.push_str(&format!("  | {id}\n"));
+            doc.push_str(&format!(" |{id}\n"));
         }
 
         let result = parse(doc.as_bytes());
@@ -89,7 +89,7 @@ proptest! {
     #[test]
     fn prop_self_reference(id in "[a-z][a-z0-9_-]{0,30}") {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, self_ref]\n---\ndata: @T\n  | {id}, @{id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,self_ref]\n---\ndata:@T\n |{id},@{id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -121,7 +121,7 @@ mod consistency_tests {
             id in "[a-z][a-z0-9_-]{0,30}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id}, @{id}\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id}, @{id}\n"
             );
 
             let result1 = parse(doc.as_bytes());
@@ -149,7 +149,7 @@ mod consistency_tests {
             prop_assume!(type1 != type2);
 
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type1}: [id]\n%STRUCT: {type2}: [id, ref]\n---\nitems1: @{type1}\n  | {id}\nitems2: @{type2}\n  | other, @{type1}:{id}\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type1}:[id]\n%S:{type2}:[id,ref]\n---\nitems1:@{type1}\n |{id}\nitems2:@{type2}\n |other, @{type1}:{id}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -176,7 +176,7 @@ mod consistency_tests {
             prop_assume!(id1 != id2);
 
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {id1}, @{id2}\n  | {id2}, @{id1}\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{id1}, @{id2}\n |{id2}, @{id1}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -191,11 +191,11 @@ mod consistency_tests {
             count in 2_usize..20
         ) {
             let mut doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id, ref]\n---\nitems: @{type_name}\n  | {target_id}, ~\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id, ref]\n---\nitems:@{type_name}\n |{target_id}, ~\n"
             );
 
             for i in 0..count {
-                doc.push_str(&format!("  | ref{i}, @{target_id}\n"));
+                doc.push_str(&format!(" |ref{i}, @{target_id}\n"));
             }
 
             let result = parse(doc.as_bytes());
@@ -219,7 +219,7 @@ mod consistency_tests {
             id in "[a-z][a-z0-9_-]{0,20}"
         ) {
             let doc = format!(
-                "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nnested:\n  ref: @{type_name}:{id}\n"
+                "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\nitems:@{type_name}\n |{id}\nnested:\n ref: @{type_name}:{id}\n"
             );
 
             let result = parse(doc.as_bytes());
@@ -239,7 +239,7 @@ mod consistency_tests {
 fn test_property_duplicate_id_detection() {
     proptest!(ProptestConfig::with_cases(1000), |(id in "[a-z][a-z0-9_-]{1,30}")| {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\ndata: @T\n  | {id}, val1\n  | {id}, val2\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |{id}, val1\n |{id}, val2\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -254,7 +254,7 @@ fn test_property_unresolved_reference_detection() {
         prop_assume!(id != other_id);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {id}, @{other_id}\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,ref]\n---\ndata:@T\n |{id}, @{other_id}\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -271,7 +271,7 @@ fn test_property_forward_references() {
         prop_assume!(id1 != id2);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: T: [id, ref]\n---\ndata: @T\n  | {id1}, @{id2}\n  | {id2}, ~\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,ref]\n---\ndata:@T\n |{id1}, @{id2}\n |{id2}, ~\n"
         );
 
         let result = parse(doc.as_bytes());

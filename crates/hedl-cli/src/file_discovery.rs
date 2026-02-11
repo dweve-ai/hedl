@@ -22,7 +22,7 @@
 //!
 //! # Features
 //!
-//! - **Glob Patterns**: Support for standard glob patterns (*, ?, [abc], **)
+//! - **Glob Patterns**: Support for standard glob patterns (`*`, `?`, `[abc]`, `**`)
 //! - **Recursive Traversal**: Optional recursive directory traversal with depth limiting
 //! - **Filtering**: Extension, size, and hidden file filtering
 //! - **Symlinks**: Configurable symlink following behavior
@@ -331,13 +331,16 @@ impl FileDiscovery {
 
         // Find the deepest ancestor that doesn't contain glob characters
         for ancestor in path.ancestors() {
-            let s = ancestor.to_string_lossy();
+            let ancestor_str = ancestor.to_string_lossy();
             // Skip if it contains glob characters
-            if s.contains('*') || s.contains('?') || s.contains('[') {
+            if ancestor_str.contains('*')
+                || ancestor_str.contains('?')
+                || ancestor_str.contains('[')
+            {
                 continue;
             }
             // Found a non-glob path - return it (or "." if empty)
-            if s.is_empty() {
+            if ancestor_str.is_empty() {
                 return PathBuf::from(".");
             }
             return ancestor.to_path_buf();

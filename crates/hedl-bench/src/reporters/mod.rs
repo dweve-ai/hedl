@@ -31,12 +31,19 @@
 //! - `html`: HTML export
 //! - `regression`: Regression detection and reporting
 
+/// Performance analysis and recommendation generation.
 pub mod analysis;
+/// Console reporter for benchmark results.
 pub mod console;
+/// HTML export for benchmark reports.
 pub mod html;
+/// JSON export for benchmark reports.
 pub mod json;
+/// Markdown export for benchmark reports.
 pub mod markdown;
+/// Regression detection and reporting.
 pub mod regression;
+/// Report types and structures.
 pub mod types;
 
 // Re-export commonly used types

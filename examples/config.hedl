@@ -1,0 +1,50 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Real-world application configuration example
+# Demonstrates mixed nested objects and practical use case
+---
+app:
+ name: "Dweve Core"
+ version: 2.0.0
+ environment: production
+
+database:
+ primary:
+  host: db.dweve.ai
+  port: 5432
+  database: dweve_prod
+  max_connections: 100
+  timeout: 30
+ replica:
+  host: db-replica.dweve.ai
+  port: 5432
+  readonly: true
+
+cache:
+ redis:
+  host: redis.dweve.ai
+  port: 6379
+  ttl: 3600
+  max_memory: 2048
+
+api:
+ http:
+  port: 8080
+  tls: true
+  cors: true
+ rate_limiting:
+  enabled: true
+  requests_per_minute: 1000
+ auth:
+  jwt_secret: $(env.JWT_SECRET)
+  token_expiry: 86400
+
+monitoring:
+ metrics:
+  enabled: true
+  port: 9090
+ logging:
+  level: info
+  format: json
+  output: /var/log/dweve/app.log

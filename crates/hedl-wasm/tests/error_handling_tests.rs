@@ -18,7 +18,7 @@ fn test_parse_error_missing_version() {
 
 #[test]
 fn test_parse_error_invalid_separator() {
-    let hedl = "%VERSION: 1.0\n===\ndata: value\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n===\ndata: value\n";
     let result = core_parse(hedl.as_bytes());
 
     // May error depending on parser strictness
@@ -27,7 +27,7 @@ fn test_parse_error_invalid_separator() {
 
 #[test]
 fn test_parse_error_malformed_struct() {
-    let hedl = "%VERSION: 1.0\n%STRUCT: BadStruct\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:BadStruct\n---\n";
     let result = core_parse(hedl.as_bytes());
 
     // May error on malformed struct definition
@@ -36,7 +36,7 @@ fn test_parse_error_malformed_struct() {
 
 #[test]
 fn test_parse_error_malformed_alias() {
-    let hedl = "%VERSION: 1.0\n%ALIAS: %bad\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%bad\n---\n";
     let result = core_parse(hedl.as_bytes());
 
     // May error on malformed alias
@@ -45,7 +45,7 @@ fn test_parse_error_malformed_alias() {
 
 #[test]
 fn test_parse_error_malformed_nest() {
-    let hedl = "%VERSION: 1.0\n%NEST: Parent\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%N:Parent\n---\n";
     let result = core_parse(hedl.as_bytes());
 
     // May error on malformed nest
@@ -55,7 +55,9 @@ fn test_parse_error_malformed_nest() {
 #[test]
 fn test_parse_error_unclosed_quote() {
     let hedl = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 value: "unclosed string
 "#;
@@ -67,13 +69,15 @@ value: "unclosed string
 
 #[test]
 fn test_parse_error_invalid_list_syntax() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
 ---
-items: @T
-  | | invalid
-";
+items:@T
+ | |invalid
+"#;
     let result = core_parse(hedl.as_bytes());
 
     // May error on invalid list syntax
@@ -82,12 +86,14 @@ items: @T
 
 #[test]
 fn test_parse_error_undefined_type() {
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-items: @UndefinedType
-  | id1
-";
+items:@UndefinedType
+ |id1
+"#;
     let result = core_parse(hedl.as_bytes());
 
     // Parser may accept undefined types (validation catches this)
@@ -96,19 +102,21 @@ items: @UndefinedType
 
 #[test]
 fn test_parse_error_mismatched_field_count() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T: [id, name, email]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id, name, email]
 ---
-items: @T
-  | alice, Alice
-";
+items:@T
+ |alice, Alice
+"#;
     let result = core_parse(hedl.as_bytes());
 
     // Parser may accept mismatched fields (validation catches this)
     if let Ok(doc) = result {
         // Verify we can still access the document
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 }
 
@@ -119,7 +127,7 @@ items: @T
 fn test_validation_error_unused_schema() {
     use hedl_lint::lint;
 
-    let hedl = "%VERSION: 1.0\n%STRUCT: UnusedType: [id]\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:UnusedType:[id]\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     let diagnostics = lint(&doc);
@@ -141,12 +149,14 @@ fn test_validation_error_unused_schema() {
 fn test_validation_multiple_errors() {
     use hedl_lint::lint;
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T1: [id]
-%STRUCT: T2: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T1:[id]
+%S:T2:[id]
 ---
-";
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     let diagnostics = lint(&doc);
@@ -228,7 +238,7 @@ fn test_from_json_primitive_types() {
 fn test_canonicalize_minimal_document() {
     use hedl_c14n::{canonicalize_with_config, CanonicalConfig};
 
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     let config = CanonicalConfig::default();
@@ -242,15 +252,17 @@ fn test_canonicalize_with_all_features() {
     use hedl_c14n::{canonicalize_with_config, CanonicalConfig};
 
     let hedl = r#"
-%VERSION: 1.0
-%STRUCT: T: [id, value]
-%STRUCT: Parent: [id]
-%STRUCT: Child: [id]
-%ALIAS: %test: "value"
-%NEST: Parent > Child
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id, value]
+%S:Parent:[id]
+%S:Child:[id]
+%A:%test:"value"
+%N:Parent>Child
 ---
-data: @T
-  | a, 1
+data:@T
+ |a, 1
 "#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
@@ -387,7 +399,7 @@ fn test_utf8_emoji() {
     let emoji = "🚀🎉💯";
     assert!(std::str::from_utf8(emoji.as_bytes()).is_ok());
 
-    let hedl = format!("%VERSION: 1.0\n---\nemoji: {emoji}\n");
+    let hedl = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nemoji: {emoji}\n");
     let result = core_parse(hedl.as_bytes());
 
     // Should handle emoji without error
@@ -398,7 +410,7 @@ fn test_utf8_emoji() {
 
 #[test]
 fn test_empty_item_traversal() {
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Traversing empty root should not error
@@ -409,16 +421,18 @@ fn test_empty_item_traversal() {
 
 #[test]
 fn test_mixed_item_types() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
 ---
 scalar: simple_value
-list: @T
-  | item1
+list:@T
+ |item1
 object:
-  nested: value
-";
+ nested: value
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -436,13 +450,15 @@ object:
 
 #[test]
 fn test_node_without_children() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
 ---
-items: @T
-  | item1
-";
+items:@T
+ |item1
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -459,15 +475,17 @@ items: @T
 #[test]
 fn test_node_with_empty_children_map() {
     // Test handling of nodes with empty children maps
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: Parent: [id]
-%STRUCT: Child: [id]
-%NEST: Parent > Child
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Parent:[id]
+%S:Child:[id]
+%N:Parent>Child
 ---
-parents: @Parent
-  | parent1
-";
+parents:@Parent
+ |parent1
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -485,13 +503,15 @@ parents: @Parent
 
 #[test]
 fn test_field_index_out_of_bounds() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T: [id, name]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id, name]
 ---
-items: @T
-  | alice, Alice
-";
+items:@T
+ |alice, Alice
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -509,13 +529,15 @@ items: @T
 
 #[test]
 fn test_empty_fields() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: T: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:T:[id]
 ---
-items: @T
-  | item1
-";
+items:@T
+ |item1
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -531,7 +553,7 @@ items: @T
 
 #[test]
 fn test_schema_missing_columns() {
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Access non-existent schema
@@ -541,7 +563,7 @@ fn test_schema_missing_columns() {
 #[test]
 fn test_empty_schema_definition() {
     // Test if parser accepts empty schema
-    let hedl = "%VERSION: 1.0\n%STRUCT: T: []\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[]\n---\n";
     let result = core_parse(hedl.as_bytes());
 
     // May or may not be valid depending on parser
@@ -552,7 +574,7 @@ fn test_empty_schema_definition() {
 
 #[test]
 fn test_alias_missing_value() {
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Access non-existent alias
@@ -562,8 +584,10 @@ fn test_alias_missing_value() {
 #[test]
 fn test_alias_resolution() {
     let hedl = r#"
-%VERSION: 1.0
-%ALIAS: %active: "true"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%A:%active:"true"
 ---
 status: %active
 "#;
@@ -579,7 +603,7 @@ status: %active
 
 #[test]
 fn test_nest_missing_relationship() {
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Access non-existent nest
@@ -589,14 +613,16 @@ fn test_nest_missing_relationship() {
 #[test]
 fn test_nest_circular_reference() {
     // Test handling of circular nest references
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: A: [id]
-%STRUCT: B: [id]
-%NEST: A > B
-%NEST: B > A
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:A:[id]
+%S:B:[id]
+%N:A>B
+%N:B>A
 ---
-";
+"#;
 
     let result = core_parse(hedl.as_bytes());
 
@@ -734,7 +760,7 @@ fn test_recovery_after_parse_error() {
     let result1 = core_parse(invalid.as_bytes());
     assert!(result1.is_err());
 
-    let valid = "%VERSION: 1.0\n---\n";
+    let valid = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let result2 = core_parse(valid.as_bytes());
     assert!(result2.is_ok());
 }
@@ -751,7 +777,7 @@ fn test_multiple_parse_errors() {
     }
 
     // Valid parse should still work
-    let valid = "%VERSION: 1.0\n---\n";
+    let valid = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let result = core_parse(valid.as_bytes());
     assert!(result.is_ok());
 }

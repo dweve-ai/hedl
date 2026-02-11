@@ -479,7 +479,9 @@ proptest! {
         let restored = from_yaml(&yaml, &FromYamlConfig::default())
             .map_err(|e| TestCaseError::fail(format!("from_yaml failed: {e}")))?;
 
-        prop_assert_eq!(restored.version, doc.version, "Version mismatch");
+        // from_yaml with default config creates v2.0 documents
+        // (version is not preserved in YAML format, it's set by config)
+        prop_assert_eq!(restored.version, (2, 0), "Expected v2.0 from default config");
         prop_assert_eq!(restored.root.len(), doc.root.len(), "Root size mismatch");
 
         for (key, value) in &doc.root {
@@ -696,7 +698,6 @@ fn test_zero_values_roundtrip() {
 }
 
 #[test]
-#[allow(clippy::approx_constant)]
 fn test_negative_numbers_roundtrip() {
     let mut doc = Document {
         version: (1, 0),
@@ -709,7 +710,7 @@ fn test_negative_numbers_roundtrip() {
     doc.root
         .insert("neg_int".to_string(), Item::Scalar(Value::Int(-42)));
     doc.root
-        .insert("neg_float".to_string(), Item::Scalar(Value::Float(-3.15)));
+        .insert("neg_float".to_string(), Item::Scalar(Value::Float(-2.75)));
 
     let yaml = to_yaml(&doc, &ToYamlConfig::default()).unwrap();
     let restored = from_yaml(&yaml, &FromYamlConfig::default()).unwrap();
@@ -720,7 +721,7 @@ fn test_negative_numbers_roundtrip() {
     );
 
     if let Some(Value::Float(f)) = restored.root.get("neg_float").and_then(|i| i.as_scalar()) {
-        assert!((f + 3.15).abs() < 1e-10);
+        assert!((f + 2.75).abs() < 1e-10);
     } else {
         panic!("Expected negative float");
     }

@@ -29,10 +29,15 @@ mod crypto;
 mod error;
 mod types;
 
+/// API Key authentication implementation.
 pub mod api_key;
+/// Authorization system for fine-grained access control.
 pub mod authorization;
+/// JWT (JSON Web Token) authentication implementation.
 pub mod jwt;
+/// OAuth 2.0 authentication implementation.
 pub mod oauth2;
+/// Session management for authenticated clients.
 pub mod session;
 
 pub use crypto::{secure_write, ApiKeyHasher, CredentialStore};
@@ -47,4 +52,4 @@ pub use authorization::{
 };
 pub use jwt::{JwtAuth, JwtClaims};
 pub use oauth2::{OAuth2Auth, OAuth2Provider};
-pub use session::{Session, SessionConfig, SessionManager};
+pub use session::{Session, SessionConfig, SessionRegistry};

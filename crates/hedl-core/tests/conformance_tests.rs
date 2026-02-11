@@ -26,20 +26,26 @@ use hedl_core::{parse, HedlErrorKind, Value};
 // B.1 Syntax Validation
 // =============================================================================
 
-/// B.1.1: Odd indentation -> Syntax Error
+/// B.1.1: Valid 1-space indentation
 #[test]
-fn test_odd_indentation_error() {
-    let doc = "%VERSION: 1.0\n---\na:\n   b: 1\n"; // 3 spaces
+fn test_one_space_indentation_valid() {
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na:\n b: 1\n"; // 1 space = level 1
     let result = parse(doc.as_bytes());
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err.kind, HedlErrorKind::Syntax));
+    assert!(result.is_ok());
+}
+
+/// B.1.1b: Multi-level 1-space indentation
+#[test]
+fn test_multi_level_one_space_indentation() {
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na:\n b:\n  c:\n   d: 1\n"; // 1, 2, 3 spaces
+    let result = parse(doc.as_bytes());
+    assert!(result.is_ok());
 }
 
 /// B.1.2: Tab character for indentation -> Syntax Error
 #[test]
 fn test_tab_indentation_error() {
-    let doc = "%VERSION: 1.0\n---\na:\n\tb: 1\n"; // tab
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na:\n\tb: 1\n"; // tab
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -49,7 +55,7 @@ fn test_tab_indentation_error() {
 /// B.1.3: Missing separator -> Syntax Error
 #[test]
 fn test_missing_separator_error() {
-    let doc = "%VERSION: 1.0\na: 1\n"; // no ---
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\na: 1\n"; // no ---
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -59,7 +65,7 @@ fn test_missing_separator_error() {
 /// B.1.4: Multiple separators -> Syntax Error
 #[test]
 fn test_multiple_separators_error() {
-    let doc = "%VERSION: 1.0\n---\na: 1\n---\nb: 2\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na: 1\n---\nb: 2\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -69,7 +75,7 @@ fn test_multiple_separators_error() {
 /// B.1.5: Body missing space after colon -> Syntax Error
 #[test]
 fn test_missing_space_after_colon_error() {
-    let doc = "%VERSION: 1.0\n---\na:1\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na:1\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -80,7 +86,7 @@ fn test_missing_space_after_colon_error() {
 #[test]
 fn test_valid_id_uppercase_ok() {
     // Uppercase IDs are valid
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | SKU-4020, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |SKU-4020, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -88,7 +94,7 @@ fn test_valid_id_uppercase_ok() {
 #[test]
 fn test_invalid_reference_starts_digit_error() {
     // IDs cannot start with a digit
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | 123User, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |123User, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
 }
@@ -96,7 +102,7 @@ fn test_invalid_reference_starts_digit_error() {
 /// B.1.7: Control characters -> Syntax Error
 #[test]
 fn test_control_character_error() {
-    let doc = "%VERSION: 1.0\n---\na: test\x01value\n"; // SOH control char
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na: test\x01value\n"; // SOH control char
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -120,7 +126,7 @@ fn test_bare_cr_error() {
 /// B.2.1: Unknown type without inline schema -> Schema Error
 #[test]
 fn test_unknown_type_error() {
-    let doc = "%VERSION: 1.0\n---\ndata: @UnknownType\n  | x, 1\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata:@UnknownType\n |x, 1\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -130,7 +136,7 @@ fn test_unknown_type_error() {
 /// B.2.2: Schema mismatch -> Schema Error
 #[test]
 fn test_schema_mismatch_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name,email]\n---\nusers: @User[id, name]\n  | u1, Alice\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name,email]\n---\nusers:@User[id, name]\n |u1, Alice\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -140,7 +146,7 @@ fn test_schema_mismatch_error() {
 /// B.2.3: Duplicate struct with different columns -> Schema Error
 #[test]
 fn test_duplicate_struct_different_columns_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: User: [id, email]\n---\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:User:[id,email]\n---\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -150,7 +156,7 @@ fn test_duplicate_struct_different_columns_error() {
 /// B.2.4: Nest to undefined type -> Schema Error
 #[test]
 fn test_nest_undefined_type_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%NEST: User > Post\n---\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%N:User>Post\n---\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -160,7 +166,7 @@ fn test_nest_undefined_type_error() {
 /// B.2.5: Duplicate struct with identical columns -> OK (idempotent)
 #[test]
 fn test_duplicate_struct_identical_columns_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: User: [id,name]\n---\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:User:[id,name]\n---\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -172,7 +178,8 @@ fn test_duplicate_struct_identical_columns_ok() {
 /// B.3.1: Shape mismatch (wrong cell count) -> Shape Error
 #[test]
 fn test_shape_mismatch_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name,email]\n---\nusers: @User\n  | u1, Alice\n";
+    let doc =
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name,email]\n---\nusers:@User\n |u1, Alice\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -182,7 +189,7 @@ fn test_shape_mismatch_error() {
 /// B.3.2: First row ditto -> Semantic Error
 #[test]
 fn test_first_row_ditto_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | x, ^\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |x, ^\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -192,8 +199,8 @@ fn test_first_row_ditto_error() {
 /// B.3.3: Orphan child row -> Orphan Row Error
 #[test]
 fn test_orphan_child_row_error() {
-    // Child row without %NEST directive
-    let doc = "%VERSION: 1.0\n%STRUCT: Parent: [id]\n%STRUCT: Child: [id]\n---\nparents: @Parent\n  | p1\n    | c1\n";
+    // Child row (deeper indent) without %NEST directive
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Parent:[id]\n%S:Child:[id]\n---\nparents:@Parent\n |p1\n  |c1\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -204,7 +211,7 @@ fn test_orphan_child_row_error() {
 #[test]
 fn test_duplicate_id_collision_error() {
     let doc =
-        "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers: @User\n  | u1, Alice\n  | u1, Bob\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n---\nusers:@User\n |u1, Alice\n |u1, Bob\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -214,7 +221,7 @@ fn test_duplicate_id_collision_error() {
 /// B.3.5: Different ID across types -> Success
 #[test]
 fn test_different_id_across_types_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Role: [id, name]\n---\nusers: @User\n  | admin, Alice\nroles: @Role\n  | admin, Administrator\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Role:[id,name]\n---\nusers:@User\n |admin, Alice\nroles:@Role\n |admin, Administrator\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -222,7 +229,7 @@ fn test_different_id_across_types_ok() {
 /// B.3.6: Invalid ID type (number as ID) -> Semantic Error
 #[test]
 fn test_invalid_id_type_number_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | 123, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |123, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -232,7 +239,7 @@ fn test_invalid_id_type_number_error() {
 /// B.3.7: Uppercase ID format -> Now valid (real-world IDs like SKU-4020)
 #[test]
 fn test_valid_id_format_uppercase_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | User1, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |User1, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -240,7 +247,7 @@ fn test_valid_id_format_uppercase_ok() {
 #[test]
 fn test_invalid_id_format_starts_digit_error() {
     // IDs cannot start with a digit
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | 123User, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |123User, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -250,7 +257,7 @@ fn test_invalid_id_format_starts_digit_error() {
 /// B.3.8: Valid ID with dash -> Success
 #[test]
 fn test_valid_id_with_dash_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | config-file, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |config-file, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -258,7 +265,7 @@ fn test_valid_id_with_dash_ok() {
 /// B.3.9: Ditto in ID column -> Semantic Error
 #[test]
 fn test_ditto_in_id_column_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | a, 1\n  | ^, 2\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |a, 1\n |^, 2\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -268,7 +275,7 @@ fn test_ditto_in_id_column_error() {
 /// B.3.10: Null in ID column -> Semantic Error
 #[test]
 fn test_null_in_id_column_error() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | ~, test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |~, test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -282,7 +289,8 @@ fn test_null_in_id_column_error() {
 /// B.4.1: Forward reference in same type -> Success
 #[test]
 fn test_forward_reference_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: Task: [id, depends_on]\n---\ntasks: @Task\n  | t1, @t2\n  | t2, ~\n";
+    let doc =
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Task:[id,depends_on]\n---\ntasks:@Task\n |t1, @t2\n |t2, ~\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -291,7 +299,7 @@ fn test_forward_reference_ok() {
 #[test]
 fn test_missing_reference_error() {
     let doc =
-        "%VERSION: 1.0\n%STRUCT: Task: [id, depends_on]\n---\ntasks: @Task\n  | t1, @missing\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Task:[id,depends_on]\n---\ntasks:@Task\n |t1, @missing\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -301,7 +309,7 @@ fn test_missing_reference_error() {
 /// B.4.3: Self reference -> Success
 #[test]
 fn test_self_reference_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: Task: [id, depends_on]\n---\ntasks: @Task\n  | t1, @t1\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Task:[id,depends_on]\n---\ntasks:@Task\n |t1, @t1\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -309,7 +317,7 @@ fn test_self_reference_ok() {
 /// B.4.4: Circular reference -> Success (allowed)
 #[test]
 fn test_circular_reference_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: Task: [id, depends_on]\n---\ntasks: @Task\n  | t1, @t2\n  | t2, @t1\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Task:[id,depends_on]\n---\ntasks:@Task\n |t1, @t2\n |t2, @t1\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -317,7 +325,7 @@ fn test_circular_reference_ok() {
 /// B.4.5: Qualified reference to other type
 #[test]
 fn test_qualified_reference_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,author]\n---\nusers: @User\n  | u1, Alice\nposts: @Post\n  | p1, @User:u1\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Post:[id,author]\n---\nusers:@User\n |u1, Alice\nposts:@Post\n |p1, @User:u1\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -327,9 +335,9 @@ fn test_qualified_reference_ok() {
 fn test_unqualified_reference_scoped_to_current_type() {
     // Same ID 'admin' exists in both User and Role types
     // Unqualified reference @admin in Post matrix should fail because 'admin' doesn't exist in Post
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Role: [id, name]\n%STRUCT: Post: [id, author_ref]\n---\nusers: @User\n  | admin, Alice\nroles: @Role\n  | admin, Administrator\nposts: @Post\n  | p1, @admin\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Role:[id,name]\n%S:Post:[id,author_ref]\n---\nusers:@User\n |admin, Alice\nroles:@Role\n |admin, Administrator\nposts:@Post\n |p1, @admin\n";
     let result = parse(doc.as_bytes());
-    // Should fail: @admin doesn't exist in Post type registry
+    // Should fail:@admin doesn't exist in Post type registry
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.kind, HedlErrorKind::Reference));
@@ -340,9 +348,9 @@ fn test_unqualified_reference_scoped_to_current_type() {
 fn test_ambiguous_unqualified_reference_error() {
     // Same ID 'admin' exists in both User and Role types
     // Unqualified reference @admin in key-value context should error (ambiguous)
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Role: [id, name]\n---\nusers: @User\n  | admin, Alice\nroles: @Role\n  | admin, Administrator\nconfig:\n  ref: @admin\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Role:[id,name]\n---\nusers:@User\n |admin, Alice\nroles:@Role\n |admin, Administrator\nconfig:\n ref: @admin\n";
     let result = parse(doc.as_bytes());
-    // Should fail: @admin is ambiguous (exists in both User and Role)
+    // Should fail:@admin is ambiguous (exists in both User and Role)
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.kind, HedlErrorKind::Reference));
@@ -356,7 +364,7 @@ fn test_ambiguous_unqualified_reference_error() {
 /// B.5.1: Ditto scoping - doesn't copy from different list
 #[test]
 fn test_ditto_scoping() {
-    let doc = "%VERSION: 1.0\n%STRUCT: A: [id, value]\n%STRUCT: B: [id, value]\n---\nlist_a: @A\n  | a1, apple\nlist_b: @B\n  | b1, ^\n"; // ^ in first row of list_b
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:A:[id,value]\n%S:B:[id,value]\n---\nlist_a:@A\n |a1, apple\nlist_b:@B\n |b1, ^\n"; // ^ in first row of list_b
     let result = parse(doc.as_bytes());
     assert!(result.is_err()); // ^ on first row is error
 }
@@ -364,7 +372,8 @@ fn test_ditto_scoping() {
 /// B.5.2: Child attachment via NEST
 #[test]
 fn test_child_attachment() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n%STRUCT: Post: [id,content]\n%NEST: User > Post\n---\nusers: @User\n  | u1, Alice\n    | p1, Hello\n    | p2, World\n  | u2, Bob\n    | p3, Hi\n";
+    // Child rows (Post) must be indented one level deeper than parent rows (User)
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Post:[id,content]\n%N:User>Post\n---\nusers:@User\n |u1, Alice\n  |p1, Hello\n  |p2, World\n |u2, Bob\n  |p3, Hi\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -391,7 +400,7 @@ fn test_child_attachment() {
 /// B.5.3: Alias expansion
 #[test]
 fn test_alias_expansion() {
-    let doc = "%VERSION: 1.0\n%ALIAS: %active: \"true\"\n%STRUCT: T: [id, status]\n---\ndata: @T\n  | x, %active\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%active:\"true\"\n%S:T:[id,status]\n---\ndata:@T\n |x, %active\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -404,7 +413,7 @@ fn test_alias_expansion() {
 #[test]
 fn test_hash_in_quoted_field() {
     let doc =
-        "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | x, \"value # with hash\"\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |x, \"value # with hash\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -420,7 +429,7 @@ fn test_hash_in_quoted_field() {
 #[test]
 fn test_matrix_row_comment_stripped() {
     let doc =
-        "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | x, test # this is a comment\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |x, test # this is a comment\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -433,7 +442,7 @@ fn test_matrix_row_comment_stripped() {
 #[test]
 fn test_quoted_string_escaping() {
     let doc =
-        "%VERSION: 1.0\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | x, \"escaped \"\"quote\"\"\"\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,value]\n---\ndata:@T\n |x, \"escaped \"\"quote\"\"\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -448,7 +457,7 @@ fn test_quoted_string_escaping() {
 /// B.5.7: Number inference
 #[test]
 fn test_number_inference() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, int_val, float_val, explicit_float]\n---\ndata: @T\n  | x, 42, 3.25, 42.0\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,int_val,float_val,explicit_float]\n---\ndata:@T\n |x, 42, 3.25, 42.0\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -468,7 +477,7 @@ fn test_number_inference() {
 /// B.5.8: Tensor literal parsing
 #[test]
 fn test_tensor_literal() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, tensor1, tensor2]\n---\ndata: @T\n  | x, [1, 2, 3], [[1, 2], [3, 4]]\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,tensor1,tensor2]\n---\ndata:@T\n |x, [1, 2, 3], [[1, 2], [3, 4]]\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -478,10 +487,10 @@ fn test_tensor_literal() {
     assert!(matches!(list.rows[0].fields[2], Value::Tensor(_)));
 }
 
-/// B.5.9: @ and $ in strings are not special when not at start
+/// B.5.9:@ and $ in strings are not special when not at start
 #[test]
 fn test_at_and_dollar_in_strings() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, email, price]\n---\ndata: @T\n  | x, alice@example.com, 100$\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,email,price]\n---\ndata:@T\n |x, alice@example.com, 100$\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -501,7 +510,7 @@ fn test_at_and_dollar_in_strings() {
 /// B.6.1: Only header + separator -> Success (empty root object)
 #[test]
 fn test_empty_document_ok() {
-    let doc = "%VERSION: 1.0\n---\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -509,7 +518,7 @@ fn test_empty_document_ok() {
 /// B.6.2: Empty matrix list -> Success
 #[test]
 fn test_empty_matrix_list_ok() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id]\n---\ndata: @T\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id]\n---\ndata:@T\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -520,7 +529,7 @@ fn test_empty_matrix_list_ok() {
 /// B.6.3: Object start with comment
 #[test]
 fn test_object_start_with_comment() {
-    let doc = "%VERSION: 1.0\n---\nconfig: # this is a comment\n  key: value\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nconfig: # this is a comment\n key: value\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -531,7 +540,8 @@ fn test_object_start_with_comment() {
 /// B.6.4: Empty alias
 #[test]
 fn test_empty_alias() {
-    let doc = "%VERSION: 1.0\n%ALIAS: %empty: \"\"\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | x, %empty\n";
+    let doc =
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%empty:\"\"\n%S:T:[id,value]\n---\ndata:@T\n |x, %empty\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -543,7 +553,7 @@ fn test_empty_alias() {
 /// B.6.5: Whitespace preservation in quoted strings
 #[test]
 fn test_whitespace_preservation() {
-    let doc = "%VERSION: 1.0\n---\nkey: \"  spaces  \"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: \"  spaces  \"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -554,7 +564,7 @@ fn test_whitespace_preservation() {
 /// B.6.6: Boolean case sensitivity
 #[test]
 fn test_boolean_case_sensitivity() {
-    let doc = "%VERSION: 1.0\n---\na: true\nb: True\nc: TRUE\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na: true\nb: True\nc: TRUE\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -577,7 +587,7 @@ fn test_boolean_case_sensitivity() {
 #[test]
 fn test_expression_nested_call() {
     use hedl_core::Expression;
-    let doc = "%VERSION: 1.0\n---\nexpr: $(outer(inner(x)))\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nexpr: $(outer(inner(x)))\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -593,7 +603,7 @@ fn test_expression_nested_call() {
 /// B.6.8: Unclosed quote -> Syntax Error
 #[test]
 fn test_unclosed_quote_error() {
-    let doc = "%VERSION: 1.0\n---\nkey: \"unclosed\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: \"unclosed\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -603,7 +613,7 @@ fn test_unclosed_quote_error() {
 /// B.6.9: Tab in quoted string -> OK
 #[test]
 fn test_tab_in_quoted_string_ok() {
-    let doc = "%VERSION: 1.0\n---\nkey: \"a\tb\"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: \"a\tb\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -614,7 +624,7 @@ fn test_tab_in_quoted_string_ok() {
 /// B.6.10: CRLF line endings -> OK
 #[test]
 fn test_crlf_line_endings_ok() {
-    let doc = "%VERSION: 1.0\r\n---\r\na: 1\r\n";
+    let doc = "%V:2.0\r\n%NULL:~\r\n%QUOTE:\"\r\n---\r\na: 1\r\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -626,22 +636,23 @@ fn test_crlf_line_endings_ok() {
 /// Full conformance test document from spec
 #[test]
 fn test_conformance_document() {
-    let doc = r#"%VERSION: 1.0
+    // Use pre-v2.0 since this test uses ditto (^) which is not allowed in v2.0
+    let doc = r#"%VERSION: 1.2
 %ALIAS: %true: "true"
 %STRUCT: Test: [id, value, ref]
 %STRUCT: Child: [id, data]
 %NEST: Test > Child
 ---
-tests: @Test
-  | t1, "simple", ~
-    | c1, child
-  | t2, 42, @t1
-    | c2, child
-  | t3, %true, @t2
-  | t4, ^, ^
-tensor_test: @TensorTest[id, data]
-  | t5, [1, 2, 3]
-  | t6, [[1, 2], [3, 4]]
+tests:@Test
+ |t1, "simple", ~
+  |c1, child
+ |t2, 42, @t1
+  |c2, child
+ |t3, %true, @t2
+ |t4, ^, ^
+tensor_test:@TensorTest[id, data]
+ |t5, [1, 2, 3]
+ |t6, [[1, 2], [3, 4]]
 "#;
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
@@ -699,7 +710,7 @@ tensor_test: @TensorTest[id, data]
 /// Nested objects
 #[test]
 fn test_nested_objects() {
-    let doc = "%VERSION: 1.0\n---\nconfig:\n  database:\n    host: localhost\n    port: 5432\n  logging:\n    level: info\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nconfig:\n database:\n  host: localhost\n  port: 5432\n logging:\n  level: info\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -718,7 +729,7 @@ fn test_nested_objects() {
 /// Mixed object and list
 #[test]
 fn test_mixed_object_and_list() {
-    let doc = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nconfig:\n  name: Test\nusers: @User\n  | u1, Alice\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n---\nconfig:\n name: Test\nusers:@User\n |u1, Alice\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -726,7 +737,7 @@ fn test_mixed_object_and_list() {
 /// Inline schema (without %STRUCT)
 #[test]
 fn test_inline_schema() {
-    let doc = "%VERSION: 1.0\n---\nitems: @Item[id, name, price]\n  | i1, Apple, 1.99\n  | i2, Banana, 0.99\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nitems:@Item[id, name, price]\n |i1, Apple, 1.99\n |i2, Banana, 0.99\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -737,7 +748,8 @@ fn test_inline_schema() {
 /// Ditto operator preserves type
 #[test]
 fn test_ditto_preserves_type() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, ref, null_val, bool_val]\n---\ndata: @T\n  | a, @a, ~, true\n  | b, ^, ^, ^\n";
+    // Use pre-v2.0 since ditto is not allowed in v2.0
+    let doc = "%VERSION: 1.2\n%STRUCT: T: [id, ref, null_val, bool_val]\n---\ndata:@T\n |a, @a, ~, true\n |b, ^, ^, ^\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -753,7 +765,7 @@ fn test_ditto_preserves_type() {
 /// Key-value ditto is string
 #[test]
 fn test_key_value_ditto_is_string() {
-    let doc = "%VERSION: 1.0\n---\ncaret: ^\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ncaret: ^\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -764,7 +776,7 @@ fn test_key_value_ditto_is_string() {
 /// Alias that expands to number
 #[test]
 fn test_alias_number_expansion() {
-    let doc = "%VERSION: 1.0\n%ALIAS: %rate: \"1.23456\"\n%STRUCT: T: [id,value]\n---\ndata: @T\n  | x, %rate\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%rate:\"1.23456\"\n%S:T:[id,value]\n---\ndata:@T\n |x, %rate\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -779,7 +791,7 @@ fn test_alias_number_expansion() {
 /// Scientific notation is string (not number)
 #[test]
 fn test_scientific_notation_is_string() {
-    let doc = "%VERSION: 1.0\n---\nvalue: 1e10\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: 1e10\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -790,7 +802,7 @@ fn test_scientific_notation_is_string() {
 /// Underscore in numbers is string
 #[test]
 fn test_underscore_in_numbers_is_string() {
-    let doc = "%VERSION: 1.0\n---\nvalue: 1_000\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: 1_000\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -801,7 +813,7 @@ fn test_underscore_in_numbers_is_string() {
 /// Leading zeros are allowed in numbers
 #[test]
 fn test_leading_zeros_in_numbers() {
-    let doc = "%VERSION: 1.0\n---\nvalue: 001\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: 001\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -812,7 +824,7 @@ fn test_leading_zeros_in_numbers() {
 /// Empty quoted string
 #[test]
 fn test_empty_quoted_string() {
-    let doc = "%VERSION: 1.0\n---\nvalue: \"\"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: \"\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -823,7 +835,7 @@ fn test_empty_quoted_string() {
 /// Multiple spaces after colon is OK
 #[test]
 fn test_multiple_spaces_after_colon() {
-    let doc = "%VERSION: 1.0\n---\nvalue:   test\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue:   test\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -834,7 +846,7 @@ fn test_multiple_spaces_after_colon() {
 /// Blank lines are ignored
 #[test]
 fn test_blank_lines_ignored() {
-    let doc = "%VERSION: 1.0\n\n---\n\na: 1\n\nb: 2\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\na: 1\n\nb: 2\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -845,7 +857,7 @@ fn test_blank_lines_ignored() {
 /// Comments are ignored
 #[test]
 fn test_comments_ignored() {
-    let doc = "%VERSION: 1.0\n# header comment\n---\n# body comment\na: 1 # inline comment\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n# header comment\n---\n# body comment\na: 1 # inline comment\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -863,7 +875,7 @@ fn test_version_must_be_first() {
 /// Duplicate key in object is error
 #[test]
 fn test_duplicate_object_key_error() {
-    let doc = "%VERSION: 1.0\n---\na: 1\na: 2\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na: 1\na: 2\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
 }
@@ -875,7 +887,9 @@ fn test_duplicate_object_key_error() {
 /// Single-line block string - MUST be rejected per SPEC Section 8.2
 #[test]
 fn test_block_string_single_line() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: """hello world"""
 "#;
@@ -891,7 +905,9 @@ text: """hello world"""
 /// Multi-line block string
 #[test]
 fn test_block_string_multiline() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: """
 This is line 1.
@@ -910,7 +926,9 @@ This is line 2.
 #[test]
 fn test_block_string_preserves_quotes() {
     // This test now verifies multi-line format with internal quotes
-    let doc = r#"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: """
 She said "hello" loudly
@@ -927,7 +945,7 @@ She said "hello" loudly
 /// Block string with blank lines
 #[test]
 fn test_block_string_with_blank_lines() {
-    let doc = "%VERSION: 1.0\n---\ntext: \"\"\"\nPara 1\n\nPara 2\n\"\"\"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"\"\"\nPara 1\n\nPara 2\n\"\"\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -938,7 +956,9 @@ fn test_block_string_with_blank_lines() {
 /// Block string followed by another key - using multi-line format per SPEC Section 8.2
 #[test]
 fn test_block_string_followed_by_key() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: """
 hello
@@ -961,7 +981,7 @@ other: 42
 /// Multiline block string followed by another key
 #[test]
 fn test_block_string_multiline_followed_by_key() {
-    let doc = "%VERSION: 1.0\n---\ntext: \"\"\"\nline 1\nline 2\n\"\"\"\nother: 42\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"\"\"\nline 1\nline 2\n\"\"\"\nother: 42\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -981,7 +1001,7 @@ fn test_block_string_multiline_followed_by_key() {
 /// Unclosed block string is error
 #[test]
 fn test_block_string_unclosed_error() {
-    let doc = "%VERSION: 1.0\n---\ntext: \"\"\"\nno closing\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"\"\"\nno closing\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
 }
@@ -989,7 +1009,9 @@ fn test_block_string_unclosed_error() {
 /// Block string with comment after closing quotes
 #[test]
 fn test_block_string_with_comment() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: """
 hello
@@ -1010,14 +1032,16 @@ hello
 #[test]
 fn test_elastic_alignment_internal_spacing() {
     // Extra spaces within row content for visual column alignment
-    let doc = r"%VERSION: 1.0
-%STRUCT: Point: [id,x,y]
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Point:[id,x,y]
 ---
-points: @Point
-  | p1,     1,     2
-  | p2,    10,    20
-  | p3,   100,   200
-";
+points:@Point
+ |p1,     1,     2
+ |p2,    10,    20
+ |p3,   100,   200
+"#;
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -1032,13 +1056,15 @@ points: @Point
 /// Normal matrix rows still work
 #[test]
 fn test_elastic_alignment_normal() {
-    let doc = r"%VERSION: 1.0
-%STRUCT: Point: [id,x,y]
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Point:[id,x,y]
 ---
-points: @Point
-  | p1, 1, 2
-  | p2, 3, 4
-";
+points:@Point
+ |p1, 1, 2
+ |p2, 3, 4
+"#;
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -1047,16 +1073,18 @@ points: @Point
 }
 
 // Test SPEC 9.2: Escape sequences ARE processed in quoted matrix cell fields
-// \n → newline, \t → tab, \r → CR, \\ → backslash, \" → quote
+// Only valid escapes: \n → newline, \t → tab, \\ → backslash, \" → quote
 #[test]
 fn test_escape_sequences_in_matrix_cells() {
-    let doc = r#"%VERSION: 1.0
-%STRUCT: Msg: [id, content]
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Msg:[id,content]
 ---
-msgs: @Msg
-  | m1, "Hello\nWorld"
-  | m2, "Tab\there"
-  | m3, "Path\\to\\file"
+msgs:@Msg
+ |m1, "Hello\nWorld"
+ |m2, "Tab\there"
+ |m3, "Path\\to\\file"
 "#;
     let result = parse(doc.as_bytes());
     assert!(result.is_ok(), "Parse failed: {:?}", result.err());
@@ -1104,7 +1132,9 @@ msgs: @Msg
 /// Test that single-line block strings are rejected per SPEC Section 8.2
 #[test]
 fn test_spec_8_2_single_line_block_string_rejected() {
-    let doc = r#"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: """content on same line"""
 "#;
@@ -1124,10 +1154,12 @@ text: """content on same line"""
 /// Test that truncated object (no children) is detected per SPEC Section 14.5
 #[test]
 fn test_spec_14_5_truncated_object_detected() {
-    let doc = r"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 config:
-";
+"#;
     let result = parse(doc.as_bytes());
     assert!(
         result.is_err(),
@@ -1144,11 +1176,13 @@ config:
 /// Test that complete objects are not flagged as truncated
 #[test]
 fn test_spec_14_5_complete_object_not_truncated() {
-    let doc = r"%VERSION: 1.0
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 config:
-  port: 8080
-";
+ port: 8080
+"#;
     let result = parse(doc.as_bytes());
     assert!(
         result.is_ok(),
@@ -1160,11 +1194,13 @@ config:
 /// Test that empty lists are allowed (not considered truncated)
 #[test]
 fn test_spec_14_5_empty_list_allowed() {
-    let doc = r"%VERSION: 1.0
-%STRUCT: User: [id,name]
+    let doc = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-";
+users:@User
+"#;
     let result = parse(doc.as_bytes());
     assert!(
         result.is_ok(),

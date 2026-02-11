@@ -288,8 +288,8 @@ async function loadAndParseHedl(url: string): Promise<any> {
 
 ```typescript
 type Result<T, E = Error> =
-    | { ok: true; value: T }
-    | { ok: false; error: E };
+  | { ok: true; value: T }
+  | { ok: false; error: E };
 
 function parseHedl(input: string): Result<any, Error> {
     try {
@@ -512,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_reference_error() {
-        let input = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nuser: @User:missing";
+        let input = "%V:2.0\n%S:User:[id,name]\n---\nuser:@User:missing";
         let result = parse(input);
         assert!(result.is_err());
 
@@ -530,7 +530,7 @@ mod tests {
             ..Default::default()
         };
 
-        let input = "%VERSION: 1.0\n---\na:\n  b:\n    c:\n      d: too deep";
+        let input = "%V:2.0\n---\na:\n  b:\n    c:\n      d: too deep";
         let result = parse_with_limits(input.as_bytes(), options);
         assert!(result.is_err());
     }

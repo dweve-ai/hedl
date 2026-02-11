@@ -1,0 +1,2102 @@
+facilities:
+  - id: fac-001
+    name: Metro General Hospital
+    type: hospital
+    address: 1200 Medical Center Dr
+    city: Chicago
+    state: IL
+    zip: "60601"
+    beds: 450
+    er_available: true
+  - id: fac-002
+    name: Lakeside Medical Clinic
+    type: clinic
+    address: 555 Lakeshore Ave
+    city: Chicago
+    state: IL
+    zip: "60611"
+    beds: 0
+    er_available: false
+  - id: fac-003
+    name: North Shore Surgery Center
+    type: surgical_center
+    address: 890 Northbrook Rd
+    city: Northbrook
+    state: IL
+    zip: "60062"
+    beds: 24
+    er_available: true
+  - id: fac-004
+    name: Wellness Family Practice
+    type: clinic
+    address: 234 Oak Street
+    city: Evanston
+    state: IL
+    zip: "60201"
+    beds: 0
+    er_available: false
+  - id: fac-005
+    name: Chicago Heart Institute
+    type: specialty_center
+    address: 678 Cardiac Way
+    city: Chicago
+    state: IL
+    zip: "60605"
+    beds: 85
+    er_available: true
+
+providers:
+  - id: prov-001
+    facility: fac-001
+    name: Dr. Sarah Chen
+    specialty: Cardiology
+    role: Doctor
+    years_exp: 18
+    patients_per_day: 22
+    rating: 4.8
+    certifications:
+      - ABIM
+      - FACC
+      - BLS
+  - id: prov-002
+    facility: fac-001
+    name: Dr. Michael Torres
+    specialty: Neurology
+    role: Doctor
+    years_exp: 12
+    patients_per_day: 18
+    rating: 4.6
+    certifications:
+      - ABPN
+      - FAAN
+  - id: prov-003
+    facility: fac-001
+    name: Dr. Emily Watson
+    specialty: General Practice
+    role: Doctor
+    years_exp: 8
+    patients_per_day: 28
+    rating: 4.9
+    certifications:
+      - ABFM
+      - BLS
+      - ACLS
+  - id: prov-004
+    facility: fac-001
+    name: Jennifer Adams
+    specialty: null
+    role: Nurse
+    years_exp: 15
+    patients_per_day: 35
+    rating: 4.7
+    certifications:
+      - RN
+      - BSN
+      - CCRN
+  - id: prov-005
+    facility: fac-002
+    name: Dr. James Liu
+    specialty: General Practice
+    role: Doctor
+    years_exp: 22
+    patients_per_day: 32
+    rating: 4.5
+    certifications:
+      - ABFM
+  - id: prov-006
+    facility: fac-002
+    name: Dr. Maria Garcia
+    specialty: Pediatrics
+    role: Doctor
+    years_exp: 10
+    patients_per_day: 26
+    rating: 4.8
+    certifications:
+      - ABP
+      - PALS
+  - id: prov-007
+    facility: fac-002
+    name: Thomas Wright
+    specialty: null
+    role: Physician Assistant
+    years_exp: 6
+    patients_per_day: 24
+    rating: 4.4
+    certifications:
+      - PA-C
+      - BLS
+  - id: prov-008
+    facility: fac-003
+    name: Dr. Robert Kim
+    specialty: Orthopedics
+    role: Doctor
+    years_exp: 20
+    patients_per_day: 14
+    rating: 4.9
+    certifications:
+      - ABOS
+      - FAAOS
+  - id: prov-009
+    facility: fac-003
+    name: Dr. Lisa Patel
+    specialty: Orthopedics
+    role: Doctor
+    years_exp: 14
+    patients_per_day: 16
+    rating: 4.7
+    certifications:
+      - ABOS
+  - id: prov-010
+    facility: fac-004
+    name: Dr. David Brown
+    specialty: General Practice
+    role: Doctor
+    years_exp: 25
+    patients_per_day: 30
+    rating: 4.6
+    certifications:
+      - ABFM
+      - AAFP
+  - id: prov-011
+    facility: fac-004
+    name: Amanda Foster
+    specialty: null
+    role: Nurse Practitioner
+    years_exp: 9
+    patients_per_day: 22
+    rating: 4.5
+    certifications:
+      - FNP-BC
+      - BLS
+  - id: prov-012
+    facility: fac-005
+    name: Dr. William Hayes
+    specialty: Cardiology
+    role: Doctor
+    years_exp: 28
+    patients_per_day: 18
+    rating: 4.9
+    certifications:
+      - ABIM
+      - FACC
+      - FSCAI
+  - id: prov-013
+    facility: fac-005
+    name: Dr. Karen Miller
+    specialty: Cardiology
+    role: Doctor
+    years_exp: 16
+    patients_per_day: 20
+    rating: 4.7
+    certifications:
+      - ABIM
+      - FACC
+  - id: prov-014
+    facility: fac-001
+    name: Dr. Steven Park
+    specialty: Oncology
+    role: Doctor
+    years_exp: 19
+    patients_per_day: 15
+    rating: 4.8
+    certifications:
+      - ABIM
+      - FACP
+  - id: prov-015
+    facility: fac-001
+    name: Dr. Rachel Green
+    specialty: Psychiatry
+    role: Doctor
+    years_exp: 11
+    patients_per_day: 20
+    rating: 4.6
+    certifications:
+      - ABPN
+
+patients:
+  - id: pat-001
+    name: John Smith
+    dob: 1965-03-15
+    gender: Male
+    blood_type: A+
+    insurance_type: private
+    primary_provider: prov-003
+    emergency_contact: Mary Smith (555-0101)
+    allergies:
+      - Penicillin
+    chronic_conditions:
+      - Hypertension
+      - Type 2 Diabetes
+  - id: pat-002
+    name: Emily Johnson
+    dob: 1978-07-22
+    gender: Female
+    blood_type: O+
+    insurance_type: private
+    primary_provider: prov-005
+    emergency_contact: Robert Johnson (555-0102)
+    allergies: []
+    chronic_conditions:
+      - Asthma
+  - id: pat-003
+    name: Michael Williams
+    dob: 1952-11-08
+    gender: Male
+    blood_type: B+
+    insurance_type: medicare
+    primary_provider: prov-001
+    emergency_contact: Susan Williams (555-0103)
+    allergies:
+      - Aspirin
+      - Sulfa
+    chronic_conditions:
+      - Coronary Artery Disease
+      - Atrial Fibrillation
+  - id: pat-004
+    name: Sarah Davis
+    dob: 1990-04-30
+    gender: Female
+    blood_type: AB-
+    insurance_type: private
+    primary_provider: prov-006
+    emergency_contact: Tom Davis (555-0104)
+    allergies:
+      - Latex
+    chronic_conditions: []
+  - id: pat-005
+    name: James Wilson
+    dob: 1945-09-12
+    gender: Male
+    blood_type: O-
+    insurance_type: medicare
+    primary_provider: prov-012
+    emergency_contact: Linda Wilson (555-0105)
+    allergies: []
+    chronic_conditions:
+      - Congestive Heart Failure
+      - Hypertension
+  - id: pat-006
+    name: Jessica Brown
+    dob: 1985-12-03
+    gender: Female
+    blood_type: A-
+    insurance_type: private
+    primary_provider: prov-010
+    emergency_contact: David Brown (555-0106)
+    allergies:
+      - Codeine
+    chronic_conditions:
+      - Migraine
+  - id: pat-007
+    name: David Martinez
+    dob: 1972-06-18
+    gender: Male
+    blood_type: B-
+    insurance_type: medicaid
+    primary_provider: prov-003
+    emergency_contact: Rosa Martinez (555-0107)
+    allergies: []
+    chronic_conditions:
+      - COPD
+      - Hypertension
+  - id: pat-008
+    name: Amanda Taylor
+    dob: 2015-02-25
+    gender: Female
+    blood_type: O+
+    insurance_type: private
+    primary_provider: prov-006
+    emergency_contact: Jennifer Taylor (555-0108)
+    allergies:
+      - Eggs
+    chronic_conditions:
+      - Eczema
+  - id: pat-009
+    name: Christopher Lee
+    dob: 1960-08-14
+    gender: Male
+    blood_type: A+
+    insurance_type: medicare
+    primary_provider: prov-001
+    emergency_contact: Helen Lee (555-0109)
+    allergies:
+      - Iodine
+    chronic_conditions:
+      - Peripheral Artery Disease
+  - id: pat-010
+    name: Michelle Anderson
+    dob: 1988-01-29
+    gender: Female
+    blood_type: AB+
+    insurance_type: private
+    primary_provider: prov-015
+    emergency_contact: Kevin Anderson (555-0110)
+    allergies: []
+    chronic_conditions:
+      - Generalized Anxiety Disorder
+  - id: pat-011
+    name: Robert Thomas
+    dob: 1955-05-06
+    gender: Male
+    blood_type: O+
+    insurance_type: medicare
+    primary_provider: prov-008
+    emergency_contact: Patricia Thomas (555-0111)
+    allergies:
+      - NSAIDs
+    chronic_conditions:
+      - Osteoarthritis
+  - id: pat-012
+    name: Jennifer Jackson
+    dob: 1995-10-17
+    gender: Female
+    blood_type: B+
+    insurance_type: private
+    primary_provider: prov-010
+    emergency_contact: Mark Jackson (555-0112)
+    allergies: []
+    chronic_conditions: []
+  - id: pat-013
+    name: William White
+    dob: 1948-12-22
+    gender: Male
+    blood_type: A-
+    insurance_type: medicare
+    primary_provider: prov-002
+    emergency_contact: Barbara White (555-0113)
+    allergies:
+      - Contrast Dye
+    chronic_conditions:
+      - Parkinson Disease
+      - Dementia
+  - id: pat-014
+    name: Elizabeth Harris
+    dob: 1982-03-08
+    gender: Female
+    blood_type: O+
+    insurance_type: private
+    primary_provider: prov-003
+    emergency_contact: Richard Harris (555-0114)
+    allergies:
+      - Shellfish
+    chronic_conditions:
+      - Hypothyroidism
+  - id: pat-015
+    name: Joseph Clark
+    dob: 1970-07-14
+    gender: Male
+    blood_type: B+
+    insurance_type: medicaid
+    primary_provider: prov-005
+    emergency_contact: Nancy Clark (555-0115)
+    allergies: []
+    chronic_conditions:
+      - Type 2 Diabetes
+      - Obesity
+  - id: pat-016
+    name: Margaret Lewis
+    dob: 1938-11-30
+    gender: Female
+    blood_type: A+
+    insurance_type: medicare
+    primary_provider: prov-012
+    emergency_contact: Edward Lewis (555-0116)
+    allergies:
+      - Morphine
+    chronic_conditions:
+      - Aortic Stenosis
+      - Hypertension
+  - id: pat-017
+    name: Charles Robinson
+    dob: 1975-04-25
+    gender: Male
+    blood_type: AB+
+    insurance_type: private
+    primary_provider: prov-008
+    emergency_contact: Diana Robinson (555-0117)
+    allergies: []
+    chronic_conditions:
+      - Herniated Disc
+  - id: pat-018
+    name: Patricia Walker
+    dob: 1992-09-11
+    gender: Female
+    blood_type: O-
+    insurance_type: private
+    primary_provider: prov-006
+    emergency_contact: null
+    allergies:
+      - Peanuts
+      - Tree Nuts
+    chronic_conditions: []
+  - id: pat-019
+    name: Daniel Hall
+    dob: 1958-02-17
+    gender: Male
+    blood_type: B-
+    insurance_type: medicare
+    primary_provider: prov-014
+    emergency_contact: Sharon Hall (555-0119)
+    allergies: []
+    chronic_conditions:
+      - Lung Cancer
+  - id: pat-020
+    name: Linda Allen
+    dob: 1968-06-05
+    gender: Female
+    blood_type: A+
+    insurance_type: private
+    primary_provider: prov-001
+    emergency_contact: George Allen (555-0120)
+    allergies:
+      - Beta Blockers
+    chronic_conditions:
+      - Mitral Valve Prolapse
+  - id: pat-021
+    name: Matthew Young
+    dob: 2018-08-20
+    gender: Male
+    blood_type: O+
+    insurance_type: medicaid
+    primary_provider: prov-006
+    emergency_contact: Stephanie Young (555-0121)
+    allergies: []
+    chronic_conditions:
+      - Asthma
+  - id: pat-022
+    name: Sandra King
+    dob: 1980-12-12
+    gender: Female
+    blood_type: AB-
+    insurance_type: private
+    primary_provider: prov-015
+    emergency_contact: Thomas King (555-0122)
+    allergies: []
+    chronic_conditions:
+      - Major Depressive Disorder
+      - Insomnia
+  - id: pat-023
+    name: Anthony Wright
+    dob: 1963-03-28
+    gender: Male
+    blood_type: A-
+    insurance_type: medicare
+    primary_provider: prov-002
+    emergency_contact: Carol Wright (555-0123)
+    allergies:
+      - Statins
+    chronic_conditions:
+      - Multiple Sclerosis
+  - id: pat-024
+    name: Karen Scott
+    dob: 1998-05-09
+    gender: Female
+    blood_type: B+
+    insurance_type: private
+    primary_provider: prov-010
+    emergency_contact: James Scott (555-0124)
+    allergies: []
+    chronic_conditions: []
+  - id: pat-025
+    name: Steven Adams
+    dob: 1942-10-03
+    gender: Male
+    blood_type: O+
+    insurance_type: medicare
+    primary_provider: prov-012
+    emergency_contact: Ruth Adams (555-0125)
+    allergies:
+      - ACE Inhibitors
+    chronic_conditions:
+      - Heart Failure
+      - Chronic Kidney Disease
+
+appointments:
+  - id: apt-001
+    patient: pat-001
+    provider: prov-003
+    facility: fac-001
+    date: 2024-01-15
+    time: "09:00"
+    duration_min: 30
+    status: Completed
+    reason: Annual Physical
+    notes: Blood pressure slightly elevated
+  - id: apt-002
+    patient: pat-002
+    provider: prov-005
+    facility: fac-002
+    date: 2024-01-16
+    time: "10:30"
+    duration_min: 20
+    status: Completed
+    reason: Asthma Follow-up
+    notes: Symptoms well controlled
+  - id: apt-003
+    patient: pat-003
+    provider: prov-001
+    facility: fac-001
+    date: 2024-01-17
+    time: "14:00"
+    duration_min: 45
+    status: Completed
+    reason: Cardiac Evaluation
+    notes: Ordered stress test
+  - id: apt-004
+    patient: pat-004
+    provider: prov-006
+    facility: fac-002
+    date: 2024-01-18
+    time: "11:00"
+    duration_min: 20
+    status: Completed
+    reason: Well Child Visit
+    notes: Development on track
+  - id: apt-005
+    patient: pat-005
+    provider: prov-012
+    facility: fac-005
+    date: 2024-01-19
+    time: "08:30"
+    duration_min: 60
+    status: Completed
+    reason: Heart Failure Review
+    notes: Adjusted medications
+  - id: apt-006
+    patient: pat-006
+    provider: prov-010
+    facility: fac-004
+    date: 2024-01-22
+    time: "15:00"
+    duration_min: 30
+    status: Completed
+    reason: Migraine Consultation
+    notes: Started preventive therapy
+  - id: apt-007
+    patient: pat-007
+    provider: prov-003
+    facility: fac-001
+    date: 2024-01-23
+    time: "09:30"
+    duration_min: 30
+    status: Completed
+    reason: COPD Management
+    notes: Pulmonary function stable
+  - id: apt-008
+    patient: pat-008
+    provider: prov-006
+    facility: fac-002
+    date: 2024-01-24
+    time: "13:00"
+    duration_min: 20
+    status: Completed
+    reason: Eczema Follow-up
+    notes: Rash improving
+  - id: apt-009
+    patient: pat-009
+    provider: prov-001
+    facility: fac-001
+    date: 2024-01-25
+    time: "10:00"
+    duration_min: 45
+    status: Completed
+    reason: PAD Evaluation
+    notes: Scheduled angiogram
+  - id: apt-010
+    patient: pat-010
+    provider: prov-015
+    facility: fac-001
+    date: 2024-01-26
+    time: "14:30"
+    duration_min: 50
+    status: Completed
+    reason: Anxiety Management
+    notes: Therapy progressing well
+  - id: apt-011
+    patient: pat-011
+    provider: prov-008
+    facility: fac-003
+    date: 2024-01-29
+    time: "08:00"
+    duration_min: 40
+    status: Completed
+    reason: Knee Evaluation
+    notes: Recommended surgery
+  - id: apt-012
+    patient: pat-012
+    provider: prov-010
+    facility: fac-004
+    date: 2024-01-30
+    time: "11:30"
+    duration_min: 20
+    status: Completed
+    reason: Routine Checkup
+    notes: All vitals normal
+  - id: apt-013
+    patient: pat-013
+    provider: prov-002
+    facility: fac-001
+    date: 2024-01-31
+    time: "09:00"
+    duration_min: 60
+    status: Completed
+    reason: Neurology Review
+    notes: Medication adjustment
+  - id: apt-014
+    patient: pat-014
+    provider: prov-003
+    facility: fac-001
+    date: 2024-02-01
+    time: "10:30"
+    duration_min: 25
+    status: Completed
+    reason: Thyroid Follow-up
+    notes: TSH levels normalized
+  - id: apt-015
+    patient: pat-015
+    provider: prov-005
+    facility: fac-002
+    date: 2024-02-02
+    time: "14:00"
+    duration_min: 30
+    status: Completed
+    reason: Diabetes Management
+    notes: A1C improved
+  - id: apt-016
+    patient: pat-016
+    provider: prov-012
+    facility: fac-005
+    date: 2024-02-05
+    time: "09:00"
+    duration_min: 45
+    status: Completed
+    reason: Pre-op Evaluation
+    notes: Cleared for surgery
+  - id: apt-017
+    patient: pat-017
+    provider: prov-008
+    facility: fac-003
+    date: 2024-02-06
+    time: "13:30"
+    duration_min: 30
+    status: Completed
+    reason: Back Pain Consult
+    notes: MRI scheduled
+  - id: apt-018
+    patient: pat-018
+    provider: prov-006
+    facility: fac-002
+    date: 2024-02-07
+    time: "10:00"
+    duration_min: 20
+    status: Completed
+    reason: Pediatric Wellness
+    notes: Growth normal
+  - id: apt-019
+    patient: pat-019
+    provider: prov-014
+    facility: fac-001
+    date: 2024-02-08
+    time: "08:30"
+    duration_min: 60
+    status: Completed
+    reason: Oncology Review
+    notes: Treatment response good
+  - id: apt-020
+    patient: pat-020
+    provider: prov-001
+    facility: fac-001
+    date: 2024-02-09
+    time: "15:00"
+    duration_min: 40
+    status: Completed
+    reason: MVP Follow-up
+    notes: Echo scheduled
+  - id: apt-021
+    patient: pat-021
+    provider: prov-006
+    facility: fac-002
+    date: 2024-02-12
+    time: "09:30"
+    duration_min: 20
+    status: Completed
+    reason: Asthma Check
+    notes: Inhaler technique reviewed
+  - id: apt-022
+    patient: pat-022
+    provider: prov-015
+    facility: fac-001
+    date: 2024-02-13
+    time: "14:00"
+    duration_min: 50
+    status: Completed
+    reason: Depression Follow-up
+    notes: Medication effective
+  - id: apt-023
+    patient: pat-023
+    provider: prov-002
+    facility: fac-001
+    date: 2024-02-14
+    time: "10:30"
+    duration_min: 45
+    status: Completed
+    reason: MS Management
+    notes: Stable condition
+  - id: apt-024
+    patient: pat-024
+    provider: prov-010
+    facility: fac-004
+    date: 2024-02-15
+    time: "11:00"
+    duration_min: 20
+    status: Completed
+    reason: Annual Physical
+    notes: Excellent health
+  - id: apt-025
+    patient: pat-025
+    provider: prov-012
+    facility: fac-005
+    date: 2024-02-16
+    time: "08:00"
+    duration_min: 60
+    status: Completed
+    reason: Heart Failure Check
+    notes: Fluid balance improved
+  - id: apt-026
+    patient: pat-001
+    provider: prov-001
+    facility: fac-001
+    date: 2024-02-19
+    time: "09:00"
+    duration_min: 45
+    status: Scheduled
+    reason: Cardiology Referral
+    notes: null
+  - id: apt-027
+    patient: pat-003
+    provider: prov-001
+    facility: fac-005
+    date: 2024-02-20
+    time: "07:30"
+    duration_min: 120
+    status: Completed
+    reason: Stress Test
+    notes: Positive for ischemia
+  - id: apt-028
+    patient: pat-005
+    provider: prov-013
+    facility: fac-005
+    date: 2024-02-21
+    time: "10:00"
+    duration_min: 30
+    status: Completed
+    reason: Echo Follow-up
+    notes: EF improved to 40%
+  - id: apt-029
+    patient: pat-007
+    provider: prov-003
+    facility: fac-001
+    date: 2024-02-22
+    time: "14:30"
+    duration_min: 30
+    status: Cancelled
+    reason: COPD Review
+    notes: Patient called to cancel
+  - id: apt-030
+    patient: pat-009
+    provider: prov-001
+    facility: fac-001
+    date: 2024-02-23
+    time: "06:00"
+    duration_min: 180
+    status: Completed
+    reason: Angiography
+    notes: Two stents placed
+  - id: apt-031
+    patient: pat-011
+    provider: prov-008
+    facility: fac-003
+    date: 2024-02-26
+    time: "07:00"
+    duration_min: 120
+    status: Completed
+    reason: Knee Replacement
+    notes: Surgery successful
+  - id: apt-032
+    patient: pat-013
+    provider: prov-002
+    facility: fac-001
+    date: 2024-02-27
+    time: "09:30"
+    duration_min: 45
+    status: No Show
+    reason: Follow-up
+    notes: Patient did not arrive
+  - id: apt-033
+    patient: pat-016
+    provider: prov-012
+    facility: fac-005
+    date: 2024-02-28
+    time: "06:30"
+    duration_min: 240
+    status: Completed
+    reason: TAVR Procedure
+    notes: Valve replaced successfully
+  - id: apt-034
+    patient: pat-017
+    provider: prov-009
+    facility: fac-003
+    date: 2024-03-01
+    time: "08:00"
+    duration_min: 90
+    status: Completed
+    reason: Spinal Surgery
+    notes: Disc repaired
+  - id: apt-035
+    patient: pat-019
+    provider: prov-014
+    facility: fac-001
+    date: 2024-03-04
+    time: "10:00"
+    duration_min: 180
+    status: Completed
+    reason: Chemotherapy
+    notes: Cycle 3 completed
+  - id: apt-036
+    patient: pat-020
+    provider: prov-001
+    facility: fac-001
+    date: 2024-03-05
+    time: "13:00"
+    duration_min: 45
+    status: Completed
+    reason: Echo Study
+    notes: Mild regurgitation
+  - id: apt-037
+    patient: pat-022
+    provider: prov-015
+    facility: fac-001
+    date: 2024-03-06
+    time: "15:30"
+    duration_min: 50
+    status: Scheduled
+    reason: Therapy Session
+    notes: null
+  - id: apt-038
+    patient: pat-025
+    provider: prov-012
+    facility: fac-005
+    date: 2024-03-07
+    time: "09:00"
+    duration_min: 45
+    status: Scheduled
+    reason: Device Check
+    notes: null
+  - id: apt-039
+    patient: pat-002
+    provider: prov-005
+    facility: fac-002
+    date: 2024-03-08
+    time: "11:00"
+    duration_min: 20
+    status: Scheduled
+    reason: Asthma Review
+    notes: null
+  - id: apt-040
+    patient: pat-006
+    provider: prov-010
+    facility: fac-004
+    date: 2024-03-11
+    time: "14:00"
+    duration_min: 30
+    status: Scheduled
+    reason: Migraine Check
+    notes: null
+
+diagnoses:
+  - id: dx-001
+    patient: pat-001
+    provider: prov-003
+    date: 2020-05-10
+    icd_code: I10
+    condition: Essential Hypertension
+    severity: Moderate
+    is_chronic: true
+  - id: dx-002
+    patient: pat-001
+    provider: prov-003
+    date: 2021-08-22
+    icd_code: E11.9
+    condition: Type 2 Diabetes Mellitus
+    severity: Mild
+    is_chronic: true
+  - id: dx-003
+    patient: pat-002
+    provider: prov-005
+    date: 2018-03-15
+    icd_code: J45.20
+    condition: Mild Intermittent Asthma
+    severity: Mild
+    is_chronic: true
+  - id: dx-004
+    patient: pat-003
+    provider: prov-001
+    date: 2015-11-30
+    icd_code: I25.10
+    condition: Coronary Artery Disease
+    severity: Severe
+    is_chronic: true
+  - id: dx-005
+    patient: pat-003
+    provider: prov-001
+    date: 2019-04-18
+    icd_code: I48.91
+    condition: Atrial Fibrillation
+    severity: Moderate
+    is_chronic: true
+  - id: dx-006
+    patient: pat-005
+    provider: prov-012
+    date: 2017-06-25
+    icd_code: I50.9
+    condition: Heart Failure
+    severity: Severe
+    is_chronic: true
+  - id: dx-007
+    patient: pat-005
+    provider: prov-012
+    date: 2012-09-14
+    icd_code: I10
+    condition: Essential Hypertension
+    severity: Moderate
+    is_chronic: true
+  - id: dx-008
+    patient: pat-006
+    provider: prov-010
+    date: 2019-02-08
+    icd_code: G43.909
+    condition: Migraine
+    severity: Moderate
+    is_chronic: true
+  - id: dx-009
+    patient: pat-007
+    provider: prov-003
+    date: 2016-12-05
+    icd_code: J44.9
+    condition: COPD
+    severity: Moderate
+    is_chronic: true
+  - id: dx-010
+    patient: pat-007
+    provider: prov-003
+    date: 2018-07-20
+    icd_code: I10
+    condition: Essential Hypertension
+    severity: Mild
+    is_chronic: true
+  - id: dx-011
+    patient: pat-008
+    provider: prov-006
+    date: 2022-04-12
+    icd_code: L30.9
+    condition: Dermatitis
+    severity: Mild
+    is_chronic: true
+  - id: dx-012
+    patient: pat-009
+    provider: prov-001
+    date: 2020-10-28
+    icd_code: I73.9
+    condition: Peripheral Artery Disease
+    severity: Moderate
+    is_chronic: true
+  - id: dx-013
+    patient: pat-010
+    provider: prov-015
+    date: 2021-05-16
+    icd_code: F41.1
+    condition: Generalized Anxiety Disorder
+    severity: Moderate
+    is_chronic: true
+  - id: dx-014
+    patient: pat-011
+    provider: prov-008
+    date: 2014-08-03
+    icd_code: M17.11
+    condition: Primary Osteoarthritis Right Knee
+    severity: Severe
+    is_chronic: true
+  - id: dx-015
+    patient: pat-013
+    provider: prov-002
+    date: 2018-01-22
+    icd_code: G20
+    condition: Parkinson Disease
+    severity: Moderate
+    is_chronic: true
+  - id: dx-016
+    patient: pat-013
+    provider: prov-002
+    date: 2022-11-08
+    icd_code: F03.90
+    condition: Dementia
+    severity: Mild
+    is_chronic: true
+  - id: dx-017
+    patient: pat-014
+    provider: prov-003
+    date: 2019-09-30
+    icd_code: E03.9
+    condition: Hypothyroidism
+    severity: Mild
+    is_chronic: true
+  - id: dx-018
+    patient: pat-015
+    provider: prov-005
+    date: 2017-04-14
+    icd_code: E11.9
+    condition: Type 2 Diabetes Mellitus
+    severity: Moderate
+    is_chronic: true
+  - id: dx-019
+    patient: pat-015
+    provider: prov-005
+    date: 2020-06-22
+    icd_code: E66.9
+    condition: Obesity
+    severity: Moderate
+    is_chronic: true
+  - id: dx-020
+    patient: pat-016
+    provider: prov-012
+    date: 2019-12-10
+    icd_code: I35.0
+    condition: Aortic Stenosis
+    severity: Severe
+    is_chronic: true
+  - id: dx-021
+    patient: pat-016
+    provider: prov-012
+    date: 2010-05-18
+    icd_code: I10
+    condition: Essential Hypertension
+    severity: Moderate
+    is_chronic: true
+  - id: dx-022
+    patient: pat-017
+    provider: prov-008
+    date: 2023-01-15
+    icd_code: M51.16
+    condition: Herniated Disc L4-L5
+    severity: Moderate
+    is_chronic: false
+  - id: dx-023
+    patient: pat-019
+    provider: prov-014
+    date: 2023-06-20
+    icd_code: C34.90
+    condition: Lung Cancer
+    severity: Severe
+    is_chronic: true
+  - id: dx-024
+    patient: pat-020
+    provider: prov-001
+    date: 2015-07-08
+    icd_code: I34.1
+    condition: Mitral Valve Prolapse
+    severity: Mild
+    is_chronic: true
+  - id: dx-025
+    patient: pat-021
+    provider: prov-006
+    date: 2021-10-05
+    icd_code: J45.20
+    condition: Mild Intermittent Asthma
+    severity: Mild
+    is_chronic: true
+  - id: dx-026
+    patient: pat-022
+    provider: prov-015
+    date: 2020-03-12
+    icd_code: F33.1
+    condition: Major Depressive Disorder
+    severity: Moderate
+    is_chronic: true
+  - id: dx-027
+    patient: pat-022
+    provider: prov-015
+    date: 2021-08-25
+    icd_code: G47.00
+    condition: Insomnia
+    severity: Mild
+    is_chronic: true
+  - id: dx-028
+    patient: pat-023
+    provider: prov-002
+    date: 2016-04-30
+    icd_code: G35
+    condition: Multiple Sclerosis
+    severity: Moderate
+    is_chronic: true
+  - id: dx-029
+    patient: pat-025
+    provider: prov-012
+    date: 2018-09-22
+    icd_code: I50.9
+    condition: Heart Failure
+    severity: Severe
+    is_chronic: true
+  - id: dx-030
+    patient: pat-025
+    provider: prov-012
+    date: 2020-01-15
+    icd_code: N18.3
+    condition: Chronic Kidney Disease Stage 3
+    severity: Moderate
+    is_chronic: true
+
+prescriptions:
+  - id: rx-001
+    patient: pat-001
+    provider: prov-003
+    diagnosis: dx-001
+    medication: Lisinopril
+    dosage_mg: 10
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-15
+  - id: rx-002
+    patient: pat-001
+    provider: prov-003
+    diagnosis: dx-002
+    medication: Metformin
+    dosage_mg: 500
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-15
+  - id: rx-003
+    patient: pat-002
+    provider: prov-005
+    diagnosis: dx-003
+    medication: Albuterol
+    dosage_mg: 90
+    frequency: prn
+    duration_days: 30
+    refills: 6
+    start_date: 2024-01-16
+  - id: rx-004
+    patient: pat-003
+    provider: prov-001
+    diagnosis: dx-004
+    medication: Clopidogrel
+    dosage_mg: 75
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-17
+  - id: rx-005
+    patient: pat-003
+    provider: prov-001
+    diagnosis: dx-005
+    medication: Metoprolol
+    dosage_mg: 50
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-17
+  - id: rx-006
+    patient: pat-003
+    provider: prov-001
+    diagnosis: dx-005
+    medication: Warfarin
+    dosage_mg: 5
+    frequency: qd
+    duration_days: 30
+    refills: 6
+    start_date: 2024-01-17
+  - id: rx-007
+    patient: pat-005
+    provider: prov-012
+    diagnosis: dx-006
+    medication: Furosemide
+    dosage_mg: 40
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-19
+  - id: rx-008
+    patient: pat-005
+    provider: prov-012
+    diagnosis: dx-006
+    medication: Carvedilol
+    dosage_mg: 25
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-19
+  - id: rx-009
+    patient: pat-005
+    provider: prov-012
+    diagnosis: dx-007
+    medication: Amlodipine
+    dosage_mg: 10
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-19
+  - id: rx-010
+    patient: pat-006
+    provider: prov-010
+    diagnosis: dx-008
+    medication: Sumatriptan
+    dosage_mg: 50
+    frequency: prn
+    duration_days: 30
+    refills: 2
+    start_date: 2024-01-22
+  - id: rx-011
+    patient: pat-006
+    provider: prov-010
+    diagnosis: dx-008
+    medication: Topiramate
+    dosage_mg: 25
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-22
+  - id: rx-012
+    patient: pat-007
+    provider: prov-003
+    diagnosis: dx-009
+    medication: Tiotropium
+    dosage_mg: 18
+    frequency: qd
+    duration_days: 30
+    refills: 6
+    start_date: 2024-01-23
+  - id: rx-013
+    patient: pat-007
+    provider: prov-003
+    diagnosis: dx-010
+    medication: Losartan
+    dosage_mg: 50
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-23
+  - id: rx-014
+    patient: pat-008
+    provider: prov-006
+    diagnosis: dx-011
+    medication: Hydrocortisone Cream
+    dosage_mg: 25
+    frequency: bid
+    duration_days: 14
+    refills: 2
+    start_date: 2024-01-24
+  - id: rx-015
+    patient: pat-009
+    provider: prov-001
+    diagnosis: dx-012
+    medication: Cilostazol
+    dosage_mg: 100
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-25
+  - id: rx-016
+    patient: pat-010
+    provider: prov-015
+    diagnosis: dx-013
+    medication: Sertraline
+    dosage_mg: 50
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-26
+  - id: rx-017
+    patient: pat-011
+    provider: prov-008
+    diagnosis: dx-014
+    medication: Celecoxib
+    dosage_mg: 200
+    frequency: qd
+    duration_days: 30
+    refills: 2
+    start_date: 2024-01-29
+  - id: rx-018
+    patient: pat-013
+    provider: prov-002
+    diagnosis: dx-015
+    medication: Carbidopa-Levodopa
+    dosage_mg: 25
+    frequency: tid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-31
+  - id: rx-019
+    patient: pat-013
+    provider: prov-002
+    diagnosis: dx-016
+    medication: Donepezil
+    dosage_mg: 10
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-01-31
+  - id: rx-020
+    patient: pat-014
+    provider: prov-003
+    diagnosis: dx-017
+    medication: Levothyroxine
+    dosage_mg: 75
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-01
+  - id: rx-021
+    patient: pat-015
+    provider: prov-005
+    diagnosis: dx-018
+    medication: Metformin
+    dosage_mg: 1000
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-02
+  - id: rx-022
+    patient: pat-015
+    provider: prov-005
+    diagnosis: dx-019
+    medication: Semaglutide
+    dosage_mg: 0.5
+    frequency: qd
+    duration_days: 30
+    refills: 6
+    start_date: 2024-02-02
+  - id: rx-023
+    patient: pat-016
+    provider: prov-012
+    diagnosis: dx-020
+    medication: Aspirin
+    dosage_mg: 81
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-05
+  - id: rx-024
+    patient: pat-016
+    provider: prov-012
+    diagnosis: dx-021
+    medication: Lisinopril
+    dosage_mg: 20
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-05
+  - id: rx-025
+    patient: pat-017
+    provider: prov-008
+    diagnosis: dx-022
+    medication: Gabapentin
+    dosage_mg: 300
+    frequency: tid
+    duration_days: 30
+    refills: 2
+    start_date: 2024-02-06
+  - id: rx-026
+    patient: pat-019
+    provider: prov-014
+    diagnosis: dx-023
+    medication: Ondansetron
+    dosage_mg: 8
+    frequency: tid
+    duration_days: 14
+    refills: 0
+    start_date: 2024-02-08
+  - id: rx-027
+    patient: pat-020
+    provider: prov-001
+    diagnosis: dx-024
+    medication: Propranolol
+    dosage_mg: 20
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-09
+  - id: rx-028
+    patient: pat-021
+    provider: prov-006
+    diagnosis: dx-025
+    medication: Fluticasone
+    dosage_mg: 44
+    frequency: bid
+    duration_days: 30
+    refills: 6
+    start_date: 2024-02-12
+  - id: rx-029
+    patient: pat-022
+    provider: prov-015
+    diagnosis: dx-026
+    medication: Escitalopram
+    dosage_mg: 10
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-13
+  - id: rx-030
+    patient: pat-022
+    provider: prov-015
+    diagnosis: dx-027
+    medication: Trazodone
+    dosage_mg: 50
+    frequency: qd
+    duration_days: 30
+    refills: 3
+    start_date: 2024-02-13
+  - id: rx-031
+    patient: pat-023
+    provider: prov-002
+    diagnosis: dx-028
+    medication: Ocrelizumab
+    dosage_mg: 300
+    frequency: null
+    duration_days: 180
+    refills: 0
+    start_date: 2024-02-14
+  - id: rx-032
+    patient: pat-025
+    provider: prov-012
+    diagnosis: dx-029
+    medication: Furosemide
+    dosage_mg: 80
+    frequency: bid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-16
+  - id: rx-033
+    patient: pat-025
+    provider: prov-012
+    diagnosis: dx-029
+    medication: Spironolactone
+    dosage_mg: 25
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-16
+  - id: rx-034
+    patient: pat-025
+    provider: prov-012
+    diagnosis: dx-030
+    medication: Sodium Bicarbonate
+    dosage_mg: 650
+    frequency: tid
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-16
+  - id: rx-035
+    patient: pat-003
+    provider: prov-001
+    diagnosis: dx-004
+    medication: Atorvastatin
+    dosage_mg: 40
+    frequency: qd
+    duration_days: 90
+    refills: 3
+    start_date: 2024-02-20
+
+labs:
+  - id: lab-001
+    patient: pat-001
+    provider: prov-003
+    test_name: HbA1c
+    date: 2024-01-15
+    value: 7.2
+    unit: "%"
+    ref_range:
+      - 4.0
+      - 5.6
+    status: Abnormal
+  - id: lab-002
+    patient: pat-001
+    provider: prov-003
+    test_name: Fasting Glucose
+    date: 2024-01-15
+    value: 142
+    unit: mg/dL
+    ref_range:
+      - 70
+      - 100
+    status: Abnormal
+  - id: lab-003
+    patient: pat-001
+    provider: prov-003
+    test_name: Total Cholesterol
+    date: 2024-01-15
+    value: 198
+    unit: mg/dL
+    ref_range:
+      - 0
+      - 200
+    status: Normal
+  - id: lab-004
+    patient: pat-001
+    provider: prov-003
+    test_name: Blood Pressure Systolic
+    date: 2024-01-15
+    value: 145
+    unit: mmHg
+    ref_range:
+      - 90
+      - 120
+    status: Abnormal
+  - id: lab-005
+    patient: pat-003
+    provider: prov-001
+    test_name: Troponin I
+    date: 2024-01-17
+    value: 0.08
+    unit: ng/mL
+    ref_range:
+      - 0
+      - 0.04
+    status: Abnormal
+  - id: lab-006
+    patient: pat-003
+    provider: prov-001
+    test_name: BNP
+    date: 2024-01-17
+    value: 450
+    unit: pg/mL
+    ref_range:
+      - 0
+      - 100
+    status: Abnormal
+  - id: lab-007
+    patient: pat-003
+    provider: prov-001
+    test_name: INR
+    date: 2024-01-17
+    value: 2.3
+    unit: ratio
+    ref_range:
+      - 2.0
+      - 3.0
+    status: Normal
+  - id: lab-008
+    patient: pat-003
+    provider: prov-001
+    test_name: LDL Cholesterol
+    date: 2024-01-17
+    value: 145
+    unit: mg/dL
+    ref_range:
+      - 0
+      - 100
+    status: Abnormal
+  - id: lab-009
+    patient: pat-005
+    provider: prov-012
+    test_name: BNP
+    date: 2024-01-19
+    value: 890
+    unit: pg/mL
+    ref_range:
+      - 0
+      - 100
+    status: Critical
+  - id: lab-010
+    patient: pat-005
+    provider: prov-012
+    test_name: Creatinine
+    date: 2024-01-19
+    value: 1.8
+    unit: mg/dL
+    ref_range:
+      - 0.7
+      - 1.3
+    status: Abnormal
+  - id: lab-011
+    patient: pat-005
+    provider: prov-012
+    test_name: Potassium
+    date: 2024-01-19
+    value: 5.2
+    unit: mEq/L
+    ref_range:
+      - 3.5
+      - 5.0
+    status: Abnormal
+  - id: lab-012
+    patient: pat-005
+    provider: prov-012
+    test_name: Sodium
+    date: 2024-01-19
+    value: 132
+    unit: mEq/L
+    ref_range:
+      - 136
+      - 145
+    status: Abnormal
+  - id: lab-013
+    patient: pat-007
+    provider: prov-003
+    test_name: FEV1
+    date: 2024-01-23
+    value: 58
+    unit: "%"
+    ref_range:
+      - 80
+      - 120
+    status: Abnormal
+  - id: lab-014
+    patient: pat-007
+    provider: prov-003
+    test_name: Oxygen Saturation
+    date: 2024-01-23
+    value: 94
+    unit: "%"
+    ref_range:
+      - 95
+      - 100
+    status: Abnormal
+  - id: lab-015
+    patient: pat-009
+    provider: prov-001
+    test_name: ABI
+    date: 2024-01-25
+    value: 0.65
+    unit: ratio
+    ref_range:
+      - 0.9
+      - 1.3
+    status: Abnormal
+  - id: lab-016
+    patient: pat-010
+    provider: prov-015
+    test_name: TSH
+    date: 2024-01-26
+    value: 2.1
+    unit: mIU/L
+    ref_range:
+      - 0.4
+      - 4.0
+    status: Normal
+  - id: lab-017
+    patient: pat-011
+    provider: prov-008
+    test_name: Hemoglobin
+    date: 2024-01-29
+    value: 13.5
+    unit: g/dL
+    ref_range:
+      - 12.0
+      - 16.0
+    status: Normal
+  - id: lab-018
+    patient: pat-011
+    provider: prov-008
+    test_name: Platelet Count
+    date: 2024-01-29
+    value: 245
+    unit: K/uL
+    ref_range:
+      - 150
+      - 400
+    status: Normal
+  - id: lab-019
+    patient: pat-013
+    provider: prov-002
+    test_name: Vitamin D
+    date: 2024-01-31
+    value: 18
+    unit: ng/mL
+    ref_range:
+      - 30
+      - 100
+    status: Abnormal
+  - id: lab-020
+    patient: pat-014
+    provider: prov-003
+    test_name: TSH
+    date: 2024-02-01
+    value: 3.2
+    unit: mIU/L
+    ref_range:
+      - 0.4
+      - 4.0
+    status: Normal
+  - id: lab-021
+    patient: pat-014
+    provider: prov-003
+    test_name: Free T4
+    date: 2024-02-01
+    value: 1.1
+    unit: ng/dL
+    ref_range:
+      - 0.8
+      - 1.8
+    status: Normal
+  - id: lab-022
+    patient: pat-015
+    provider: prov-005
+    test_name: HbA1c
+    date: 2024-02-02
+    value: 8.4
+    unit: "%"
+    ref_range:
+      - 4.0
+      - 5.6
+    status: Abnormal
+  - id: lab-023
+    patient: pat-015
+    provider: prov-005
+    test_name: Fasting Glucose
+    date: 2024-02-02
+    value: 186
+    unit: mg/dL
+    ref_range:
+      - 70
+      - 100
+    status: Abnormal
+  - id: lab-024
+    patient: pat-016
+    provider: prov-012
+    test_name: BNP
+    date: 2024-02-05
+    value: 1250
+    unit: pg/mL
+    ref_range:
+      - 0
+      - 100
+    status: Critical
+  - id: lab-025
+    patient: pat-016
+    provider: prov-012
+    test_name: Creatinine
+    date: 2024-02-05
+    value: 1.4
+    unit: mg/dL
+    ref_range:
+      - 0.7
+      - 1.3
+    status: Abnormal
+  - id: lab-026
+    patient: pat-019
+    provider: prov-014
+    test_name: WBC
+    date: 2024-02-08
+    value: 2.8
+    unit: K/uL
+    ref_range:
+      - 4.5
+      - 11.0
+    status: Abnormal
+  - id: lab-027
+    patient: pat-019
+    provider: prov-014
+    test_name: Hemoglobin
+    date: 2024-02-08
+    value: 9.2
+    unit: g/dL
+    ref_range:
+      - 12.0
+      - 16.0
+    status: Abnormal
+  - id: lab-028
+    patient: pat-019
+    provider: prov-014
+    test_name: Platelet Count
+    date: 2024-02-08
+    value: 95
+    unit: K/uL
+    ref_range:
+      - 150
+      - 400
+    status: Abnormal
+  - id: lab-029
+    patient: pat-020
+    provider: prov-001
+    test_name: Ejection Fraction
+    date: 2024-02-09
+    value: 62
+    unit: "%"
+    ref_range:
+      - 55
+      - 70
+    status: Normal
+  - id: lab-030
+    patient: pat-022
+    provider: prov-015
+    test_name: Lithium Level
+    date: 2024-02-13
+    value: 0
+    unit: mEq/L
+    ref_range:
+      - 0.6
+      - 1.2
+    status: Normal
+  - id: lab-031
+    patient: pat-023
+    provider: prov-002
+    test_name: MRI Lesion Count
+    date: 2024-02-14
+    value: 12
+    unit: lesions
+    ref_range:
+      - 0
+      - 0
+    status: Abnormal
+  - id: lab-032
+    patient: pat-025
+    provider: prov-012
+    test_name: BNP
+    date: 2024-02-16
+    value: 1450
+    unit: pg/mL
+    ref_range:
+      - 0
+      - 100
+    status: Critical
+  - id: lab-033
+    patient: pat-025
+    provider: prov-012
+    test_name: eGFR
+    date: 2024-02-16
+    value: 38
+    unit: mL/min
+    ref_range:
+      - 90
+      - 120
+    status: Abnormal
+  - id: lab-034
+    patient: pat-025
+    provider: prov-012
+    test_name: Potassium
+    date: 2024-02-16
+    value: 5.5
+    unit: mEq/L
+    ref_range:
+      - 3.5
+      - 5.0
+    status: Abnormal
+  - id: lab-035
+    patient: pat-003
+    provider: prov-001
+    test_name: Troponin I
+    date: 2024-02-20
+    value: 0.15
+    unit: ng/mL
+    ref_range:
+      - 0
+      - 0.04
+    status: Critical
+  - id: lab-036
+    patient: pat-005
+    provider: prov-013
+    test_name: Ejection Fraction
+    date: 2024-02-21
+    value: 40
+    unit: "%"
+    ref_range:
+      - 55
+      - 70
+    status: Abnormal
+  - id: lab-037
+    patient: pat-009
+    provider: prov-001
+    test_name: Creatinine
+    date: 2024-02-23
+    value: 1.2
+    unit: mg/dL
+    ref_range:
+      - 0.7
+      - 1.3
+    status: Normal
+  - id: lab-038
+    patient: pat-011
+    provider: prov-008
+    test_name: Hemoglobin
+    date: 2024-02-26
+    value: 11.8
+    unit: g/dL
+    ref_range:
+      - 12.0
+      - 16.0
+    status: Abnormal
+  - id: lab-039
+    patient: pat-016
+    provider: prov-012
+    test_name: Ejection Fraction
+    date: 2024-02-28
+    value: 55
+    unit: "%"
+    ref_range:
+      - 55
+      - 70
+    status: Normal
+  - id: lab-040
+    patient: pat-019
+    provider: prov-014
+    test_name: Tumor Marker CA-125
+    date: 2024-03-04
+    value: 85
+    unit: U/mL
+    ref_range:
+      - 0
+      - 35
+    status: Abnormal
+
+procedures:
+  - id: proc-001
+    patient: pat-003
+    provider: prov-001
+    facility: fac-005
+    date: 2024-02-20
+    name: Cardiac Stress Test
+    cpt_code: "93015"
+    duration_min: 45
+    outcome: Successful
+    cost: 2500
+  - id: proc-002
+    patient: pat-009
+    provider: prov-001
+    facility: fac-001
+    date: 2024-02-23
+    name: Coronary Angiography
+    cpt_code: "93458"
+    duration_min: 90
+    outcome: Successful
+    cost: 12500
+  - id: proc-003
+    patient: pat-009
+    provider: prov-001
+    facility: fac-001
+    date: 2024-02-23
+    name: PCI with Stent x2
+    cpt_code: "92928"
+    duration_min: 120
+    outcome: Successful
+    cost: 35000
+  - id: proc-004
+    patient: pat-011
+    provider: prov-008
+    facility: fac-003
+    date: 2024-02-26
+    name: Total Knee Arthroplasty
+    cpt_code: "27447"
+    duration_min: 150
+    outcome: Successful
+    cost: 45000
+  - id: proc-005
+    patient: pat-016
+    provider: prov-012
+    facility: fac-005
+    date: 2024-02-28
+    name: TAVR
+    cpt_code: "33361"
+    duration_min: 180
+    outcome: Successful
+    cost: 85000
+  - id: proc-006
+    patient: pat-017
+    provider: prov-009
+    facility: fac-003
+    date: 2024-03-01
+    name: Lumbar Discectomy
+    cpt_code: "63030"
+    duration_min: 90
+    outcome: Successful
+    cost: 28000
+  - id: proc-007
+    patient: pat-019
+    provider: prov-014
+    facility: fac-001
+    date: 2024-03-04
+    name: Chemotherapy Administration
+    cpt_code: "96413"
+    duration_min: 180
+    outcome: Successful
+    cost: 8500
+  - id: proc-008
+    patient: pat-020
+    provider: prov-001
+    facility: fac-001
+    date: 2024-03-05
+    name: Echocardiogram
+    cpt_code: "93306"
+    duration_min: 45
+    outcome: Successful
+    cost: 1800
+  - id: proc-009
+    patient: pat-003
+    provider: prov-001
+    facility: fac-005
+    date: 2024-02-27
+    name: Cardiac Catheterization
+    cpt_code: "93452"
+    duration_min: 60
+    outcome: Complication
+    cost: 15000
+  - id: proc-010
+    patient: pat-005
+    provider: prov-012
+    facility: fac-005
+    date: 2024-01-19
+    name: ICD Implantation
+    cpt_code: "33249"
+    duration_min: 120
+    outcome: Successful
+    cost: 55000
+  - id: proc-011
+    patient: pat-013
+    provider: prov-002
+    facility: fac-001
+    date: 2024-01-31
+    name: Lumbar Puncture
+    cpt_code: "62270"
+    duration_min: 30
+    outcome: Successful
+    cost: 2200
+  - id: proc-012
+    patient: pat-023
+    provider: prov-002
+    facility: fac-001
+    date: 2024-02-14
+    name: MRI Brain with Contrast
+    cpt_code: "70553"
+    duration_min: 60
+    outcome: Successful
+    cost: 3500
+  - id: proc-013
+    patient: pat-006
+    provider: prov-010
+    facility: fac-004
+    date: 2024-01-22
+    name: Nerve Block Injection
+    cpt_code: "64450"
+    duration_min: 20
+    outcome: Successful
+    cost: 1500
+  - id: proc-014
+    patient: pat-008
+    provider: prov-006
+    facility: fac-002
+    date: 2024-01-24
+    name: Allergy Skin Testing
+    cpt_code: "95004"
+    duration_min: 45
+    outcome: Successful
+    cost: 450
+  - id: proc-015
+    patient: pat-025
+    provider: prov-012
+    facility: fac-005
+    date: 2024-02-16
+    name: CRT-D Implantation
+    cpt_code: "33225"
+    duration_min: 150
+    outcome: Partial
+    cost: 65000

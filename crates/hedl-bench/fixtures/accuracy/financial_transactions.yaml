@@ -1,0 +1,1985 @@
+customers:
+  - id: cust-001
+    name: James Wilson
+    email: james.wilson@email.com
+    phone: 555-0101
+    address: 123 Oak Street
+    city: New York
+    state: NY
+    zip: "10001"
+    dob: 1975-03-15
+    ssn_last4: "4521"
+    risk_score: 720
+    created_date: 2018-06-15
+  - id: cust-002
+    name: Maria Garcia
+    email: maria.garcia@email.com
+    phone: 555-0102
+    address: 456 Maple Ave
+    city: Los Angeles
+    state: CA
+    zip: "90001"
+    dob: 1982-07-22
+    ssn_last4: "8934"
+    risk_score: 680
+    created_date: 2019-01-20
+  - id: cust-003
+    name: Robert Chen
+    email: robert.chen@email.com
+    phone: 555-0103
+    address: 789 Pine Road
+    city: Chicago
+    state: IL
+    zip: "60601"
+    dob: 1968-11-08
+    ssn_last4: "2156"
+    risk_score: 785
+    created_date: 2015-09-10
+  - id: cust-004
+    name: Sarah Johnson
+    email: sarah.johnson@email.com
+    phone: 555-0104
+    address: 321 Elm Lane
+    city: Houston
+    state: TX
+    zip: "77001"
+    dob: 1990-04-30
+    ssn_last4: "6743"
+    risk_score: 650
+    created_date: 2020-03-05
+  - id: cust-005
+    name: Michael Brown
+    email: michael.brown@email.com
+    phone: 555-0105
+    address: 654 Cedar Blvd
+    city: Phoenix
+    state: AZ
+    zip: "85001"
+    dob: 1955-09-12
+    ssn_last4: "1298"
+    risk_score: 810
+    created_date: 2012-11-28
+  - id: cust-006
+    name: Emily Davis
+    email: emily.davis@email.com
+    phone: 555-0106
+    address: 987 Birch Court
+    city: Philadelphia
+    state: PA
+    zip: "19101"
+    dob: 1985-12-03
+    ssn_last4: "5672"
+    risk_score: 695
+    created_date: 2017-07-14
+  - id: cust-007
+    name: David Martinez
+    email: david.martinez@email.com
+    phone: 555-0107
+    address: 147 Walnut Way
+    city: San Antonio
+    state: TX
+    zip: "78201"
+    dob: 1972-06-18
+    ssn_last4: "3489"
+    risk_score: 740
+    created_date: 2016-04-22
+  - id: cust-008
+    name: Jennifer Lee
+    email: jennifer.lee@email.com
+    phone: 555-0108
+    address: 258 Ash Drive
+    city: San Diego
+    state: CA
+    zip: "92101"
+    dob: 1988-02-25
+    ssn_last4: "7821"
+    risk_score: 710
+    created_date: 2019-08-30
+  - id: cust-009
+    name: William Taylor
+    email: william.taylor@email.com
+    phone: 555-0109
+    address: 369 Spruce Lane
+    city: Dallas
+    state: TX
+    zip: "75201"
+    dob: 1960-08-14
+    ssn_last4: "4156"
+    risk_score: 755
+    created_date: 2014-02-18
+  - id: cust-010
+    name: Amanda White
+    email: amanda.white@email.com
+    phone: 555-0110
+    address: 741 Poplar Street
+    city: San Jose
+    state: CA
+    zip: "95101"
+    dob: 1992-01-29
+    ssn_last4: "9234"
+    risk_score: 620
+    created_date: 2021-05-12
+  - id: cust-011
+    name: Christopher Harris
+    email: christopher.harris@email.com
+    phone: 555-0111
+    address: 852 Willow Ave
+    city: Austin
+    state: TX
+    zip: "78701"
+    dob: 1978-05-06
+    ssn_last4: "1567"
+    risk_score: 770
+    created_date: 2013-10-05
+  - id: cust-012
+    name: Jessica Clark
+    email: jessica.clark@email.com
+    phone: 555-0112
+    address: 963 Hickory Road
+    city: Jacksonville
+    state: FL
+    zip: "32099"
+    dob: 1995-10-17
+    ssn_last4: "8345"
+    risk_score: 700
+    created_date: 2020-12-01
+  - id: cust-013
+    name: Daniel Lewis
+    email: daniel.lewis@email.com
+    phone: 555-0113
+    address: 174 Chestnut Blvd
+    city: Fort Worth
+    state: TX
+    zip: "76101"
+    dob: 1965-12-22
+    ssn_last4: "2678"
+    risk_score: 790
+    created_date: 2011-06-30
+  - id: cust-014
+    name: Michelle Robinson
+    email: michelle.robinson@email.com
+    phone: 555-0114
+    address: 285 Magnolia Court
+    city: Columbus
+    state: OH
+    zip: "43085"
+    dob: 1983-03-08
+    ssn_last4: "5912"
+    risk_score: 665
+    created_date: 2018-09-25
+  - id: cust-015
+    name: Joseph Walker
+    email: joseph.walker@email.com
+    phone: 555-0115
+    address: 396 Dogwood Lane
+    city: Charlotte
+    state: NC
+    zip: "28201"
+    dob: 1970-07-14
+    ssn_last4: "3745"
+    risk_score: 725
+    created_date: 2015-01-15
+  - id: cust-016
+    name: Elizabeth Hall
+    email: elizabeth.hall@email.com
+    phone: 555-0116
+    address: 507 Redwood Drive
+    city: San Francisco
+    state: CA
+    zip: "94102"
+    dob: 1958-11-30
+    ssn_last4: "6189"
+    risk_score: 800
+    created_date: 2010-08-20
+  - id: cust-017
+    name: Thomas Allen
+    email: thomas.allen@email.com
+    phone: 555-0117
+    address: 618 Sequoia Way
+    city: Indianapolis
+    state: IN
+    zip: "46201"
+    dob: 1987-04-25
+    ssn_last4: "4523"
+    risk_score: 735
+    created_date: 2016-11-08
+  - id: cust-018
+    name: Patricia Young
+    email: patricia.young@email.com
+    phone: 555-0118
+    address: 729 Cypress Street
+    city: Seattle
+    state: WA
+    zip: "98101"
+    dob: 1993-09-11
+    ssn_last4: "7856"
+    risk_score: 675
+    created_date: 2021-02-28
+  - id: cust-019
+    name: Richard King
+    email: richard.king@email.com
+    phone: 555-0119
+    address: 840 Juniper Ave
+    city: Denver
+    state: CO
+    zip: "80201"
+    dob: 1962-02-17
+    ssn_last4: "1934"
+    risk_score: 760
+    created_date: 2012-04-10
+  - id: cust-020
+    name: Linda Scott
+    email: linda.scott@email.com
+    phone: 555-0120
+    address: 951 Sycamore Road
+    city: Washington
+    state: DC
+    zip: "20001"
+    dob: 1980-06-05
+    ssn_last4: "8267"
+    risk_score: 705
+    created_date: 2017-03-22
+
+accounts:
+  - id: acc-001
+    customer: cust-001
+    type: checking
+    status: active
+    balance: 15234.56
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2018-06-15
+    last_activity: 2024-03-10
+  - id: acc-002
+    customer: cust-001
+    type: savings
+    status: active
+    balance: 48750.00
+    currency: USD
+    interest_rate: 4.25
+    opened_date: 2018-06-15
+    last_activity: 2024-03-08
+  - id: acc-003
+    customer: cust-001
+    type: investment
+    status: active
+    balance: 125680.45
+    currency: USD
+    interest_rate: 0
+    opened_date: 2019-03-20
+    last_activity: 2024-03-10
+  - id: acc-004
+    customer: cust-002
+    type: checking
+    status: active
+    balance: 3456.78
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2019-01-20
+    last_activity: 2024-03-09
+  - id: acc-005
+    customer: cust-002
+    type: credit
+    status: active
+    balance: -2150.00
+    currency: USD
+    interest_rate: 19.99
+    opened_date: 2019-05-15
+    last_activity: 2024-03-10
+  - id: acc-006
+    customer: cust-003
+    type: checking
+    status: active
+    balance: 28945.12
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2015-09-10
+    last_activity: 2024-03-10
+  - id: acc-007
+    customer: cust-003
+    type: savings
+    status: active
+    balance: 156780.00
+    currency: USD
+    interest_rate: 4.50
+    opened_date: 2015-09-10
+    last_activity: 2024-03-05
+  - id: acc-008
+    customer: cust-003
+    type: investment
+    status: active
+    balance: 892450.78
+    currency: USD
+    interest_rate: 0
+    opened_date: 2016-01-15
+    last_activity: 2024-03-10
+  - id: acc-009
+    customer: cust-004
+    type: checking
+    status: active
+    balance: 1245.89
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2020-03-05
+    last_activity: 2024-03-10
+  - id: acc-010
+    customer: cust-004
+    type: credit
+    status: active
+    balance: -4580.25
+    currency: USD
+    interest_rate: 22.99
+    opened_date: 2020-06-10
+    last_activity: 2024-03-09
+  - id: acc-011
+    customer: cust-005
+    type: checking
+    status: active
+    balance: 45678.90
+    currency: USD
+    interest_rate: 0.03
+    opened_date: 2012-11-28
+    last_activity: 2024-03-10
+  - id: acc-012
+    customer: cust-005
+    type: savings
+    status: active
+    balance: 234500.00
+    currency: USD
+    interest_rate: 4.75
+    opened_date: 2012-11-28
+    last_activity: 2024-03-01
+  - id: acc-013
+    customer: cust-005
+    type: investment
+    status: active
+    balance: 1567890.23
+    currency: USD
+    interest_rate: 0
+    opened_date: 2013-05-01
+    last_activity: 2024-03-10
+  - id: acc-014
+    customer: cust-006
+    type: checking
+    status: active
+    balance: 8765.43
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2017-07-14
+    last_activity: 2024-03-10
+  - id: acc-015
+    customer: cust-006
+    type: savings
+    status: frozen
+    balance: 12500.00
+    currency: USD
+    interest_rate: 4.25
+    opened_date: 2017-07-14
+    last_activity: 2024-01-15
+  - id: acc-016
+    customer: cust-007
+    type: checking
+    status: active
+    balance: 19876.54
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2016-04-22
+    last_activity: 2024-03-09
+  - id: acc-017
+    customer: cust-007
+    type: investment
+    status: active
+    balance: 345670.89
+    currency: USD
+    interest_rate: 0
+    opened_date: 2017-01-10
+    last_activity: 2024-03-10
+  - id: acc-018
+    customer: cust-008
+    type: checking
+    status: active
+    balance: 5432.10
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2019-08-30
+    last_activity: 2024-03-10
+  - id: acc-019
+    customer: cust-008
+    type: credit
+    status: active
+    balance: -1875.50
+    currency: USD
+    interest_rate: 18.99
+    opened_date: 2019-10-15
+    last_activity: 2024-03-08
+  - id: acc-020
+    customer: cust-009
+    type: checking
+    status: active
+    balance: 67890.12
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2014-02-18
+    last_activity: 2024-03-10
+  - id: acc-021
+    customer: cust-009
+    type: savings
+    status: active
+    balance: 189500.00
+    currency: USD
+    interest_rate: 4.50
+    opened_date: 2014-02-18
+    last_activity: 2024-03-03
+  - id: acc-022
+    customer: cust-010
+    type: checking
+    status: active
+    balance: 2345.67
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2021-05-12
+    last_activity: 2024-03-10
+  - id: acc-023
+    customer: cust-010
+    type: credit
+    status: active
+    balance: -6750.00
+    currency: USD
+    interest_rate: 24.99
+    opened_date: 2021-08-20
+    last_activity: 2024-03-10
+  - id: acc-024
+    customer: cust-011
+    type: checking
+    status: active
+    balance: 34567.89
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2013-10-05
+    last_activity: 2024-03-10
+  - id: acc-025
+    customer: cust-011
+    type: savings
+    status: active
+    balance: 87650.00
+    currency: USD
+    interest_rate: 4.25
+    opened_date: 2013-10-05
+    last_activity: 2024-03-06
+  - id: acc-026
+    customer: cust-012
+    type: checking
+    status: active
+    balance: 4567.12
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2020-12-01
+    last_activity: 2024-03-09
+  - id: acc-027
+    customer: cust-013
+    type: checking
+    status: active
+    balance: 56789.34
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2011-06-30
+    last_activity: 2024-03-10
+  - id: acc-028
+    customer: cust-013
+    type: investment
+    status: active
+    balance: 678900.56
+    currency: USD
+    interest_rate: 0
+    opened_date: 2012-02-15
+    last_activity: 2024-03-10
+  - id: acc-029
+    customer: cust-014
+    type: checking
+    status: active
+    balance: 6543.21
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2018-09-25
+    last_activity: 2024-03-10
+  - id: acc-030
+    customer: cust-015
+    type: checking
+    status: active
+    balance: 23456.78
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2015-01-15
+    last_activity: 2024-03-08
+  - id: acc-031
+    customer: cust-016
+    type: checking
+    status: active
+    balance: 78901.23
+    currency: USD
+    interest_rate: 0.03
+    opened_date: 2010-08-20
+    last_activity: 2024-03-10
+  - id: acc-032
+    customer: cust-016
+    type: savings
+    status: active
+    balance: 345600.00
+    currency: USD
+    interest_rate: 4.75
+    opened_date: 2010-08-20
+    last_activity: 2024-03-02
+  - id: acc-033
+    customer: cust-017
+    type: checking
+    status: active
+    balance: 12345.67
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2016-11-08
+    last_activity: 2024-03-10
+  - id: acc-034
+    customer: cust-018
+    type: checking
+    status: active
+    balance: 3456.78
+    currency: USD
+    interest_rate: 0.01
+    opened_date: 2021-02-28
+    last_activity: 2024-03-09
+  - id: acc-035
+    customer: cust-019
+    type: checking
+    status: active
+    balance: 45678.90
+    currency: USD
+    interest_rate: 0.02
+    opened_date: 2012-04-10
+    last_activity: 2024-03-10
+
+transactions:
+  - id: txn-001
+    account: acc-001
+    type: deposit
+    status: completed
+    amount: 5000.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Acme Corp
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-001
+  - id: txn-002
+    account: acc-001
+    type: withdrawal
+    status: completed
+    amount: 200.00
+    currency: USD
+    description: ATM Withdrawal
+    merchant: Chase ATM
+    category: cash
+    timestamp: 2024-03-02T14:30:00Z
+    reference: ATM-2024-0302-001
+  - id: txn-003
+    account: acc-001
+    type: payment
+    status: completed
+    amount: 1500.00
+    currency: USD
+    description: Rent Payment
+    merchant: Skyline Apartments
+    category: housing
+    timestamp: 2024-03-03T08:00:00Z
+    reference: PMT-2024-0303-001
+  - id: txn-004
+    account: acc-001
+    type: transfer
+    status: completed
+    amount: 2000.00
+    currency: USD
+    description: Transfer to Savings
+    merchant: Internal
+    category: transfer
+    timestamp: 2024-03-04T10:15:00Z
+    reference: TRF-2024-0304-001
+  - id: txn-005
+    account: acc-002
+    type: transfer
+    status: completed
+    amount: 2000.00
+    currency: USD
+    description: Transfer from Checking
+    merchant: Internal
+    category: transfer
+    timestamp: 2024-03-04T10:15:00Z
+    reference: TRF-2024-0304-002
+  - id: txn-006
+    account: acc-002
+    type: interest
+    status: completed
+    amount: 172.40
+    currency: USD
+    description: Monthly Interest
+    merchant: Bank
+    category: interest
+    timestamp: 2024-03-05T00:00:00Z
+    reference: INT-2024-0305-001
+  - id: txn-007
+    account: acc-004
+    type: deposit
+    status: completed
+    amount: 3200.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Tech Solutions Inc
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-002
+  - id: txn-008
+    account: acc-004
+    type: payment
+    status: completed
+    amount: 850.00
+    currency: USD
+    description: Car Payment
+    merchant: Auto Finance Co
+    category: auto
+    timestamp: 2024-03-05T08:00:00Z
+    reference: PMT-2024-0305-001
+  - id: txn-009
+    account: acc-005
+    type: payment
+    status: completed
+    amount: 125.50
+    currency: USD
+    description: Restaurant Purchase
+    merchant: The Italian Place
+    category: dining
+    timestamp: 2024-03-02T19:45:00Z
+    reference: POS-2024-0302-001
+  - id: txn-010
+    account: acc-005
+    type: payment
+    status: completed
+    amount: 89.99
+    currency: USD
+    description: Streaming Services
+    merchant: Netflix
+    category: entertainment
+    timestamp: 2024-03-03T00:00:00Z
+    reference: REC-2024-0303-001
+  - id: txn-011
+    account: acc-005
+    type: payment
+    status: completed
+    amount: 234.56
+    currency: USD
+    description: Online Shopping
+    merchant: Amazon
+    category: shopping
+    timestamp: 2024-03-04T16:20:00Z
+    reference: ONL-2024-0304-001
+  - id: txn-012
+    account: acc-005
+    type: fee
+    status: completed
+    amount: 35.00
+    currency: USD
+    description: Late Payment Fee
+    merchant: Bank
+    category: fees
+    timestamp: 2024-03-05T00:00:00Z
+    reference: FEE-2024-0305-001
+  - id: txn-013
+    account: acc-006
+    type: deposit
+    status: completed
+    amount: 8500.00
+    currency: USD
+    description: Consulting Income
+    merchant: Client ABC
+    category: income
+    timestamp: 2024-03-01T10:30:00Z
+    reference: DEP-2024-0301-001
+  - id: txn-014
+    account: acc-006
+    type: payment
+    status: completed
+    amount: 2800.00
+    currency: USD
+    description: Mortgage Payment
+    merchant: Home Lenders Inc
+    category: housing
+    timestamp: 2024-03-01T08:00:00Z
+    reference: PMT-2024-0301-001
+  - id: txn-015
+    account: acc-006
+    type: withdrawal
+    status: completed
+    amount: 500.00
+    currency: USD
+    description: ATM Withdrawal
+    merchant: Bank ATM
+    category: cash
+    timestamp: 2024-03-03T11:45:00Z
+    reference: ATM-2024-0303-001
+  - id: txn-016
+    account: acc-007
+    type: interest
+    status: completed
+    amount: 587.93
+    currency: USD
+    description: Monthly Interest
+    merchant: Bank
+    category: interest
+    timestamp: 2024-03-05T00:00:00Z
+    reference: INT-2024-0305-002
+  - id: txn-017
+    account: acc-009
+    type: deposit
+    status: completed
+    amount: 2800.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Retail Corp
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-003
+  - id: txn-018
+    account: acc-009
+    type: payment
+    status: completed
+    amount: 1200.00
+    currency: USD
+    description: Rent Payment
+    merchant: Metro Living
+    category: housing
+    timestamp: 2024-03-02T08:00:00Z
+    reference: PMT-2024-0302-001
+  - id: txn-019
+    account: acc-010
+    type: payment
+    status: completed
+    amount: 456.78
+    currency: USD
+    description: Grocery Shopping
+    merchant: Whole Foods
+    category: groceries
+    timestamp: 2024-03-01T15:30:00Z
+    reference: POS-2024-0301-001
+  - id: txn-020
+    account: acc-010
+    type: payment
+    status: completed
+    amount: 78.90
+    currency: USD
+    description: Gas Station
+    merchant: Shell
+    category: transportation
+    timestamp: 2024-03-03T08:15:00Z
+    reference: POS-2024-0303-001
+  - id: txn-021
+    account: acc-011
+    type: deposit
+    status: completed
+    amount: 12000.00
+    currency: USD
+    description: Pension Deposit
+    merchant: State Pension Fund
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PEN-2024-0301-001
+  - id: txn-022
+    account: acc-011
+    type: transfer
+    status: completed
+    amount: 5000.00
+    currency: USD
+    description: Transfer to Savings
+    merchant: Internal
+    category: transfer
+    timestamp: 2024-03-02T10:00:00Z
+    reference: TRF-2024-0302-001
+  - id: txn-023
+    account: acc-012
+    type: transfer
+    status: completed
+    amount: 5000.00
+    currency: USD
+    description: Transfer from Checking
+    merchant: Internal
+    category: transfer
+    timestamp: 2024-03-02T10:00:00Z
+    reference: TRF-2024-0302-002
+  - id: txn-024
+    account: acc-012
+    type: interest
+    status: completed
+    amount: 928.44
+    currency: USD
+    description: Monthly Interest
+    merchant: Bank
+    category: interest
+    timestamp: 2024-03-05T00:00:00Z
+    reference: INT-2024-0305-003
+  - id: txn-025
+    account: acc-014
+    type: deposit
+    status: completed
+    amount: 4500.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Marketing Agency
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-004
+  - id: txn-026
+    account: acc-014
+    type: payment
+    status: completed
+    amount: 1800.00
+    currency: USD
+    description: Rent Payment
+    merchant: Urban Apartments
+    category: housing
+    timestamp: 2024-03-03T08:00:00Z
+    reference: PMT-2024-0303-002
+  - id: txn-027
+    account: acc-016
+    type: deposit
+    status: completed
+    amount: 6200.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Construction Co
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-005
+  - id: txn-028
+    account: acc-016
+    type: payment
+    status: completed
+    amount: 350.00
+    currency: USD
+    description: Utility Bills
+    merchant: City Power
+    category: utilities
+    timestamp: 2024-03-04T08:00:00Z
+    reference: PMT-2024-0304-001
+  - id: txn-029
+    account: acc-018
+    type: deposit
+    status: completed
+    amount: 3800.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Design Studio
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-006
+  - id: txn-030
+    account: acc-018
+    type: withdrawal
+    status: completed
+    amount: 300.00
+    currency: USD
+    description: ATM Withdrawal
+    merchant: Bank ATM
+    category: cash
+    timestamp: 2024-03-02T12:00:00Z
+    reference: ATM-2024-0302-002
+  - id: txn-031
+    account: acc-019
+    type: payment
+    status: completed
+    amount: 567.89
+    currency: USD
+    description: Department Store
+    merchant: Macy's
+    category: shopping
+    timestamp: 2024-03-01T14:20:00Z
+    reference: POS-2024-0301-002
+  - id: txn-032
+    account: acc-019
+    type: payment
+    status: completed
+    amount: 45.00
+    currency: USD
+    description: Subscription
+    merchant: Spotify
+    category: entertainment
+    timestamp: 2024-03-01T00:00:00Z
+    reference: REC-2024-0301-001
+  - id: txn-033
+    account: acc-020
+    type: deposit
+    status: completed
+    amount: 7500.00
+    currency: USD
+    description: Business Income
+    merchant: Self-Employment
+    category: income
+    timestamp: 2024-03-01T11:00:00Z
+    reference: DEP-2024-0301-002
+  - id: txn-034
+    account: acc-020
+    type: payment
+    status: completed
+    amount: 2200.00
+    currency: USD
+    description: Mortgage Payment
+    merchant: Wells Fargo
+    category: housing
+    timestamp: 2024-03-01T08:00:00Z
+    reference: PMT-2024-0301-002
+  - id: txn-035
+    account: acc-021
+    type: interest
+    status: completed
+    amount: 710.63
+    currency: USD
+    description: Monthly Interest
+    merchant: Bank
+    category: interest
+    timestamp: 2024-03-05T00:00:00Z
+    reference: INT-2024-0305-004
+  - id: txn-036
+    account: acc-022
+    type: deposit
+    status: completed
+    amount: 2500.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Startup Inc
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-007
+  - id: txn-037
+    account: acc-023
+    type: payment
+    status: completed
+    amount: 1234.56
+    currency: USD
+    description: Electronics Purchase
+    merchant: Best Buy
+    category: shopping
+    timestamp: 2024-03-02T16:45:00Z
+    reference: POS-2024-0302-002
+  - id: txn-038
+    account: acc-024
+    type: deposit
+    status: completed
+    amount: 5800.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Law Firm LLP
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-008
+  - id: txn-039
+    account: acc-025
+    type: interest
+    status: completed
+    amount: 310.17
+    currency: USD
+    description: Monthly Interest
+    merchant: Bank
+    category: interest
+    timestamp: 2024-03-05T00:00:00Z
+    reference: INT-2024-0305-005
+  - id: txn-040
+    account: acc-026
+    type: deposit
+    status: completed
+    amount: 3100.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Hospital
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-009
+  - id: txn-041
+    account: acc-027
+    type: deposit
+    status: completed
+    amount: 9800.00
+    currency: USD
+    description: Investment Returns
+    merchant: Dividend Income
+    category: income
+    timestamp: 2024-03-01T10:00:00Z
+    reference: DIV-2024-0301-001
+  - id: txn-042
+    account: acc-027
+    type: transfer
+    status: completed
+    amount: 3000.00
+    currency: USD
+    description: Transfer to Investment
+    merchant: Internal
+    category: transfer
+    timestamp: 2024-03-03T09:00:00Z
+    reference: TRF-2024-0303-001
+  - id: txn-043
+    account: acc-029
+    type: deposit
+    status: completed
+    amount: 4200.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: School District
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-010
+  - id: txn-044
+    account: acc-030
+    type: deposit
+    status: completed
+    amount: 5500.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Insurance Co
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-011
+  - id: txn-045
+    account: acc-031
+    type: deposit
+    status: completed
+    amount: 15000.00
+    currency: USD
+    description: Consulting Income
+    merchant: Client XYZ
+    category: income
+    timestamp: 2024-03-01T10:30:00Z
+    reference: DEP-2024-0301-003
+  - id: txn-046
+    account: acc-032
+    type: interest
+    status: completed
+    amount: 1368.00
+    currency: USD
+    description: Monthly Interest
+    merchant: Bank
+    category: interest
+    timestamp: 2024-03-05T00:00:00Z
+    reference: INT-2024-0305-006
+  - id: txn-047
+    account: acc-033
+    type: deposit
+    status: completed
+    amount: 4100.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Manufacturing Co
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-012
+  - id: txn-048
+    account: acc-034
+    type: deposit
+    status: completed
+    amount: 2900.00
+    currency: USD
+    description: Payroll Direct Deposit
+    merchant: Media Company
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PAY-2024-0301-013
+  - id: txn-049
+    account: acc-035
+    type: deposit
+    status: completed
+    amount: 6800.00
+    currency: USD
+    description: Pension Deposit
+    merchant: Federal Pension
+    category: income
+    timestamp: 2024-03-01T09:00:00Z
+    reference: PEN-2024-0301-002
+  - id: txn-050
+    account: acc-001
+    type: payment
+    status: pending
+    amount: 750.00
+    currency: USD
+    description: Insurance Premium
+    merchant: State Farm
+    category: insurance
+    timestamp: 2024-03-10T08:00:00Z
+    reference: PMT-2024-0310-001
+
+cards:
+  - id: card-001
+    account: acc-001
+    type: debit
+    network: visa
+    last4: "4521"
+    expiry: 2027-06
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-002
+    account: acc-005
+    type: credit
+    network: mastercard
+    last4: "8934"
+    expiry: 2026-09
+    credit_limit: 5000.00
+    rewards_rate: 1.5
+    is_primary: true
+  - id: card-003
+    account: acc-006
+    type: debit
+    network: visa
+    last4: "2156"
+    expiry: 2028-03
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-004
+    account: acc-010
+    type: credit
+    network: visa
+    last4: "6743"
+    expiry: 2025-12
+    credit_limit: 8000.00
+    rewards_rate: 2.0
+    is_primary: true
+  - id: card-005
+    account: acc-011
+    type: debit
+    network: mastercard
+    last4: "1298"
+    expiry: 2027-09
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-006
+    account: acc-014
+    type: debit
+    network: visa
+    last4: "5672"
+    expiry: 2026-06
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-007
+    account: acc-016
+    type: debit
+    network: discover
+    last4: "3489"
+    expiry: 2028-01
+    credit_limit: null
+    rewards_rate: 1.0
+    is_primary: true
+  - id: card-008
+    account: acc-018
+    type: debit
+    network: visa
+    last4: "7821"
+    expiry: 2027-04
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-009
+    account: acc-019
+    type: credit
+    network: amex
+    last4: "4156"
+    expiry: 2026-08
+    credit_limit: 3000.00
+    rewards_rate: 2.5
+    is_primary: true
+  - id: card-010
+    account: acc-020
+    type: debit
+    network: mastercard
+    last4: "9234"
+    expiry: 2027-11
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-011
+    account: acc-022
+    type: debit
+    network: visa
+    last4: "1567"
+    expiry: 2028-05
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-012
+    account: acc-023
+    type: credit
+    network: visa
+    last4: "8345"
+    expiry: 2025-10
+    credit_limit: 10000.00
+    rewards_rate: 1.5
+    is_primary: true
+  - id: card-013
+    account: acc-024
+    type: debit
+    network: discover
+    last4: "2678"
+    expiry: 2027-07
+    credit_limit: null
+    rewards_rate: 1.0
+    is_primary: true
+  - id: card-014
+    account: acc-026
+    type: debit
+    network: visa
+    last4: "5912"
+    expiry: 2026-12
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-015
+    account: acc-027
+    type: debit
+    network: mastercard
+    last4: "3745"
+    expiry: 2028-02
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-016
+    account: acc-029
+    type: debit
+    network: visa
+    last4: "6189"
+    expiry: 2027-08
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-017
+    account: acc-030
+    type: debit
+    network: amex
+    last4: "4523"
+    expiry: 2026-05
+    credit_limit: null
+    rewards_rate: 1.5
+    is_primary: true
+  - id: card-018
+    account: acc-031
+    type: debit
+    network: visa
+    last4: "7856"
+    expiry: 2028-04
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-019
+    account: acc-033
+    type: debit
+    network: mastercard
+    last4: "1934"
+    expiry: 2027-10
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+  - id: card-020
+    account: acc-034
+    type: debit
+    network: visa
+    last4: "8267"
+    expiry: 2026-11
+    credit_limit: null
+    rewards_rate: 0.5
+    is_primary: true
+
+investments:
+  - id: inv-001
+    account: acc-003
+    type: stock
+    symbol: AAPL
+    name: Apple Inc
+    shares: 150
+    purchase_price: 142.50
+    current_price: 178.25
+    purchase_date: 2019-03-20
+  - id: inv-002
+    account: acc-003
+    type: stock
+    symbol: MSFT
+    name: Microsoft Corp
+    shares: 100
+    purchase_price: 245.00
+    current_price: 415.80
+    purchase_date: 2020-01-15
+  - id: inv-003
+    account: acc-003
+    type: etf
+    symbol: SPY
+    name: S&P 500 ETF
+    shares: 50
+    purchase_price: 380.00
+    current_price: 512.45
+    purchase_date: 2019-06-10
+  - id: inv-004
+    account: acc-003
+    type: stock
+    symbol: GOOGL
+    name: Alphabet Inc
+    shares: 25
+    purchase_price: 1250.00
+    current_price: 141.95
+    purchase_date: 2021-02-20
+  - id: inv-005
+    account: acc-003
+    type: bond
+    symbol: BND
+    name: Vanguard Bond ETF
+    shares: 200
+    purchase_price: 82.50
+    current_price: 73.25
+    purchase_date: 2020-08-15
+  - id: inv-006
+    account: acc-008
+    type: stock
+    symbol: NVDA
+    name: NVIDIA Corp
+    shares: 80
+    purchase_price: 220.00
+    current_price: 878.35
+    purchase_date: 2019-01-10
+  - id: inv-007
+    account: acc-008
+    type: stock
+    symbol: AMZN
+    name: Amazon.com Inc
+    shares: 60
+    purchase_price: 1850.00
+    current_price: 178.50
+    purchase_date: 2018-05-20
+  - id: inv-008
+    account: acc-008
+    type: etf
+    symbol: QQQ
+    name: Nasdaq 100 ETF
+    shares: 75
+    purchase_price: 285.00
+    current_price: 438.20
+    purchase_date: 2019-09-15
+  - id: inv-009
+    account: acc-008
+    type: mutual_fund
+    symbol: VFIAX
+    name: Vanguard 500 Index
+    shares: 120
+    purchase_price: 350.00
+    current_price: 485.60
+    purchase_date: 2016-03-01
+  - id: inv-010
+    account: acc-008
+    type: stock
+    symbol: META
+    name: Meta Platforms
+    shares: 45
+    purchase_price: 185.00
+    current_price: 505.75
+    purchase_date: 2022-11-10
+  - id: inv-011
+    account: acc-013
+    type: stock
+    symbol: TSLA
+    name: Tesla Inc
+    shares: 100
+    purchase_price: 180.00
+    current_price: 175.45
+    purchase_date: 2020-06-15
+  - id: inv-012
+    account: acc-013
+    type: stock
+    symbol: JPM
+    name: JPMorgan Chase
+    shares: 150
+    purchase_price: 125.00
+    current_price: 198.50
+    purchase_date: 2015-04-20
+  - id: inv-013
+    account: acc-013
+    type: etf
+    symbol: VTI
+    name: Vanguard Total Market
+    shares: 200
+    purchase_price: 180.00
+    current_price: 264.30
+    purchase_date: 2014-01-10
+  - id: inv-014
+    account: acc-013
+    type: bond
+    symbol: TLT
+    name: iShares 20+ Year Treasury
+    shares: 100
+    purchase_price: 145.00
+    current_price: 92.15
+    purchase_date: 2019-12-01
+  - id: inv-015
+    account: acc-013
+    type: stock
+    symbol: V
+    name: Visa Inc
+    shares: 80
+    purchase_price: 185.00
+    current_price: 282.40
+    purchase_date: 2017-08-15
+  - id: inv-016
+    account: acc-017
+    type: stock
+    symbol: DIS
+    name: Walt Disney Co
+    shares: 120
+    purchase_price: 140.00
+    current_price: 112.85
+    purchase_date: 2018-03-20
+  - id: inv-017
+    account: acc-017
+    type: etf
+    symbol: IWM
+    name: Russell 2000 ETF
+    shares: 100
+    purchase_price: 165.00
+    current_price: 207.50
+    purchase_date: 2019-07-10
+  - id: inv-018
+    account: acc-017
+    type: mutual_fund
+    symbol: FXAIX
+    name: Fidelity 500 Index
+    shares: 80
+    purchase_price: 145.00
+    current_price: 185.25
+    purchase_date: 2020-04-15
+  - id: inv-019
+    account: acc-028
+    type: stock
+    symbol: JNJ
+    name: Johnson & Johnson
+    shares: 200
+    purchase_price: 145.00
+    current_price: 156.80
+    purchase_date: 2013-02-10
+  - id: inv-020
+    account: acc-028
+    type: stock
+    symbol: PG
+    name: Procter & Gamble
+    shares: 150
+    purchase_price: 125.00
+    current_price: 162.45
+    purchase_date: 2014-06-20
+  - id: inv-021
+    account: acc-028
+    type: etf
+    symbol: VYM
+    name: Vanguard High Dividend
+    shares: 175
+    purchase_price: 95.00
+    current_price: 118.60
+    purchase_date: 2015-09-15
+  - id: inv-022
+    account: acc-028
+    type: bond
+    symbol: AGG
+    name: iShares Core Bond
+    shares: 250
+    purchase_price: 108.00
+    current_price: 96.75
+    purchase_date: 2016-01-10
+  - id: inv-023
+    account: acc-028
+    type: crypto
+    symbol: BTC
+    name: Bitcoin
+    shares: 2.5
+    purchase_price: 28000.00
+    current_price: 67500.00
+    purchase_date: 2021-07-15
+  - id: inv-024
+    account: acc-028
+    type: crypto
+    symbol: ETH
+    name: Ethereum
+    shares: 15
+    purchase_price: 1800.00
+    current_price: 3450.00
+    purchase_date: 2021-08-20
+  - id: inv-025
+    account: acc-003
+    type: mutual_fund
+    symbol: VTSAX
+    name: Vanguard Total Stock
+    shares: 50
+    purchase_price: 95.00
+    current_price: 125.40
+    purchase_date: 2022-01-10
+
+loans:
+  - id: loan-001
+    customer: cust-003
+    type: mortgage
+    status: current
+    principal: 450000.00
+    interest_rate: 3.75
+    term_months: 360
+    monthly_payment: 2084.82
+    start_date: 2020-06-01
+    remaining_balance: 412500.00
+  - id: loan-002
+    customer: cust-004
+    type: auto
+    status: current
+    principal: 28000.00
+    interest_rate: 5.99
+    term_months: 60
+    monthly_payment: 541.87
+    start_date: 2022-01-15
+    remaining_balance: 18500.00
+  - id: loan-003
+    customer: cust-006
+    type: personal
+    status: current
+    principal: 15000.00
+    interest_rate: 9.99
+    term_months: 36
+    monthly_payment: 484.15
+    start_date: 2023-03-01
+    remaining_balance: 8750.00
+  - id: loan-004
+    customer: cust-007
+    type: mortgage
+    status: current
+    principal: 325000.00
+    interest_rate: 4.25
+    term_months: 360
+    monthly_payment: 1599.24
+    start_date: 2019-09-01
+    remaining_balance: 298000.00
+  - id: loan-005
+    customer: cust-009
+    type: auto
+    status: paid_off
+    principal: 35000.00
+    interest_rate: 4.99
+    term_months: 48
+    monthly_payment: 805.84
+    start_date: 2020-02-01
+    remaining_balance: 0.00
+  - id: loan-006
+    customer: cust-010
+    type: student
+    status: current
+    principal: 45000.00
+    interest_rate: 6.50
+    term_months: 120
+    monthly_payment: 510.25
+    start_date: 2021-09-01
+    remaining_balance: 38500.00
+  - id: loan-007
+    customer: cust-011
+    type: mortgage
+    status: current
+    principal: 550000.00
+    interest_rate: 3.50
+    term_months: 360
+    monthly_payment: 2470.53
+    start_date: 2018-04-01
+    remaining_balance: 485000.00
+  - id: loan-008
+    customer: cust-012
+    type: auto
+    status: current
+    principal: 22000.00
+    interest_rate: 6.49
+    term_months: 60
+    monthly_payment: 430.78
+    start_date: 2023-06-01
+    remaining_balance: 19200.00
+  - id: loan-009
+    customer: cust-013
+    type: business
+    status: current
+    principal: 150000.00
+    interest_rate: 7.50
+    term_months: 84
+    monthly_payment: 2292.15
+    start_date: 2021-01-15
+    remaining_balance: 98500.00
+  - id: loan-010
+    customer: cust-014
+    type: personal
+    status: delinquent
+    principal: 10000.00
+    interest_rate: 12.99
+    term_months: 24
+    monthly_payment: 475.88
+    start_date: 2023-08-01
+    remaining_balance: 6200.00
+  - id: loan-011
+    customer: cust-015
+    type: mortgage
+    status: current
+    principal: 280000.00
+    interest_rate: 4.00
+    term_months: 360
+    monthly_payment: 1337.02
+    start_date: 2017-11-01
+    remaining_balance: 248000.00
+  - id: loan-012
+    customer: cust-016
+    type: auto
+    status: paid_off
+    principal: 42000.00
+    interest_rate: 4.25
+    term_months: 48
+    monthly_payment: 952.85
+    start_date: 2019-08-01
+    remaining_balance: 0.00
+  - id: loan-013
+    customer: cust-017
+    type: student
+    status: current
+    principal: 65000.00
+    interest_rate: 5.99
+    term_months: 120
+    monthly_payment: 721.65
+    start_date: 2020-05-01
+    remaining_balance: 52000.00
+  - id: loan-014
+    customer: cust-018
+    type: personal
+    status: current
+    principal: 8000.00
+    interest_rate: 11.99
+    term_months: 24
+    monthly_payment: 377.42
+    start_date: 2024-01-15
+    remaining_balance: 7250.00
+  - id: loan-015
+    customer: cust-020
+    type: mortgage
+    status: current
+    principal: 380000.00
+    interest_rate: 3.875
+    term_months: 360
+    monthly_payment: 1787.21
+    start_date: 2021-03-01
+    remaining_balance: 358000.00
+
+alerts:
+  - id: alert-001
+    customer: cust-002
+    account: acc-005
+    type: low_balance
+    message: Credit utilization above 40%
+    severity: medium
+    timestamp: 2024-03-05T10:00:00Z
+    acknowledged: false
+  - id: alert-002
+    customer: cust-004
+    account: acc-010
+    type: high_utilization
+    message: Credit limit reached 57%
+    severity: high
+    timestamp: 2024-03-04T14:30:00Z
+    acknowledged: true
+  - id: alert-003
+    customer: cust-006
+    account: acc-015
+    type: account_frozen
+    message: Account frozen due to suspicious activity
+    severity: critical
+    timestamp: 2024-01-15T08:45:00Z
+    acknowledged: true
+  - id: alert-004
+    customer: cust-010
+    account: acc-023
+    type: over_limit
+    message: Credit limit exceeded by $750
+    severity: critical
+    timestamp: 2024-03-08T16:20:00Z
+    acknowledged: false
+  - id: alert-005
+    customer: cust-001
+    account: acc-002
+    type: large_deposit
+    message: Large deposit detected: $2000
+    severity: low
+    timestamp: 2024-03-04T10:15:00Z
+    acknowledged: true
+  - id: alert-006
+    customer: cust-003
+    account: acc-006
+    type: unusual_activity
+    message: Multiple transactions in short period
+    severity: medium
+    timestamp: 2024-03-03T12:30:00Z
+    acknowledged: true
+  - id: alert-007
+    customer: cust-005
+    account: acc-011
+    type: large_withdrawal
+    message: Large withdrawal: $5000
+    severity: medium
+    timestamp: 2024-03-02T10:00:00Z
+    acknowledged: true
+  - id: alert-008
+    customer: cust-008
+    account: acc-019
+    type: payment_due
+    message: Payment due in 3 days
+    severity: low
+    timestamp: 2024-03-05T09:00:00Z
+    acknowledged: false
+  - id: alert-009
+    customer: cust-014
+    account: null
+    type: loan_delinquent
+    message: Loan payment overdue 15 days
+    severity: critical
+    timestamp: 2024-03-10T08:00:00Z
+    acknowledged: false
+  - id: alert-010
+    customer: cust-009
+    account: acc-020
+    type: security
+    message: New device login detected
+    severity: high
+    timestamp: 2024-03-06T22:15:00Z
+    acknowledged: true
+  - id: alert-011
+    customer: cust-011
+    account: acc-024
+    type: fraud_attempt
+    message: Potential fraud detected - transaction blocked
+    severity: critical
+    timestamp: 2024-03-07T03:45:00Z
+    acknowledged: true
+  - id: alert-012
+    customer: cust-012
+    account: acc-026
+    type: low_balance
+    message: Balance below $500 threshold
+    severity: low
+    timestamp: 2024-03-09T11:00:00Z
+    acknowledged: false
+  - id: alert-013
+    customer: cust-015
+    account: acc-030
+    type: statement_ready
+    message: Monthly statement available
+    severity: low
+    timestamp: 2024-03-01T06:00:00Z
+    acknowledged: true
+  - id: alert-014
+    customer: cust-016
+    account: acc-031
+    type: large_transfer
+    message: Wire transfer: $10000 initiated
+    severity: high
+    timestamp: 2024-03-08T14:00:00Z
+    acknowledged: true
+  - id: alert-015
+    customer: cust-017
+    account: acc-033
+    type: card_expiring
+    message: Debit card expires next month
+    severity: medium
+    timestamp: 2024-03-01T09:00:00Z
+    acknowledged: false
+  - id: alert-016
+    customer: cust-018
+    account: acc-034
+    type: direct_deposit
+    message: Direct deposit received: $2900
+    severity: low
+    timestamp: 2024-03-01T09:00:00Z
+    acknowledged: true
+  - id: alert-017
+    customer: cust-019
+    account: acc-035
+    type: interest_paid
+    message: Interest credited: $250.45
+    severity: low
+    timestamp: 2024-03-05T00:00:00Z
+    acknowledged: true
+  - id: alert-018
+    customer: cust-020
+    account: null
+    type: loan_payment
+    message: Mortgage payment due in 5 days
+    severity: medium
+    timestamp: 2024-03-05T08:00:00Z
+    acknowledged: false
+  - id: alert-019
+    customer: cust-003
+    account: acc-008
+    type: dividend
+    message: Dividend payment received: $1250
+    severity: low
+    timestamp: 2024-03-10T10:00:00Z
+    acknowledged: true
+  - id: alert-020
+    customer: cust-007
+    account: acc-017
+    type: market_alert
+    message: Portfolio down 5% today
+    severity: high
+    timestamp: 2024-03-04T16:00:00Z
+    acknowledged: true
+
+statements:
+  - id: stmt-001
+    account: acc-001
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 12234.56
+    closing_balance: 15234.56
+    total_deposits: 8500.00
+    total_withdrawals: 5500.00
+    fees: 15.00
+    interest_earned: 0.12
+  - id: stmt-002
+    account: acc-002
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 46577.60
+    closing_balance: 48750.00
+    total_deposits: 2000.00
+    total_withdrawals: 0.00
+    fees: 0.00
+    interest_earned: 172.40
+  - id: stmt-003
+    account: acc-004
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 2106.78
+    closing_balance: 3456.78
+    total_deposits: 3200.00
+    total_withdrawals: 1850.00
+    fees: 0.00
+    interest_earned: 0.02
+  - id: stmt-004
+    account: acc-006
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 23245.12
+    closing_balance: 28945.12
+    total_deposits: 8500.00
+    total_withdrawals: 3300.00
+    fees: 25.00
+    interest_earned: 25.00
+  - id: stmt-005
+    account: acc-007
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 151192.07
+    closing_balance: 156780.00
+    total_deposits: 5000.00
+    total_withdrawals: 0.00
+    fees: 0.00
+    interest_earned: 587.93
+  - id: stmt-006
+    account: acc-009
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 645.89
+    closing_balance: 1245.89
+    total_deposits: 2800.00
+    total_withdrawals: 2200.00
+    fees: 0.00
+    interest_earned: 0.01
+  - id: stmt-007
+    account: acc-011
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 38678.90
+    closing_balance: 45678.90
+    total_deposits: 12000.00
+    total_withdrawals: 5000.00
+    fees: 0.00
+    interest_earned: 13.68
+  - id: stmt-008
+    account: acc-012
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 228571.56
+    closing_balance: 234500.00
+    total_deposits: 5000.00
+    total_withdrawals: 0.00
+    fees: 0.00
+    interest_earned: 928.44
+  - id: stmt-009
+    account: acc-014
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 6065.43
+    closing_balance: 8765.43
+    total_deposits: 4500.00
+    total_withdrawals: 1800.00
+    fees: 0.00
+    interest_earned: 4.38
+  - id: stmt-010
+    account: acc-016
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 14026.54
+    closing_balance: 19876.54
+    total_deposits: 6200.00
+    total_withdrawals: 350.00
+    fees: 0.00
+    interest_earned: 11.92
+  - id: stmt-011
+    account: acc-020
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 62590.12
+    closing_balance: 67890.12
+    total_deposits: 7500.00
+    total_withdrawals: 2200.00
+    fees: 0.00
+    interest_earned: 62.59
+  - id: stmt-012
+    account: acc-021
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 183789.37
+    closing_balance: 189500.00
+    total_deposits: 5000.00
+    total_withdrawals: 0.00
+    fees: 0.00
+    interest_earned: 710.63
+  - id: stmt-013
+    account: acc-024
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 28767.89
+    closing_balance: 34567.89
+    total_deposits: 5800.00
+    total_withdrawals: 0.00
+    fees: 0.00
+    interest_earned: 17.38
+  - id: stmt-014
+    account: acc-027
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 50989.34
+    closing_balance: 56789.34
+    total_deposits: 9800.00
+    total_withdrawals: 4000.00
+    fees: 0.00
+    interest_earned: 50.99
+  - id: stmt-015
+    account: acc-031
+    period_start: 2024-02-01
+    period_end: 2024-02-29
+    opening_balance: 63901.23
+    closing_balance: 78901.23
+    total_deposits: 15000.00
+    total_withdrawals: 0.00
+    fees: 0.00
+    interest_earned: 63.90

@@ -35,25 +35,42 @@
 
 #![cfg_attr(not(test), warn(missing_docs))]
 mod block_string;
+/// Value coercion for HEDL type system.
 pub mod coercion;
+/// Common conversion utilities and traits for HEDL format converters.
 pub mod convert;
 mod document;
 mod error;
+/// Error handling utilities and centralized error messages.
 pub mod errors;
+/// Header directive parsing for HEDL.
 pub mod header;
+/// Value inference ladder for HEDL.
 pub mod inference;
+
+// Re-export header types for convenience
+pub use header::{CountValue, ParseMode};
+/// Lexical analysis subsystem for HEDL.
 pub mod lex;
 mod limits;
+/// Parallel parsing infrastructure for hedl-core.
 #[cfg(feature = "parallel")]
 pub mod parallel;
 mod parser;
+/// Input preprocessing for HEDL parsing.
 pub mod preprocess;
+/// Reference resolution for HEDL.
 pub mod reference;
+/// Schema versioning for HEDL types.
 pub mod schema_version;
+/// Document traversal trait for format converters.
 pub mod traverse;
+/// Type system for bidirectional type checking in HEDL.
 pub mod types;
+/// Comprehensive validation framework for HEDL documents.
 pub mod validation;
 mod value;
+/// Comprehensive visitor pattern API for HEDL document traversal.
 pub mod visitor;
 
 pub use coercion::{

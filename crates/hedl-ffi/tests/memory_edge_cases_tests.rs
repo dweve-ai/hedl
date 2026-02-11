@@ -13,8 +13,9 @@ use std::ptr;
 
 #[test]
 fn test_free_string_allocated_by_hedl() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -30,34 +31,33 @@ fn test_free_string_allocated_by_hedl() {
     }
 }
 
+#[cfg(feature = "parquet")]
 #[test]
 fn test_free_bytes_with_various_lengths() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
-        // Create some data via parquet conversion
-        #[cfg(feature = "parquet")]
-        {
-            let input = b"%VERSION: 1.0\n---\ndata: [{ id: 1 }]\0";
-            let mut doc: *mut HedlDocument = ptr::null_mut();
-            hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: [{ id: 1 }]\0";
+        let mut doc: *mut HedlDocument = ptr::null_mut();
+        hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
-            let mut out_data: *mut u8 = ptr::null_mut();
-            let mut out_len: usize = 0;
-            let result = hedl_to_parquet(doc, &mut out_data, &mut out_len);
+        let mut out_data: *mut u8 = ptr::null_mut();
+        let mut out_len: usize = 0;
+        let result = hedl_to_parquet(doc, &mut out_data, &mut out_len);
 
-            if result == HEDL_OK && !out_data.is_null() {
-                // Free with exact length
-                hedl_free_bytes(out_data, out_len);
-            }
-
-            hedl_free_document(doc);
+        if result == HEDL_OK && !out_data.is_null() {
+            // Free with exact length
+            hedl_free_bytes(out_data, out_len);
         }
+
+        hedl_free_document(doc);
     }
 }
 
 #[test]
 fn test_multiple_string_allocations_and_frees() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -74,8 +74,9 @@ fn test_multiple_string_allocations_and_frees() {
 
 #[test]
 fn test_document_lifetime_separate_from_outputs() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -96,8 +97,9 @@ fn test_document_lifetime_separate_from_outputs() {
 
 #[test]
 fn test_diagnostics_lifetime_separate_from_document() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -117,8 +119,9 @@ fn test_diagnostics_lifetime_separate_from_document() {
 
 #[test]
 fn test_output_strings_are_independent() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -142,8 +145,9 @@ fn test_output_strings_are_independent() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_string_allocation() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -164,6 +168,7 @@ fn test_json_string_allocation() {
 
 #[test]
 fn test_null_pointer_free_operations_are_safe() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // All of these should be safe no-ops
         hedl_free_string(ptr::null_mut());
@@ -176,6 +181,7 @@ fn test_null_pointer_free_operations_are_safe() {
 
 #[test]
 fn test_parse_output_pointer_reset_on_error() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
 
@@ -191,8 +197,9 @@ fn test_parse_output_pointer_reset_on_error() {
 #[cfg(feature = "json")]
 #[test]
 fn test_conversion_output_pointer_reset_on_error() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -206,6 +213,7 @@ fn test_conversion_output_pointer_reset_on_error() {
 
 #[test]
 fn test_document_allocation_failure_handling() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
 
@@ -219,8 +227,9 @@ fn test_document_allocation_failure_handling() {
 
 #[test]
 fn test_diagnostics_allocation() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -237,9 +246,10 @@ fn test_diagnostics_allocation() {
 
 #[test]
 fn test_sequential_operations_memory_safety() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Parse
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -265,9 +275,10 @@ fn test_sequential_operations_memory_safety() {
 
 #[test]
 fn test_memory_usage_with_large_document() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // Create large document
-        let mut input = String::from("%VERSION: 1.0\n---\n");
+        let mut input = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         for i in 0..10000 {
             input.push_str(&format!("item{i}: {i}\n"));
         }
@@ -291,8 +302,9 @@ fn test_memory_usage_with_large_document() {
 #[cfg(feature = "parquet")]
 #[test]
 fn test_parquet_bytes_allocation() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\ndata: [{ x: 1 }, { x: 2 }]\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: [{ x: 1 }, { x: 2 }]\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -318,8 +330,9 @@ fn test_parquet_bytes_allocation() {
 
 #[test]
 fn test_pointer_validity_across_operations() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc1: *mut HedlDocument = ptr::null_mut();
         let mut doc2: *mut HedlDocument = ptr::null_mut();
 
@@ -340,9 +353,10 @@ fn test_pointer_validity_across_operations() {
 
 #[test]
 fn test_string_allocation_with_empty_output() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Create document that might produce empty output
-        let input = b"%VERSION: 1.0\n---\n\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 

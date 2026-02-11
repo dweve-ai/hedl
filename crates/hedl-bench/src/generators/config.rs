@@ -29,7 +29,7 @@ pub enum ComplexityLevel {
     Flat,
     /// Moderate nesting (blog posts with comments, orders with items).
     ModerateNesting,
-    /// Heavy use of ditto markers for repeated values.
+    /// Heavy use of ditto markers for repeated values (pre-v2.0 only).
     DittoHeavy,
     /// Cross-references and graph structures.
     ReferenceHeavy,

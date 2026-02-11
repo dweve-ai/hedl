@@ -393,6 +393,7 @@ fn value_to_csv_string(value: &Value) -> String {
         Value::Reference(r) => r.to_ref_string(),
         Value::Tensor(t) => tensor_to_json_string(t),
         Value::Expression(e) => format!("$({e})"),
+        Value::List(items) => list_to_csv_string(items),
     }
 }
 
@@ -413,6 +414,24 @@ fn tensor_to_json_string(tensor: &Tensor) -> String {
             format!("[{}]", inner.join(","))
         }
     }
+}
+
+/// Convert a list to HEDL list syntax string representation.
+/// Examples: `(admin, editor)` or `(true, false, true)`
+fn list_to_csv_string(items: &[Value]) -> String {
+    if items.is_empty() {
+        return "()".to_string();
+    }
+
+    let inner: Vec<String> = items
+        .iter()
+        .map(|item| match item {
+            Value::String(s) => s.to_string(),
+            other => value_to_csv_string(other),
+        })
+        .collect();
+
+    format!("({})", inner.join(", "))
 }
 
 #[cfg(test)]

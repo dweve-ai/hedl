@@ -106,7 +106,10 @@ pub fn preprocess(input: &[u8], limits: &Limits) -> HedlResult<PreprocessedInput
     let text: Cow<'_, str> = if text.contains('\r') {
         let normalized = text.replace("\r\n", "\n");
         if normalized.contains('\r') {
-            let line_num = normalized[..normalized.find('\r').unwrap()]
+            // SAFETY: contains('\r') guarantees find succeeds
+            let line_num = normalized[..normalized
+                .find('\r')
+                .expect("contains guarantees CR exists")]
                 .matches('\n')
                 .count()
                 + 1;
@@ -229,11 +232,11 @@ mod tests {
 
     #[test]
     fn test_preprocess_simple() {
-        let input = b"%VERSION: 1.0\n---\na: 1\n";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\na: 1\n";
         let result = preprocess(input, &default_limits()).unwrap();
         let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 4);
-        assert_eq!(lines[0], (1, "%VERSION: 1.0"));
+        assert_eq!(lines.len(), 6); // v2.0 header has more lines
+        assert_eq!(lines[0], (1, "%V:2.0"));
     }
 
     #[test]

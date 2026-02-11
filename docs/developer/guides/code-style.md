@@ -1,90 +1,162 @@
-# Code Style Guide
+# Code Style: Writing Code That Speaks
 
-Coding standards and conventions for HEDL development.
+Code is read far more often than it's written. That line you dashed off in five minutes? Someone will puzzle over it for an hour, trying to understand what you meant. That someone might be a new contributor. A maintainer debugging at 2am. Or you, six months from now, having forgotten everything.
 
-## Rust Naming Conventions
+Good style isn't about aesthetics. It's about communication. Every naming choice, every organization decision, every pattern you follow tells the reader something. Bad style forces readers to decode your intent. Good style makes intent obvious.
 
-### Functions and Variables
+This guide captures the HEDL team's accumulated wisdom about writing code that communicates clearly.
+
+```mermaid
+flowchart BT
+    subgraph Clarity["THE HIERARCHY OF CLARITY"]
+        L1["Level 1: Formatting<br/>rustfmt handles this. Consistent indentation, spacing."]
+        L2["Level 2: Naming<br/>This guide. Names that explain themselves."]
+        L3["Level 3: Structure<br/>This guide. Organization that reveals intent."]
+        L4["Level 4: Architecture<br/>Design docs. The big picture."]
+
+        L1 --> L2 --> L3 --> L4
+    end
+
+    NOTE["Each level builds on those below.<br/>Perfect formatting with bad naming is still unreadable."]
+    Clarity --> NOTE
+
+    style L1 fill:#e3f2fd,stroke:#1565c0
+    style L2 fill:#e8f5e9,stroke:#2e7d32
+    style L3 fill:#fff3e0,stroke:#ef6c00
+    style L4 fill:#f3e5f5,stroke:#7b1fa2
+```
+
+---
+
+## Naming: The Art of Self-Documenting Code
+
+Names are the most important documentation. Get them right, and the code explains itself. Get them wrong, and readers drown in confusion.
+
+### Functions and Variables: Tell a Story
+
+Use `snake_case`. But more importantly, choose names that describe what happens:
 
 ```rust
-// ✅ Good: snake_case
+// Names that tell stories
 fn parse_document(input: &str) -> Result<Document> { }
-let user_count = 42;
+fn validate_references(doc: &Document) -> Result<()> { }
+fn extract_schema_from_header(header: &Header) -> Option<Schema> { }
 
-// ❌ Bad: camelCase or PascalCase
-fn ParseDocument(input: &str) -> Result<Document> { }
-let UserCount = 42;
+// Names that keep secrets
+fn process(s: &str) -> Result<Document> { }  // Process how?
+fn do_thing(d: &Document) -> Result<()> { }  // What thing?
+fn get(h: &Header) -> Option<Schema> { }     // Get what?
 ```
 
-### Types
+For variables, describe what they hold:
 
 ```rust
-// ✅ Good: PascalCase
-struct DocumentParser { }
-enum ParseError { }
-trait DocumentVisitor { }
+// Clear purpose
+let user_count = users.len();
+let remaining_bytes = input.len() - position;
+let is_valid = validate(input).is_ok();
 
-// ❌ Bad: snake_case
-struct document_parser { }
+// Cryptic abbreviations
+let uc = users.len();    // What's uc?
+let rb = input.len() - position;  // rb?
+let v = validate(input).is_ok();  // v for what?
 ```
 
-### Constants
+### Types: Nouns That Describe
+
+Use `PascalCase`. Types are nouns. They describe what something *is*:
 
 ```rust
-// ✅ Good: SCREAMING_SNAKE_CASE
-const MAX_DEPTH: usize = 100;
+// Types that describe
+struct DocumentParser { }      // Parses documents
+struct ReferenceResolver { }   // Resolves references
+struct ValidationError { }     // An error from validation
+
+// Types that confuse
+struct Parser { }              // Parser of what?
+struct Resolver { }            // Resolves what?
+struct Error { }               // What kind?
+```
+
+### Constants: ALL CAPS for Global Truths
+
+Use `SCREAMING_SNAKE_CASE` for constants. The caps signal "this is fixed, configured, unchanging":
+
+```rust
+const MAX_NESTING_DEPTH: usize = 100;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
-
-// ❌ Bad: lowercase or PascalCase
-const max_depth: usize = 100;
-const MaxDepth: usize = 100;
+const INITIAL_BUFFER_SIZE: usize = 4096;
 ```
 
-### Modules
+### Modules: Lower Snake, Descriptive Names
 
 ```rust
-// ✅ Good: snake_case
-mod parser;
-mod error_handling;
-
-// ❌ Bad: PascalCase or kebab-case
-mod Parser;
-mod error-handling;
+mod parser;           // Contains parsing logic
+mod error_handling;   // Contains error types and helpers
+mod reference;        // Contains reference-related code
+mod validation;       // Contains validation rules
 ```
 
-## Documentation Standards
+---
 
-### Public Functions
+## Documentation: Comments That Help
+
+Comments explain *why*, not *what*. The code shows what. Comments show why that choice was made.
+
+### Documenting Public Functions
+
+Every public function needs documentation. Not just *what* it does, but *how to use it*:
 
 ```rust
 /// Parses a HEDL document from UTF-8 bytes.
 ///
 /// This function performs complete parsing including header directives,
-/// body parsing, and reference resolution.
+/// body parsing, and reference resolution. For streaming parsing of
+/// large documents, see [`StreamingParser`].
 ///
 /// # Arguments
 ///
-/// * `input` - UTF-8 encoded HEDL document
+/// * `input` - UTF-8 encoded HEDL document bytes
 ///
 /// # Returns
 ///
-/// Parsed `Document` on success.
+/// A fully parsed `Document` with all references resolved.
 ///
 /// # Errors
 ///
 /// Returns `HedlError` if:
-/// - Input is not valid UTF-8
-/// - Syntax errors are found
-/// - Resource limits are exceeded
+/// - Input is not valid UTF-8 (`HedlErrorKind::Syntax`)
+/// - Document has syntax errors (`HedlErrorKind::Syntax`)
+/// - References don't resolve (`HedlErrorKind::Reference`)
+/// - Resource limits exceeded (`HedlErrorKind::Security`)
 ///
 /// # Examples
+///
+/// Basic parsing:
 ///
 /// ```
 /// use hedl_core::parse;
 ///
-/// let input = b"%VERSION: 1.0\n---\nname: Alice";
+/// let input = br#"%V:2.0
+/// %NULL:~
+/// %QUOTE:"
+/// ---
+/// name: Alice
+/// age: 30
+/// "#;
+///
 /// let doc = parse(input)?;
-/// assert_eq!(doc.root.len(), 1);
+/// assert_eq!(doc.root.len(), 2);
+/// # Ok::<(), hedl_core::HedlError>(())
+/// ```
+///
+/// Handling errors:
+///
+/// ```
+/// use hedl_core::{parse, HedlErrorKind};
+///
+/// let result = parse(b"invalid: {");
+/// assert!(result.is_err());
 /// # Ok::<(), hedl_core::HedlError>(())
 /// ```
 pub fn parse(input: &[u8]) -> Result<Document, HedlError> {
@@ -92,242 +164,406 @@ pub fn parse(input: &[u8]) -> Result<Document, HedlError> {
 }
 ```
 
-### Modules
+### Documenting Modules
+
+Module docs explain the module's purpose and how its pieces fit together:
 
 ```rust
 //! Parser module for HEDL documents.
 //!
 //! This module provides the core parsing functionality, converting
-//! HEDL text into an Abstract Syntax Tree (AST).
+//! HEDL text into an Abstract Syntax Tree (AST). It's the foundation
+//! that all other crates build upon.
 //!
 //! # Architecture
 //!
 //! Parsing happens in multiple stages:
-//! 1. Preprocessing: Line splitting and indentation analysis
-//! 2. Header parsing: Directive processing
-//! 3. Body parsing: Recursive descent through document structure
-//! 4. Reference resolution: Two-pass ID collection and resolution
 //!
-//! # Example
+//! 1. **Preprocessing**: Line splitting and indentation analysis
+//! 2. **Header parsing**: Processing directives like `%V:2.0` and `%S:User:[...]`
+//! 3. **Body parsing**: Recursive descent through document structure
+//! 4. **Reference resolution**: Two-pass ID collection and validation
+//!
+//! # Quick Start
+//!
+//! For most use cases, just call [`parse`]:
 //!
 //! ```
-//! use hedl_core::parser::parse_with_options;
-//! # use hedl_core::ParseOptions;
+//! use hedl_core::parse;
 //!
-//! let options = ParseOptions::default();
-//! let doc = parse_with_options(b"key: value", &options)?;
+//! let doc = parse(b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value")?;
 //! # Ok::<(), hedl_core::HedlError>(())
 //! ```
+//!
+//! For custom options, use [`parse_with_limits`] with [`ParseOptions`].
 ```
 
-## Code Organization
-
-### File Structure
+### Inline Comments: Explain the Non-Obvious
 
 ```rust
-// 1. License header
+// Good: explains WHY
+// We use BTreeMap instead of HashMap for deterministic iteration,
+// which is required for canonicalization.
+pub root: BTreeMap<String, Item>,
+
+// Good: explains tricky code
+// Skip the BOM if present (3 bytes: EF BB BF)
+let text = if input.starts_with(&[0xEF, 0xBB, 0xBF]) {
+    &input[3..]
+} else {
+    input
+};
+
+// Bad: explains what the code obviously does
+// Increment i by 1
+i += 1;
+
+// Bad: comments that lie
+// Sort the list
+list.reverse();  // This doesn't sort!
+```
+
+---
+
+## File Organization: Everything in Its Place
+
+A well-organized file is like a well-organized desk. You can find what you need without searching.
+
+```rust
+// 1. License header (if applicable)
 // Dweve HEDL - Hierarchical Entity Data Language
-// Copyright (c) 2025...
+// Copyright (c) 2025 Dweve Corporation
 
 // 2. Module documentation
-//! Module description
+//! Parser for HEDL documents.
+//!
+//! This module provides...
 
-// 3. Imports (grouped and sorted)
-use std::collections::HashMap;
+// 3. Imports, grouped and sorted
+// Standard library first
+use std::collections::BTreeMap;
 use std::fmt;
 
+// External crates second
+use smallvec::SmallVec;
 use thiserror::Error;
 
-use crate::error::HedlError;
-use crate::value::Value;
+// Workspace crates third
+use hedl_core::{Document, HedlError};
+
+// Current crate last
+use crate::config::ParseOptions;
+use crate::error::InternalError;
 
 // 4. Constants
-const MAX_DEPTH: usize = 100;
+const MAX_NESTING_DEPTH: usize = 100;
+const INITIAL_CAPACITY: usize = 64;
 
-// 5. Type definitions
-pub struct Parser { }
+// 5. Type definitions (structs, enums, traits)
+pub struct Parser { /* ... */ }
+
+pub enum ParseState { /* ... */ }
+
+pub trait Parseable { /* ... */ }
 
 // 6. Implementations
-impl Parser { }
+impl Parser {
+    pub fn new() -> Self { /* ... */ }
+    pub fn parse(&mut self, input: &[u8]) -> Result<Document> { /* ... */ }
+}
 
-// 7. Tests
+impl Default for Parser {
+    fn default() -> Self { /* ... */ }
+}
+
+// 7. Tests at the end
 #[cfg(test)]
-mod tests { }
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple() { /* ... */ }
+}
 ```
 
-### Import Grouping
+---
+
+## Error Handling: Be Honest About Failure
+
+Functions that can fail should return `Result`. Functions that panic are lying about their contract.
+
+### The Right Way
 
 ```rust
-// Standard library
-use std::collections::HashMap;
-use std::io::{self, Write};
-
-// External crates
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
-// Internal crates (workspace)
-use hedl_core::{Document, parse};
-
-// Current crate
-use crate::error::JsonError;
-use crate::config::ToJsonConfig;
-```
-
-## Error Handling
-
-### Use Result for Fallible Operations
-
-```rust
-// ✅ Good: Return Result
-pub fn parse(input: &[u8]) -> Result<Document, HedlError> {
+/// Parses a value from the input string.
+///
+/// # Errors
+///
+/// Returns `ParseError` if the input is malformed.
+pub fn parse_value(input: &str) -> Result<Value, ParseError> {
     if input.is_empty() {
-        return Err(HedlError::syntax("Input is empty", 0));
+        return Err(ParseError::EmptyInput);
     }
-    // ...
+    // Parse logic...
+    Ok(value)
 }
 
-// ❌ Bad: Panic on error
-pub fn parse(input: &[u8]) -> Document {
-    assert!(!input.is_empty(), "Input is empty!");
-    // ...
+// Caller decides how to handle errors
+match parse_value(input) {
+    Ok(value) => use_value(value),
+    Err(e) => {
+        log::warn!("Parse failed: {}", e);
+        use_default()
+    }
 }
 ```
 
-### Propagate Errors with ?
+### The Wrong Way
 
 ```rust
-// ✅ Good: Use ? operator
-pub fn process(input: &str) -> Result<Value> {
-    let trimmed = validate_input(input)?;
-    let parsed = parse_value(trimmed)?;
-    Ok(parsed)
+// Don't do this: panic hides failure modes
+pub fn parse_value(input: &str) -> Value {
+    assert!(!input.is_empty(), "Input cannot be empty!");
+    // Parse logic...
+    value
 }
 
-// ❌ Bad: Unwrap (panics)
+// Don't do this: unwrap spreads like a virus
 pub fn process(input: &str) -> Value {
-    let trimmed = validate_input(input).unwrap();
-    let parsed = parse_value(trimmed).unwrap();
+    let validated = validate(input).unwrap();  // Panic waiting to happen
+    let parsed = parse(validated).unwrap();    // Another panic
     parsed
 }
 ```
 
-## Testing Conventions
-
-### Test Naming
+### Propagate with `?`
 
 ```rust
-#[test]
-fn test_parse_simple_document_succeeds() {
-    // Arrange
-    let input = b"name: Alice";
-
-    // Act
-    let result = parse(input);
-
-    // Assert
-    assert!(result.is_ok());
+// Clean error propagation
+pub fn process_document(input: &[u8]) -> Result<Output, HedlError> {
+    let text = std::str::from_utf8(input)?;
+    let doc = parse(text)?;
+    let validated = validate(&doc)?;
+    let output = convert(&validated)?;
+    Ok(output)
 }
 
-#[test]
-fn test_parse_empty_input_returns_error() {
-    let result = parse(b"");
-    assert!(result.is_err());
+// Instead of this mess
+pub fn process_document(input: &[u8]) -> Result<Output, HedlError> {
+    let text = match std::str::from_utf8(input) {
+        Ok(t) => t,
+        Err(e) => return Err(HedlError::from(e)),
+    };
+    let doc = match parse(text) {
+        Ok(d) => d,
+        Err(e) => return Err(e),
+    };
+    // ... you get the idea
 }
 ```
 
-### Test Organization
+---
+
+## Testing: Prove Your Code Works
+
+### Test Names Tell Stories
+
+```rust
+#[test]
+fn parse_succeeds_with_valid_document() { }
+
+#[test]
+fn parse_fails_when_input_is_empty() { }
+
+#[test]
+fn parse_fails_when_utf8_is_invalid() { }
+
+#[test]
+fn references_resolve_when_target_exists() { }
+
+#[test]
+fn references_fail_when_target_missing() { }
+```
+
+The test name should describe:
+1. What operation is being tested
+2. Under what conditions
+3. What the expected outcome is
+
+### Arrange, Act, Assert
+
+```rust
+#[test]
+fn parse_extracts_all_root_keys() {
+    // Arrange: Set up test data
+    let input = br#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+name: Alice
+age: 30
+active: true
+"#;
+
+    // Act: Perform the operation
+    let result = parse(input);
+
+    // Assert: Verify expectations
+    assert!(result.is_ok());
+    let doc = result.unwrap();
+    assert_eq!(doc.root.len(), 3);
+    assert!(doc.root.contains_key("name"));
+    assert!(doc.root.contains_key("age"));
+    assert!(doc.root.contains_key("active"));
+}
+```
+
+### Organize Tests Logically
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    mod parse_function {
+    mod parsing {
         use super::*;
 
-        #[test]
-        fn succeeds_with_valid_input() { }
+        mod valid_input {
+            use super::*;
 
-        #[test]
-        fn fails_with_invalid_utf8() { }
+            #[test]
+            fn simple_document() { }
+
+            #[test]
+            fn nested_objects() { }
+
+            #[test]
+            fn matrix_lists() { }
+        }
+
+        mod invalid_input {
+            use super::*;
+
+            #[test]
+            fn empty_input() { }
+
+            #[test]
+            fn invalid_utf8() { }
+
+            #[test]
+            fn syntax_error() { }
+        }
     }
 
     mod validation {
         use super::*;
 
         #[test]
-        fn rejects_duplicate_ids() { }
+        fn duplicate_ids_rejected() { }
+
+        #[test]
+        fn missing_references_rejected() { }
     }
 }
 ```
 
-## Performance Considerations
+---
+
+## Performance: Don't Waste
 
 ### Avoid Unnecessary Clones
 
 ```rust
-// ✅ Good: Borrow when possible
-pub fn get_attribute(&self, key: &str) -> Option<&Value> {
-    self.attributes.get(key)
+// Return a reference when possible
+pub fn get_value(&self, key: &str) -> Option<&Value> {
+    self.map.get(key)
 }
 
-// ❌ Bad: Clone unnecessarily
-pub fn get_attribute(&self, key: &str) -> Option<Value> {
-    self.attributes.get(key).cloned()
+// Instead of cloning
+pub fn get_value(&self, key: &str) -> Option<Value> {
+    self.map.get(key).cloned()  // Unnecessary allocation
 }
 ```
 
-### Pre-allocate Collections
+### Pre-allocate When Possible
 
 ```rust
-// ✅ Good: Pre-allocate if size known
-let mut items = Vec::with_capacity(expected_size);
+// Know the size? Allocate once.
+let mut results = Vec::with_capacity(items.len());
+for item in items {
+    results.push(process(item));
+}
 
-// ❌ Bad: Let Vec grow dynamically
-let mut items = Vec::new();
+// Don't grow incrementally
+let mut results = Vec::new();  // Starts empty
+for item in items {
+    results.push(process(item));  // May reallocate multiple times
+}
 ```
 
-## Clippy Warnings
+### Use Iterators, Not Loops
 
-All code must pass clippy with no warnings:
+```rust
+// Idiomatic: iterator chain
+let valid_items: Vec<_> = items
+    .iter()
+    .filter(|item| item.is_valid())
+    .map(|item| item.process())
+    .collect();
+
+// Less idiomatic: manual loop with push
+let mut valid_items = Vec::new();
+for item in items {
+    if item.is_valid() {
+        valid_items.push(item.process());
+    }
+}
+```
+
+---
+
+## Tools: Let Machines Help
+
+### Clippy: Your Helpful Critic
+
+Run clippy on all code:
 
 ```bash
 cargo clippy --all -- -D warnings
 ```
 
-Common clippy fixes:
+Clippy catches patterns that work but could be better:
 
 ```rust
-// Before (clippy warning)
-if let Some(x) = option {
+// Clippy says: "use option.unwrap_or(default)"
+let value = if let Some(x) = option {
     x
 } else {
     default
-}
+};
 
-// After (idiomatic)
-option.unwrap_or(default)
+// After:
+let value = option.unwrap_or(default);
 
-// Before (clippy warning)
-match result {
+// Clippy says: "use result.ok()"
+let maybe = match result {
     Ok(v) => Some(v),
     Err(_) => None,
-}
+};
 
-// After (idiomatic)
-result.ok()
+// After:
+let maybe = result.ok();
 ```
 
-## Formatting
+### Rustfmt: Consistent Formatting
 
-Use `rustfmt` for all code:
+Run rustfmt on all code:
 
 ```bash
 cargo fmt --all
 ```
 
-Custom `rustfmt.toml`:
+Our `rustfmt.toml` settings:
 
 ```toml
 max_width = 100
@@ -335,8 +571,20 @@ tab_spaces = 4
 edition = "2021"
 ```
 
-## Related
+Don't argue about formatting. Let the tool decide and move on.
 
-- [API Design Guidelines](api-design.md)
-- [Documentation Guide](documentation-guide.md)
-- [Contributing Guide](../contributing.md)
+---
+
+## The Golden Rule
+
+When in doubt, optimize for the reader. Write code as if the person who will maintain it is a violent psychopath who knows where you live.
+
+Actually, that person is probably you, six months from now, debugging at midnight. Be kind to future you.
+
+---
+
+## Related Documentation
+
+- **[API Design Guidelines](api-design.md)**: How to design public interfaces
+- **[Documentation Guide](documentation-guide.md)**: Writing effective documentation
+- **[Contributing Guide](../contributing.md)**: How to contribute to HEDL

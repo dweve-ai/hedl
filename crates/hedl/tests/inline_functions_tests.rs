@@ -20,9 +20,7 @@
 //! These tests verify the behavior of the #[inline] convenience functions
 //! that wrap underlying implementations.
 
-use hedl::{
-    canonicalize, from_json, lint, parse, parse_lenient, to_json, validate, SUPPORTED_VERSION,
-};
+use hedl::{canonicalize, from_json, lint, parse, parse_lenient, to_json, validate};
 
 // =============================================================================
 // parse() Tests
@@ -30,8 +28,9 @@ use hedl::{
 
 #[test]
 fn test_parse_inline_basic() {
+    // Parsing v1.0 input should preserve the input version
     let doc = parse("%VERSION: 1.0\n---\nkey: value").unwrap();
-    assert_eq!(doc.version, SUPPORTED_VERSION);
+    assert_eq!(doc.version, (1, 0));
     assert_eq!(doc.root.len(), 1);
 }
 
@@ -186,7 +185,7 @@ fn test_canonicalize_inline_empty_document() {
 
 #[test]
 fn test_canonicalize_inline_nested() {
-    let input = "%VERSION: 1.0\n---\nparent:\n  z: 3\n  a: 1";
+    let input = "%VERSION: 1.0\n---\nparent:\n z: 3\n a: 1";
     let doc = parse(input).unwrap();
     let canonical = canonicalize(&doc).unwrap();
     assert!(canonical.contains("a:"));
@@ -237,7 +236,7 @@ fn test_to_json_inline_null() {
 
 #[test]
 fn test_to_json_inline_nested() {
-    let input = "%VERSION: 1.0\n---\nuser:\n  name: Alice\n  age: 30";
+    let input = "%VERSION: 1.0\n---\nuser:\n name: Alice\n age: 30";
     let doc = parse(input).unwrap();
     let json = to_json(&doc).unwrap();
     assert!(json.contains("\"user\""));
@@ -269,9 +268,10 @@ fn test_to_json_inline_valid_json() {
 
 #[test]
 fn test_from_json_inline_basic() {
+    // from_json creates new documents with v2.0 format
     let json = r#"{"key": "value"}"#;
     let doc = from_json(json).unwrap();
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (2, 0));
 }
 
 #[test]
@@ -423,7 +423,12 @@ fn test_inline_parse_to_json_from_json() {
     let json = to_json(&doc1).unwrap();
     let doc2 = from_json(&json).unwrap();
 
-    assert_eq!(doc1.version, doc2.version);
+    // doc1 has version from input (1, 0)
+    // doc2 is created by from_json which produces v2.0
+    assert_eq!(doc1.version, (1, 0));
+    assert_eq!(doc2.version, (2, 0));
+    // Data should be preserved
+    assert_eq!(doc1.root.len(), doc2.root.len());
 }
 
 #[test]
@@ -448,7 +453,13 @@ fn test_inline_functions_composition() {
     let json = to_json(&doc2).unwrap();
     let doc3 = from_json(&json).unwrap();
 
-    assert_eq!(doc1.version, doc3.version);
+    // doc1 and doc2 have version from input (1, 0)
+    // doc3 is created by from_json which produces v2.0
+    assert_eq!(doc1.version, (1, 0));
+    assert_eq!(doc2.version, (1, 0));
+    assert_eq!(doc3.version, (2, 0));
+    // Data should be preserved throughout
+    assert_eq!(doc1.root.len(), doc3.root.len());
 }
 
 // =============================================================================

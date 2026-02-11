@@ -176,6 +176,7 @@ fn write_value_content<W: std::io::Write>(
         Value::Tensor(t) => write_tensor(writer, t, config)?,
         Value::Reference(r) => write_text(writer, &r.to_ref_string())?,
         Value::Expression(e) => write_text(writer, &format!("$({})", e))?,
+        Value::List(items) => write_list(writer, items, config)?,
     }
     Ok(())
 }
@@ -416,6 +417,28 @@ fn write_tensor<W: std::io::Write>(
     Ok(())
 }
 
+/// Write a list (from `Value::List`) to XML.
+/// Lists are written as sequences of <item> elements containing the individual values.
+fn write_list<W: std::io::Write>(
+    writer: &mut Writer<W>,
+    items: &[Value],
+    config: &ToXmlConfig,
+) -> Result<(), String> {
+    for item in items {
+        let elem = BytesStart::new("item");
+        writer
+            .write_event(Event::Start(elem))
+            .map_err(|e| format!("Failed to write list item start: {}", e))?;
+
+        write_value_content(writer, item, config)?;
+
+        writer
+            .write_event(Event::End(BytesEnd::new("item")))
+            .map_err(|e| format!("Failed to write list item end: {}", e))?;
+    }
+    Ok(())
+}
+
 fn write_text<W: std::io::Write>(writer: &mut Writer<W>, text: &str) -> Result<(), String> {
     writer
         .write_event(Event::Text(BytesText::new(text)))
@@ -439,6 +462,7 @@ fn escape_attribute_value(value: &Value) -> String {
         Value::Reference(r) => r.to_ref_string(),
         Value::Expression(e) => format!("$({})", e),
         Value::Tensor(_) => "[tensor]".to_string(),
+        Value::List(_) => "[list]".to_string(),
     }
 }
 
@@ -504,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_empty_document() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToXmlConfig::default();
         let xml = to_xml(&doc, &config).unwrap();
         assert!(xml.contains("<?xml"));
@@ -514,7 +538,7 @@ mod tests {
 
     #[test]
     fn test_empty_document_compact() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToXmlConfig {
             pretty: false,
             ..Default::default()
@@ -526,7 +550,7 @@ mod tests {
 
     #[test]
     fn test_custom_root_element() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToXmlConfig {
             root_element: "custom_root".to_string(),
             ..Default::default()
@@ -551,7 +575,7 @@ mod tests {
 
     #[test]
     fn test_scalar_null() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("null_val".to_string(), Item::Scalar(Value::Null));
 
@@ -563,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_scalar_bool_true() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Bool(true)));
 
@@ -574,7 +598,7 @@ mod tests {
 
     #[test]
     fn test_scalar_bool_false() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Bool(false)));
 
@@ -585,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_scalar_int_positive() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 
@@ -596,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_scalar_int_negative() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(-100)));
 
@@ -607,7 +631,7 @@ mod tests {
 
     #[test]
     fn test_scalar_int_zero() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(0)));
 
@@ -618,7 +642,7 @@ mod tests {
 
     #[test]
     fn test_scalar_float() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Float(3.5)));
 
@@ -629,7 +653,7 @@ mod tests {
 
     #[test]
     fn test_scalar_string() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "val".to_string(),
             Item::Scalar(Value::String("hello".to_string().into())),
@@ -642,7 +666,7 @@ mod tests {
 
     #[test]
     fn test_scalar_string_empty() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "val".to_string(),
             Item::Scalar(Value::String("".to_string().into())),
@@ -657,7 +681,7 @@ mod tests {
 
     #[test]
     fn test_scalar_reference_local() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "ref".to_string(),
             Item::Scalar(Value::Reference(Reference::local("user123"))),
@@ -671,7 +695,7 @@ mod tests {
 
     #[test]
     fn test_scalar_reference_qualified() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "ref".to_string(),
             Item::Scalar(Value::Reference(Reference::qualified("User", "456"))),
@@ -686,7 +710,7 @@ mod tests {
 
     #[test]
     fn test_scalar_expression_identifier() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "expr".to_string(),
             Item::Scalar(Value::Expression(Box::new(Expression::Identifier {
@@ -702,7 +726,7 @@ mod tests {
 
     #[test]
     fn test_scalar_expression_call() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "expr".to_string(),
             Item::Scalar(Value::Expression(Box::new(Expression::Call {
@@ -730,7 +754,7 @@ mod tests {
 
     #[test]
     fn test_tensor_1d() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let tensor = Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),
@@ -751,7 +775,7 @@ mod tests {
 
     #[test]
     fn test_tensor_scalar() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let tensor = Tensor::Scalar(42.5);
         doc.root.insert(
             "tensor".to_string(),
@@ -767,7 +791,7 @@ mod tests {
 
     #[test]
     fn test_nested_object() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut inner = BTreeMap::new();
         inner.insert(
             "name".to_string(),
@@ -787,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_object() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let mut level3 = BTreeMap::new();
         level3.insert("deep".to_string(), Item::Scalar(Value::Int(42)));
@@ -813,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
         list.add_row(Node::new(
             "User",
@@ -835,7 +859,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list_with_metadata() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("User", vec!["id".to_string()]);
         list.add_row(Node::new(
             "User",
@@ -856,7 +880,7 @@ mod tests {
 
     #[test]
     fn test_special_characters_ampersand() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "text".to_string(),
             Item::Scalar(Value::String("hello & goodbye".to_string().into())),
@@ -870,7 +894,7 @@ mod tests {
 
     #[test]
     fn test_special_characters_angle_brackets() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "text".to_string(),
             Item::Scalar(Value::String("hello <tag> goodbye".to_string().into())),
@@ -883,7 +907,7 @@ mod tests {
 
     #[test]
     fn test_special_characters_quotes() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "text".to_string(),
             Item::Scalar(Value::String("hello \"quoted\"".to_string().into())),
@@ -960,11 +984,112 @@ mod tests {
         assert_eq!(escape_attribute_value(&tensor), "[tensor]");
     }
 
+    #[test]
+    fn test_escape_attribute_value_list() {
+        let list = Value::List(Box::new(vec![
+            Value::String("a".to_string().into()),
+            Value::String("b".to_string().into()),
+        ]));
+        assert_eq!(escape_attribute_value(&list), "[list]");
+    }
+
+    // ==================== List value tests ====================
+
+    #[test]
+    fn test_list_string_values() {
+        let mut doc = Document::new((1, 1));
+        doc.root.insert(
+            "roles".to_string(),
+            Item::Scalar(Value::List(Box::new(vec![
+                Value::String("admin".to_string().into()),
+                Value::String("editor".to_string().into()),
+                Value::String("viewer".to_string().into()),
+            ]))),
+        );
+
+        let config = ToXmlConfig::default();
+        let xml = to_xml(&doc, &config).unwrap();
+        assert!(xml.contains("<roles>"));
+        assert!(xml.contains("<item>admin</item>"));
+        assert!(xml.contains("<item>editor</item>"));
+        assert!(xml.contains("<item>viewer</item>"));
+        assert!(xml.contains("</roles>"));
+    }
+
+    #[test]
+    fn test_list_bool_values() {
+        let mut doc = Document::new((1, 1));
+        doc.root.insert(
+            "flags".to_string(),
+            Item::Scalar(Value::List(Box::new(vec![
+                Value::Bool(true),
+                Value::Bool(false),
+                Value::Bool(true),
+            ]))),
+        );
+
+        let config = ToXmlConfig::default();
+        let xml = to_xml(&doc, &config).unwrap();
+        assert!(xml.contains("<item>true</item>"));
+        assert!(xml.contains("<item>false</item>"));
+    }
+
+    #[test]
+    fn test_list_mixed_values() {
+        let mut doc = Document::new((1, 1));
+        doc.root.insert(
+            "mixed".to_string(),
+            Item::Scalar(Value::List(Box::new(vec![
+                Value::String("text".to_string().into()),
+                Value::Int(42),
+                Value::Bool(true),
+                Value::Null,
+            ]))),
+        );
+
+        let config = ToXmlConfig::default();
+        let xml = to_xml(&doc, &config).unwrap();
+        assert!(xml.contains("<item>text</item>"));
+        assert!(xml.contains("<item>42</item>"));
+        assert!(xml.contains("<item>true</item>"));
+    }
+
+    #[test]
+    fn test_list_empty() {
+        let mut doc = Document::new((1, 1));
+        doc.root.insert(
+            "empty".to_string(),
+            Item::Scalar(Value::List(Box::default())),
+        );
+
+        let config = ToXmlConfig::default();
+        let xml = to_xml(&doc, &config).unwrap();
+        assert!(xml.contains("<empty>"));
+        assert!(xml.contains("</empty>"));
+    }
+
+    #[test]
+    fn test_list_with_references() {
+        let mut doc = Document::new((1, 1));
+        doc.root.insert(
+            "refs".to_string(),
+            Item::Scalar(Value::List(Box::new(vec![
+                Value::Reference(Reference::local("user1")),
+                Value::Reference(Reference::qualified("User", "2")),
+            ]))),
+        );
+
+        let config = ToXmlConfig::default();
+        let xml = to_xml(&doc, &config).unwrap();
+        assert!(xml.contains("<item>@user1</item>"));
+        assert!(xml.contains("<item>@User:2</item>"));
+    }
+
     // ==================== Pretty vs compact tests ====================
 
     #[test]
     fn test_pretty_vs_compact() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 
@@ -987,7 +1112,7 @@ mod tests {
 
     #[test]
     fn test_use_attributes_simple() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 

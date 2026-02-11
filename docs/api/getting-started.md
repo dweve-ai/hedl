@@ -9,7 +9,7 @@ Welcome to the HEDL (Hierarchical Entity Data Language) API documentation. This 
 #### Rust
 ```toml
 [dependencies]
-hedl = "1.2"
+hedl = "2.0"
 ```
 
 #### C/C++ (via FFI)
@@ -26,12 +26,14 @@ npm install hedl-wasm
 ### First HEDL Document
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+users:@User
+ |alice,Alice Smith, alice@example.com
+ |bob,Bob Jones, bob@example.com
 ```
 
 ## API Overview
@@ -58,7 +60,7 @@ println!("Parsed {} items", doc.root.len());
 
 #### C
 ```c
-const char* input = "%VERSION: 1.0\n---\nkey: value";
+const char* input = "%V:2.0\n---\nkey: value";
 HedlDocument* doc = NULL;
 if (hedl_parse(input, -1, 0, &doc) == HEDL_OK) {
     // Use document
@@ -110,8 +112,8 @@ const doc = parse(hedlText);
 // Convert HEDL string to JSON string (second param: pretty-print)
 const json = toJson(hedlText, true);  // true = pretty-printed output
 
-// Or format HEDL string to canonical form (second param: use ditto)
-const canonical = format(hedlText, true);  // true = use ditto optimization
+// Or format HEDL string to canonical form
+const canonical = format(hedlText);
 ```
 
 ### Validation
@@ -312,7 +314,7 @@ pthread_create(&t2, NULL, worker2, doc);  // DANGER!
 
 ## Support
 
-- **GitHub Issues**: https://github.com/dweve/hedl/issues
+- **GitHub Issues**: https://github.com/dweve-ai/hedl/issues
 - **Documentation**: https://hedl.dev/docs
 - **Examples**: See `examples/` directory in the repository
 

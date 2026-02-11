@@ -131,8 +131,8 @@ harness = false
 path = "benches/core/validation.rs"
 
 [[bench]]
-name = "comprehensive"
-path = "benches/integration/comprehensive.rs"
+name = "end_to_end_workflow"
+path = "benches/integration/end_to_end_workflow.rs"
 harness = false
 
 [[bench]]

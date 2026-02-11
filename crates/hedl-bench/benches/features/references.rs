@@ -15,15 +15,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Reference resolution benchmarks.
 //!
 //! Measures HEDL cross-reference (@Type:id) resolution performance for graph structures.
 //!
 //! ## Unique HEDL Features Tested
 //!
-//! - **Reference parsing**: @Type:id syntax parsing
+//! - **Reference parsing**:@Type:id syntax parsing
 //! - **Graph structures**: Node/edge relationship handling
 //! - **Validation**: Reference target existence checks
 //! - **Traversal**: DFS/BFS graph traversal performance
@@ -396,12 +394,14 @@ fn bench_reference_parsing(c: &mut Criterion) {
 
         // Collect comprehensive result with ACTUAL measurements
         let doc = parse_hedl(&hedl);
-        let mut result = RefResult::default();
-        result.dataset = format!("reference_heavy_{size}");
-        result.node_count = size;
-        result.reference_count = ref_count;
-        result.input_size_bytes = hedl.len();
-        result.edge_count = estimate_edges(&hedl);
+        let mut result = RefResult {
+            dataset: format!("reference_heavy_{size}"),
+            node_count: size,
+            reference_count: ref_count,
+            input_size_bytes: hedl.len(),
+            edge_count: estimate_edges(&hedl),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -476,12 +476,14 @@ fn bench_graph_structures(c: &mut Criterion) {
 
         // Collect result with ACTUAL measurements
         let doc = parse_hedl(&hedl);
-        let mut result = RefResult::default();
-        result.dataset = format!("graph_{edges_per_node}epn");
-        result.node_count = node_count;
-        result.edge_count = node_count * edges_per_node;
-        result.reference_count = count_references(&hedl);
-        result.input_size_bytes = hedl.len();
+        let mut result = RefResult {
+            dataset: format!("graph_{edges_per_node}epn"),
+            node_count,
+            edge_count: node_count * edges_per_node,
+            reference_count: count_references(&hedl),
+            input_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -532,9 +534,11 @@ fn bench_reference_validation(c: &mut Criterion) {
         });
 
         // Collect validation times
-        let mut result = RefResult::default();
-        result.dataset = format!("validation_{size}");
-        result.node_count = size;
+        let mut result = RefResult {
+            dataset: format!("validation_{size}"),
+            node_count: size,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -592,9 +596,11 @@ fn bench_graph_traversal(c: &mut Criterion) {
         });
 
         // Collect traversal times
-        let mut result = RefResult::default();
-        result.dataset = format!("traversal_{size}");
-        result.node_count = size;
+        let mut result = RefResult {
+            dataset: format!("traversal_{size}"),
+            node_count: size,
+            ..Default::default()
+        };
 
         let mut dfs_times = Vec::new();
         let mut bfs_times = Vec::new();
@@ -652,9 +658,11 @@ fn bench_reference_map(c: &mut Criterion) {
         });
 
         // Collect result with ACTUAL measurements
-        let mut result = RefResult::default();
-        result.dataset = format!("ref_map_{size}");
-        result.node_count = size;
+        let mut result = RefResult {
+            dataset: format!("ref_map_{size}"),
+            node_count: size,
+            ..Default::default()
+        };
 
         // ACTUALLY measure memory (not estimate!)
         result.memory_for_ref_map_kb = measure_ref_map_memory(&doc);
@@ -1024,7 +1032,7 @@ fn bench_error_handling(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_handling");
 
     // Valid reference - baseline
-    let valid = "%VERSION: 1.0\n%STRUCT: Node: [id,value]\nnode: @Node\n| 1, test\n";
+    let valid = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Node:[id,value]\n---\nnode:@Node\n |1, test\n";
     group.bench_function("valid_ref", |b| {
         b.iter(|| {
             let doc = hedl_core::parse(valid.as_bytes());
@@ -1033,7 +1041,7 @@ fn bench_error_handling(c: &mut Criterion) {
     });
 
     // Missing target error
-    let missing = "%VERSION: 1.0\n%STRUCT: Node: [id,ref]\nnode: @Node\n| 1, @Node:999\n";
+    let missing = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Node:[id,ref]\n---\nnode:@Node\n |1, @Node:999\n";
     group.bench_function("missing_target", |b| {
         b.iter(|| {
             let doc = hedl_core::parse(missing.as_bytes());
@@ -1042,7 +1050,8 @@ fn bench_error_handling(c: &mut Criterion) {
     });
 
     // Invalid format error
-    let invalid = "%VERSION: 1.0\n%STRUCT: Node: [id,ref]\nnode: @Node\n| 1, @Invalid:Format:123\n";
+    let invalid =
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Node:[id,ref]\n---\nnode:@Node\n |1, @Invalid:Format:123\n";
     group.bench_function("invalid_format", |b| {
         b.iter(|| {
             let doc = hedl_core::parse(invalid.as_bytes());
@@ -1051,7 +1060,7 @@ fn bench_error_handling(c: &mut Criterion) {
     });
 
     // Type mismatch (attempt to reference wrong type)
-    let mismatch = "%VERSION: 1.0\n%STRUCT: Node: [id]\n%STRUCT: Edge: [id]\nnode: @Node\n| 1\nedge: @Edge\n| 2\n";
+    let mismatch = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Node:[id]\n%S:Edge:[id]\n---\nnode:@Node\n |1\nedge:@Edge\n |2\n";
     group.bench_function("type_mismatch", |b| {
         b.iter(|| {
             let doc = hedl_core::parse(mismatch.as_bytes());

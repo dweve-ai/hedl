@@ -1,0 +1,241 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Facility:[id,name,type,address,beds,er]
+%S:Provider:[id,name,specialty,role,years_exp,rating]
+%S:Patient:[id,name,dob,gender,blood_type,insurance,allergies,conditions]
+%S:Appointment:[id,date,time,duration,status,reason,notes]
+%S:Diagnosis:[id,date,icd_code,condition,severity,is_chronic]
+%S:Prescription:[id,medication,dosage_mg,freq,days,refills,start]
+%S:LabResult:[id,test,date,value,unit,ref_range,status]
+%S:Procedure:[id,date,name,cpt_code,duration,outcome,cost]
+%N:Facility>Provider
+%N:Provider>Patient
+%N:Patient>Appointment
+%N:Patient>Diagnosis
+%N:Patient>Prescription
+%N:Patient>LabResult
+%N:Patient>Procedure
+%C:Facility.total=5
+%C:Provider.total=15
+%C:Provider.specialty:Cardiology=3,General Practice=3,Neurology=1,Oncology=1,Orthopedics=2,Pediatrics=1,Psychiatry=1
+%C:Provider.role:Doctor=12,Nurse=1,Nurse Practitioner=1,Physician Assistant=1
+%C:Patient.total=25
+%C:Patient.gender:Female=12,Male=13
+%C:Patient.insurance:Medicaid=3,Medicare=9,Private=13
+%C:Appointment.total=40
+%C:Appointment.status:Cancelled=1,Completed=33,No Show=1,Scheduled=5
+%C:Diagnosis.total=30
+%C:Diagnosis.severity:Mild=9,Moderate=15,Severe=6
+%C:Prescription.total=35
+%C:LabResult.total=40
+%C:LabResult.status:Abnormal=25,Critical=4,Normal=11
+%C:Procedure.total=15
+%C:Procedure.outcome:Complication=1,Partial=1,Successful=13
+---
+facilities:@Facility
+ |fac-001,Metro General Hospital,hospital,1200 Medical Center Dr Chicago IL,450,true
+  |prov-001,Dr. Sarah Chen,Cardiology,Doctor,18,4.8
+   |pat-003,Michael Williams,1952-11-08,Male,B+,Medicare,[Aspirin,Sulfa],[Coronary Artery Disease,Atrial Fibrillation]
+    |apt-003,2024-01-17,14:00,45,Completed,Cardiac Evaluation,Ordered stress test
+    |apt-027,2024-02-20,07:30,120,Completed,Stress Test,Positive for ischemia
+    |dx-004,2015-11-30,I25.10,Coronary Artery Disease,Severe,true
+    |dx-005,2019-04-18,I48.91,Atrial Fibrillation,Moderate,true
+    |rx-004,Clopidogrel,75,qd,90,3,2024-01-17
+    |rx-005,Metoprolol,50,bid,90,3,2024-01-17
+    |rx-006,Warfarin,5,qd,30,6,2024-01-17
+    |rx-035,Atorvastatin,40,qd,90,3,2024-02-20
+    |lab-005,Troponin I,2024-01-17,0.08,ng/mL,0-0.04,Abnormal
+    |lab-006,BNP,2024-01-17,450,pg/mL,0-100,Abnormal
+    |lab-007,INR,2024-01-17,2.3,ratio,2.0-3.0,Normal
+    |lab-008,LDL Cholesterol,2024-01-17,145,mg/dL,0-100,Abnormal
+    |lab-035,Troponin I,2024-02-20,0.15,ng/mL,0-0.04,Critical
+    |proc-001,2024-02-20,Cardiac Stress Test,93015,45,Successful,2500
+    |proc-009,2024-02-27,Cardiac Catheterization,93452,60,Complication,15000
+   |pat-009,Christopher Lee,1960-08-14,Male,A+,Medicare,[Iodine],[Peripheral Artery Disease]
+    |apt-009,2024-01-25,10:00,45,Completed,PAD Evaluation,Scheduled angiogram
+    |apt-030,2024-02-23,06:00,180,Completed,Angiography,Two stents placed
+    |dx-012,2020-10-28,I73.9,Peripheral Artery Disease,Moderate,true
+    |rx-015,Cilostazol,100,bid,90,3,2024-01-25
+    |lab-015,ABI,2024-01-25,0.65,ratio,0.9-1.3,Abnormal
+    |lab-037,Creatinine,2024-02-23,1.2,mg/dL,0.7-1.3,Normal
+    |proc-002,2024-02-23,Coronary Angiography,93458,90,Successful,12500
+    |proc-003,2024-02-23,PCI with Stent x2,92928,120,Successful,35000
+   |pat-020,Linda Allen,1968-06-05,Female,A+,Private,[Beta Blockers],[Mitral Valve Prolapse]
+    |apt-020,2024-02-09,15:00,40,Completed,MVP Follow-up,Echo scheduled
+    |apt-036,2024-03-05,13:00,45,Completed,Echo Study,Mild regurgitation
+    |dx-024,2015-07-08,I34.1,Mitral Valve Prolapse,Mild,true
+    |rx-027,Propranolol,20,bid,90,3,2024-02-09
+    |lab-029,Ejection Fraction,2024-02-09,62,%,55-70,Normal
+    |proc-008,2024-03-05,Echocardiogram,93306,45,Successful,1800
+  |prov-002,Dr. Michael Torres,Neurology,Doctor,12,4.6
+   |pat-013,William White,1948-12-22,Male,A-,Medicare,[Contrast Dye],[Parkinson Disease,Dementia]
+    |apt-013,2024-01-31,09:00,60,Completed,Neurology Review,Medication adjustment
+    |apt-032,2024-02-27,09:30,45,No Show,Follow-up,Patient did not arrive
+    |dx-015,2018-01-22,G20,Parkinson Disease,Moderate,true
+    |dx-016,2022-11-08,F03.90,Dementia,Mild,true
+    |rx-018,Carbidopa-Levodopa,25,tid,90,3,2024-01-31
+    |rx-019,Donepezil,10,qd,90,3,2024-01-31
+    |lab-019,Vitamin D,2024-01-31,18,ng/mL,30-100,Abnormal
+    |proc-011,2024-01-31,Lumbar Puncture,62270,30,Successful,2200
+   |pat-023,Anthony Wright,1963-03-28,Male,A-,Medicare,[Statins],[Multiple Sclerosis]
+    |apt-023,2024-02-14,10:30,45,Completed,MS Management,Stable condition
+    |dx-028,2016-04-30,G35,Multiple Sclerosis,Moderate,true
+    |rx-031,Ocrelizumab,300,~,180,0,2024-02-14
+    |lab-031,MRI Lesion Count,2024-02-14,12,lesions,0-0,Abnormal
+    |proc-012,2024-02-14,MRI Brain with Contrast,70553,60,Successful,3500
+  |prov-003,Dr. Emily Watson,General Practice,Doctor,8,4.9
+   |pat-001,John Smith,1965-03-15,Male,A+,Private,[Penicillin],[Hypertension,Type 2 Diabetes]
+    |apt-001,2024-01-15,09:00,30,Completed,Annual Physical,Blood pressure slightly elevated
+    |apt-026,2024-02-19,09:00,45,Scheduled,Cardiology Referral,~
+    |dx-001,2020-05-10,I10,Essential Hypertension,Moderate,true
+    |dx-002,2021-08-22,E11.9,Type 2 Diabetes Mellitus,Mild,true
+    |rx-001,Lisinopril,10,qd,90,3,2024-01-15
+    |rx-002,Metformin,500,bid,90,3,2024-01-15
+    |lab-001,HbA1c,2024-01-15,7.2,%,4.0-5.6,Abnormal
+    |lab-002,Fasting Glucose,2024-01-15,142,mg/dL,70-100,Abnormal
+    |lab-003,Total Cholesterol,2024-01-15,198,mg/dL,0-200,Normal
+    |lab-004,Blood Pressure Systolic,2024-01-15,145,mmHg,90-120,Abnormal
+   |pat-007,David Martinez,1972-06-18,Male,B-,Medicaid,[],[COPD,Hypertension]
+    |apt-007,2024-01-23,09:30,30,Completed,COPD Management,Pulmonary function stable
+    |apt-029,2024-02-22,14:30,30,Cancelled,COPD Review,Patient called to cancel
+    |dx-009,2016-12-05,J44.9,COPD,Moderate,true
+    |dx-010,2018-07-20,I10,Essential Hypertension,Mild,true
+    |rx-012,Tiotropium,18,qd,30,6,2024-01-23
+    |rx-013,Losartan,50,qd,90,3,2024-01-23
+    |lab-013,FEV1,2024-01-23,58,%,80-120,Abnormal
+    |lab-014,Oxygen Saturation,2024-01-23,94,%,95-100,Abnormal
+   |pat-014,Elizabeth Harris,1982-03-08,Female,O+,Private,[Shellfish],[Hypothyroidism]
+    |apt-014,2024-02-01,10:30,25,Completed,Thyroid Follow-up,TSH levels normalized
+    |dx-017,2019-09-30,E03.9,Hypothyroidism,Mild,true
+    |rx-020,Levothyroxine,75,qd,90,3,2024-02-01
+    |lab-020,TSH,2024-02-01,3.2,mIU/L,0.4-4.0,Normal
+    |lab-021,Free T4,2024-02-01,1.1,ng/dL,0.8-1.8,Normal
+  |prov-004,Jennifer Adams,~,Nurse,15,4.7
+  |prov-014,Dr. Steven Park,Oncology,Doctor,19,4.8
+   |pat-019,Daniel Hall,1958-02-17,Male,B-,Medicare,[],[Lung Cancer]
+    |apt-019,2024-02-08,08:30,60,Completed,Oncology Review,Treatment response good
+    |apt-035,2024-03-04,10:00,180,Completed,Chemotherapy,Cycle 3 completed
+    |dx-023,2023-06-20,C34.90,Lung Cancer,Severe,true
+    |rx-026,Ondansetron,8,tid,14,0,2024-02-08
+    |lab-026,WBC,2024-02-08,2.8,K/uL,4.5-11.0,Abnormal
+    |lab-027,Hemoglobin,2024-02-08,9.2,g/dL,12.0-16.0,Abnormal
+    |lab-028,Platelet Count,2024-02-08,95,K/uL,150-400,Abnormal
+    |lab-040,Tumor Marker CA-125,2024-03-04,85,U/mL,0-35,Abnormal
+    |proc-007,2024-03-04,Chemotherapy Administration,96413,180,Successful,8500
+  |prov-015,Dr. Rachel Green,Psychiatry,Doctor,11,4.6
+   |pat-010,Michelle Anderson,1988-01-29,Female,AB+,Private,[],[Generalized Anxiety Disorder]
+    |apt-010,2024-01-26,14:30,50,Completed,Anxiety Management,Therapy progressing well
+    |dx-013,2021-05-16,F41.1,Generalized Anxiety Disorder,Moderate,true
+    |rx-016,Sertraline,50,qd,90,3,2024-01-26
+    |lab-016,TSH,2024-01-26,2.1,mIU/L,0.4-4.0,Normal
+   |pat-022,Sandra King,1980-12-12,Female,AB-,Private,[],[Major Depressive Disorder,Insomnia]
+    |apt-022,2024-02-13,14:00,50,Completed,Depression Follow-up,Medication effective
+    |apt-037,2024-03-06,15:30,50,Scheduled,Therapy Session,~
+    |dx-026,2020-03-12,F33.1,Major Depressive Disorder,Moderate,true
+    |dx-027,2021-08-25,G47.00,Insomnia,Mild,true
+    |rx-029,Escitalopram,10,qd,90,3,2024-02-13
+    |rx-030,Trazodone,50,qd,30,3,2024-02-13
+    |lab-030,Lithium Level,2024-02-13,0,mEq/L,0.6-1.2,Normal
+ |fac-002,Lakeside Medical Clinic,clinic,555 Lakeshore Ave Chicago IL,0,false
+  |prov-005,Dr. James Liu,General Practice,Doctor,22,4.5
+   |pat-002,Emily Johnson,1978-07-22,Female,O+,Private,[],[Asthma]
+    |apt-002,2024-01-16,10:30,20,Completed,Asthma Follow-up,Symptoms well controlled
+    |apt-039,2024-03-08,11:00,20,Scheduled,Asthma Review,~
+    |dx-003,2018-03-15,J45.20,Mild Intermittent Asthma,Mild,true
+    |rx-003,Albuterol,90,prn,30,6,2024-01-16
+   |pat-015,Joseph Clark,1970-07-14,Male,B+,Medicaid,[],[Type 2 Diabetes,Obesity]
+    |apt-015,2024-02-02,14:00,30,Completed,Diabetes Management,A1C improved
+    |dx-018,2017-04-14,E11.9,Type 2 Diabetes Mellitus,Moderate,true
+    |dx-019,2020-06-22,E66.9,Obesity,Moderate,true
+    |rx-021,Metformin,1000,bid,90,3,2024-02-02
+    |rx-022,Semaglutide,0.5,qd,30,6,2024-02-02
+    |lab-022,HbA1c,2024-02-02,8.4,%,4.0-5.6,Abnormal
+    |lab-023,Fasting Glucose,2024-02-02,186,mg/dL,70-100,Abnormal
+  |prov-006,Dr. Maria Garcia,Pediatrics,Doctor,10,4.8
+   |pat-004,Sarah Davis,1990-04-30,Female,AB-,Private,[Latex],[]
+    |apt-004,2024-01-18,11:00,20,Completed,Well Child Visit,Development on track
+   |pat-008,Amanda Taylor,2015-02-25,Female,O+,Private,[Eggs],[Eczema]
+    |apt-008,2024-01-24,13:00,20,Completed,Eczema Follow-up,Rash improving
+    |dx-011,2022-04-12,L30.9,Dermatitis,Mild,true
+    |rx-014,Hydrocortisone Cream,25,bid,14,2,2024-01-24
+    |proc-014,2024-01-24,Allergy Skin Testing,95004,45,Successful,450
+   |pat-018,Patricia Walker,1992-09-11,Female,O-,Private,[Peanuts,Tree Nuts],[]
+    |apt-018,2024-02-07,10:00,20,Completed,Pediatric Wellness,Growth normal
+   |pat-021,Matthew Young,2018-08-20,Male,O+,Medicaid,[],[Asthma]
+    |apt-021,2024-02-12,09:30,20,Completed,Asthma Check,Inhaler technique reviewed
+    |dx-025,2021-10-05,J45.20,Mild Intermittent Asthma,Mild,true
+    |rx-028,Fluticasone,44,bid,30,6,2024-02-12
+  |prov-007,Thomas Wright,~,Physician Assistant,6,4.4
+ |fac-003,North Shore Surgery Center,surgical_center,890 Northbrook Rd Northbrook IL,24,true
+  |prov-008,Dr. Robert Kim,Orthopedics,Doctor,20,4.9
+   |pat-011,Robert Thomas,1955-05-06,Male,O+,Medicare,[NSAIDs],[Osteoarthritis]
+    |apt-011,2024-01-29,08:00,40,Completed,Knee Evaluation,Recommended surgery
+    |apt-031,2024-02-26,07:00,120,Completed,Knee Replacement,Surgery successful
+    |dx-014,2014-08-03,M17.11,Primary Osteoarthritis Right Knee,Severe,true
+    |rx-017,Celecoxib,200,qd,30,2,2024-01-29
+    |lab-017,Hemoglobin,2024-01-29,13.5,g/dL,12.0-16.0,Normal
+    |lab-018,Platelet Count,2024-01-29,245,K/uL,150-400,Normal
+    |lab-038,Hemoglobin,2024-02-26,11.8,g/dL,12.0-16.0,Abnormal
+    |proc-004,2024-02-26,Total Knee Arthroplasty,27447,150,Successful,45000
+   |pat-017,Charles Robinson,1975-04-25,Male,AB+,Private,[],[Herniated Disc]
+    |apt-017,2024-02-06,13:30,30,Completed,Back Pain Consult,MRI scheduled
+    |apt-034,2024-03-01,08:00,90,Completed,Spinal Surgery,Disc repaired
+    |dx-022,2023-01-15,M51.16,Herniated Disc L4-L5,Moderate,false
+    |rx-025,Gabapentin,300,tid,30,2,2024-02-06
+    |proc-006,2024-03-01,Lumbar Discectomy,63030,90,Successful,28000
+  |prov-009,Dr. Lisa Patel,Orthopedics,Doctor,14,4.7
+ |fac-004,Wellness Family Practice,clinic,234 Oak Street Evanston IL,0,false
+  |prov-010,Dr. David Brown,General Practice,Doctor,25,4.6
+   |pat-006,Jessica Brown,1985-12-03,Female,A-,Private,[Codeine],[Migraine]
+    |apt-006,2024-01-22,15:00,30,Completed,Migraine Consultation,Started preventive therapy
+    |apt-040,2024-03-11,14:00,30,Scheduled,Migraine Check,~
+    |dx-008,2019-02-08,G43.909,Migraine,Moderate,true
+    |rx-010,Sumatriptan,50,prn,30,2,2024-01-22
+    |rx-011,Topiramate,25,bid,90,3,2024-01-22
+    |proc-013,2024-01-22,Nerve Block Injection,64450,20,Successful,1500
+   |pat-012,Jennifer Jackson,1995-10-17,Female,B+,Private,[],[]
+    |apt-012,2024-01-30,11:30,20,Completed,Routine Checkup,All vitals normal
+   |pat-024,Karen Scott,1998-05-09,Female,B+,Private,[],[]
+    |apt-024,2024-02-15,11:00,20,Completed,Annual Physical,Excellent health
+  |prov-011,Amanda Foster,~,Nurse Practitioner,9,4.5
+ |fac-005,Chicago Heart Institute,specialty_center,678 Cardiac Way Chicago IL,85,true
+  |prov-012,Dr. William Hayes,Cardiology,Doctor,28,4.9
+   |pat-005,James Wilson,1945-09-12,Male,O-,Medicare,[],[Congestive Heart Failure,Hypertension]
+    |apt-005,2024-01-19,08:30,60,Completed,Heart Failure Review,Adjusted medications
+    |apt-028,2024-02-21,10:00,30,Completed,Echo Follow-up,EF improved to 40%
+    |dx-006,2017-06-25,I50.9,Heart Failure,Severe,true
+    |dx-007,2012-09-14,I10,Essential Hypertension,Moderate,true
+    |rx-007,Furosemide,40,bid,90,3,2024-01-19
+    |rx-008,Carvedilol,25,bid,90,3,2024-01-19
+    |rx-009,Amlodipine,10,qd,90,3,2024-01-19
+    |lab-009,BNP,2024-01-19,890,pg/mL,0-100,Critical
+    |lab-010,Creatinine,2024-01-19,1.8,mg/dL,0.7-1.3,Abnormal
+    |lab-011,Potassium,2024-01-19,5.2,mEq/L,3.5-5.0,Abnormal
+    |lab-012,Sodium,2024-01-19,132,mEq/L,136-145,Abnormal
+    |lab-036,Ejection Fraction,2024-02-21,40,%,55-70,Abnormal
+    |proc-010,2024-01-19,ICD Implantation,33249,120,Successful,55000
+   |pat-016,Margaret Lewis,1938-11-30,Female,A+,Medicare,[Morphine],[Aortic Stenosis,Hypertension]
+    |apt-016,2024-02-05,09:00,45,Completed,Pre-op Evaluation,Cleared for surgery
+    |apt-033,2024-02-28,06:30,240,Completed,TAVR Procedure,Valve replaced successfully
+    |dx-020,2019-12-10,I35.0,Aortic Stenosis,Severe,true
+    |dx-021,2010-05-18,I10,Essential Hypertension,Moderate,true
+    |rx-023,Aspirin,81,qd,90,3,2024-02-05
+    |rx-024,Lisinopril,20,qd,90,3,2024-02-05
+    |lab-024,BNP,2024-02-05,1250,pg/mL,0-100,Critical
+    |lab-025,Creatinine,2024-02-05,1.4,mg/dL,0.7-1.3,Abnormal
+    |lab-039,Ejection Fraction,2024-02-28,55,%,55-70,Normal
+    |proc-005,2024-02-28,TAVR,33361,180,Successful,85000
+   |pat-025,Steven Adams,1942-10-03,Male,O+,Medicare,[ACE Inhibitors],[Heart Failure,Chronic Kidney Disease]
+    |apt-025,2024-02-16,08:00,60,Completed,Heart Failure Check,Fluid balance improved
+    |apt-038,2024-03-07,09:00,45,Scheduled,Device Check,~
+    |dx-029,2018-09-22,I50.9,Heart Failure,Severe,true
+    |dx-030,2020-01-15,N18.3,Chronic Kidney Disease Stage 3,Moderate,true
+    |rx-032,Furosemide,80,bid,90,3,2024-02-16
+    |rx-033,Spironolactone,25,qd,90,3,2024-02-16
+    |rx-034,Sodium Bicarbonate,650,tid,90,3,2024-02-16
+    |lab-032,BNP,2024-02-16,1450,pg/mL,0-100,Critical
+    |lab-033,eGFR,2024-02-16,38,mL/min,90-120,Abnormal
+    |lab-034,Potassium,2024-02-16,5.5,mEq/L,3.5-5.0,Abnormal
+    |proc-015,2024-02-16,CRT-D Implantation,33225,150,Partial,65000
+  |prov-013,Dr. Karen Miller,Cardiology,Doctor,16,4.7

@@ -266,13 +266,13 @@ fn test_parser_with_custom_config() {
         enable_pooling: false,
     };
 
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | alice, Alice
-";
+users:@User
+ | alice, Alice
+"#;
 
     let parser = StreamingParser::with_config(Cursor::new(input), config);
     assert!(parser.is_ok());
@@ -309,11 +309,11 @@ fn test_parser_config_with_timeout() {
         ..Default::default()
     };
 
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 ---
 key: value
-";
+"#;
 
     let parser = StreamingParser::with_config(Cursor::new(input), config);
     assert!(parser.is_ok());
@@ -450,14 +450,14 @@ fn test_embedded_system_scenario() {
         .with_memory_limits(MemoryLimits::embedded())
         .with_buffer_hint(BufferSizeHint::Small);
 
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Sensor: [id, value]
 ---
-sensors: @Sensor
-  | temp1, 23.5
-  | temp2, 24.1
-";
+sensors:@Sensor
+ | temp1, 23.5
+ | temp2, 24.1
+"#;
 
     let parser = StreamingParser::with_config(Cursor::new(input), config);
     assert!(parser.is_ok());
@@ -471,14 +471,14 @@ fn test_server_workload_scenario() {
         .with_buffer_pooling(true)
         .with_pool_size(50);
 
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
-users: @User
-  | alice, Alice, alice@example.com
-  | bob, Bob, bob@example.com
-";
+users:@User
+ | alice, Alice, alice@example.com
+ | bob, Bob, bob@example.com
+"#;
 
     let parser = StreamingParser::with_config(Cursor::new(input), config);
     assert!(parser.is_ok());
@@ -490,11 +490,11 @@ fn test_untrusted_input_scenario() {
         .with_memory_limits(MemoryLimits::untrusted())
         .with_buffer_hint(BufferSizeHint::Medium);
 
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 ---
 data: untrusted
-";
+"#;
 
     let parser = StreamingParser::with_config(Cursor::new(input), config);
     assert!(parser.is_ok());

@@ -7,16 +7,20 @@
 //! Comprehensive tests for format conversion functions.
 
 use hedl_ffi::*;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
+#[cfg(any(feature = "json", feature = "yaml", feature = "xml", feature = "toon"))]
+use std::ffi::CString;
 use std::os::raw::c_char;
 use std::ptr;
 
 // HEDL document with valid struct syntax and complex data types
-const COMPLEX_HEDL: &[u8] = b"%VERSION: 1.0\n---\nperson: { name: \"Alice\", age: 30, active: true }\nnumbers: [1, 2, 3, 4, 5]\nnested: { level1: { level2: \"deep\" } }\0";
+#[cfg(any(feature = "json", feature = "yaml"))]
+const COMPLEX_HEDL: &[u8] = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nperson: { name: \"Alice\", age: 30, active: true }\nnumbers: [1, 2, 3, 4, 5]\nnested: { level1: { level2: \"deep\" } }\0";
 
 #[cfg(feature = "json")]
 #[test]
 fn test_to_json_with_metadata() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(COMPLEX_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -39,6 +43,7 @@ fn test_to_json_with_metadata() {
 #[cfg(feature = "json")]
 #[test]
 fn test_to_json_without_metadata() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(COMPLEX_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -60,6 +65,7 @@ fn test_to_json_without_metadata() {
 #[cfg(feature = "json")]
 #[test]
 fn test_from_json_with_complex_structure() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let json = CString::new(r#"{"name": "Bob", "age": 25, "items": [1, 2, 3]}"#).unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -75,6 +81,7 @@ fn test_from_json_with_complex_structure() {
 #[cfg(feature = "json")]
 #[test]
 fn test_from_json_with_exact_length() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let json = r#"{"key": "value"}"#;
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -90,6 +97,7 @@ fn test_from_json_with_exact_length() {
 #[cfg(feature = "json")]
 #[test]
 fn test_from_json_with_invalid_json() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let json = CString::new("{invalid json").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -106,6 +114,7 @@ fn test_from_json_with_invalid_json() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_to_yaml_with_complex_structure() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(COMPLEX_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -128,6 +137,7 @@ fn test_to_yaml_with_complex_structure() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_from_yaml_with_complex_structure() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Simple YAML mapping structure
         let yaml = CString::new("key: value").unwrap();
@@ -144,6 +154,7 @@ fn test_from_yaml_with_complex_structure() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_from_yaml_with_invalid_yaml() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let yaml = CString::new("invalid:\n  yaml:\n- broken").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -162,8 +173,9 @@ fn test_from_yaml_with_invalid_yaml() {
 #[cfg(feature = "xml")]
 #[test]
 fn test_to_xml_structure() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nroot: { child: \"value\" }\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot: { child: \"value\" }\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -185,6 +197,7 @@ fn test_to_xml_structure() {
 #[cfg(feature = "xml")]
 #[test]
 fn test_from_xml_with_complex_structure() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let xml = CString::new(r#"<?xml version="1.0"?><root><item>value</item></root>"#).unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -200,6 +213,7 @@ fn test_from_xml_with_complex_structure() {
 #[cfg(feature = "xml")]
 #[test]
 fn test_from_xml_with_invalid_xml() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Use HEDL XML format with unclosed tag to ensure failure
         let xml = CString::new("<?xml version=\"1.0\"?><hedl><item>value</hedl>").unwrap();
@@ -214,8 +228,9 @@ fn test_from_xml_with_invalid_xml() {
 #[cfg(feature = "csv")]
 #[test]
 fn test_to_csv_with_simple_data() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
-        let input = b"%VERSION: 1.0\n---\n\
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\
             rows: [\n\
                 { name: \"Alice\", age: 30 },\n\
                 { name: \"Bob\", age: 25 }\n\
@@ -241,8 +256,9 @@ fn test_to_csv_with_simple_data() {
 #[cfg(feature = "parquet")]
 #[test]
 fn test_to_parquet_basic() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
-        let input = b"%VERSION: 1.0\n---\n\
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\
             data: [\n\
                 { id: 1, name: \"Alice\" },\n\
                 { id: 2, name: \"Bob\" }\n\
@@ -268,9 +284,10 @@ fn test_to_parquet_basic() {
 #[cfg(feature = "parquet")]
 #[test]
 fn test_from_parquet_basic() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // First create parquet data
-        let input = b"%VERSION: 1.0\n---\n\
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\
             data: [\n\
                 { id: 1, value: \"test\" }\n\
             ]\0";
@@ -302,9 +319,10 @@ fn test_from_parquet_basic() {
 #[cfg(feature = "neo4j")]
 #[test]
 fn test_to_neo4j_cypher_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Valid HEDL syntax for a nested structure suitable for Neo4j conversion
-        let input = b"%VERSION: 1.0\n---\nperson: { name: \"Alice\" }\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nperson: { name: \"Alice\" }\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -325,9 +343,9 @@ fn test_to_neo4j_cypher_basic() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_roundtrip_preserves_data() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input =
-            b"%VERSION: 1.0\n---\nstring: \"test\"\nnumber: 42\nbool: true\narray: [1, 2, 3]\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nstring: \"test\"\nnumber: 42\nbool: true\narray: [1, 2, 3]\0";
 
         let mut doc1: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc1);
@@ -352,8 +370,9 @@ fn test_json_roundtrip_preserves_data() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_yaml_roundtrip_preserves_data() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\n\
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\
             data: { key: \"value\", num: 123 }\0";
 
         let mut doc1: *mut HedlDocument = ptr::null_mut();
@@ -378,8 +397,9 @@ fn test_yaml_roundtrip_preserves_data() {
 #[cfg(all(feature = "json", feature = "yaml"))]
 #[test]
 fn test_cross_format_conversion() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\ntest: \"data\"\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntest: \"data\"\0";
 
         // Parse HEDL
         let mut doc1: *mut HedlDocument = ptr::null_mut();
@@ -409,9 +429,10 @@ fn test_cross_format_conversion() {
 
 #[test]
 fn test_canonicalize_is_idempotent() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Use valid HEDL syntax
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         assert_eq!(parse_result, HEDL_OK);
@@ -450,8 +471,9 @@ fn test_canonicalize_is_idempotent() {
 #[cfg(feature = "json")]
 #[test]
 fn test_empty_document_conversions() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\n\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -468,8 +490,9 @@ fn test_empty_document_conversions() {
 
 #[test]
 fn test_multiple_conversions_same_document() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -488,9 +511,10 @@ fn test_multiple_conversions_same_document() {
 #[cfg(feature = "parquet")]
 #[test]
 fn test_free_bytes_with_zero_length() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Allocate and free zero-length byte array
-        let input = b"%VERSION: 1.0\n---\ndata: []\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: []\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -509,8 +533,9 @@ fn test_free_bytes_with_zero_length() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_to_toon_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nname: \"Alice\"\nage: 30\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: \"Alice\"\nage: 30\0";
 
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -534,6 +559,7 @@ fn test_to_toon_basic() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_from_toon_basic() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let toon = CString::new("name: test\ncount: 42").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -549,8 +575,9 @@ fn test_from_toon_basic() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_toon_roundtrip_preserves_data() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nname: \"Alice\"\nage: 30\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: \"Alice\"\nage: 30\0";
 
         let mut doc1: *mut HedlDocument = ptr::null_mut();
         let parse_result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc1);
@@ -577,6 +604,7 @@ fn test_toon_roundtrip_preserves_data() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_to_toon_null_doc() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut out_str: *mut c_char = ptr::null_mut();
         let result = hedl_to_toon(ptr::null(), &mut out_str);
@@ -589,8 +617,9 @@ fn test_to_toon_null_doc() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_to_toon_null_out_str() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = b"%VERSION: 1.0\n---\nkey: value\0";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
 
@@ -605,6 +634,7 @@ fn test_to_toon_null_out_str() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_from_toon_null_input() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_from_toon(ptr::null(), -1, &mut doc);
@@ -617,6 +647,7 @@ fn test_from_toon_null_input() {
 #[cfg(feature = "toon")]
 #[test]
 fn test_from_toon_null_out_doc() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let toon = CString::new("key: value").unwrap();
         let result = hedl_from_toon(toon.as_ptr(), -1, ptr::null_mut());

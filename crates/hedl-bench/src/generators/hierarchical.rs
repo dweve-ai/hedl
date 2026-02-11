@@ -38,10 +38,10 @@ use crate::datasets::{generate_blog, generate_deep_hierarchy, generate_nested, g
 #[must_use]
 pub fn generate_deep_nesting(depth: usize, fields_per_level: usize) -> String {
     if depth == 0 {
-        return "%VERSION: 1.0\n---\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     fn add_level(
         doc: &mut String,
@@ -50,7 +50,7 @@ pub fn generate_deep_nesting(depth: usize, fields_per_level: usize) -> String {
         fields_per_level: usize,
         indent: usize,
     ) {
-        let prefix = "  ".repeat(indent);
+        let prefix = " ".repeat(indent); // HEDL v2.0: 1 space per indent level
 
         for field_idx in 0..fields_per_level {
             doc.push_str(&format!(
@@ -90,12 +90,12 @@ pub fn generate_deep_nesting(depth: usize, fields_per_level: usize) -> String {
 #[must_use]
 pub fn generate_wide_tree(breadth: usize, depth: usize) -> String {
     if depth == 0 || breadth == 0 {
-        return "%VERSION: 1.0\n---\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
-    doc.push_str("  id: 0\n");
-    doc.push_str("  name: root\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
+    doc.push_str(" id: 0\n"); // HEDL v2.0: 1 space per indent level
+    doc.push_str(" name: root\n");
 
     fn generate_children(
         doc: &mut String,
@@ -109,13 +109,13 @@ pub fn generate_wide_tree(breadth: usize, depth: usize) -> String {
             return;
         }
 
-        let prefix = "  ".repeat(indent);
+        let prefix = " ".repeat(indent); // HEDL v2.0: 1 space per indent level
 
         for child_idx in 0..breadth {
             *id_counter += 1;
             doc.push_str(&format!("{prefix}child{child_idx}:\n"));
-            doc.push_str(&format!("{prefix}  id: {id_counter}\n"));
-            doc.push_str(&format!("{prefix}  name: node_{id_counter}\n"));
+            doc.push_str(&format!("{prefix} id: {id_counter}\n"));
+            doc.push_str(&format!("{prefix} name: node_{id_counter}\n"));
 
             if current_depth + 1 < max_depth {
                 generate_children(
@@ -148,7 +148,7 @@ pub fn generate_wide_tree(breadth: usize, depth: usize) -> String {
 #[must_use]
 pub fn generate_balanced_tree(nodes: usize) -> String {
     if nodes == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
     // Calculate depth and breadth for balanced tree
@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn test_deep_nesting() {
         let doc = generate_deep_nesting(3, 2);
-        assert!(doc.contains("%VERSION: 1.0"));
+        assert!(doc.contains("%V:2.0"));
         assert!(doc.contains("field0"));
         assert!(doc.contains("nested"));
     }
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_wide_tree() {
         let doc = generate_wide_tree(3, 2);
-        assert!(doc.contains("%VERSION: 1.0"));
+        assert!(doc.contains("%V:2.0"));
         assert!(doc.contains("child0"));
         assert!(doc.contains("name:"));
     }
@@ -244,12 +244,12 @@ mod tests {
     #[test]
     fn test_balanced_tree() {
         let doc = generate_balanced_tree(10);
-        assert!(doc.contains("%VERSION: 1.0"));
+        assert!(doc.contains("%V:2.0"));
     }
 
     #[test]
     fn test_blog_hierarchy() {
         let doc = generate_blog_hierarchy(5, 3);
-        assert!(doc.contains("%STRUCT:"));
+        assert!(doc.contains("%S:"));
     }
 }

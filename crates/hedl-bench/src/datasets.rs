@@ -19,7 +19,7 @@
 //!
 //! Generates realistic HEDL documents of various sizes and structures.
 //!
-//! All generator functions validate input sizes against [`MAX_DATASET_SIZE`]
+//! All generator functions validate input sizes against `MAX_DATASET_SIZE`
 //! to prevent denial-of-service attacks from excessively large allocations.
 
 use crate::error::{validate_dataset_size, Result};
@@ -66,7 +66,7 @@ impl DatasetSize {
 ///
 /// # Arguments
 ///
-/// * `count` - Number of user records to generate (max: [`MAX_DATASET_SIZE`])
+/// * `count` - Number of user records to generate (max: `MAX_DATASET_SIZE`)
 ///
 /// # Returns
 ///
@@ -74,7 +74,7 @@ impl DatasetSize {
 ///
 /// # Errors
 ///
-/// Returns [`BenchError::DatasetTooLarge`] if `count` exceeds [`MAX_DATASET_SIZE`].
+/// Returns `BenchError::DatasetTooLarge` if `count` exceeds `MAX_DATASET_SIZE`.
 ///
 /// # Examples
 ///
@@ -82,7 +82,7 @@ impl DatasetSize {
 /// use hedl_bench::generate_users_safe;
 ///
 /// let hedl = generate_users_safe(100).expect("Failed to generate users");
-/// assert!(hedl.contains("%STRUCT: User"));
+/// assert!(hedl.contains("%S:User"));
 /// ```
 pub fn generate_users_safe(count: usize) -> Result<String> {
     validate_dataset_size(count)?;
@@ -112,13 +112,14 @@ fn generate_users_unchecked(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(12345);
     let mut lines = Vec::with_capacity(count + 10);
 
-    // Flat table: use %STRUCT with count in header
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push(format!(
-        "%STRUCT: User ({count}): [id,name,email,role,created_at]"
-    ));
+    // Flat table: use %S with count directive
+    lines.push("%V:2.0".to_string());
+    lines.push("%NULL:~".to_string());
+    lines.push("%QUOTE:\"".to_string());
+    lines.push("%S:User:[id,name,email,role,created_at]".to_string());
+    lines.push(format!("%C:User.total={count}"));
     lines.push("---".to_string());
-    lines.push("users: @User".to_string());
+    lines.push("users:@User".to_string());
 
     let roles = ["admin", "developer", "designer", "manager", "analyst"];
 
@@ -138,7 +139,7 @@ fn generate_users_unchecked(count: usize) -> String {
         let day = rng.random_range(1..29);
         let created_at = format!("{year:04}-{month:02}-{day:02}T10:00:00Z");
 
-        lines.push(format!("  |{id},{name},{email},{role},{created_at}"));
+        lines.push(format!(" |{id},{name},{email},{role},{created_at}"));
     }
 
     lines.join("\n")
@@ -153,12 +154,13 @@ pub fn generate_products(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(54321);
     let mut lines = Vec::with_capacity(count + 10);
 
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push(format!(
-        "%STRUCT: Product ({count}): [id,name,price,category,stock,description]"
-    ));
+    lines.push("%V:2.0".to_string());
+    lines.push("%NULL:~".to_string());
+    lines.push("%QUOTE:\"".to_string());
+    lines.push("%S:Product:[id,name,price,category,stock,description]".to_string());
+    lines.push(format!("%C:Product.total={count}"));
     lines.push("---".to_string());
-    lines.push("products: @Product".to_string());
+    lines.push("products:@Product".to_string());
 
     let categories = ["electronics", "clothing", "home", "sports", "books", "toys"];
     let adjectives = [
@@ -184,7 +186,7 @@ pub fn generate_products(count: usize) -> String {
         // Escape quotes in description
         let desc = desc.replace('"', "\"\"");
         lines.push(format!(
-            "  | {id}, \"{name}\",{price},{category},{stock}, \"{desc}\""
+            " |{id},\"{name}\",{price},{category},{stock},\"{desc}\""
         ));
     }
 
@@ -200,12 +202,13 @@ pub fn generate_events(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(98765);
     let mut lines = Vec::with_capacity(count + 10);
 
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push(format!(
-        "%STRUCT: Event ({count}): [id,timestamp,level,service,message]"
-    ));
+    lines.push("%V:2.0".to_string());
+    lines.push("%NULL:~".to_string());
+    lines.push("%QUOTE:\"".to_string());
+    lines.push("%S:Event:[id,timestamp,level,service,message]".to_string());
+    lines.push(format!("%C:Event.total={count}"));
     lines.push("---".to_string());
-    lines.push("events: @Event".to_string());
+    lines.push("events:@Event".to_string());
 
     let levels = ["DEBUG", "INFO", "WARN", "ERROR"];
     let services = ["api", "auth", "db", "cache", "queue", "worker"];
@@ -232,7 +235,7 @@ pub fn generate_events(count: usize) -> String {
         let message = messages[rng.random_range(0..messages.len())];
 
         lines.push(format!(
-            "  |{id},{timestamp},{level},{service},\"{message}\""
+            " |{id},{timestamp},{level},{service},\"{message}\""
         ));
     }
 
@@ -244,14 +247,16 @@ pub fn generate_events(count: usize) -> String {
 /// Creates hierarchical objects with the specified depth.
 #[must_use]
 pub fn generate_nested(depth: usize) -> String {
-    let mut lines = Vec::new();
-
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push("---".to_string());
-    lines.push("config:".to_string());
+    let mut lines = vec![
+        "%V:2.0".to_string(),
+        "%NULL:~".to_string(),
+        "%QUOTE:\"".to_string(),
+        "---".to_string(),
+        "config:".to_string(),
+    ];
 
     fn add_level(lines: &mut Vec<String>, current_depth: usize, max_depth: usize, indent: usize) {
-        let prefix = "  ".repeat(indent);
+        let prefix = " ".repeat(indent);
 
         lines.push(format!("{prefix}name: level_{current_depth}"));
         lines.push(format!("{prefix}enabled: true"));
@@ -276,10 +281,13 @@ pub fn generate_graph(nodes: usize, edges_per_node: usize) -> String {
     let mut rng = StdRng::seed_from_u64(11111);
     let mut lines = Vec::with_capacity(nodes * 2 + 10);
 
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push(format!("%STRUCT: Node ({nodes}): [id,label,connections]"));
+    lines.push("%V:2.0".to_string());
+    lines.push("%NULL:~".to_string());
+    lines.push("%QUOTE:\"".to_string());
+    lines.push("%S:Node:[id,label,connections]".to_string());
+    lines.push(format!("%C:Node.total={nodes}"));
     lines.push("---".to_string());
-    lines.push("nodes: @Node".to_string());
+    lines.push("nodes:@Node".to_string());
 
     for i in 0..nodes {
         let id = format!("n{}", i + 1);
@@ -300,7 +308,7 @@ pub fn generate_graph(nodes: usize, edges_per_node: usize) -> String {
             format!("[{}]", connections.join(","))
         };
 
-        lines.push(format!("  |{id},{label},{conn_str}"));
+        lines.push(format!(" |{id},{label},{conn_str}"));
     }
 
     lines.join("\n")
@@ -316,30 +324,31 @@ pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
     let author_count = (posts / 5).max(3);
 
     let mut lines = vec![
-        "%VERSION: 1.0".to_string(),
-        format!("%STRUCT: Author ({}): [id,name,email]", author_count),
-        format!(
-            "%STRUCT: Post ({}): [id,title, author, published_at]",
-            posts
-        ),
-        "%STRUCT: Comment: [id,author, content, created_at]".to_string(),
-        "%NEST: Post > Comment".to_string(),
+        "%V:2.0".to_string(),
+        "%NULL:~".to_string(),
+        "%QUOTE:\"".to_string(),
+        "%S:Author:[id,name,email]".to_string(),
+        format!("%C:Author.total={author_count}"),
+        "%S:Post:[id,title,author,published_at]".to_string(),
+        format!("%C:Post.total={posts}"),
+        "%S:Comment:[id,author,content,created_at]".to_string(),
+        "%N:Post>Comment".to_string(),
         "---".to_string(),
     ];
 
     // Generate authors
-    lines.push("authors: @Author".to_string());
+    lines.push("authors:@Author".to_string());
     for i in 0..author_count {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
         let id = format!("author{}", i + 1);
         let name = format!("{first} {last}");
         let email = format!("{}@blog.com", first.to_lowercase());
-        lines.push(format!("  |{id},{name},{email}"));
+        lines.push(format!(" |{id},{name},{email}"));
     }
 
     // Generate posts with nested comments
-    lines.push("posts: @Post".to_string());
+    lines.push("posts:@Post".to_string());
     for i in 0..posts {
         let id = format!("post{}", i + 1);
         let title: String = Sentence(4..10).fake_with_rng(&mut rng);
@@ -349,9 +358,8 @@ pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
         let day = rng.random_range(1..29);
         let published = format!("2025-{month:02}-{day:02}");
 
-        lines.push(format!(
-            "  |[{comments_per_post}] {id},\"{title}\",{author_id},{published}"
-        ));
+        lines.push(format!(" |{id},\"{title}\",{author_id},{published}"));
+        lines.push(format!("  @Comment#{comments_per_post}:"));
 
         // Add nested comments
         for j in 0..comments_per_post {
@@ -367,7 +375,7 @@ pub fn generate_blog(posts: usize, comments_per_post: usize) -> String {
             );
 
             lines.push(format!(
-                "    |{comment_id},{commenter_id},\"{content}\",{created}"
+                "  |{comment_id},{commenter_id},\"{content}\",{created}"
             ));
         }
     }
@@ -384,12 +392,13 @@ pub fn generate_analytics(count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(33333);
     let mut lines = Vec::with_capacity(count + 10);
 
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push(format!(
-        "%STRUCT: Metric ({count}): [id,timestamp,name,value,tags]"
-    ));
+    lines.push("%V:2.0".to_string());
+    lines.push("%NULL:~".to_string());
+    lines.push("%QUOTE:\"".to_string());
+    lines.push("%S:Metric:[id,timestamp,name,value,tags]".to_string());
+    lines.push(format!("%C:Metric.total={count}"));
     lines.push("---".to_string());
-    lines.push("metrics: @Metric".to_string());
+    lines.push("metrics:@Metric".to_string());
 
     let metric_names = [
         "cpu_usage",
@@ -417,7 +426,7 @@ pub fn generate_analytics(count: usize) -> String {
         let region = regions[rng.random_range(0..regions.len())];
         let tags = format!("host={host} region={region}");
 
-        lines.push(format!("  |{id},{timestamp},{name},{value},\"{tags}\""));
+        lines.push(format!(" |{id},{timestamp},{name},{value},\"{tags}\""));
     }
 
     lines.join("\n")
@@ -427,10 +436,12 @@ pub fn generate_analytics(count: usize) -> String {
 #[must_use]
 pub fn generate_config(sections: usize) -> String {
     let mut rng = StdRng::seed_from_u64(44444);
-    let mut lines = Vec::new();
-
-    lines.push("%VERSION: 1.0".to_string());
-    lines.push("---".to_string());
+    let mut lines = vec![
+        "%V:2.0".to_string(),
+        "%NULL:~".to_string(),
+        "%QUOTE:\"".to_string(),
+        "---".to_string(),
+    ];
 
     let section_names = [
         "database",
@@ -449,22 +460,16 @@ pub fn generate_config(sections: usize) -> String {
         lines.push(format!("{section}:"));
 
         // Add section-specific settings
-        lines.push("  enabled: true".to_string());
-        lines.push(format!("  timeout: {}", rng.random_range(1000..30000)));
-        lines.push(format!("  retries: {}", rng.random_range(1..10)));
+        lines.push(" enabled: true".to_string());
+        lines.push(format!(" timeout: {}", rng.random_range(1000..30000)));
+        lines.push(format!(" retries: {}", rng.random_range(1..10)));
 
         // Add nested subsection
-        lines.push("  options:".to_string());
+        lines.push(" options:".to_string());
+        lines.push(format!("  max_connections: {}", rng.random_range(10..1000)));
+        lines.push(format!("  buffer_size: {}", rng.random_range(1024..65536)));
         lines.push(format!(
-            "    max_connections: {}",
-            rng.random_range(10..1000)
-        ));
-        lines.push(format!(
-            "    buffer_size: {}",
-            rng.random_range(1024..65536)
-        ));
-        lines.push(format!(
-            "    compression: {}",
+            "  compression: {}",
             if rng.random_bool(0.5) {
                 "true"
             } else {
@@ -486,19 +491,20 @@ pub fn generate_orders(count: usize) -> String {
     let customer_count = (count / 3).max(5);
 
     let mut lines = vec![
-        "%VERSION: 1.0".to_string(),
-        format!(
-            "%STRUCT: Customer ({}): [id,name,email,phone]",
-            customer_count
-        ),
-        "%STRUCT: Item: [sku,name,quantity,price]".to_string(),
-        format!("%STRUCT: Order ({}): [id,customer, status, total]", count),
-        "%NEST: Order > Item".to_string(),
+        "%V:2.0".to_string(),
+        "%NULL:~".to_string(),
+        "%QUOTE:\"".to_string(),
+        "%S:Customer:[id,name,email,phone]".to_string(),
+        format!("%C:Customer.total={customer_count}"),
+        "%S:Item:[sku,name,quantity,price]".to_string(),
+        "%S:Order:[id,customer,status,total]".to_string(),
+        format!("%C:Order.total={count}"),
+        "%N:Order>Item".to_string(),
         "---".to_string(),
     ];
 
     // Generate customers first
-    lines.push("customers: @Customer".to_string());
+    lines.push("customers:@Customer".to_string());
     for i in 0..customer_count {
         let first: String = FirstName().fake_with_rng(&mut rng);
         let last: String = LastName().fake_with_rng(&mut rng);
@@ -514,14 +520,14 @@ pub fn generate_orders(count: usize) -> String {
             rng.random_range(100..1000),
             rng.random_range(0..10000)
         );
-        lines.push(format!("  |{id},{name},{email},{phone}"));
+        lines.push(format!(" |{id},{name},{email},{phone}"));
     }
 
     // Generate orders with nested items
     let statuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
     let products = ["Widget", "Gadget", "Tool", "Device", "Kit", "Pack"];
 
-    lines.push("orders: @Order".to_string());
+    lines.push("orders:@Order".to_string());
     let mut item_counter = 1; // Sequential counter for unique SKUs
     for i in 0..count {
         let order_id = format!("ord{}", i + 1);
@@ -529,9 +535,8 @@ pub fn generate_orders(count: usize) -> String {
         let status = statuses[rng.random_range(0..statuses.len())];
         let item_count = rng.random_range(1..6);
 
-        lines.push(format!(
-            "  |[{item_count}] {order_id},{customer_ref},{status},0.00"
-        ));
+        lines.push(format!(" |{order_id},{customer_ref},{status},0.00"));
+        lines.push(format!("  @Item#{item_count}:"));
 
         // Add nested items with unique sequential SKUs
         for _j in 0..item_count {
@@ -541,7 +546,7 @@ pub fn generate_orders(count: usize) -> String {
             let name = format!("{} {}", product, rng.random_range(1..100));
             let qty = rng.random_range(1..10);
             let price = rng.random_range(9.99..199.99);
-            lines.push(format!("    |{sku},{name},{qty},{price:.2}"));
+            lines.push(format!("  |{sku},{name},{qty},{price:.2}"));
         }
     }
 
@@ -553,89 +558,101 @@ pub mod validation {
     /// Control: valid data with 20 employees
     #[must_use]
     pub fn control() -> String {
-        r"%VERSION: 1.0
-%STRUCT: Employee (20): [id, name, department, salary]
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Employee:[id,name,department,salary]
+%C:Employee.total=20
 ---
-employees: @Employee
-  | emp1, Alice Smith, Engineering, 85000
-  | emp2, Bob Jones, Marketing, 72000
-  | emp3, Carol White, Engineering, 92000
-  | emp4, Dave Brown, Sales, 68000
-  | emp5, Eve Davis, Engineering, 88000
-  | emp6, Frank Miller, Marketing, 75000
-  | emp7, Grace Wilson, Sales, 71000
-  | emp8, Henry Moore, Engineering, 95000
-  | emp9, Ivy Taylor, Marketing, 69000
-  | emp10, Jack Anderson, Sales, 82000
-  | emp11, Kate Thomas, Engineering, 91000
-  | emp12, Leo Jackson, Marketing, 73000
-  | emp13, Mary Harris, Sales, 77000
-  | emp14, Nick Martin, Engineering, 89000
-  | emp15, Olivia Garcia, Marketing, 76000
-  | emp16, Paul Robinson, Sales, 70000
-  | emp17, Quinn Clark, Engineering, 93000
-  | emp18, Rose Lewis, Marketing, 74000
-  | emp19, Sam Walker, Sales, 79000
-  | emp20, Tina Hall, Engineering, 87000
-"
+employees:@Employee
+ |emp1, Alice Smith, Engineering, 85000
+ |emp2, Bob Jones, Marketing, 72000
+ |emp3, Carol White, Engineering, 92000
+ |emp4, Dave Brown, Sales, 68000
+ |emp5, Eve Davis, Engineering, 88000
+ |emp6, Frank Miller, Marketing, 75000
+ |emp7, Grace Wilson, Sales, 71000
+ |emp8, Henry Moore, Engineering, 95000
+ |emp9, Ivy Taylor, Marketing, 69000
+ |emp10, Jack Anderson, Sales, 82000
+ |emp11, Kate Thomas, Engineering, 91000
+ |emp12, Leo Jackson, Marketing, 73000
+ |emp13, Mary Harris, Sales, 77000
+ |emp14, Nick Martin, Engineering, 89000
+ |emp15, Olivia Garcia, Marketing, 76000
+ |emp16, Paul Robinson, Sales, 70000
+ |emp17, Quinn Clark, Engineering, 93000
+ |emp18, Rose Lewis, Marketing, 74000
+ |emp19, Sam Walker, Sales, 79000
+ |emp20, Tina Hall, Engineering, 87000
+"#
         .to_string()
     }
 
     /// Truncated: missing rows (declared 20, only has 15)
     #[must_use]
     pub fn truncated() -> String {
-        r"%VERSION: 1.0
-%STRUCT: Employee (15): [id, name, department, salary]
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Employee:[id,name,department,salary]
+%C:Employee.total=15
 ---
-employees: @Employee
-  | emp1, Alice Smith, Engineering, 85000
-  | emp2, Bob Jones, Marketing, 72000
-  | emp3, Carol White, Engineering, 92000
-  | emp4, Dave Brown, Sales, 68000
-  | emp5, Eve Davis, Engineering, 88000
-  | emp6, Frank Miller, Marketing, 75000
-  | emp7, Grace Wilson, Sales, 71000
-  | emp8, Henry Moore, Engineering, 95000
-  | emp9, Ivy Taylor, Marketing, 69000
-  | emp10, Jack Anderson, Sales, 82000
-  | emp11, Kate Thomas, Engineering, 91000
-  | emp12, Leo Jackson, Marketing, 73000
-  | emp13, Mary Harris, Sales, 77000
-  | emp14, Nick Martin, Engineering, 89000
-  | emp15, Olivia Garcia, Marketing, 76000
-"
+employees:@Employee
+ |emp1, Alice Smith, Engineering, 85000
+ |emp2, Bob Jones, Marketing, 72000
+ |emp3, Carol White, Engineering, 92000
+ |emp4, Dave Brown, Sales, 68000
+ |emp5, Eve Davis, Engineering, 88000
+ |emp6, Frank Miller, Marketing, 75000
+ |emp7, Grace Wilson, Sales, 71000
+ |emp8, Henry Moore, Engineering, 95000
+ |emp9, Ivy Taylor, Marketing, 69000
+ |emp10, Jack Anderson, Sales, 82000
+ |emp11, Kate Thomas, Engineering, 91000
+ |emp12, Leo Jackson, Marketing, 73000
+ |emp13, Mary Harris, Sales, 77000
+ |emp14, Nick Martin, Engineering, 89000
+ |emp15, Olivia Garcia, Marketing, 76000
+"#
         .to_string()
     }
 
     /// Width mismatch: inconsistent field counts
     #[must_use]
     pub fn width_mismatch() -> String {
-        r"%VERSION: 1.0
-%STRUCT: Employee (5): [id, name, department, salary]
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Employee:[id,name,department,salary]
+%C:Employee.total=5
 ---
-employees: @Employee
-  | emp1, Alice Smith, Engineering, 85000
-  | emp2, Bob Jones, Marketing
-  | emp3, Carol White, Engineering, 92000, extra
-  | emp4, Dave Brown, Sales, 68000
-  | emp5, Eve Davis, Engineering
-"
+employees:@Employee
+ |emp1, Alice Smith, Engineering, 85000
+ |emp2, Bob Jones, Marketing
+ |emp3, Carol White, Engineering, 92000, extra
+ |emp4, Dave Brown, Sales, 68000
+ |emp5, Eve Davis, Engineering
+"#
         .to_string()
     }
 
     /// Missing fields: required fields are null
     #[must_use]
     pub fn missing_fields() -> String {
-        r"%VERSION: 1.0
-%STRUCT: Employee (5): [id, name, department, salary]
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Employee:[id,name,department,salary]
+%C:Employee.total=5
 ---
-employees: @Employee
-  | emp1, Alice Smith, Engineering, 85000
-  | emp2, ~, Marketing, 72000
-  | emp3, Carol White, ~, 92000
-  | emp4, Dave Brown, Sales, ~
-  | emp5, ~, ~, ~
-"
+employees:@Employee
+ |emp1, Alice Smith, Engineering, 85000
+ |emp2, ~, Marketing, 72000
+ |emp3, Carol White, ~, 92000
+ |emp4, Dave Brown, Sales, ~
+ |emp5, ~, ~, ~
+"#
         .to_string()
     }
 
@@ -651,19 +668,22 @@ employees: @Employee
 /// Generate a dataset that heavily uses DITTO operators for repeated values.
 ///
 /// This showcases HEDL's token efficiency for data with many repeated values.
-/// Each employee shares company, department, location - using ^ ditto.
+/// Each employee shares company, department, location - using ^ ditto (pre-v2.0 only).
 /// Uses compact HEDL format with inline schema.
+///
+/// **Note**: This generates pre-v2.0 HEDL documents. The ditto operator (`^`) is NOT allowed in v2.0.
 #[must_use]
 pub fn generate_ditto_heavy(employee_count: usize) -> String {
     let mut rng = StdRng::seed_from_u64(77777);
+    // Use pre-v2.0 syntax since ditto (^) is NOT allowed in v2.0
     let mut lines = vec![
-        "%VERSION: 1.0".to_string(),
+        "%VERSION: 1.2".to_string(),
         format!(
-            "%STRUCT: Employee ({}): [id,name,company,department,location,role,salary,status]",
+            "%STRUCT: Employee({}) : [id,name,company,department,location,role,salary,status]",
             employee_count
         ),
         "---".to_string(),
-        "employees: @Employee".to_string(),
+        "employees:@Employee".to_string(),
     ];
 
     let companies = ["Acme Corp", "TechStart Inc", "Global Systems"];
@@ -717,7 +737,7 @@ pub fn generate_ditto_heavy(employee_count: usize) -> String {
         };
 
         lines.push(format!(
-            "  |{id},{name},{company_str},{dept_str},{loc_str},{role},{salary},{status}"
+            " |{id},{name},{company_str},{dept_str},{loc_str},{role},{salary},{status}"
         ));
 
         last_company = company;
@@ -738,21 +758,22 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
     let person_count = project_count * 2;
 
     let mut lines = vec![
-        "%VERSION: 1.0".to_string(),
-        format!("%STRUCT: Person ({}): [id,name,role,skills]", person_count),
-        format!(
-            "%STRUCT: Project ({}): [id, name, owner, status, depends_on]",
-            project_count
-        ),
-        "%STRUCT: Milestone: [id, name, deadline, status]".to_string(),
-        "%STRUCT: Task: [id, name, assignee, priority, hours]".to_string(),
-        "%NEST: Project > Milestone".to_string(),
-        "%NEST: Milestone > Task".to_string(),
+        "%V:2.0".to_string(),
+        "%NULL:~".to_string(),
+        "%QUOTE:\"".to_string(),
+        "%S:Person:[id,name,role,skills]".to_string(),
+        format!("%C:Person.total={person_count}"),
+        "%S:Project:[id,name,owner,status,depends_on]".to_string(),
+        format!("%C:Project.total={project_count}"),
+        "%S:Milestone:[id,name,deadline,status]".to_string(),
+        "%S:Task:[id,name,assignee,priority,hours]".to_string(),
+        "%N:Project>Milestone".to_string(),
+        "%N:Milestone>Task".to_string(),
         "---".to_string(),
     ];
 
     // Generate people first (referenced by tasks and as project owners)
-    lines.push("people: @Person".to_string());
+    lines.push("people:@Person".to_string());
     let roles = ["developer", "designer", "analyst", "lead", "architect"];
     let skill_sets = [
         "[rust, python]",
@@ -768,11 +789,11 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
         let name = format!("{first} {last}");
         let role = roles[rng.random_range(0..roles.len())];
         let skills = skill_sets[rng.random_range(0..skill_sets.len())];
-        lines.push(format!("  |{id},{name},{role},{skills}"));
+        lines.push(format!(" |{id},{name},{role},{skills}"));
     }
 
     // Generate projects with nested milestones and tasks
-    lines.push("projects: @Project".to_string());
+    lines.push("projects:@Project".to_string());
     let statuses = ["planning", "active", "review", "completed"];
     let priorities = ["P0", "P1", "P2", "P3"];
 
@@ -795,8 +816,9 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
         // 2-3 milestones per project
         let milestone_count = rng.random_range(2..4);
         lines.push(format!(
-            "  |[{milestone_count}] {proj_id},{proj_name},{owner},{status},{depends}"
+            " |{proj_id},{proj_name},{owner},{status},{depends}"
         ));
+        lines.push(format!("  @Milestone#{milestone_count}:"));
 
         for m in 0..milestone_count {
             let ms_id = format!("m{}_{}", p + 1, m + 1);
@@ -814,9 +836,8 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
 
             // 2-4 tasks per milestone
             let task_count = rng.random_range(2..5);
-            lines.push(format!(
-                "    |[{task_count}] {ms_id},{ms_name},{deadline},{ms_status}"
-            ));
+            lines.push(format!("  |{ms_id},{ms_name},{deadline},{ms_status}"));
+            lines.push(format!("   @Task#{task_count}:"));
 
             for t in 0..task_count {
                 let task_id = format!("t{}_{}_{}", p + 1, m + 1, t + 1);
@@ -830,7 +851,7 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
                 let priority = priorities[rng.random_range(0..priorities.len())];
                 let hours = rng.random_range(2..40);
                 lines.push(format!(
-                    "      |{task_id},{task_name},{assignee},{priority},{hours}"
+                    "   |{task_id},{task_name},{assignee},{priority},{hours}"
                 ));
             }
         }
@@ -843,21 +864,24 @@ pub fn generate_reference_heavy(project_count: usize) -> String {
 ///
 /// Company > Division > Department > Team > Employee
 /// 5 levels of nesting to test structure comprehension.
-/// Uses new count syntax in %STRUCT and |N| for parent rows.
+/// Uses new count syntax in %STRUCT and |N|for parent rows.
 #[must_use]
 pub fn generate_deep_hierarchy(divisions: usize) -> String {
     let mut rng = StdRng::seed_from_u64(99999);
     let mut lines = vec![
-        "%VERSION: 1.0".to_string(),
-        "%STRUCT: Company: [id,name,founded,industry]".to_string(),
-        format!("%STRUCT: Division ({}): [id,name,head,budget]", divisions),
-        "%STRUCT: Department: [id,name,manager,headcount]".to_string(),
-        "%STRUCT: Team: [id,name,lead,focus]".to_string(),
-        "%STRUCT: Employee: [id,name,role,level]".to_string(),
-        "%NEST: Company > Division".to_string(),
-        "%NEST: Division > Department".to_string(),
-        "%NEST: Department > Team".to_string(),
-        "%NEST: Team > Employee".to_string(),
+        "%V:2.0".to_string(),
+        "%NULL:~".to_string(),
+        "%QUOTE:\"".to_string(),
+        "%S:Company:[id,name,founded,industry]".to_string(),
+        "%S:Division:[id,name,head,budget]".to_string(),
+        format!("%C:Division.total={divisions}"),
+        "%S:Department:[id,name,manager,headcount]".to_string(),
+        "%S:Team:[id,name,lead,focus]".to_string(),
+        "%S:Employee:[id,name,role,level]".to_string(),
+        "%N:Company>Division".to_string(),
+        "%N:Division>Department".to_string(),
+        "%N:Department>Team".to_string(),
+        "%N:Team>Employee".to_string(),
         "---".to_string(),
     ];
 
@@ -930,44 +954,34 @@ pub fn generate_deep_hierarchy(divisions: usize) -> String {
         division_data.push((div_id, div_name, head, budget, dept_data));
     }
 
-    // Generate with clear count syntax: |[N] data - brackets clearly separate count from data
-    lines.push("companies: @Company".to_string());
-    lines.push(format!(
-        "  |[{divisions}] corp1, MegaCorp International, 1985, Technology"
-    ));
+    // Generate with v2.0 child block syntax
+    lines.push("companies:@Company".to_string());
+    lines.push(" |corp1, MegaCorp International, 1985, Technology".to_string());
+    lines.push(format!("  @Division#{divisions}:"));
 
     for (div_id, div_name, head, budget, dept_data) in &division_data {
         lines.push(format!(
-            "    |[{}] {},{},{},{}M",
-            dept_data.len(),
+            "  |{},{},{},{}M",
             div_id,
             div_name,
             head,
             budget / 1_000_000
         ));
+        lines.push(format!("   @Department#{}:", dept_data.len()));
 
         for (dept_id, dept_name, manager, headcount, team_data) in dept_data {
             lines.push(format!(
-                "      |[{}] {},{},{},{}",
-                team_data.len(),
-                dept_id,
-                dept_name,
-                manager,
-                headcount
+                "   |{},{},{},{}",
+                dept_id, dept_name, manager, headcount
             ));
+            lines.push(format!("    @Team#{}:", team_data.len()));
 
             for (team_id, team_name, lead, focus, emp_data) in team_data {
-                lines.push(format!(
-                    "        |[{}] {},{},{},{}",
-                    emp_data.len(),
-                    team_id,
-                    team_name,
-                    lead,
-                    focus
-                ));
+                lines.push(format!("    |{},{},{},{}", team_id, team_name, lead, focus));
+                lines.push(format!("     @Employee#{}:", emp_data.len()));
 
                 for (emp_id, emp_name, role, level) in emp_data {
-                    lines.push(format!("          |{emp_id},{emp_name},{role},{level}"));
+                    lines.push(format!("     |{emp_id},{emp_name},{role},{level}"));
                 }
             }
         }
@@ -994,7 +1008,7 @@ mod tests {
         let result = generate_users_safe(100);
         assert!(result.is_ok());
         let hedl = result.unwrap();
-        assert!(hedl.contains("%STRUCT: User"));
+        assert!(hedl.contains("%S:User"));
         assert!(hedl_core::parse(hedl.as_bytes()).is_ok());
     }
 
@@ -1107,7 +1121,7 @@ mod tests {
             "Expected Project cross-references"
         );
         assert!(
-            hedl.contains("%NEST: Project > Milestone"),
+            hedl.contains("%N:Project>Milestone"),
             "Expected nested structure"
         );
     }
@@ -1123,21 +1137,25 @@ mod tests {
         );
         // Verify new count syntax is present
         assert!(
-            hedl.contains("%STRUCT: Division (3):"),
-            "Expected Division count in %STRUCT"
+            hedl.contains("%S:Division:["),
+            "Expected Division schema definition"
         );
         assert!(
-            hedl.contains("%NEST: Company > Division"),
+            hedl.contains("%C:Division.total=3"),
+            "Expected Division count directive"
+        );
+        assert!(
+            hedl.contains("%N:Company>Division"),
             "Expected Company > Division nest"
         );
         assert!(
-            hedl.contains("%NEST: Division > Department"),
+            hedl.contains("%N:Division>Department"),
             "Expected Division > Department nest"
         );
-        // Verify parent rows have |[N] syntax (clear count format)
+        // Verify parent rows use v2.0 child block syntax
         assert!(
-            hedl.contains("|[3] corp1, MegaCorp"),
-            "Expected company row with division count"
+            hedl.contains("@Division#3:"),
+            "Expected Division child block with count"
         );
     }
 

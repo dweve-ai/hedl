@@ -22,13 +22,13 @@ fn test_count_hint_parsing() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
-teams(3): @Team
-  | t1,Warriors
-  | t2,Lakers
-  | t3,Celtics
+teams(3):@Team
+ | t1,Warriors
+ | t2,Lakers
+ | t3,Celtics
 
-no_hint: @Team
-  | t4,Heat
+no_hint:@Team
+ | t4,Heat
 ";
 
     let doc = parse(input).expect("parse should succeed");
@@ -57,9 +57,9 @@ no_hint: @Team
 fn test_count_hint_with_inline_schema() {
     let input = b"%VERSION: 1.0
 ---
-players(2): @Player[id,name,position]
-  | p1,Curry,Guard
-  | p2,James,Forward
+players(2):@Player[id,name,position]
+ | p1,Curry,Guard
+ | p2,James,Forward
 ";
 
     let doc = parse(input).expect("parse should succeed");
@@ -79,8 +79,8 @@ fn test_invalid_count_hint_zero() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
-teams(0): @Team
-  | t1,Warriors
+teams(0):@Team
+ | t1,Warriors
 ";
 
     let result = parse(input);
@@ -96,8 +96,8 @@ fn test_invalid_count_hint_non_numeric() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
-teams(abc): @Team
-  | t1,Warriors
+teams(abc):@Team
+ | t1,Warriors
 ";
 
     let result = parse(input);
@@ -142,8 +142,8 @@ fn test_unclosed_count_hint_parenthesis() {
     let input = b"%VERSION: 1.0
 %STRUCT: Team: [id,name]
 ---
-teams(3: @Team
-  | t1,Warriors
+teams(3:@Team
+ | t1,Warriors
 ";
 
     let result = parse(input);

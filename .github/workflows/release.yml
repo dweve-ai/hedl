@@ -17,6 +17,7 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -82,6 +83,7 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
@@ -127,13 +129,41 @@ jobs:
     name: Build MCPB Bundles
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust_target: x86_64-unknown-linux-gnu
+            mcpb_os: linux
+            mcpb_arch: amd64
+            archive: tar.gz
+            binary: hedl-mcp
+          - rust_target: x86_64-apple-darwin
+            mcpb_os: darwin
+            mcpb_arch: amd64
+            archive: tar.gz
+            binary: hedl-mcp
+          - rust_target: aarch64-apple-darwin
+            mcpb_os: darwin
+            mcpb_arch: arm64
+            archive: tar.gz
+            binary: hedl-mcp
+          - rust_target: x86_64-pc-windows-msvc
+            mcpb_os: win32
+            mcpb_arch: amd64
+            archive: zip
+            binary: hedl-mcp.exe
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: hedl-${{ matrix.rust_target }}
+          path: artifact
 
       - name: Get version
         id: version
@@ -145,74 +175,138 @@ jobs:
           fi
           echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
 
-      - name: Create MCPB bundles
+      - name: Create MCPB bundle
         run: |
-          mkdir -p mcpb
+          set -e
+          MCPB_NAME="hedl-mcp-${{ matrix.mcpb_os }}-${{ matrix.mcpb_arch }}"
+          mkdir -p "${MCPB_NAME}/server"
 
-          # Create manifest for each platform
-          for platform in x86_64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows-msvc; do
-            mkdir -p "mcpb-${platform}"
+          # Extract binary from artifact
+          cd artifact
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            echo "Extracting ZIP archive..."
+            unzip -o "hedl-${{ matrix.rust_target }}.zip"
+            ls -la
+          else
+            echo "Extracting TAR.GZ archive..."
+            tar -xzf "hedl-${{ matrix.rust_target }}.tar.gz"
+            ls -la
+          fi
+          cd ..
 
-            # Extract binary
-            if [[ "$platform" == *"windows"* ]]; then
-              cd "artifacts/hedl-${platform}"
-              unzip -o "hedl-${platform}.zip" -d extracted || true
-              cp extracted/hedl-mcp.exe "../mcpb-${platform}/" || cp "hedl-${platform}/hedl-mcp.exe" "../mcpb-${platform}/"
-              cd ..
-            else
-              cd "artifacts/hedl-${platform}"
-              tar -xzf "hedl-${platform}.tar.gz" || true
-              cp hedl-mcp "../mcpb-${platform}/" || true
-              cd ..
-            fi
+          # Copy binary to server directory
+          echo "Copying binary: artifact/${{ matrix.binary }} to ${MCPB_NAME}/server/"
+          if [ ! -f "artifact/${{ matrix.binary }}" ]; then
+            echo "Error: Binary not found: artifact/${{ matrix.binary }}"
+            ls -la artifact/
+            exit 1
+          fi
+          cp "artifact/${{ matrix.binary }}" "${MCPB_NAME}/server/"
+          chmod +x "${MCPB_NAME}/server/${{ matrix.binary }}" 2>/dev/null || true
 
-            # Create manifest.json
-            cat > "mcpb-${platform}/manifest.json" << EOF
+          # Create manifest.json following MCPB 0.3 spec
+          VERSION="${{ steps.version.outputs.version }}"
+          BINARY="${{ matrix.binary }}"
+          PLATFORM="${{ matrix.mcpb_os }}"
+
+          cat > "${MCPB_NAME}/manifest.json" << MANIFEST_EOF
           {
+            "\$schema": "https://static.modelcontextprotocol.io/schemas/2025-01-01/manifest.schema.json",
+            "manifest_version": "0.3",
             "name": "hedl-mcp",
-            "version": "${{ steps.version.outputs.version }}",
-            "description": "HEDL Model Context Protocol server for AI/LLM integration. Provides tools for parsing, validating, converting, and optimizing HEDL documents.",
-            "author": "Dweve B.V.",
+            "version": "${VERSION}",
+            "title": "HEDL MCP Server",
+            "description": "Model Context Protocol server for HEDL (Hierarchical Entity Data Language). Provides tools for parsing, validating, converting, optimizing, and querying HEDL documents with 93% better token efficiency than JSON.",
+            "author": {
+              "name": "Dweve B.V.",
+              "url": "https://dweve.com"
+            },
             "license": "Apache-2.0",
             "homepage": "https://github.com/dweve-ai/hedl",
-            "repository": "https://github.com/dweve-ai/hedl",
-            "platform": "${platform}",
-            "binary": "hedl-mcp$([ "$platform" == *"windows"* ] && echo ".exe" || echo "")",
-            "transport": "stdio",
+            "repository": {
+              "type": "git",
+              "url": "https://github.com/dweve-ai/hedl"
+            },
+            "server": {
+              "type": "binary"
+            },
+            "mcp_config": {
+              "command": "server/${BINARY}",
+              "args": [],
+              "env": {}
+            },
+            "compatibility": {
+              "platforms": ["${PLATFORM}"]
+            },
             "tools": [
-              "hedl_read",
-              "hedl_query",
-              "hedl_validate",
-              "hedl_optimize",
-              "hedl_stats",
-              "hedl_format",
-              "hedl_write",
-              "hedl_convert_to",
-              "hedl_convert_from",
-              "hedl_stream",
-              "batch"
+              {
+                "name": "hedl_read",
+                "description": "Read and parse a HEDL file, returning structured data"
+              },
+              {
+                "name": "hedl_query",
+                "description": "Query HEDL data using path expressions"
+              },
+              {
+                "name": "hedl_validate",
+                "description": "Validate HEDL syntax and structure"
+              },
+              {
+                "name": "hedl_optimize",
+                "description": "Optimize HEDL for minimal token usage"
+              },
+              {
+                "name": "hedl_stats",
+                "description": "Get statistics about HEDL document structure"
+              },
+              {
+                "name": "hedl_format",
+                "description": "Format HEDL with configurable style options"
+              },
+              {
+                "name": "hedl_write",
+                "description": "Write data to HEDL format"
+              },
+              {
+                "name": "hedl_convert_to",
+                "description": "Convert HEDL to JSON, YAML, XML, CSV, or Parquet"
+              },
+              {
+                "name": "hedl_convert_from",
+                "description": "Convert JSON, YAML, XML, or CSV to HEDL"
+              },
+              {
+                "name": "hedl_stream",
+                "description": "Stream large HEDL files efficiently"
+              },
+              {
+                "name": "batch",
+                "description": "Execute multiple HEDL operations in a single request"
+              }
             ]
           }
-          EOF
+          MANIFEST_EOF
 
-            # Create .mcpb bundle (ZIP)
-            cd "mcpb-${platform}"
-            if [[ "$platform" == *"windows"* ]]; then
-              zip "../mcpb/hedl-mcp-${platform}.mcpb" manifest.json hedl-mcp.exe 2>/dev/null || true
-            else
-              zip "../mcpb/hedl-mcp-${platform}.mcpb" manifest.json hedl-mcp 2>/dev/null || true
-            fi
-            cd ..
-          done
+          # Create .mcpb bundle (ZIP archive)
+          cd "${MCPB_NAME}"
+          zip -r "../${MCPB_NAME}.mcpb" manifest.json server/
+          cd ..
 
-      - name: Upload MCPB bundles
+          # Generate SHA256 checksum
+          sha256sum "${MCPB_NAME}.mcpb" > "${MCPB_NAME}.mcpb.sha256"
+
+      - name: Upload MCPB bundle
         uses: actions/upload-artifact@v4
         with:
-          name: mcpb-bundles
-          path: mcpb/*.mcpb
+          name: mcpb-${{ matrix.mcpb_os }}-${{ matrix.mcpb_arch }}
+          path: |
+            hedl-mcp-${{ matrix.mcpb_os }}-${{ matrix.mcpb_arch }}.mcpb
+            hedl-mcp-${{ matrix.mcpb_os }}-${{ matrix.mcpb_arch }}.mcpb.sha256
 
       - name: Add MCPB to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          files: mcpb/*.mcpb
+          files: |
+            hedl-mcp-${{ matrix.mcpb_os }}-${{ matrix.mcpb_arch }}.mcpb
+            hedl-mcp-${{ matrix.mcpb_os }}-${{ matrix.mcpb_arch }}.mcpb.sha256

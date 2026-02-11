@@ -33,7 +33,7 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 
 // Test data
-const VALID_HEDL: &[u8] = b"%VERSION: 1.0\n---\nkey: value\0";
+const VALID_HEDL: &[u8] = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
 const INVALID_HEDL: &[u8] = b"not valid hedl\0";
 
 // =============================================================================
@@ -42,6 +42,7 @@ const INVALID_HEDL: &[u8] = b"not valid hedl\0";
 
 #[test]
 fn test_thread_local_error_isolation_basic() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // Create two threads with different error states
         let invalid = Arc::new(INVALID_HEDL.to_vec());
@@ -83,6 +84,7 @@ fn test_thread_local_error_isolation_basic() {
 
 #[test]
 fn test_hedl_get_last_error_threadsafe_isolation() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let barrier = Arc::new(Barrier::new(3));
         let mut handles = vec![];
@@ -122,6 +124,7 @@ fn test_hedl_get_last_error_threadsafe_isolation() {
 
 #[test]
 fn test_hedl_clear_error_threadsafe() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let handles: Vec<_> = (0..4)
             .map(|_| {
@@ -164,6 +167,7 @@ fn test_concurrent_parse_operations() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -208,6 +212,7 @@ fn test_concurrent_parse_with_errors() {
             let valid_clone = valid_hedl.clone();
             let invalid_clone = invalid_hedl.clone();
 
+            // SAFETY: Unsafe operation required for FFI boundary
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -268,6 +273,7 @@ fn test_concurrent_json_conversions() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: Unsafe operation required for FFI boundary
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -318,6 +324,7 @@ fn test_concurrent_yaml_conversions() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -364,6 +371,7 @@ fn test_concurrent_canonicalize() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -410,6 +418,7 @@ fn test_concurrent_lint() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -459,6 +468,7 @@ fn test_concurrent_mixed_operations() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -535,6 +545,7 @@ fn test_error_state_isolation_stress() {
             let valid_clone = valid_hedl.clone();
             let invalid_clone = invalid_hedl.clone();
 
+            // SAFETY: Unsafe operation required for FFI boundary
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -611,6 +622,7 @@ fn test_concurrent_callback_operations() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -654,6 +666,7 @@ fn test_concurrent_memory_safety() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: Unsafe operation required for FFI boundary
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -717,6 +730,7 @@ fn test_thread_pool_error_handling() {
             let barrier_clone = barrier.clone();
             let tasks_clone = tasks.clone();
 
+            // SAFETY: FFI call with valid C-compatible types and checked pointers
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 
@@ -788,6 +802,7 @@ fn test_high_contention_scenario() {
             let barrier_clone = barrier.clone();
             let valid_clone = valid_hedl.clone();
 
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
                 barrier_clone.wait();
 

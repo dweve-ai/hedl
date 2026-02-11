@@ -135,15 +135,20 @@
 //!
 #![cfg_attr(not(test), warn(missing_docs))]
 mod from_json;
+/// JSONPath query engine for extracting specific data.
 pub mod jsonpath;
+/// Schema caching.
 pub mod schema_cache;
+/// JSON Schema generation from HEDL documents.
 pub mod schema_gen;
+/// Streaming JSON conversion.
 pub mod streaming;
+/// String interning and caching.
 pub mod string_cache;
 mod to_json;
-// pub mod partial;
 
 #[cfg(feature = "validation")]
+/// JSON schema validation.
 pub mod validation;
 
 // Re-export the shared DEFAULT_SCHEMA from hedl-core for internal use

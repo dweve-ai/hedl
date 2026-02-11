@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_roundtrip_empty_document() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let json_str = hedl_to_json(&doc).unwrap();
     let doc2 = json_to_hedl(&json_str).unwrap();
 
@@ -26,7 +26,7 @@ fn test_roundtrip_empty_document() {
 
 #[test]
 fn test_roundtrip_simple_scalars() {
-    let hedl = "%VERSION: 1.0\n---\nname: Alice\nage: 30\nactive: true";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: Alice\nage: 30\nactive: true";
     let doc = parse(hedl.as_bytes()).unwrap();
 
     let json_str = hedl_to_json(&doc).unwrap();
@@ -41,7 +41,9 @@ fn test_roundtrip_simple_scalars() {
 #[test]
 fn test_roundtrip_all_scalar_types() {
     let hedl = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 null_value: ~
 bool_true: true
@@ -62,13 +64,15 @@ string_value: "hello world"
 #[test]
 fn test_roundtrip_nested_objects() {
     let hedl = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 user:
-  name: Alice
-  profile:
-    bio: "Software Engineer"
-    location: "NYC"
+ name: Alice
+ profile:
+  bio: "Software Engineer"
+  location: "NYC"
 "#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
@@ -82,7 +86,9 @@ user:
 #[test]
 fn test_roundtrip_with_unicode() {
     let hedl = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 name: "太郎"
 emoji: "🎉"
@@ -100,7 +106,9 @@ arabic: "مرحبا"
 #[test]
 fn test_roundtrip_special_characters() {
     let hedl = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 quote: "He said \"hello\""
 newline: "Line 1\nLine 2"
@@ -119,14 +127,16 @@ backslash: "Path\\to\\file"
 
 #[test]
 fn test_roundtrip_simple_matrix_list() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | u1, Alice, alice@example.com
-  | u2, Bob, bob@example.com
-";
+users:@User
+ |u1, Alice, alice@example.com
+ |u2, Bob, bob@example.com
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -161,19 +171,21 @@ users: @User
 
 #[test]
 fn test_roundtrip_nested_matrix_lists() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: Team: [id, name]
-%STRUCT: Member: [id, name, role]
-%NEST: Team > Member
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
+%S:Member:[id,name,role]
+%N:Team>Member
 ---
-teams: @Team
-  | t1, Engineering
-    | m1, Alice, Lead
-    | m2, Bob, Developer
-  | t2, Design
-    | m3, Charlie, Designer
-";
+teams:@Team
+ |t1, Engineering
+  |m1, Alice, Lead
+  |m2, Bob, Developer
+ |t2, Design
+  |m3, Charlie, Designer
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -193,9 +205,10 @@ teams: @Team
 #[test]
 fn test_roundtrip_large_matrix_list() {
     // Create a document with many rows
-    let mut hedl = String::from("%VERSION: 1.0\n%STRUCT: Item: [id, value]\n---\nitems: @Item\n");
+    let mut hedl =
+        String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Item:[id,value]\n---\nitems:@Item\n");
     for i in 0..100 {
-        hedl.push_str(&format!("  | i{i}, value_{i}\n"));
+        hedl.push_str(&format!(" |i{i}, value_{i}\n"));
     }
 
     let doc = parse(hedl.as_bytes()).unwrap();
@@ -227,7 +240,7 @@ fn test_roundtrip_large_matrix_list() {
 
 #[test]
 fn test_roundtrip_1d_tensor() {
-    let hedl = "%VERSION: 1.0\n---\nvector: [1, 2, 3, 4, 5]";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvector: [1, 2, 3, 4, 5]";
     let doc = parse(hedl.as_bytes()).unwrap();
 
     let json_str = hedl_to_json(&doc).unwrap();
@@ -243,7 +256,7 @@ fn test_roundtrip_1d_tensor() {
 
 #[test]
 fn test_roundtrip_2d_tensor() {
-    let hedl = "%VERSION: 1.0\n---\nmatrix: [[1, 2], [3, 4]]";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nmatrix: [[1, 2], [3, 4]]";
     let doc = parse(hedl.as_bytes()).unwrap();
 
     let json_str = hedl_to_json(&doc).unwrap();
@@ -254,7 +267,7 @@ fn test_roundtrip_2d_tensor() {
 
 #[test]
 fn test_roundtrip_3d_tensor() {
-    let hedl = "%VERSION: 1.0\n---\ncube: [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ncube: [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]";
     let doc = parse(hedl.as_bytes()).unwrap();
 
     let json_str = hedl_to_json(&doc).unwrap();
@@ -265,7 +278,7 @@ fn test_roundtrip_3d_tensor() {
 
 #[test]
 fn test_roundtrip_tensor_with_floats() {
-    let hedl = "%VERSION: 1.0\n---\ndata: [1.5, 2.7, 3.14, -0.5]";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: [1.5, 2.7, 3.14, -0.5]";
     let doc = parse(hedl.as_bytes()).unwrap();
 
     let json_str = hedl_to_json(&doc).unwrap();
@@ -374,7 +387,9 @@ fn test_roundtrip_expression() {
 #[test]
 fn test_roundtrip_with_ascii_safe() {
     let hedl = r#"
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 text: "Hello 世界 🌍"
 "#;
@@ -400,14 +415,16 @@ text: "Hello 世界 🌍"
 
 #[test]
 fn test_roundtrip_with_flattened_lists() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  | u1, Alice
-  | u2, Bob
-";
+users:@User
+ |u1, Alice
+ |u2, Bob
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -427,16 +444,18 @@ users: @User
 
 #[test]
 fn test_roundtrip_without_children() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: Team: [id, name]
-%STRUCT: Member: [id, name]
-%NEST: Team > Member
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
+%S:Member:[id,name]
+%N:Team>Member
 ---
-teams: @Team
-  | t1, Engineering
-    | m1, Alice
-";
+teams:@Team
+ |t1, Engineering
+  |m1, Alice
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -459,7 +478,9 @@ teams: @Team
 
 #[test]
 fn test_roundtrip_empty_string() {
-    let hedl = r#"%VERSION: 1.0
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 empty: """#;
 
@@ -474,13 +495,15 @@ empty: """#;
 
 #[test]
 fn test_roundtrip_large_numbers() {
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 max_i64: 9223372036854775807
 min_i64: -9223372036854775808
 large_float: 1.7976931348623157e308
-";
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
     let json_str = hedl_to_json(&doc).unwrap();
@@ -491,13 +514,15 @@ large_float: 1.7976931348623157e308
 
 #[test]
 fn test_roundtrip_zero_values() {
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 zero_int: 0
 zero_float: 0.0
 negative_zero: -0.0
-";
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
     let json_str = hedl_to_json(&doc).unwrap();
@@ -511,7 +536,7 @@ negative_zero: -0.0
 fn test_roundtrip_single_element_array() {
     // Note: Empty arrays [] are not valid in HEDL (empty tensor not allowed)
     // Test single-element array instead
-    let hedl = "%VERSION: 1.0\n---\nsingle: [42]";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nsingle: [42]";
 
     let doc = parse(hedl.as_bytes()).unwrap();
     let json_str = hedl_to_json(&doc).unwrap();
@@ -523,7 +548,7 @@ fn test_roundtrip_single_element_array() {
 #[test]
 fn test_roundtrip_mixed_array() {
     // Create document with mixed-type tensor (if supported)
-    let hedl = "%VERSION: 1.0\n---\nmixed: [1, 2.5, 3]";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nmixed: [1, 2.5, 3]";
 
     let doc = parse(hedl.as_bytes()).unwrap();
     let json_str = hedl_to_json(&doc).unwrap();
@@ -536,13 +561,15 @@ fn test_roundtrip_mixed_array() {
 
 #[test]
 fn test_preserve_field_order() {
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 zebra: 1
 apple: 2
 monkey: 3
-";
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
     let json_str = hedl_to_json(&doc).unwrap();
@@ -558,11 +585,13 @@ monkey: 3
 
 #[test]
 fn test_preserve_number_precision() {
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 precise: 3.141592653589793
-";
+"#;
 
     let doc = parse(hedl.as_bytes()).unwrap();
     let json_str = hedl_to_json(&doc).unwrap();

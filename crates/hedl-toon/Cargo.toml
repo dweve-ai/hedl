@@ -50,8 +50,10 @@ workspace = true
 [dependencies]
 hedl-core = { workspace = true }
 thiserror = { workspace = true }
-itoa = "1.0"
-ryu = "1.0"
+toon-format = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+smallvec = { workspace = true }
 
 [dev-dependencies]
 hedl-test = { workspace = true }

@@ -75,7 +75,10 @@ pub fn scan_regions(line: &str) -> Vec<Region> {
             }
 
             // If we hit end of line without closing quote, mark region to end
-            if i >= bytes.len() && (regions.is_empty() || regions.last().unwrap().start != start) {
+            // SAFETY: is_empty() check guarantees last() succeeds
+            if i >= bytes.len()
+                && (regions.is_empty() || regions.last().expect("regions not empty").start != start)
+            {
                 regions.push(Region {
                     start,
                     end: bytes.len(),

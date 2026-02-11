@@ -1,11 +1,16 @@
-%VERSION: 1.0
-%STRUCT: Post: [id,title]
-%STRUCT: User: [id,name]
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Post:[id,title]
+%S:User:[id,name]
+%N:User>Post
+%C:User.total=2
+%C:Post.total=3
 ---
-users: @User
-  |[2] alice,Alice
-    |post1,Alice's first post
-    |post2,Alice's second post
-  |[1] bob,Bob
-    |post3,Bob's post
+users:@User
+ |alice,Alice
+  @Post#2:
+  |post1,Alice's first post
+  |post2,Alice's second post
+ |bob,Bob
+  @Post#1:|post3,Bob's post

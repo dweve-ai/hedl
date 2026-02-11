@@ -33,7 +33,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// Helper to create a Neo4j connection.
-async fn connect() -> Arc<Graph> {
+/// Returns None if Neo4j is not available (tests should skip gracefully).
+async fn connect() -> Option<Arc<Graph>> {
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
     let user = std::env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
     let password = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| String::new());
@@ -45,15 +46,30 @@ async fn connect() -> Arc<Graph> {
         .build()
         .expect("Failed to build config");
 
-    Arc::new(Graph::connect(config).expect("Failed to connect to Neo4j"))
+    match Graph::connect(config) {
+        Ok(graph) => Some(Arc::new(graph)),
+        Err(_) => {
+            eprintln!("Neo4j not available, skipping test");
+            None
+        }
+    }
+}
+
+/// Macro to skip test if Neo4j is not available.
+macro_rules! require_neo4j {
+    ($graph:expr) => {
+        match $graph {
+            Some(g) => g,
+            None => return, // Skip test gracefully
+        }
+    };
 }
 
 /// Helper to clean up test data.
 async fn cleanup(graph: &Graph) {
-    graph
+    let _ = graph
         .run(Query::new("MATCH (n) DETACH DELETE n".to_string()))
-        .await
-        .expect("Failed to cleanup");
+        .await;
 }
 
 /// Helper to get node count by label.
@@ -95,6 +111,7 @@ async fn count_relationships(graph: &Graph, rel_type: &str) -> i64 {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_async_client_connection() {
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -106,6 +123,7 @@ async fn test_async_client_connection() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_async_client_with_config() {
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -123,6 +141,7 @@ async fn test_async_client_with_config() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_async_client_with_retry_config() {
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -144,9 +163,10 @@ async fn test_async_client_with_retry_config() {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_import_simple_document() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -172,9 +192,10 @@ async fn test_import_simple_document() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_import_document_with_references() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -208,9 +229,10 @@ async fn test_import_document_with_references() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_import_document_with_nest() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -254,9 +276,10 @@ async fn test_import_document_with_nest() {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_import_document_transactional() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -287,9 +310,10 @@ async fn test_import_document_transactional() {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_concurrent_document_imports() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -317,9 +341,10 @@ async fn test_concurrent_document_imports() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_concurrent_imports_stress() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -360,9 +385,10 @@ async fn test_concurrent_imports_stress() {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_execute_raw_query() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -395,9 +421,10 @@ async fn test_execute_raw_query() {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_import_empty_document() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -410,7 +437,7 @@ async fn test_import_empty_document() {
 
     // Create an empty document
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -430,9 +457,10 @@ async fn test_import_empty_document() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_import_large_batch() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
@@ -470,7 +498,7 @@ async fn test_import_large_batch() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -498,9 +526,10 @@ async fn test_import_large_batch() {
 // ============================================================================
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_concurrent_vs_sequential_performance() {
-    let graph = connect().await;
+    let graph = require_neo4j!(connect().await);
     cleanup(&graph).await;
 
     let uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());

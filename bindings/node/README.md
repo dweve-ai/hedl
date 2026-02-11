@@ -17,8 +17,8 @@ import * as hedl from 'hedl';
 
 // Parse HEDL content
 const doc = hedl.parse(`
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User
   | alice, Alice Smith, alice@example.com
@@ -127,7 +127,7 @@ Use async variants when:
 import * as hedl from 'hedl';
 
 // Async parsing
-const doc = await hedl.parseAsync('%VERSION: 1.0\n---\nkey: value');
+const doc = await hedl.parseAsync('%V:2.0\n---\nkey: value');
 console.log(doc.version); // [1, 0]
 doc.close();
 ```

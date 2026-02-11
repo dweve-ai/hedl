@@ -437,6 +437,9 @@ fn bench_validate_nested(c: &mut Criterion) {
 // Ditto Validation Benchmarks
 // ============================================================================
 
+/// Benchmark validation of ditto-heavy documents (pre-v2.0 only).
+///
+/// **Note**: Ditto operator (`^`) is only supported in pre-v2.0 and is NOT allowed in v2.0.
 fn bench_validate_ditto(c: &mut Criterion) {
     let mut group = c.benchmark_group("validate_ditto");
 
@@ -721,10 +724,12 @@ fn create_nesting_impact_table(results: &[ComprehensiveValidationResult]) -> Cus
     table
 }
 
-/// Table 5: Ditto Validation Overhead
+/// Table 5: Ditto Validation Overhead (pre-v2.0 only).
+///
+/// **Note**: Ditto operator (`^`) is only supported in pre-v2.0 and is NOT allowed in v2.0.
 fn create_ditto_overhead_table(results: &[ComprehensiveValidationResult]) -> CustomTable {
     let mut table = CustomTable {
-        title: "Ditto Marker Validation Overhead".to_string(),
+        title: "Ditto Marker Validation Overhead (pre-v2.0 only)".to_string(),
         headers: vec![
             "Dataset Size".to_string(),
             "Ditto Time (μs)".to_string(),

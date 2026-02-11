@@ -26,8 +26,8 @@ use crate::protocol::{
     ToolsCapability,
 };
 use crate::rate_limiter::RateLimiter;
-use crate::resource_limits::ResourceLimitManager;
-use crate::tools::helpers::resolve_safe_path;
+use crate::resource_limits::LimitEnforcer;
+use crate::tools::argument_parsing::resolve_safe_path;
 use crate::tools::{execute_tool, get_tools};
 use crate::{SERVER_NAME, VERSION};
 use serde_json::{json, Value};
@@ -136,7 +136,7 @@ pub struct McpServer {
     /// Manages all resource limits including request/response size, per-client
     /// rate limiting, memory usage, concurrency, and timeouts. None if resource
     /// limits are disabled.
-    resource_limits: Option<Arc<ResourceLimitManager>>,
+    resource_limits: Option<Arc<LimitEnforcer>>,
 }
 
 impl McpServer {
@@ -194,7 +194,7 @@ impl McpServer {
     /// # Arguments
     ///
     /// * `resource_limits` - Resource limit manager to use
-    pub fn with_resource_limits(mut self, resource_limits: ResourceLimitManager) -> Self {
+    pub fn with_resource_limits(mut self, resource_limits: LimitEnforcer) -> Self {
         self.resource_limits = Some(Arc::new(resource_limits));
         self
     }
@@ -204,7 +204,7 @@ impl McpServer {
     /// # Returns
     ///
     /// Reference to the resource limit manager if enabled, `None` otherwise.
-    pub fn resource_limits(&self) -> Option<&Arc<ResourceLimitManager>> {
+    pub fn resource_limits(&self) -> Option<&Arc<LimitEnforcer>> {
         self.resource_limits.as_ref()
     }
 
@@ -685,7 +685,7 @@ impl McpServer {
     /// Handle the `tools/list` method.
     ///
     /// Returns the catalog of all available HEDL tools with their schemas.
-    /// Currently provides 10 tools for HEDL manipulation and conversion.
+    /// Currently provides 16 tools for HEDL manipulation and conversion.
     ///
     /// # Arguments
     ///

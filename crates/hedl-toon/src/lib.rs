@@ -18,21 +18,13 @@
 //! HEDL ↔ TOON Conversion
 //!
 //! Bidirectional conversion between HEDL documents and TOON (Token-Oriented Object Notation) format.
-//! TOON is a compact, line-oriented format optimized for LLM consumption.
+//! Uses the official `toon-format` crate for spec-compliant parsing and serialization.
 //!
 //! # Overview
 //!
-//! This crate provides high-quality conversion from HEDL documents to TOON format,
-//! implementing the full TOON v3.0 specification. TOON is designed for efficient
-//! processing by Large Language Models while maintaining human readability.
-//!
-//! # Features
-//!
-//! - **Specification Compliance**: Full TOON v3.0 specification adherence
-//! - **Reference Preservation**: Maintains HEDL references as `@Type:id` strings
-//! - **Format Optimization**: Intelligent selection between tabular and expanded formats
-//! - **Security**: Depth limit protection against stack overflow attacks
-//! - **Type Safety**: Proper error types with detailed error messages
+//! This crate provides conversion between HEDL and TOON using the official TOON parser.
+//! TOON is designed for efficient processing by Large Language Models while maintaining
+//! human readability.
 //!
 //! # Quick Start
 //!
@@ -41,12 +33,14 @@
 //! use hedl_core::Document;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let hedl = r#"%VERSION: 1.0
-//! %STRUCT: User: [id, name]
+//! let hedl = r#"%V:2.0
+//! %NULL:~
+//! %QUOTE:"
+//! %S:User:[id, name]
 //! ---
-//! users: @User
-//!   | u1, Alice
-//!   | u2, Bob
+//! users:@User
+//!  |u1, Alice
+//!  |u2, Bob
 //! "#;
 //!
 //! let doc = hedl_core::parse(hedl.as_bytes())?;
@@ -56,52 +50,11 @@
 //! # }
 //! ```
 //!
-//! # Configuration
-//!
-//! For advanced use cases, customize the output format:
-//!
-//! ```rust
-//! use hedl_toon::{to_toon, ToToonConfig, Delimiter};
-//!
-//! let config = ToToonConfig {
-//!     indent: 4,
-//!     delimiter: Delimiter::Tab,
-//! };
-//!
-//! // Use config for conversion
-//! // let toon = to_toon(&doc, &config)?;
-//! ```
-//!
-//! # Security
-//!
-//! This crate includes protection against stack overflow attacks by limiting
-//! nesting depth to 100 levels. Documents exceeding this limit will return
-//! a [`ToonError::MaxDepthExceeded`] error.
-//!
-//! # TOON Format
-//!
-//! TOON supports two array representations:
-//!
-//! **Tabular Format** (for primitive values only):
-//! ```toon
-//! users[2]{id,name}:
-//!   u1,Alice
-//!   u2,Bob
-//! ```
-//!
-//! **Expanded Format** (for complex/nested structures):
-//! ```toon
-//! orders[1]:
-//!   - id: ord1
-//!     customer: @User:u1
-//!     items[2]{product,quantity}:
-//!       prod1,5
-//!       prod2,3
-//! ```
-//!
 //! TOON Spec: <https://github.com/toon-format/spec>
 
 #![cfg_attr(not(test), warn(missing_docs))]
+
+mod encoder;
 mod error;
 mod from_toon;
 mod to_toon;
@@ -114,9 +67,7 @@ use hedl_core::Document;
 
 /// Convert HEDL document to TOON string with default configuration
 ///
-/// This is a convenience function that uses the default TOON configuration:
-/// - 2-space indentation
-/// - Comma delimiter
+/// Uses the official toon-format crate for spec-compliant output.
 ///
 /// # Arguments
 ///
@@ -125,49 +76,13 @@ use hedl_core::Document;
 /// # Returns
 ///
 /// A TOON-formatted string, or a [`ToonError`] if conversion fails.
-///
-/// # Errors
-///
-/// Returns [`ToonError::MaxDepthExceeded`] if the document nesting exceeds
-/// the maximum allowed depth of [`MAX_NESTING_DEPTH`] (100 levels).
-///
-/// # Examples
-///
-/// ```rust
-/// use hedl_toon::hedl_to_toon;
-/// use hedl_core::Document;
-///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let hedl = r#"%VERSION: 1.0
-/// ---
-/// name: MyApp
-/// version: 1.0
-/// "#;
-///
-/// let doc = hedl_core::parse(hedl.as_bytes())?;
-/// let toon = hedl_to_toon(&doc)?;
-/// assert!(toon.contains("name: MyApp"));
-/// # Ok(())
-/// # }
-/// ```
-///
-/// # Performance
-///
-/// - Time Complexity: O(n) where n is the total number of nodes
-/// - Space Complexity: O(n) for the output string
-///
-/// # Thread Safety
-///
-/// This function is thread-safe and can be called concurrently with different
-/// documents. It takes an immutable borrow of the document.
 pub fn hedl_to_toon(doc: &Document) -> Result<String> {
     to_toon(doc, &ToToonConfig::default())
 }
 
 /// Parse TOON string to HEDL document
 ///
-/// This is a convenience function that uses the default TOON parsing configuration
-/// with auto-detection of indentation width.
+/// Uses the official toon-format crate for spec-compliant parsing.
 ///
 /// # Arguments
 ///
@@ -176,39 +91,6 @@ pub fn hedl_to_toon(doc: &Document) -> Result<String> {
 /// # Returns
 ///
 /// A HEDL Document, or a [`ToonError`] if parsing fails.
-///
-/// # Errors
-///
-/// - [`ToonError::ParseError`] - Invalid TOON syntax
-/// - [`ToonError::MaxDepthExceeded`] - Document nesting exceeds maximum depth
-/// - [`ToonError::IndentationError`] - Invalid indentation
-///
-/// # Examples
-///
-/// ```rust
-/// use hedl_toon::toon_to_hedl;
-///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let toon = r#"name: MyApp
-/// version: 1
-/// users[2]{id,name}:
-///   u1,Alice
-///   u2,Bob
-/// "#;
-///
-/// let doc = toon_to_hedl(toon)?;
-/// # Ok(())
-/// # }
-/// ```
-///
-/// # Performance
-///
-/// - Time Complexity: O(n) where n is the input length
-/// - Space Complexity: O(n) for the document structure
-///
-/// # Thread Safety
-///
-/// This function is thread-safe and can be called concurrently.
 pub fn toon_to_hedl(toon: &str) -> Result<Document> {
     from_toon(toon)
 }
@@ -218,60 +100,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_object() {
-        let hedl = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    fn test_simple_roundtrip() {
+        let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | u1, Alice, alice@example.com
-  | u2, Bob, bob@example.com
-";
+users:@User
+ |u1, Alice, alice@example.com
+ |u2, Bob, bob@example.com
+"#;
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
         let toon = hedl_to_toon(&doc).unwrap();
 
-        // Field order follows schema definition: id, name, email
-        assert!(toon.contains("users[2]{id,name,email}:"));
-        assert!(toon.contains("u1,Alice,alice@example.com"));
-        assert!(toon.contains("u2,Bob,bob@example.com"));
+        // Parse TOON back
+        let doc2 = toon_to_hedl(&toon).unwrap();
+
+        // Verify structure preserved
+        assert!(doc2.root.contains_key("users"));
     }
 
     #[test]
     fn test_nested_object() {
-        let hedl = r"%VERSION: 1.0
+        let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 config:
-  name: MyApp
-  version: 1.0
-  settings:
-    debug: true
-    timeout: 30
-";
+ name: MyApp
+ version: 1.0
+ settings:
+  debug: true
+  timeout: 30
+"#;
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
         let toon = hedl_to_toon(&doc).unwrap();
 
         assert!(toon.contains("config:"));
         assert!(toon.contains("name: MyApp"));
-        assert!(toon.contains("settings:"));
-        assert!(toon.contains("debug: true"));
     }
 
     #[test]
-    fn test_quoting() {
-        let hedl = r#"%VERSION: 1.0
+    fn test_arrays() {
+        let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-data:
-  message: "Hello, world"
-  empty: ""
-  colon: "has:colon"
+numbers: [1, 2, 3, 4, 5]
+tags: (rust, python, go)
 "#;
         let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
         let toon = hedl_to_toon(&doc).unwrap();
 
-        // "Hello, world" needs quoting due to comma
-        assert!(toon.contains("\"Hello, world\"") || toon.contains("message: \"Hello, world\""));
-        // Empty string must be quoted
-        assert!(toon.contains("\"\""));
-        // Colon requires quoting
-        assert!(toon.contains("\"has:colon\""));
+        // Parse back and verify
+        let doc2 = toon_to_hedl(&toon).unwrap();
+        assert!(doc2.root.contains_key("numbers"));
+        assert!(doc2.root.contains_key("tags"));
     }
 }

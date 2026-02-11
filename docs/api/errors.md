@@ -22,7 +22,9 @@ Errors that occur during document parsing.
 
 **Example**:
 ```hedl
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 key value  # Error: Missing colon
 ```
@@ -50,9 +52,11 @@ match parse(input) {
 
 **Example**:
 ```hedl
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-user: @User:alice  # Error: User:alice not found
+user:@User:alice  # Error: User:alice not found
 ```
 
 **Solution**: Use lenient parsing or define the referenced entity:
@@ -75,11 +79,13 @@ let doc = parse_with_limits(input.as_bytes(), opts)?;
 
 **Example**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  | alice, Alice Smith, extra_field  # Error: Expected 2 fields, got 3
+users:@User
+ |alice,Alice Smith, extra_field  # Error: Expected 2 fields, got 3
 ```
 
 ### Validation and Security Errors

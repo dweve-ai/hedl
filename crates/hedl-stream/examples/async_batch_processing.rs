@@ -16,7 +16,7 @@ const SAMPLE_HEDL: &str = r"
 %VERSION 1.0
 %STRUCT User[id, name, email]
 ---
-users: @User
+users:@User
   | alice, Alice Smith, alice@example.com
   | bob, Bob Jones, bob@example.com
   | carol, Carol White, carol@example.com

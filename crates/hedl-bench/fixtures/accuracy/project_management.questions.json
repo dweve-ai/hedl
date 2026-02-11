@@ -1,0 +1,727 @@
+{
+  "difficulty": "extreme",
+  "questions": [
+    {
+      "id": "pm-1",
+      "type": "Aggregation",
+      "prompt": "How many organizations are there in total?",
+      "ground_truth": "2",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-2",
+      "type": "Aggregation",
+      "prompt": "How many departments are there in total across all organizations?",
+      "ground_truth": "8",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-3",
+      "type": "Aggregation",
+      "prompt": "How many employees are there in total?",
+      "ground_truth": "120",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-4",
+      "type": "Aggregation",
+      "prompt": "How many projects are there in total?",
+      "ground_truth": "24",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-5",
+      "type": "Aggregation",
+      "prompt": "How many milestones are there in total?",
+      "ground_truth": "96",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-6",
+      "type": "Aggregation",
+      "prompt": "How many tasks are there in total?",
+      "ground_truth": "576",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-7",
+      "type": "Aggregation",
+      "prompt": "How many comments are there in total?",
+      "ground_truth": "1152",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-8",
+      "type": "FieldRetrieval",
+      "prompt": "What is the name of organization org-001?",
+      "ground_truth": "InnovateSoft Inc",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-9",
+      "type": "FieldRetrieval",
+      "prompt": "What year was organization org-001 founded?",
+      "ground_truth": "2015",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-10",
+      "type": "FieldRetrieval",
+      "prompt": "What is the headquarters location of org-001?",
+      "ground_truth": "San Francisco, CA",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-11",
+      "type": "FieldRetrieval",
+      "prompt": "How many employees does organization org-001 have?",
+      "ground_truth": "60",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-12",
+      "type": "FieldRetrieval",
+      "prompt": "What is the name of department dept-001?",
+      "ground_truth": "Product",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-13",
+      "type": "FieldRetrieval",
+      "prompt": "What is the department code for dept-001?",
+      "ground_truth": "PRO",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-14",
+      "type": "FieldRetrieval",
+      "prompt": "How many people are in department dept-001 (headcount)?",
+      "ground_truth": "15",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-15",
+      "type": "FieldRetrieval",
+      "prompt": "Who is the manager of department dept-001? Give the employee ID.",
+      "ground_truth": "emp-001",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-16",
+      "type": "FieldRetrieval",
+      "prompt": "What is the name of project proj-001?",
+      "ground_truth": "Phoenix Core",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-17",
+      "type": "FieldRetrieval",
+      "prompt": "What is the project code for proj-001?",
+      "ground_truth": "PHO-001",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-18",
+      "type": "FieldRetrieval",
+      "prompt": "What is the status of project proj-001?",
+      "ground_truth": "planning",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-19",
+      "type": "FieldRetrieval",
+      "prompt": "What is the budget for project proj-001?",
+      "ground_truth": "114292.22",
+      "answer_type": "Number"
+    },
+    {
+      "id": "pm-20",
+      "type": "FieldRetrieval",
+      "prompt": "Who is the lead of project proj-001? Give the employee ID.",
+      "ground_truth": "emp-005",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-21",
+      "type": "FieldRetrieval",
+      "prompt": "What is the team size for project proj-001?",
+      "ground_truth": "9",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-22",
+      "type": "FieldRetrieval",
+      "prompt": "What is the name of milestone ms-001?",
+      "ground_truth": "Beta Launch - Sprint 2",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-23",
+      "type": "FieldRetrieval",
+      "prompt": "What is the status of milestone ms-001?",
+      "ground_truth": "delayed",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-24",
+      "type": "FieldRetrieval",
+      "prompt": "What is the completion percentage of milestone ms-001?",
+      "ground_truth": "28",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-25",
+      "type": "FieldRetrieval",
+      "prompt": "What is the title of task task-0001?",
+      "ground_truth": "Review rate limiting",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-26",
+      "type": "FieldRetrieval",
+      "prompt": "Who is assigned to task task-0001? Give the employee ID.",
+      "ground_truth": "emp-008",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-27",
+      "type": "FieldRetrieval",
+      "prompt": "What is the status of task task-0001?",
+      "ground_truth": "todo",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-28",
+      "type": "FieldRetrieval",
+      "prompt": "What is the priority of task task-0001?",
+      "ground_truth": "critical",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-29",
+      "type": "FieldRetrieval",
+      "prompt": "How many story points is task task-0001?",
+      "ground_truth": "2",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-30",
+      "type": "FieldRetrieval",
+      "prompt": "How many estimated hours for task task-0001?",
+      "ground_truth": "7",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-31",
+      "type": "FieldRetrieval",
+      "prompt": "What is the text content of comment cmt-0001?",
+      "ground_truth": "Performance metrics for rate limiting look promising.",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-32",
+      "type": "FieldRetrieval",
+      "prompt": "Who authored comment cmt-0001? Give the employee ID.",
+      "ground_truth": "emp-007",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-33",
+      "type": "FieldRetrieval",
+      "prompt": "How many thumbs_up reactions does comment cmt-0001 have?",
+      "ground_truth": "4",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-34",
+      "type": "FieldRetrieval",
+      "prompt": "What is the name of employee emp-001?",
+      "ground_truth": "Bob Harris",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-35",
+      "type": "FieldRetrieval",
+      "prompt": "What is the email of employee emp-001?",
+      "ground_truth": "bob.harris@company.com",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-36",
+      "type": "FieldRetrieval",
+      "prompt": "What is the role of employee emp-001?",
+      "ground_truth": "senior_engineer",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-37",
+      "type": "FieldRetrieval",
+      "prompt": "Which department does employee emp-001 belong to?",
+      "ground_truth": "dept-001",
+      "answer_type": "String"
+    },
+    {
+      "id": "pm-38",
+      "type": "Hierarchical",
+      "prompt": "Which organization does project proj-001 belong to? Give the organization name.",
+      "ground_truth": "InnovateSoft Inc",
+      "answer_type": "String",
+      "notes": "Requires Project->Department->Organization traversal"
+    },
+    {
+      "id": "pm-39",
+      "type": "Hierarchical",
+      "prompt": "Which department does project proj-001 belong to? Give the department name.",
+      "ground_truth": "Product",
+      "answer_type": "String",
+      "notes": "Requires Project->Department traversal"
+    },
+    {
+      "id": "pm-40",
+      "type": "Hierarchical",
+      "prompt": "How many projects are in department dept-001?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "Requires counting projects within a department"
+    },
+    {
+      "id": "pm-41",
+      "type": "Hierarchical",
+      "prompt": "How many milestones are in project proj-001?",
+      "ground_truth": "4",
+      "answer_type": "Integer",
+      "notes": "Requires counting milestones within a project"
+    },
+    {
+      "id": "pm-42",
+      "type": "Hierarchical",
+      "prompt": "How many tasks are in milestone ms-001?",
+      "ground_truth": "6",
+      "answer_type": "Integer",
+      "notes": "Requires counting tasks within a milestone"
+    },
+    {
+      "id": "pm-43",
+      "type": "Hierarchical",
+      "prompt": "How many comments are on task task-0001?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "Requires counting comments within a task"
+    },
+    {
+      "id": "pm-44",
+      "type": "DeepHierarchical",
+      "prompt": "How many tasks are in project proj-001 (across all milestones)?",
+      "ground_truth": "24",
+      "answer_type": "Integer",
+      "notes": "Requires Project->Milestones->Tasks traversal (4 milestones x 6 tasks each)"
+    },
+    {
+      "id": "pm-45",
+      "type": "DeepHierarchical",
+      "prompt": "How many comments are in project proj-001 (across all milestones and tasks)?",
+      "ground_truth": "48",
+      "answer_type": "Integer",
+      "notes": "Requires Project->Milestones->Tasks->Comments traversal (24 tasks x 2 comments each)"
+    },
+    {
+      "id": "pm-46",
+      "type": "DeepHierarchical",
+      "prompt": "How many tasks are in department dept-001 (across all projects and milestones)?",
+      "ground_truth": "72",
+      "answer_type": "Integer",
+      "notes": "Requires Dept->Projects->Milestones->Tasks traversal (3 projects x 4 milestones x 6 tasks)"
+    },
+    {
+      "id": "pm-47",
+      "type": "DeepHierarchical",
+      "prompt": "How many comments are in organization org-001 (across all departments, projects, milestones, and tasks)?",
+      "ground_truth": "576",
+      "answer_type": "Integer",
+      "notes": "Requires full traversal: Org->Depts->Projects->Milestones->Tasks->Comments (4 depts x 3 projects x 4 milestones x 6 tasks x 2 comments)"
+    },
+    {
+      "id": "pm-48",
+      "type": "DeepHierarchical",
+      "prompt": "Which organization does task task-0001 belong to? Give the organization ID.",
+      "ground_truth": "org-001",
+      "answer_type": "String",
+      "notes": "Requires Task->Milestone->Project->Department->Organization traversal (4 levels up)"
+    },
+    {
+      "id": "pm-49",
+      "type": "DeepHierarchical",
+      "prompt": "Which organization does comment cmt-0001 belong to? Give the organization name.",
+      "ground_truth": "InnovateSoft Inc",
+      "answer_type": "String",
+      "notes": "Requires Comment->Task->Milestone->Project->Department->Organization traversal (5 levels up)"
+    },
+    {
+      "id": "pm-50",
+      "type": "Filtering",
+      "prompt": "How many projects have 'active' status?",
+      "ground_truth": "8",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-51",
+      "type": "Filtering",
+      "prompt": "How many projects have 'completed' status?",
+      "ground_truth": "4",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-52",
+      "type": "Filtering",
+      "prompt": "How many projects have 'on_hold' status?",
+      "ground_truth": "6",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-53",
+      "type": "Filtering",
+      "prompt": "How many projects have 'planning' status?",
+      "ground_truth": "6",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-54",
+      "type": "Filtering",
+      "prompt": "How many milestones have 'in_progress' status?",
+      "ground_truth": "18",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-55",
+      "type": "Filtering",
+      "prompt": "How many milestones have 'completed' status?",
+      "ground_truth": "25",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-56",
+      "type": "Filtering",
+      "prompt": "How many milestones have 'delayed' status?",
+      "ground_truth": "25",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-57",
+      "type": "Filtering",
+      "prompt": "How many milestones have 'not_started' status?",
+      "ground_truth": "28",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-58",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'todo' status?",
+      "ground_truth": "129",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-59",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'in_progress' status?",
+      "ground_truth": "101",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-60",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'review' status?",
+      "ground_truth": "116",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-61",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'done' status?",
+      "ground_truth": "117",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-62",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'blocked' status?",
+      "ground_truth": "113",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-63",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'critical' priority?",
+      "ground_truth": "122",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-64",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'high' priority?",
+      "ground_truth": "157",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-65",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'medium' priority?",
+      "ground_truth": "144",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-66",
+      "type": "Filtering",
+      "prompt": "How many tasks have 'low' priority?",
+      "ground_truth": "153",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-67",
+      "type": "Filtering",
+      "prompt": "How many employees have 'engineer' role?",
+      "ground_truth": "19",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-68",
+      "type": "Filtering",
+      "prompt": "How many employees have 'senior_engineer' role?",
+      "ground_truth": "15",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-69",
+      "type": "Filtering",
+      "prompt": "How many employees have 'tech_lead' role?",
+      "ground_truth": "17",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-70",
+      "type": "Filtering",
+      "prompt": "How many employees have 'manager' role?",
+      "ground_truth": "21",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-71",
+      "type": "Filtering",
+      "prompt": "How many employees have 'architect' role?",
+      "ground_truth": "24",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-72",
+      "type": "Filtering",
+      "prompt": "How many employees have 'analyst' role?",
+      "ground_truth": "24",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-73",
+      "type": "Filtering",
+      "prompt": "How many comments have the 'edited' field set to true?",
+      "ground_truth": "309",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-74",
+      "type": "Filtering",
+      "prompt": "How many employees have 'python' in their skills array?",
+      "ground_truth": "34",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-75",
+      "type": "Filtering",
+      "prompt": "How many employees have 'rust' in their skills array?",
+      "ground_truth": "39",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-76",
+      "type": "Filtering",
+      "prompt": "How many employees have 'kubernetes' in their skills array?",
+      "ground_truth": "39",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-77",
+      "type": "Filtering",
+      "prompt": "How many tasks have the 'backend' tag?",
+      "ground_truth": "172",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-78",
+      "type": "Filtering",
+      "prompt": "How many tasks have the 'frontend' tag?",
+      "ground_truth": "170",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-79",
+      "type": "Filtering",
+      "prompt": "How many tasks have the 'security' tag?",
+      "ground_truth": "185",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-80",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the employee who authored comment cmt-0001?",
+      "ground_truth": "Henry Xavier",
+      "answer_type": "String",
+      "notes": "Requires Comment->author->Employee lookup"
+    },
+    {
+      "id": "pm-81",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the employee assigned to task task-0001?",
+      "ground_truth": "Ivy Edwards",
+      "answer_type": "String",
+      "notes": "Requires Task->assignee->Employee lookup"
+    },
+    {
+      "id": "pm-82",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the project lead for proj-001?",
+      "ground_truth": "Frank Johnson",
+      "answer_type": "String",
+      "notes": "Requires Project->lead->Employee lookup"
+    },
+    {
+      "id": "pm-83",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the department manager for dept-001?",
+      "ground_truth": "Bob Harris",
+      "answer_type": "String",
+      "notes": "Requires Department->manager->Employee lookup"
+    },
+    {
+      "id": "pm-84",
+      "type": "Filtering",
+      "prompt": "Which project has the highest budget? Give the project name.",
+      "ground_truth": "Phoenix Core",
+      "answer_type": "String",
+      "notes": "proj with budget 490932.27"
+    },
+    {
+      "id": "pm-85",
+      "type": "Filtering",
+      "prompt": "Which organization has the higher annual revenue? Give the organization name.",
+      "ground_truth": "TechCorp Global",
+      "answer_type": "String",
+      "notes": "org with revenue 37148122.49"
+    },
+    {
+      "id": "pm-86",
+      "type": "Aggregation",
+      "prompt": "What is the sum of all project budgets?",
+      "ground_truth": "5559458.67",
+      "answer_type": "Number"
+    },
+    {
+      "id": "pm-87",
+      "type": "Aggregation",
+      "prompt": "What is the sum of all department annual budgets?",
+      "ground_truth": "21113242.73",
+      "answer_type": "Number"
+    },
+    {
+      "id": "pm-88",
+      "type": "Aggregation",
+      "prompt": "What is the total estimated hours across all tasks?",
+      "ground_truth": "12455",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-89",
+      "type": "Aggregation",
+      "prompt": "What is the total actual hours across all tasks?",
+      "ground_truth": "4419",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-90",
+      "type": "Aggregation",
+      "prompt": "What is the total story points across all tasks?",
+      "ground_truth": "3285",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "pm-91",
+      "type": "FieldRetrieval",
+      "prompt": "What is the start date of milestone ms-001?",
+      "ground_truth": "2024-08-20",
+      "answer_type": "Date"
+    },
+    {
+      "id": "pm-92",
+      "type": "FieldRetrieval",
+      "prompt": "What is the end date of milestone ms-001?",
+      "ground_truth": "2024-09-14",
+      "answer_type": "Date"
+    },
+    {
+      "id": "pm-93",
+      "type": "FieldRetrieval",
+      "prompt": "What is the due date of task task-0001?",
+      "ground_truth": "2023-06-13",
+      "answer_type": "Date"
+    },
+    {
+      "id": "pm-94",
+      "type": "FieldRetrieval",
+      "prompt": "When was comment cmt-0001 created?",
+      "ground_truth": "2024-04-07T20:09:55Z",
+      "answer_type": "DateTime"
+    },
+    {
+      "id": "pm-95",
+      "type": "FieldRetrieval",
+      "prompt": "What is the target date for project proj-001?",
+      "ground_truth": "2024-10-02",
+      "answer_type": "Date"
+    },
+    {
+      "id": "pm-96",
+      "type": "FieldRetrieval",
+      "prompt": "What is the hire date of employee emp-001?",
+      "ground_truth": "2019-07-26",
+      "answer_type": "Date"
+    },
+    {
+      "id": "pm-97",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the milestone that task task-0001 belongs to?",
+      "ground_truth": "Beta Launch - Sprint 2",
+      "answer_type": "String",
+      "notes": "Requires Task->Milestone lookup"
+    },
+    {
+      "id": "pm-98",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the project that task task-0001 belongs to?",
+      "ground_truth": "Phoenix Core",
+      "answer_type": "String",
+      "notes": "Requires Task->Milestone->Project lookup"
+    },
+    {
+      "id": "pm-99",
+      "type": "DeepHierarchical",
+      "prompt": "What is the name of the department that task task-0001 belongs to?",
+      "ground_truth": "Product",
+      "answer_type": "String",
+      "notes": "Requires Task->Milestone->Project->Department lookup"
+    },
+    {
+      "id": "pm-100",
+      "type": "DeepHierarchical",
+      "prompt": "How many total thumbs_up reactions are there across all comments in project proj-001?",
+      "ground_truth": "132",
+      "answer_type": "Integer",
+      "notes": "Requires Project->Milestones->Tasks->Comments->reactions.thumbs_up traversal and sum"
+    }
+  ]
+}

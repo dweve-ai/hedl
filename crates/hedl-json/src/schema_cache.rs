@@ -210,7 +210,7 @@ impl SchemaCache {
     /// ```
     #[must_use]
     pub fn get(&self, key: &SchemaCacheKey) -> Option<Vec<String>> {
-        let mut inner = self.inner.write().unwrap();
+        let mut inner = self.inner.write().expect("lock not poisoned");
 
         if let Some(entry) = inner.cache.get_mut(key) {
             // Update LRU tracking
@@ -250,7 +250,7 @@ impl SchemaCache {
     /// cache.insert(key, vec!["id".to_string(), "name".to_string()]);
     /// ```
     pub fn insert(&self, key: SchemaCacheKey, schema: Vec<String>) {
-        let mut inner = self.inner.write().unwrap();
+        let mut inner = self.inner.write().expect("lock not poisoned");
 
         // Check if we need to evict
         if inner.cache.len() >= inner.capacity && !inner.cache.contains_key(&key) {
@@ -296,7 +296,7 @@ impl SchemaCache {
     /// ```
     #[must_use]
     pub fn statistics(&self) -> CacheStatistics {
-        let inner = self.inner.read().unwrap();
+        let inner = self.inner.read().expect("lock not poisoned");
         inner.stats.clone()
     }
 
@@ -311,7 +311,7 @@ impl SchemaCache {
     /// cache.clear();
     /// ```
     pub fn clear(&self) {
-        let mut inner = self.inner.write().unwrap();
+        let mut inner = self.inner.write().expect("lock not poisoned");
         inner.cache.clear();
         inner.stats.reset();
         inner.stats.size = 0;
@@ -330,7 +330,7 @@ impl SchemaCache {
     /// ```
     #[must_use]
     pub fn len(&self) -> usize {
-        let inner = self.inner.read().unwrap();
+        let inner = self.inner.read().expect("lock not poisoned");
         inner.cache.len()
     }
 
@@ -361,7 +361,7 @@ impl SchemaCache {
     /// ```
     #[must_use]
     pub fn capacity(&self) -> usize {
-        let inner = self.inner.read().unwrap();
+        let inner = self.inner.read().expect("lock not poisoned");
         inner.capacity
     }
 }

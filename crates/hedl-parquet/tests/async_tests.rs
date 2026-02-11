@@ -25,7 +25,7 @@ fn generate_dataset(num_rows: usize) -> hedl_core::Document {
         ));
     }
 
-    let mut doc = hedl_core::Document::new((1, 0));
+    let mut doc = hedl_core::Document::new((2, 0));
     doc.root
         .insert("data".to_string(), hedl_core::Item::List(matrix_list));
     doc
@@ -220,7 +220,7 @@ async fn test_async_empty_document() {
     let temp_dir = TempDir::new().unwrap();
     let file_path = temp_dir.path().join("empty_async.parquet");
 
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
 
     // Empty documents should succeed
     let result = to_parquet_async(&doc, &file_path).await;

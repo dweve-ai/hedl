@@ -20,9 +20,13 @@
 //! This module provides types and functions for building and manipulating
 //! Cypher queries safely.
 
+/// Cypher string escaping and transformation utilities.
 pub mod escape;
+/// Cypher statement types and builders.
 pub mod statements;
+/// Unicode security utilities for Cypher identifiers.
 pub mod unicode;
+/// Validation utilities for Cypher identifiers and strings.
 pub mod validate;
 
 // Escaping & transformation

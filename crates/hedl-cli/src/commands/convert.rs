@@ -147,8 +147,8 @@ pub fn to_json(
 pub fn from_json(file: &str, output: Option<&str>) -> Result<(), CliError> {
     let content = read_file(file)?;
 
-    let config = FromJsonConfig::default();
-    let doc = json_to_hedl(&content, &config)
+    // FK relationships are automatically detected and nested
+    let doc = json_to_hedl(&content, &FromJsonConfig::default())
         .map_err(|e| CliError::json_conversion(format!("JSON conversion error: {e}")))?;
 
     let hedl = canonicalize(&doc)
@@ -302,6 +302,7 @@ pub fn to_xml(file: &str, output: Option<&str>, pretty: bool) -> Result<(), CliE
 
     let config = ToXmlConfig {
         pretty,
+        include_metadata: true, // Enable for roundtrip fidelity
         ..Default::default()
     };
     let xml = hedl_to_xml(&doc, &config)

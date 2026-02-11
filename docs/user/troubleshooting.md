@@ -1,459 +1,418 @@
-# Troubleshooting Guide
+# When Things Go Wrong: A Troubleshooting Journey
 
-Solutions to common issues when using HEDL.
+Something broke. You're staring at an error message that might as well be written in ancient Sumerian. The deadline is tomorrow. Your coffee is getting cold.
 
-## Table of Contents
+Take a breath. You're not alone, and you're definitely not the first person to hit this wall.
 
-1. [Installation Issues](#installation-issues)
-2. [Parsing Errors](#parsing-errors)
-3. [Conversion Problems](#conversion-problems)
-4. [Performance Issues](#performance-issues)
-5. [File and I/O Errors](#file-and-io-errors)
-6. [Validation Failures](#validation-failures)
-7. [Batch Processing Issues](#batch-processing-issues)
-8. [Platform-Specific Issues](#platform-specific-issues)
-
-## Installation Issues
-
-### Problem: `cargo install` fails with compilation errors
-
-**Symptoms:**
-```
-error: failed to compile hedl-cli
-```
-
-**Solutions:**
-
-**1. Update Rust:**
-```bash
-rustup update stable
-rustc --version  # Should be 1.70 or later
-```
-
-**2. Clear cargo cache:**
-```bash
-cargo clean
-rm -rf ~/.cargo/registry/cache
-cargo install --path crates/hedl-cli
-```
-
-**3. Install with specific features:**
-```bash
-# Minimal installation
-cargo install hedl-cli --no-default-features
-```
-
-**4. Check system dependencies:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install build-essential pkg-config libssl-dev
-
-# macOS
-xcode-select --install
-
-# Fedora
-sudo dnf install gcc openssl-devel
-```
+This guide exists because every error message has a story behind it. Someone else hit that same wall, figured out what the cryptic message actually meant, and left breadcrumbs for the next traveler. That's you. Let's follow those breadcrumbs together.
 
 ---
 
-### Problem: `hedl: command not found`
+## The Installation Gauntlet
 
-**Symptoms:**
+Before you can use HEDL, you have to install it. This should be simple. Sometimes it isn't.
+
+### "cargo install failed with compilation errors"
+
+You ran `cargo install hedl-cli` and the terminal exploded with red text. Compiler errors. Linker errors. Something about "failed to compile."
+
+**What's actually happening:** Rust is trying to build HEDL from source, and something in your environment is missing or outdated.
+
+**The most common culprit: outdated Rust.**
+
+HEDL uses modern Rust features. If your Rust installation is from six months ago, it might not understand the code.
+
 ```bash
-hedl --version
-# hedl: command not found
+# Check your Rust version
+rustc --version
+
+# If it's older than 1.70, update it
+rustup update stable
+
+# Now try again
+cargo install hedl-cli
 ```
 
-**Solutions:**
+**Still failing? Your cargo cache might be corrupted.**
 
-**1. Check if cargo bin is in PATH:**
+This happens more often than you'd think, especially if a previous installation was interrupted.
+
 ```bash
-# Add to ~/.bashrc or ~/.zshrc
-export PATH="$HOME/.cargo/bin:$PATH"
-source ~/.bashrc
+# Nuclear option: clear everything and start fresh
+cargo clean
+rm -rf ~/.cargo/registry/cache
+cargo install hedl-cli
 ```
 
-**2. Verify installation:**
+**On Linux and getting linker errors?**
+
+You're missing system libraries. The fix depends on your distribution:
+
+```bash
+# Ubuntu or Debian
+sudo apt-get install build-essential pkg-config libssl-dev
+
+# Fedora
+sudo dnf install gcc openssl-devel
+
+# Arch
+sudo pacman -S base-devel openssl
+```
+
+**On macOS and seeing cryptic errors about missing tools?**
+
+You need the Xcode command line tools:
+
+```bash
+xcode-select --install
+```
+
+A dialog will pop up. Click "Install." Wait. Try cargo install again.
+
+**Nothing is working and you're losing patience?**
+
+Try a minimal installation without optional features:
+
+```bash
+cargo install hedl-cli --no-default-features
+```
+
+This skips features that might have problematic dependencies. You can always reinstall with full features later.
+
+---
+
+### "hedl: command not found"
+
+You installed HEDL successfully (or so you thought). You type `hedl --version` and the shell mocks you: "command not found."
+
+**What's actually happening:** The `hedl` binary exists, but your shell doesn't know where to find it.
+
+Cargo installs binaries to `~/.cargo/bin/`. Your shell needs to know to look there.
+
+**Quick test: is the binary actually there?**
+
 ```bash
 ls ~/.cargo/bin/hedl
-# If not present, reinstall
-cargo install --path crates/hedl-cli --force
 ```
 
-**3. Use full path temporarily:**
+If you see the file, your PATH is the problem. If not, the installation failed silently.
+
+**Fixing your PATH (the real fix):**
+
+Add this line to your shell configuration file:
+
+```bash
+# For bash users, add to ~/.bashrc
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# For zsh users, add to ~/.zshrc
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# For fish users, add to ~/.config/fish/config.fish
+set -gx PATH $HOME/.cargo/bin $PATH
+```
+
+Then reload your shell:
+
+```bash
+source ~/.bashrc  # or ~/.zshrc, depending on your shell
+```
+
+**Need it working right now without editing files?**
+
+Just use the full path:
+
 ```bash
 ~/.cargo/bin/hedl --version
 ```
 
+Not elegant, but it works while you sort out your PATH.
+
 ---
 
-### Problem: Permission denied during installation
+### "Permission denied" during installation
 
-**Symptoms:**
-```
-error: failed to create directory: Permission denied
-```
+The installer is trying to write somewhere it doesn't have permission to write.
 
-**Solutions:**
+**The cause is almost always: you used sudo with cargo.**
 
-**1. Don't use sudo with cargo:**
 ```bash
-# WRONG
+# WRONG: This causes permission nightmares
 sudo cargo install hedl-cli
 
-# CORRECT
+# RIGHT: Cargo manages its own directory, no sudo needed
 cargo install hedl-cli
 ```
 
-**2. Fix cargo permissions:**
+If you already made this mistake, fix the permissions:
+
 ```bash
 sudo chown -R $USER:$USER ~/.cargo
 ```
 
-**3. Install to custom location:**
-```bash
-cargo install --path crates/hedl-cli --root ~/my-tools
-export PATH="$HOME/my-tools/bin:$PATH"
-```
+Then install again, this time without sudo.
 
-## Parsing Errors
+---
 
-### Problem: "Unexpected token" errors
+## Parsing Errors: When HEDL Doesn't Understand You
 
-**Symptoms:**
-```
-SyntaxError at line 5: unexpected token
-```
+You wrote a HEDL file. You're pretty sure it's correct. The parser disagrees.
 
-**Solutions:**
+### "Unexpected token" at some line
 
-**1. Check syntax carefully:**
+The parser hit something it didn't expect. This is HEDL's way of saying "I'm confused."
+
+**The most common cause: indentation.**
+
+HEDL uses exactly one space per nesting level. Not two. Not four. Not tabs. One space.
+
 ```hedl
-# WRONG - missing quotes when needed
-%STRUCT: User: [id, name]
+# WRONG: Three spaces of indentation
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  | u1, "Alice with spaces"
+users:@User
+   |u1,Alice
+   |u2,Bob
 
-# CORRECT - quotes not needed for simple identifiers
-%STRUCT: User: [id, name]
+# CORRECT: One space per level
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  | u1, Alice
+users:@User
+ |u1,Alice
+ |u2,Bob
 ```
 
-**2. Verify indentation:**
+See the difference? In the wrong version, the pipe characters are indented three spaces. In the correct version, one space.
+
+**Another common cause: mixing up commas and spaces.**
+
+Matrix row values are separated by commas with no spaces:
+
 ```hedl
-# WRONG - inconsistent indentation
-%VERSION: 1.0
-%STRUCT: User: [id, name]
----
-users: @User
-   | u1, Alice    # Wrong indentation
-  | u2, Bob       # Correct indentation
+# WRONG: Spaces after commas
+ |u1, Alice, alice@example.com
 
-# CORRECT - consistent 2-space indentation
-%VERSION: 1.0
-%STRUCT: User: [id, name]
----
-users: @User
-  | u1, Alice
-  | u2, Bob
+# CORRECT: No spaces after commas
+ |u1,Alice,alice@example.com
 ```
 
-**3. Check special characters:**
+**Special characters in strings?**
+
+If your string contains commas, colons, or other special characters, you need quotes:
+
 ```hedl
-# WRONG - unescaped quotes in string values
-%STRUCT: Message: [id, text]
----
-messages: @Message
-  | m1, "She said "hello""
+# WRONG: The comma breaks parsing
+ |m1,Hello, World,greeting
 
-# CORRECT - use simple strings or escape if needed
-%STRUCT: Message: [id, text]
----
-messages: @Message
-  | m1, She said hello
+# CORRECT: Quotes protect the comma
+ |m1,"Hello, World",greeting
 ```
 
-**4. Use `inspect` to debug:**
+**Still stuck? Use inspect to see what the parser sees:**
+
 ```bash
 hedl inspect problematic.hedl
-# Shows where parsing fails
 ```
+
+This shows you exactly how HEDL interprets your file, often revealing where things go wrong.
 
 ---
 
-### Problem: "Invalid UTF-8" errors
+### "Invalid UTF-8 sequence"
 
-**Symptoms:**
-```
-SyntaxError at line 1: invalid UTF-8 sequence at byte 42
-```
+Your file contains characters that aren't valid UTF-8. HEDL only speaks UTF-8.
 
-**Solutions:**
+**How did this happen?**
 
-**1. Check file encoding:**
+Usually, the file was created or edited on a system using a different encoding. Windows systems often use Windows-1252. Older Unix systems might use ISO-8859-1.
+
+**First, check what encoding you actually have:**
+
 ```bash
-file -i myfile.hedl
-# Should show: charset=utf-8
+file -i yourfile.hedl
+# Look for the "charset=" part
 ```
 
-**2. Convert to UTF-8:**
+**Convert to UTF-8:**
+
 ```bash
-# From ISO-8859-1 to UTF-8
-iconv -f ISO-8859-1 -t UTF-8 myfile.hedl > utf8.hedl
+# From ISO-8859-1 (Latin-1)
+iconv -f ISO-8859-1 -t UTF-8 yourfile.hedl > fixed.hedl
 
-# From Windows-1252 to UTF-8
-iconv -f WINDOWS-1252 -t UTF-8 myfile.hedl > utf8.hedl
+# From Windows-1252
+iconv -f WINDOWS-1252 -t UTF-8 yourfile.hedl > fixed.hedl
 ```
 
-**3. Remove non-UTF-8 characters:**
+**Just want to strip out the problematic characters?**
+
 ```bash
-# Replace invalid characters
-iconv -c -f UTF-8 -t UTF-8 myfile.hedl > clean.hedl
+iconv -c -f UTF-8 -t UTF-8 yourfile.hedl > clean.hedl
 ```
+
+The `-c` flag silently discards characters that can't be converted.
 
 ---
 
-### Problem: "Maximum nesting depth exceeded"
+### "Maximum nesting depth exceeded"
 
-**Symptoms:**
-```
-SecurityError at line 50: maximum nesting depth (100) exceeded
-```
+Your document is nested too deeply. HEDL has limits to prevent runaway parsing and potential denial-of-service attacks.
 
-**Solutions:**
+**The default limit is 100 levels deep.** If you're hitting this, your data structure might need rethinking.
 
-**1. Flatten your structure:**
+**The better solution: flatten with references.**
+
+Instead of nesting entities inside entities inside entities, use references to link them:
+
 ```hedl
-# BETTER - use references instead of deep nesting
-%STRUCT: Entity: [id, parent]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Entity:[id,parent]
 ---
-entities: @Entity
-  | e1, ~
-  | e2, @Entity:e1
-  | e3, @Entity:e2
-  # ... flat structure with references
+entities:@Entity
+ |root,~
+ |child1,@root
+ |grandchild1,@child1
+ |greatgrandchild1,@grandchild1
 ```
 
-**2. Split into multiple documents:**
-```bash
-# Instead of one huge nested document
-# Use multiple related documents
-hedl validate part1.hedl
-hedl validate part2.hedl
-hedl validate part3.hedl
-```
+This flat structure can represent arbitrarily deep hierarchies without actual nesting.
 
-**3. For library users, increase limit:**
+**If you really need deeper nesting (library users):**
+
 ```rust
 use hedl::{parse_with_limits, Limits};
 
 let limits = Limits {
-    max_nest_depth: 2000,  // Increased
+    max_nest_depth: 500,  // Increased from default 100
     ..Default::default()
 };
+
+let doc = parse_with_limits(content, limits)?;
 ```
 
-## Conversion Problems
-
-### Problem: JSON conversion loses HEDL type information
-
-**Symptoms:**
-```bash
-hedl to-json data.hedl -o output.json
-hedl from-json output.json -o restored.hedl
-# restored.hedl has different structure than data.hedl
-```
-
-**Solutions:**
-
-**1. Use `--metadata` flag:**
-```bash
-# Preserve HEDL structure
-hedl to-json data.hedl --metadata -o output.json
-hedl from-json output.json -o restored.hedl
-```
-
-**2. Keep original HEDL for reference:**
-```bash
-# Convert for external use, keep HEDL as source of truth
-hedl to-json source.hedl -o for_api.json
-# Always convert from source.hedl, not from JSON
-```
+But seriously, consider whether your data model needs this much nesting.
 
 ---
 
-### Problem: CSV import has wrong types
+## Conversion Troubles: When Formats Don't Play Nice
 
-**Symptoms:**
+HEDL converts to and from many formats. Sometimes the conversion doesn't do what you expected.
+
+### "I converted to JSON and back, and my structure changed"
+
+JSON doesn't preserve HEDL's type information. A matrix list becomes a JSON array of objects. When you convert back, HEDL has to guess at the original structure.
+
+**Solution: Use the metadata flag for round-trip conversions.**
+
 ```bash
-hedl from-csv data.csv -o output.hedl
-# Numbers imported as strings, or ID column is lost
+# Preserve structure information
+hedl to-json data.hedl --metadata -o data.json
+
+# Now the round-trip works
+hedl from-json data.json -o restored.hedl
 ```
 
-**Example:**
-```csv
-id,age,active
-1,30,true
-2,25,false
-```
+The `--metadata` flag embeds HEDL schema information in the JSON output.
 
-**Output (undesired):**
-```hedl
-%STRUCT: Record: [age, active]
+**Better solution: Keep your HEDL as the source of truth.**
+
+Convert to JSON for APIs and external systems, but always keep the original HEDL file. When you need to modify the data, modify the HEDL, then regenerate the JSON.
+
 ---
-records: @Record
-  | 30, true  # ID is missing! Only other columns are kept.
-  | 25, false
-```
 
-**Important Note**: HEDL expects the first CSV column to be an ID column. This column is used as the node identifier and is automatically managed.
+### "CSV import gives me wrong types" or "Where did my ID column go?"
 
-**Solutions:**
+HEDL treats the first CSV column as the ID column. This is by design: every matrix row needs an identifier.
 
-**1. Ensure first column is an ID:**
+**If your CSV doesn't have an ID column, add one:**
+
 ```csv
-# CORRECT - first column is ID, followed by data columns
-id,age,active
-1,30,true
-2,25,false
+# Before: No ID column
+name,email,age
+Alice,alice@example.com,30
+Bob,bob@example.com,25
+
+# After: ID column added
+id,name,email,age
+u1,Alice,alice@example.com,30
+u2,Bob,bob@example.com,25
 ```
 
-**2. Specify type name for the matrix list:**
-```bash
-# Use -t or --type-name to set the struct name
-hedl from-csv data.csv -t Record -o output.hedl
+**Numbers coming in as strings?**
 
-# Output (correct types inferred):
-# %STRUCT: Record: [age, active]
-# ---
-# records: @Record
-#   | 1, 30, true
-#   | 2, 25, false
-```
+Check if your CSV has quotes around numeric values:
 
-**3. Check CSV format:**
 ```csv
-# WRONG - numbers in quotes (treated as strings)
+# WRONG: Quotes make these strings
 "id","age","active"
 "1","30","true"
 
-# CORRECT - no quotes for numbers/booleans
+# CORRECT: No quotes for numbers and booleans
 id,age,active
 1,30,true
 ```
 
-**4. Manually fix after import:**
+**Specify the type name for better results:**
+
 ```bash
-hedl from-csv data.csv > temp.hedl
-hedl format temp.hedl -o corrected.hedl
-# Then manually edit types in the HEDL file if needed
+hedl from-csv users.csv -t User -o users.hedl
 ```
+
+The `-t` flag tells HEDL what to name the schema.
 
 ---
 
-### Problem: XML attributes are lost or mangled
+### "Parquet conversion failed"
 
-**Symptoms:**
-```xml
-<book id="b1" format="hardcover">
-  <title>Example</title>
-</book>
-```
+Parquet is strict about types. Every value in a column must have the same type.
 
-Converts to unexpected structure.
-
-**Solutions:**
-
-**1. Understand attribute conversion:**
-XML attributes become regular HEDL fields (no prefix):
+**The problem: Mixed types in a column.**
 
 ```hedl
-%VERSION: 1.0
+# WRONG: "string" and 42 have different types
+%S:Record:[id,value]
 ---
-book:
-  id: b1
-  format: hardcover
-  title: Example
+records:@Record
+ |1,string
+ |2,42
 ```
 
-**2. Convert back preserves attributes:**
-```bash
-hedl from-xml data.xml -o data.hedl
-hedl to-xml data.hedl -o restored.xml
-# Attributes are preserved
-```
+**The fix: Make types consistent.**
 
-**3. Verify conversion output:**
-```bash
-# Check how attributes were converted
-hedl from-xml data.xml -o data.hedl && hedl inspect data.hedl
-```
-
----
-
-### Problem: Parquet conversion fails
-
-**Symptoms:**
-```
-ConversionError at line 1: Parquet schema inference failed
-```
-
-**Solutions:**
-
-**1. Ensure consistent types:**
-```hedl
-# WRONG - mixed types in same field
-%STRUCT: Record: [id, value]
----
-records: @Record
-  | 1, string
-  | 2, 42
-
-# CORRECT - consistent types
-%STRUCT: Record: [id, value]
----
-records: @Record
-  | 1, string
-  | 2, 42_as_string
-```
-
-**2. Use simpler structures:**
-Parquet works best with flat, tabular data:
+Either make everything a string (quote the numbers) or ensure all values are numeric.
 
 ```hedl
-# GOOD for Parquet
-%STRUCT: User: [id, name, age]
+# CORRECT: All strings
+%S:Record:[id,value]
 ---
-users: @User
-  | 1, Alice, 30
-  | 2, Bob, 25
-  | 3, Charlie, 35
+records:@Record
+ |1,string
+ |2,"42"
 ```
 
-**3. Check error details:**
+Parquet also works best with flat, tabular data. If you have deeply nested structures, consider flattening them before converting.
+
+---
+
+## Performance: When HEDL Is Slow
+
+HEDL is designed to be fast. If it's slow, something unusual is happening.
+
+### "Validation takes forever on large files"
+
+For truly large files (gigabytes), validation needs time to check every reference.
+
+**Split and parallelize:**
+
 ```bash
-hedl to-parquet data.hedl -o output.parquet 2>&1 | tee error.log
-```
-
-## Performance Issues
-
-### Problem: Slow validation of large files
-
-**Symptoms:**
-```bash
-time hedl validate large.hedl
-# real 2m30.000s (too slow!)
-```
-
-**Solutions:**
-
-**1. Split into smaller files:**
-```bash
-# Split large file
+# Split into 100,000-line chunks
 split -l 100000 large.hedl chunk_
 
 # Validate in parallel
@@ -463,33 +422,24 @@ done
 wait
 ```
 
-**2. Use batch processing:**
+**Use batch-validate with parallelism:**
+
 ```bash
-# Parallel validation (shell expands glob)
 hedl batch-validate chunks/*.hedl --parallel
 ```
 
-**3. Check for performance issues:**
-```bash
-# Profile the operation (Linux)
-perf record hedl validate large.hedl
-perf report
-```
+This automatically distributes work across your CPU cores.
 
 ---
 
-### Problem: High memory usage
+### "I'm running out of memory"
 
-**Symptoms:**
-```
-Out of memory error or system slowdown
-```
+Large files need memory. If you're processing files larger than your available RAM, you'll hit limits.
 
-**Solutions:**
+**Process in chunks:**
 
-**1. Split very large files:**
 ```bash
-# For files > 1GB, split into smaller chunks
+# Split into 500MB chunks
 split -b 500M large.hedl chunk_
 
 # Process each chunk
@@ -498,406 +448,256 @@ for chunk in chunk_*; do
 done
 ```
 
-**2. Reduce batch size:**
+**Reduce parallelism to reduce memory pressure:**
+
 ```bash
-# Process fewer files at once
-export RAYON_NUM_THREADS=2  # Reduce parallelism
+export RAYON_NUM_THREADS=2
 hedl batch-validate *.hedl
 ```
 
-**3. Monitor memory:**
-```bash
-# Linux
-/usr/bin/time -v hedl validate large.hedl
-
-# macOS
-time hedl validate large.hedl
-```
+Fewer threads mean less concurrent memory usage.
 
 ---
 
-### Problem: Batch operations are slow
+### "Batch operations are slower than expected"
 
-**Symptoms:**
+Parallel processing has overhead. For small files, sequential processing might actually be faster.
+
+**For many small files, try without the parallel flag:**
+
 ```bash
-hedl batch-format *.hedl --output-dir formatted/
-# Takes much longer than expected
+hedl batch-validate *.hedl  # Sequential, sometimes faster for tiny files
 ```
 
-**Solutions:**
+**For large files, ensure parallelism is enabled:**
 
-**1. Ensure parallelism is enabled:**
 ```bash
-# Explicitly enable (default)
-hedl batch-format *.hedl --output-dir formatted/ --parallel
+hedl batch-validate *.hedl --parallel
 ```
 
-**2. Adjust thread count:**
+**For maximum control, use GNU parallel:**
+
 ```bash
-# Use all cores
-export RAYON_NUM_THREADS=$(nproc)
-
-# Or specific count
-export RAYON_NUM_THREADS=8
+ls *.hedl | parallel -j 8 'hedl validate {}'
 ```
 
-**3. For many small files, omit parallel flag:**
-```bash
-# Sometimes faster for small files (default behavior for <4 files)
-hedl batch-format *.hedl --output-dir formatted/
-```
-
-**4. Use GNU parallel for maximum control:**
-```bash
-ls *.hedl | parallel -j 8 'hedl format {} -o formatted/{}'
-```
-
-## File and I/O Errors
-
-### Problem: "File too large" error
-
-**Symptoms:**
-```
-LimitError at line 0: file 'large.hedl' exceeds maximum size (2000000000 bytes > 1073741824 bytes)
-```
-
-**Solutions:**
-
-**1. Split file:**
-```bash
-# Split into 500MB chunks
-split -b 500M large.hedl chunk_
-
-# Process chunks
-for chunk in chunk_*; do
-  hedl validate "$chunk"
-done
-```
-
-**2. Compress data:**
-```bash
-# Convert to more efficient format
-hedl to-parquet large.hedl -o compressed.parquet
-# Parquet is typically 70-90% smaller
-```
+This gives you precise control over concurrency.
 
 ---
 
-### Problem: "Permission denied" errors
+## File and I/O Headaches
 
-**Symptoms:**
+### "File too large"
+
+HEDL has a default maximum file size of 1 GB. This is a safety limit.
+
+**For larger files, split them:**
+
+```bash
+split -b 500M huge.hedl chunk_
 ```
-IOError at line 0: failed to write 'output.hedl': permission denied
+
+**Or convert to a more compact format:**
+
+```bash
+hedl to-parquet huge.hedl -o compact.parquet
 ```
 
-**Solutions:**
+Parquet is columnar and compressed. A 2 GB HEDL file might become a 200 MB Parquet file.
 
-**1. Check file permissions:**
+---
+
+### "Permission denied"
+
+You don't have write access to the output location.
+
+**Check permissions:**
+
 ```bash
 ls -l output.hedl
-# Fix permissions
-chmod u+w output.hedl
-```
-
-**2. Check directory permissions:**
-```bash
 ls -ld output_directory/
-# Fix directory permissions
-chmod u+w output_directory/
 ```
 
-**3. Write to different location:**
+**Fix permissions or write elsewhere:**
+
 ```bash
+chmod u+w output.hedl
+# Or
 hedl format data.hedl -o /tmp/output.hedl
 ```
 
-**4. Use sudo only if necessary:**
-```bash
-# Avoid sudo with HEDL when possible
-# If required, use carefully
-sudo hedl format data.hedl -o /etc/config.hedl
-```
+**Avoid sudo unless absolutely necessary.** If you need to write to a system directory, that's fine, but understand the security implications.
 
 ---
 
-### Problem: "No such file or directory"
+### "No such file or directory"
 
-**Symptoms:**
-```
-IOError at line 0: failed to read 'data.hedl': no such file or directory
-```
+The file doesn't exist, or you're looking in the wrong place.
 
-**Solutions:**
+**Check your current directory:**
 
-**1. Check file path:**
-```bash
-ls -l data.hedl
-# Use absolute path if needed
-hedl validate /full/path/to/data.hedl
-```
-
-**2. Check current directory:**
 ```bash
 pwd
 ls *.hedl
 ```
 
-**3. Use find to locate file:**
+**Use absolute paths when in doubt:**
+
 ```bash
-find . -name "data.hedl"
+hedl validate /home/yourname/project/data.hedl
 ```
 
-**4. For batch operations, let shell expand glob:**
-```bash
-# Shell expands glob pattern
-hedl batch-validate *.hedl
+**Find the file:**
 
-# Test pattern first
-ls *.hedl
+```bash
+find . -name "*.hedl"
 ```
+
+---
 
 ## Validation Failures
 
-### Problem: "Missing required field" errors
+### "Missing required field"
 
-**Symptoms:**
-```
-ValidationError at line 5: missing required field 'name' in struct User
-```
+A matrix row doesn't have enough values.
 
-**Solutions:**
-
-**1. Check matrix list structure:**
 ```hedl
-# WRONG - missing field
-%STRUCT: User: [id, name, email]
+# WRONG: Only 2 values, but schema has 3 columns
+%S:User:[id,name,email]
 ---
-users: @User
-  | u1, Alice  # Missing email!
+users:@User
+ |u1,Alice
 
-# CORRECT
-%STRUCT: User: [id, name, email]
+# CORRECT: All 3 values present
+%S:User:[id,name,email]
 ---
-users: @User
-  | u1, Alice, alice@example.com
+users:@User
+ |u1,Alice,alice@example.com
 ```
 
-**2. Use `inspect` to see structure:**
-```bash
-hedl inspect data.hedl
-```
+**If a field is optional, use null:**
 
-**3. Add missing fields:**
 ```hedl
-# Use null (~) for optional fields
-%STRUCT: User: [id, name, email]
----
-users: @User
-  | u1, Alice, ~
+ |u1,Alice,~
 ```
+
+The `~` represents null (no value).
 
 ---
 
-### Problem: Lint warnings you don't understand
+### "Lint warnings I don't understand"
 
-**Symptoms:**
-```
-Warning (line 12): Deep nesting (level 8) may impact readability
-```
+Lint warnings aren't errors. Your file is valid. The linter is suggesting improvements.
 
-**Solutions:**
+**"Deep nesting may impact readability"**
 
-**1. Understand the warning:**
-- Deep nesting: Refactor to flatten structure or use references
-- Unused types: Remove or reference them
-- Missing count hints: Add count for better performance
+You have many levels of indentation. Consider flattening with references.
 
-**2. Fix or ignore:**
+**"Unused schema defined"**
+
+You declared a `%S:SomeType:[...]` but never used it. Either use it or remove it.
+
+**Warnings don't prevent your file from working.** They're suggestions. Address them when it makes sense.
+
+---
+
+## Batch Processing Pitfalls
+
+### "Batch operations find 0 files"
+
+You probably quoted the glob pattern.
+
 ```bash
-# View all warnings
-hedl lint data.hedl
-
-# Warnings don't prevent usage
-hedl validate data.hedl  # May still be valid
-```
-
-**3. Refactor if needed:**
-```hedl
-# AFTER - flattened with references
-%STRUCT: L3: [id]
-%STRUCT: L2: [id, child]
-%STRUCT: L1: [id, child]
----
-level3_items: @L3
-  | l3_1
-
-level2_items: @L2
-  | l2_1, @L3:l3_1
-
-level1_items: @L1
-  | l1_1, @L2:l2_1
-```
-
-## Batch Processing Issues
-
-### Problem: Batch operations don't find files
-
-**Symptoms:**
-```bash
+# WRONG: Quotes prevent shell expansion
 hedl batch-validate "*.hedl"
-# Processed 0 files
-```
 
-**Solutions:**
-
-**1. Let shell expand glob pattern:**
-```bash
-# Shell expands the glob - do NOT quote
+# CORRECT: Let the shell expand the glob
 hedl batch-validate *.hedl
 ```
 
-**2. Check files exist:**
+The shell needs to expand `*.hedl` into a list of actual filenames. Quotes prevent this.
+
+---
+
+### "I accidentally overwrote files"
+
+Always use `--output-dir` to write formatted files to a separate directory:
+
 ```bash
-ls *.hedl
+hedl batch-format *.hedl --output-dir formatted/
 ```
 
-**3. Use absolute paths:**
-```bash
-hedl batch-validate /full/path/*.hedl
-```
+**Before batch operations, use version control or backups:**
 
-**4. Try different glob patterns:**
 ```bash
-# Specific directory
-hedl batch-validate data/*.hedl
-
-# Multiple patterns
-hedl batch-validate data/*.hedl archive/*.hedl
+git add *.hedl
+git commit -m "Before batch formatting"
+hedl batch-format *.hedl --output-dir formatted/
 ```
 
 ---
 
-### Problem: Batch operations modify wrong files
-
-**Symptoms:**
-```bash
-hedl batch-format *.hedl --output-dir .
-# Oops, modified files I didn't want to change!
-```
-
-**Solutions:**
-
-**1. Always use --output-dir to avoid overwriting:**
-```bash
-# Output to different directory
-hedl batch-format *.hedl --output-dir formatted/
-```
-
-**2. Backup before batch operations:**
-```bash
-tar czf backup.tar.gz *.hedl
-hedl batch-format *.hedl --output-dir formatted/
-```
-
-**3. Use version control:**
-```bash
-git add *.hedl
-git commit -m "Before batch format"
-hedl batch-format *.hedl --output-dir formatted/
-git diff  # Review changes
-```
-
 ## Platform-Specific Issues
 
-### Windows: Line ending issues
+### Windows: "Unexpected character '\r'"
 
-**Symptoms:**
-```
-SyntaxError at line 1: unexpected character '\\r' (Windows line ending)
-```
+Your file has Windows line endings (CRLF). HEDL expects Unix line endings (LF only).
 
-**Solutions:**
+**Convert line endings:**
 
-**1. Convert line endings:**
 ```powershell
 # PowerShell
-(Get-Content data.hedl) | Set-Content -NoNewline data.hedl
+(Get-Content data.hedl -Raw) -replace "`r`n", "`n" | Set-Content data.hedl -NoNewline
 ```
 
-**2. Use Git autocrlf:**
+**Or use dos2unix (if installed):**
+
+```bash
+dos2unix data.hedl
+```
+
+**Prevent this in Git:**
+
 ```bash
 git config --global core.autocrlf input
 ```
 
-**3. Use dos2unix:**
-```bash
-dos2unix data.hedl
-```
+This automatically converts line endings when you check out files.
 
 ---
 
 ### Windows: Path issues
 
-**Symptoms:**
-```
-IOError at line 0: failed to read 'C:\\path\\data.hedl'
-```
+Windows uses backslashes in paths. HEDL prefers forward slashes.
 
-**Solutions:**
-
-**1. Use forward slashes:**
 ```powershell
-hedl validate C:/path/data.hedl
-```
+# Use forward slashes
+hedl validate C:/Users/yourname/data.hedl
 
-**2. Escape backslashes:**
-```powershell
-hedl validate "C:\\path\\data.hedl"
-```
-
-**3. Use PowerShell:**
-```powershell
-hedl validate $PWD\data.hedl
+# Or escape backslashes
+hedl validate "C:\\Users\\yourname\\data.hedl"
 ```
 
 ---
 
-### macOS: SSL certificate errors (during installation)
+### macOS: SSL certificate errors during installation
 
-**Symptoms:**
-```
-error: failed to get '...' from registry
-```
+The Rust toolchain is having trouble verifying SSL certificates.
 
-**Solutions:**
-
-**1. Update certificates:**
 ```bash
+# Update certificates via Homebrew
 brew install openssl
-```
 
-**2. Update Rust:**
-```bash
+# Update Rust
 rustup update
 ```
 
-**3. Use different registry:**
-```bash
-cargo install hedl-cli --registry crates-io
-```
-
 ---
 
-### Linux: Library linking errors
+### Linux: "error while loading shared libraries: libssl"
 
-**Symptoms:**
-```
-error while loading shared libraries: libssl.so.1.1
-```
+You're missing the OpenSSL library.
 
-**Solutions:**
-
-**1. Install OpenSSL:**
 ```bash
 # Ubuntu/Debian
 sudo apt-get install libssl-dev
@@ -909,61 +709,75 @@ sudo dnf install openssl-devel
 sudo pacman -S openssl
 ```
 
-**2. Build static binary:**
+**For a truly portable binary, build statically:**
+
 ```bash
 cargo build --release --target x86_64-unknown-linux-musl
 ```
 
-## Getting More Help
+This creates a binary with no external dependencies.
 
-### Debug Mode
+---
 
-Enable verbose logging:
+## When All Else Fails
+
+### Enable debug logging
 
 ```bash
-# Set log level
 export RUST_LOG=debug
 hedl validate data.hedl
 ```
 
-### Create Minimal Reproduction
+This produces verbose output that might reveal what's happening internally.
 
-Create the smallest example that reproduces the issue:
+### Create a minimal reproduction
+
+The smaller the example, the easier to debug:
 
 ```bash
-# Minimal file
-echo -e '%VERSION: 1.0\n---\nname: test' > minimal.hedl
+# Start with the smallest possible file
+cat > minimal.hedl << 'EOF'
+%V:2.0
+%NULL:~
+%QUOTE:"
+---
+test:value
+EOF
 
-# Test it
 hedl validate minimal.hedl
 ```
 
-### Report Issues
+Gradually add complexity until it breaks. That's where the bug is.
 
-If you can't solve the problem:
+### Get help
 
-1. **Check FAQ**: [faq.md](faq.md)
-2. **Search Issues**: https://github.com/dweve-ai/hedl/issues
-3. **Create Issue**: Include:
-   - HEDL version: `hedl --version`
-   - OS and version
-   - Minimal reproduction case
-   - Error messages (full output)
-   - What you expected vs what happened
+If you've tried everything and you're still stuck:
 
-### Community Resources
+1. **Check the FAQ:** [faq.md](faq.md)
+2. **Search existing issues:** https://github.com/dweve-ai/hedl/issues
+3. **Open a new issue** with:
+   - Your HEDL version: `hedl --version`
+   - Your operating system
+   - The smallest file that reproduces the problem
+   - The complete error message
+   - What you expected vs. what happened
 
-- **GitHub Issues**: https://github.com/dweve-ai/hedl/issues
-- **Documentation**: This guide and [README.md](README.md)
-- **Examples**: [examples.md](examples.md)
-- **CLI Reference**: [cli-guide.md](cli-guide.md)
+We're here to help. Every bug report makes HEDL better for everyone.
 
 ---
 
-**Still stuck?** Create a detailed issue on GitHub with:
-- `hedl --version` output
-- Your operating system
-- Minimal example that reproduces the problem
-- Full error message
+## Quick Reference: Error Messages and Their Meanings
 
-We're here to help!
+| Error | Likely Cause | Quick Fix |
+|-------|--------------|-----------|
+| "unexpected token" | Wrong indentation or missing quotes | Check for 1-space indentation, quote special chars |
+| "invalid UTF-8" | Wrong file encoding | `iconv -f ISO-8859-1 -t UTF-8 file.hedl > fixed.hedl` |
+| "command not found" | PATH not set | Add `~/.cargo/bin` to PATH |
+| "permission denied" | Used sudo or wrong permissions | `chown -R $USER:$USER ~/.cargo` |
+| "missing required field" | Not enough values in row | Add missing values or use `~` for null |
+| "maximum nesting depth" | Too many nested levels | Flatten with references |
+| "file too large" | Exceeds 1 GB limit | Split file or convert to Parquet |
+
+---
+
+You've reached the end of the troubleshooting guide. If your problem isn't here, it's either very rare or very new. Either way, open an issue. Your problem today becomes documentation for someone else tomorrow.

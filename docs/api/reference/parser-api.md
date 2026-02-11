@@ -30,7 +30,7 @@ pub fn parse(input: &[u8]) -> HedlResult<Document>
 ```rust
 use hedl::parse;
 
-let doc = parse("%VERSION: 1.0\n---\nkey: value")?;
+let doc = parse("%V:2.0\n---\nkey: value")?;
 assert_eq!(doc.version, (1, 0));
 ```
 
@@ -59,7 +59,7 @@ pub fn parse_lenient(input: &str) -> Result<Document, HedlError>
 use hedl::parse_lenient;
 
 // This would fail with strict parse()
-let doc = parse_lenient("%VERSION: 1.0\n---\nuser: @User:missing")?;
+let doc = parse_lenient("%V:2.0\n---\nuser:@User:missing")?;
 // user field becomes null
 ```
 

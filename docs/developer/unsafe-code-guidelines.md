@@ -168,7 +168,7 @@ unsafe { std::mem::transmute::<A, B>(value) }
 
 ## Unsafe Code Inventory
 
-| File | Lines | Justification | Last Audit | Next Audit |
+| File |Lines |Justification |Last Audit |Next Audit |
 |------|-------|---------------|------------|------------|
 | _No unsafe code currently_ | | | | |
 

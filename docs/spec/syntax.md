@@ -2,18 +2,9 @@
 
 This document provides a formal specification of the HEDL (Hierarchical Entity Data Language) syntax based on the reference parser implementation in `crates/hedl-core`.
 
-## Table of Contents
+## Contents
 
-1. [Document Structure](#document-structure)
-2. [Lexical Elements](#lexical-elements)
-3. [Header Section](#header-section)
-4. [Body Section](#body-section)
-5. [Values](#values)
-6. [Matrix Lists](#matrix-lists)
-7. [Comments](#comments)
-8. [Indentation](#indentation)
-9. [Security Limits](#security-limits)
-10. [Grammar](#grammar)
+This document covers document structure, lexical elements, header directives, body syntax, value types, matrix lists, comments, indentation rules, security limits, and formal grammar.
 
 ## Document Structure
 
@@ -32,13 +23,15 @@ BODY
 ### Example
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%ALIAS: %active: "true"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
+%A:%active:"true"
 ---
-users: @User
-  | user_1, Alice, alice@example.com
-  | user_2, Bob, bob@example.com
+users:@User
+ |user_1,Alice,alice@example.com
+ |user_2,Bob,bob@example.com
 ```
 
 ## Lexical Elements
@@ -120,20 +113,26 @@ id.name     # No dots
 
 The header contains directives that define the document structure.
 
-### %VERSION Directive
+### %V Directive (Version)
 
-**Syntax**: `%VERSION: <version>`
+**Syntax**: `%V:<version>`
 
-Specifies the HEDL format version. Currently only version `1.0` is supported.
+Specifies the HEDL format version. Current version is `2.0`.
 
 **Example**:
 ```hedl
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ```
 
-### %STRUCT Directive
+All HEDL documents should use the `%V:2.0` directive.
 
-**Syntax**: `%STRUCT: <TypeName>: [<col1>, <col2>, ...]`
+### %S Directive (Struct)
+
+**Syntax**:
+- `%S:<TypeName>:[<col1>,<col2>,...]`
+- With count hint: `%S:<TypeName>(<count>):[<col1>,<col2>,...]`
 
 Defines the schema for a matrix list type.
 
@@ -143,16 +142,18 @@ Defines the schema for a matrix list type.
 - At least one column is required
 - No duplicate column names
 - Maximum columns limited by `max_columns` (default: 100)
+- Optional count hint `(N)` indicates expected number of rows (informational only)
 
-**Example**:
+**Examples**:
 ```hedl
-%STRUCT: User: [id, name, email]
-%STRUCT: Post: [id, title, author_id, content]
+%S:User:[id,name,email]
+%S:Post:[id,title,author_id,content]
+%S:Product(100):[id,sku,name,price]
 ```
 
-### %ALIAS Directive
+### %A Directive (Alias)
 
-**Syntax**: `%ALIAS: %<key>: "<value>"`
+**Syntax**: `%A:%<key>:"<value>"`
 
 Defines a constant that can be referenced later using `%key`.
 
@@ -162,31 +163,111 @@ Defines a constant that can be referenced later using `%key`.
 - Escape sequences supported in value (see [Escape Sequences](#escape-sequences))
 - Maximum aliases limited by `max_aliases` (default: 10,000)
 
-**Example**:
+**Examples**:
 ```hedl
-%ALIAS: %active: "true"
-%ALIAS: %default_email: "user@example.com"
-%ALIAS: %greeting: "Hello \"World\""
+%A:%active:"true"
+%A:%admin:"Administrator"
+%A:%default_email:"user@example.com"
 ```
 
-### %NEST Directive
+### %N Directive (Nest)
 
-**Syntax**: `%NEST: <ParentType> > <ChildType>`
+**Syntax**: `%N:<ParentType>><ChildType>`
 
 Defines a parent-child relationship between two entity types.
 
 **Rules**:
 - Both ParentType and ChildType must be valid Type Names
-- Both types must be defined in %STRUCT directives
+- Both types must be defined in %S directives
 - Defines that ChildType rows can be nested under ParentType rows
 - Maximum nest depth limited by `max_nest_depth` (default: 100)
 
-**Example**:
+**Examples**:
 ```hedl
-%STRUCT: Company: [id, name]
-%STRUCT: Division: [id, name]
-%NEST: Company > Division
+%S:Company:[id,name]
+%S:Division:[id,name]
+%N:Company>Division
 ```
+
+### %NULL Directive
+
+**Syntax**: `%NULL:<char>`
+
+Defines the character used to represent null values in the document.
+
+**Rules**:
+- Must be a single character
+- Required in all documents
+- Standard value is `~`
+
+**Examples**:
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+---
+value: ~     # null value
+
+%V:2.0
+%NULL:-
+%QUOTE:"
+---
+value: -     # null value (using custom character)
+```
+
+### %QUOTE Directive
+
+**Syntax**: `%QUOTE:<char>`
+
+Defines the character used for quoting strings.
+
+**Rules**:
+- Must be a single character
+- Required in all documents
+- Can only be specified once per document
+- Standard value is `"`
+
+**Examples**:
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+---
+name: "Alice"
+
+%V:2.0
+%NULL:~
+%QUOTE:'
+---
+name: 'Alice'    # using single quotes as the quote character
+```
+
+### %COUNT Directive
+
+**Syntax**:
+- Total count: `%C:<Type>.total=<N>`
+- Distribution: `%C:<Type>.<field>:<val1>=<N1>,<val2>=<N2>,...`
+
+Provides statistical metadata about the data. This is informational for LLM comprehension and tooling; it does not affect parsing.
+
+**Examples**:
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id,sku,name,category,price]
+%C:Product.total=15
+%C:Product.category:electronics=9,clothing=3,sports=3
+---
+products:@Product
+ |p1,SKU-001,Laptop,electronics,999.99
+  # ... 14 more products
+```
+
+**Use Cases**:
+- LLM comprehension: Helps models understand data distribution without scanning all rows
+- Validation: Tools can verify actual counts match declared counts
+- Preview: Quick summary of large datasets
 
 ## Body Section
 
@@ -200,7 +281,7 @@ The body contains the actual data in hierarchical format.
   <nested content>
 ```
 
-Objects are defined by a key followed by a colon with no value, and contain nested key-value pairs or other structures indented by 2 spaces.
+Objects are defined by a key followed by a colon with no value, and contain nested key-value pairs or other structures indented by 1 space.
 
 **Example**:
 ```hedl
@@ -349,14 +430,13 @@ quote: "She said \"hello\""
 
 Escape sequences are supported in quoted strings (directives and values):
 
-| Escape | Meaning |
+ |Escape |Meaning |
 |--------|---------|
-| `""` | Literal quote (CSV-style) |
-| `\"` | Literal quote (backslash-style) |
-| `\\` | Literal backslash |
-| `\n` | Newline |
-| `\t` | Tab |
-| `\r` | Carriage return |
+ |`""` |Literal quote (CSV-style) |
+ |`\"` |Literal quote (backslash-style) |
+ |`\\` |Literal backslash |
+ |`\n` |Newline |
+ |`\t` |Tab |
 
 **Example**:
 ```hedl
@@ -367,10 +447,7 @@ tab_separated: "col1\tcol2"
 windows_path: "C:\\Users\\test"
 ```
 
-Unknown escape sequences preserve the backslash:
-```hedl
-unknown: "test\x"  # Results in: test\x
-```
+Unknown escape sequences are invalid and result in a parse error.
 
 ### Tensor Literals
 
@@ -431,10 +508,10 @@ References point to entities defined elsewhere in the document.
 **Example**:
 ```hedl
 # Local reference
-author: @user_1
+author:@user_1
 
 # Qualified reference
-author: @User:user_1
+author:@User:user_1
 ```
 
 ### Expressions
@@ -445,12 +522,12 @@ Expressions are evaluated at parse time (or later, depending on implementation).
 
 **Grammar**:
 ```
-expr     = call | access | atom
+expr     = call |access |atom
 call     = identifier "(" args ")"
 access   = expr "." identifier
-atom     = identifier | literal
+atom     = identifier |literal
 args     = (expr ("," expr)*)?
-literal  = number | string | bool
+literal  = number |string |bool
 ```
 
 **Supported operations**:
@@ -480,11 +557,44 @@ References an alias defined in the header.
 **Example**:
 ```hedl
 # In header:
-%ALIAS: %active: "true"
+%A:%active: "true"
 
 # In body:
 status: %active
 ```
+
+### List Literals
+
+**Syntax**: `(<elem1>, <elem2>, ...)`
+
+List literals are ordered sequences of scalar values enclosed in parentheses.
+
+**Rules**:
+- Elements are separated by commas
+- Elements can be any scalar value (strings, references, booleans, numbers)
+- Empty list is allowed: `()`
+- Distinct from tensors `[...]` which are numeric-only arrays
+
+**Examples**:
+```hedl
+# List of strings
+tags: (rust, performance, data)
+
+# List of references
+team: (@User:alice, @User:bob)
+
+# Empty list
+categories: ()
+
+# In matrix rows
+%S:Article:[id,title,tags]
+---
+articles:@Article
+ |art-1,Intro,(tutorial,beginner)
+ |art-2,Advanced,(expert)
+```
+
+**Note**: Use `(...)` for lists of any scalar values. Use `[...]` for numeric tensors only.
 
 ## Matrix Lists
 
@@ -492,39 +602,33 @@ Matrix lists are tables of structured entities defined by a schema.
 
 ### List Declaration
 
-**Syntax**: `<key>: @<TypeName>` or `<key>: @<TypeName>[<schema>]`
+**Syntax**: `<key>:@<TypeName>` or `<key>:@<TypeName>[<schema>]`
 
 **Formats**:
-1. Reference to declared schema: `users: @User`
-2. Inline schema: `users: @User[id, name, email]`
+1. Reference to declared schema: `users:@User`
+2. Inline schema: `users:@User[id, name, email]`
 
 **Rules**:
 - TypeName must be defined in a %STRUCT directive (format 1)
 - Inline schema must match declared schema if both exist
 - Inline schema follows same rules as %STRUCT columns
 
-**Optional Count Hint (DEPRECATED)**:
-```hedl
-users(3): @User
-```
-The `name(N): @Type` syntax for count hints is deprecated. Use the row-level `|[N]|` syntax instead.
-
 **Example**:
 ```hedl
 # Reference to schema
-users: @User
-  | user_1, Alice, alice@example.com
+users:@User
+ |user_1,Alice,alice@example.com
 
 # Inline schema
-users: @User[id, name, email]
-  | user_1, Alice, alice@example.com
+users:@User[id,name,email]
+ |user_1,Alice,alice@example.com
 ```
 
 ### Matrix Rows
 
 **Syntax**: `| <csv-values>` or `|[<N>] <csv-values>`
 
-Matrix rows are indented 2 spaces under the list declaration.
+Matrix rows are indented 1 space under the list declaration.
 
 **Formats**:
 1. Leaf row: `| value1, value2, value3`
@@ -536,72 +640,53 @@ Matrix rows are indented 2 spaces under the list declaration.
 - Number of values must match schema length
 - First column is the ID (must be a string)
 - Values can be quoted or unquoted
-- Ditto marks (`"`) repeat the value from the previous row in that column
 - Child count `[N]` indicates this row has N child rows
 - Child count `[0]` indicates a parent row with no children
-- Children are indented +2 spaces and must have a NEST relationship defined
-
-**Example**:
-```hedl
-users: @User[id, name, active]
-  | user_1, Alice, true
-  | user_2, Bob, "
-  | user_3, Charlie, false
-```
-
-### Ditto Marks
-
-**Syntax**: `"`
-
-The ditto mark (`"`) in a matrix row cell repeats the value from the same column in the previous row.
-
-**Rules**:
-- Only valid in matrix rows, not in the first row
-- Cannot be used in the ID column (first column)
-- Copies the exact value from the previous row
-
-**Example**:
-```hedl
-products: @Product[id, category, price]
-  | prod_1, Electronics, 99.99
-  | prod_2, ", 149.99      # category = Electronics
-  | prod_3, ", "           # category = Electronics, price = 149.99
-```
+- Children are indented +1 space and must have a NEST relationship defined
 
 ### Nested Lists (NEST)
 
 Child entities can be nested under parent rows when a NEST relationship is defined.
 
-**Syntax**:
+**v2.0 Syntax** (recommended):
 ```hedl
-%NEST: <ParentType> > <ChildType>
+%N:<ParentType>><ChildType>
+%C:<ParentType>.total=N
+%C:<ChildType>.total=M
 
-<parent_list>: @ParentType
-  |[<child_count>] <parent_values>
-    |<child_values>
-    |<child_values>
+<parent_list>:@<ParentType>
+ |<parent_values>
+  @<ChildType>#<count>:
+  |<child_values>
+  |<child_values>
 ```
 
 **Rules**:
-- NEST relationship must be defined in header
-- Child rows are indented +2 spaces relative to parent row
-- Child count `[N]` in parent row indicates number of children
-- Child count is optional (can be inferred from actual children)
+- NEST relationship must be defined in header with `%N:`
+- Counts declared in header with `%C:<Type>.total=N`
+- Child rows use `@Type#N:` block syntax (multi-line) or `@Type#N:|row` (inline)
+- Child blocks are indented +1 space relative to parent row
 - Maximum nest depth limited by `max_nest_depth` (default: 100)
 
 **Example**:
 ```hedl
-%STRUCT: Company: [id, name]
-%STRUCT: Division: [id, name]
-%NEST: Company > Division
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Company:[id,name]
+%S:Division:[id,name]
+%N:Company>Division
+%C:Company.total=3
+%C:Division.total=3
 ---
-companies: @Company
-  |[2] comp_1, Acme Corp
-    | div_1, Engineering
-    | div_2, Sales
-  |[0] comp_2, Beta Inc
-  |[1] comp_3, Gamma Ltd
-    | div_3, Marketing
+companies:@Company
+ |comp_1,Acme Corp
+  @Division#2:
+  |div_1,Engineering
+  |div_2,Sales
+ |comp_2,Beta Inc
+ |comp_3,Gamma Ltd
+  @Division#1:|div_3,Marketing
 ```
 
 ### Nested List Declarations
@@ -610,27 +695,27 @@ Lists can be declared as children of specific rows (alternative to NEST).
 
 **Syntax**:
 ```hedl
-<parent_list>: @ParentType
-  | <parent_values>
-    <child_list_key>: @ChildType
-      | <child_values>
+<parent_list>:@ParentType
+ | <parent_values>
+    <child_list_key>:@ChildType
+   | <child_values>
 ```
 
 **Rules**:
-- Child list declaration is indented +2 spaces under parent row
+- Child list declaration is indented +1 space under parent row
 - Child list key must be unique per parent row
-- Optional count hint: `divisions(3): @Division`
+- Optional count hint: `divisions(3):@Division`
 
 **Example**:
 ```hedl
-companies: @Company[id, name]
-  | comp_1, Acme Corp
-    divisions: @Division[id, name]
-      | div_1, Engineering
-      | div_2, Sales
-  | comp_2, Beta Inc
-    divisions(1): @Division
-      | div_3, Marketing
+companies:@Company[id,name]
+ |comp_1,Acme Corp
+    divisions:@Division[id,name]
+   |div_1,Engineering
+   |div_2,Sales
+ |comp_2,Beta Inc
+    divisions(1):@Division
+   |div_3,Marketing
 ```
 
 ## Comments
@@ -658,8 +743,7 @@ HEDL uses significant indentation to denote hierarchy.
 
 ### Indentation Rules
 
-1. **Increment**: 2 spaces per level
-2. **No tabs**: Only spaces allowed in indentation
+1. **Increment**: 1 space per level2. **No tabs**: Only spaces allowed in indentation
 3. **Even spaces**: Indentation must be an even number of spaces
 4. **Consistency**: All content at the same level must have the same indentation
 5. **Maximum depth**: Limited by `max_indent_depth` (default: 50)
@@ -667,8 +751,7 @@ HEDL uses significant indentation to denote hierarchy.
 **Valid indentation**:
 ```hedl
 root:          # 0 spaces
-  level1:      # 2 spaces
-    level2:    # 4 spaces
+  level1:      # 1 space    level2:    # 4 spaces
       level3:  # 6 spaces
 ```
 
@@ -682,28 +765,25 @@ root:
 
 ### Context-Specific Indentation
 
-- **Object children**: Parent indent + 2
-- **Matrix rows**: List declaration indent + 2
-- **Nested matrix rows**: Parent row indent + 2
-- **Block string lines**: Any indentation (common indent stripped)
+- **Object children**: Parent indent + 1- **Matrix rows**: List declaration indent + 1- **Nested matrix rows**: Parent row indent + 1- **Block string lines**: Any indentation (common indent stripped)
 
 ## Security Limits
 
 The parser enforces security limits to prevent denial-of-service attacks:
 
-| Limit | Default | Purpose |
+ |Limit |Default |Purpose |
 |-------|---------|---------|
-| `max_file_size` | 1 GB | Maximum input file size |
-| `max_line_length` | 1 MB | Maximum line length |
-| `max_indent_depth` | 50 | Maximum nesting depth for objects |
-| `max_nodes` | 10M | Maximum matrix list nodes |
-| `max_aliases` | 10K | Maximum number of aliases |
-| `max_columns` | 100 | Maximum columns per schema |
-| `max_nest_depth` | 100 | Maximum NEST hierarchy depth |
-| `max_block_string_size` | 10 MB | Maximum block string size |
-| `max_object_keys` | 10K | Maximum keys per object |
-| `max_total_keys` | 10M | Maximum total keys across all objects |
-| `timeout` | 30 sec | Maximum parsing time |
+ |`max_file_size` |1 GB |Maximum input file size |
+ |`max_line_length` |1 MB |Maximum line length |
+ |`max_indent_depth` |50 |Maximum nesting depth for objects |
+ |`max_nodes` |10M |Maximum matrix list nodes |
+ |`max_aliases` |10K |Maximum number of aliases |
+ |`max_columns` |100 |Maximum columns per schema |
+ |`max_nest_depth` |100 |Maximum NEST hierarchy depth |
+ |`max_block_string_size` |10 MB |Maximum block string size |
+ |`max_object_keys` |10K |Maximum keys per object |
+ |`max_total_keys` |10M |Maximum total keys across all objects |
+ |`timeout` |30 sec |Maximum parsing time |
 
 All limits are configurable via `ParseOptions`.
 
@@ -715,44 +795,45 @@ Informal BNF-style grammar for HEDL:
 document          = header separator body
 
 header            = directive*
-directive         = version_directive | struct_directive | alias_directive | nest_directive
+directive         = version_directive |struct_directive |alias_directive |nest_directive
 version_directive = "%VERSION:" version
 struct_directive  = "%STRUCT:" type_name ":" column_list
-alias_directive   = "%ALIAS:" "%" key ":" quoted_string
+alias_directive   = "%A:" "%" key ":" quoted_string
 nest_directive    = "%NEST:" type_name ">" type_name
 
 separator         = "---"
 
-body              = (blank_line | comment_line | content_line)*
-content_line      = indent (object_start | key_value | list_start | matrix_row | block_string_start)
+body              = (blank_line |comment_line |content_line)*
+content_line      = indent (object_start |key_value |list_start |matrix_row |block_string_start)
 
 object_start      = key ":"
 key_value         = key ":" " " value
 list_start        = key count_hint? ":" " " "@" type_name schema?
 matrix_row        = "|" child_count? csv_row
-block_string_start = key ":" " |" (">" | newline)
+block_string_start = key ":" " |" (">" |newline)
 
-value             = null | bool | integer | float | string | tensor | reference | expression | alias_ref
+value             = null |bool |integer |float |string |tensor |list |reference |expression |alias_ref
 null              = "null"
-bool              = "true" | "false"
+bool              = "true" |"false"
 integer           = "-"? digit+
 float             = "-"? digit+ "." digit+
-string            = unquoted_string | quoted_string
+string            = unquoted_string |quoted_string
 tensor            = "[" (value ("," value)* ","?)? "]"
+list              = "(" (scalar ("," scalar)*)? ")"
+scalar            = null |bool |integer |float |string |reference |alias_ref
 reference         = "@" (type_name ":")? id
 expression        = "$(" expr ")"
 alias_ref         = "%" key
 
-expr              = call | access | atom
+expr              = call |access |atom
 call              = identifier "(" (expr ("," expr)*)? ")"
 access            = expr "." identifier
-atom              = identifier | literal
-literal           = integer | float | quoted_string | bool
+atom              = identifier |literal
+literal           = integer |float |quoted_string |bool
 
 column_list       = "[" key ("," key)* "]"
 csv_row           = field ("," field)*
-field             = quoted_field | unquoted_field | ditto
-ditto             = "\""
+field             = quoted_field |unquoted_field
 
 count_hint        = "(" integer ")"
 child_count       = "[" integer "]"
@@ -764,7 +845,7 @@ id                = [a-zA-Z_][a-zA-Z0-9_\-]*
 identifier        = [a-zA-Z_][a-zA-Z0-9_]*
 
 quoted_string     = "\"" (escape_seq | [^"])* "\""
-escape_seq        = "\"\"" | "\\\"" | "\\\\" | "\\n" | "\\t" | "\\r"
+escape_seq        = "\"\"" |"\\\"" |"\\\\" |"\\n" |"\\t" |"\\r"
 
 comment_line      = "#" [^\n]*
 blank_line        = [ \t]*
@@ -801,7 +882,7 @@ The parser provides detailed error messages with line numbers for:
 
 ## Implementation Notes
 
-This specification is based on the reference implementation in `crates/hedl-core/src/parser.rs` and related modules. Implementations should strive for compatibility with the reference parser behavior.
+This specification is based on the reference implementation in `crates/hedl-core/src/parser/` and related modules. Implementations should strive for compatibility with the reference parser behavior.
 
 Key implementation modules:
 - `/home/marc/dev/projects/hedl/crates/hedl-core/src/lex/tokens.rs` - Token validation
@@ -810,8 +891,39 @@ Key implementation modules:
 - `/home/marc/dev/projects/hedl/crates/hedl-core/src/lex/indent.rs` - Indentation rules
 - `/home/marc/dev/projects/hedl/crates/hedl-core/src/lex/tensor.rs` - Tensor literals
 - `/home/marc/dev/projects/hedl/crates/hedl-core/src/lex/expression.rs` - Expression syntax
-- `/home/marc/dev/projects/hedl/crates/hedl-core/src/parser.rs` - Overall structure
+- `/home/marc/dev/projects/hedl/crates/hedl-core/src/parser/` - Overall structure
 
-## Version History
+## Complete Example
 
-- **1.0** (2025-01): Initial HEDL specification
+This example demonstrates all major HEDL features working together: schemas, aliases, nesting, references, and count directives.
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%A:%pg:"Point Guard"
+%A:%sg:"Shooting Guard"
+%S:Team:[id,name,city]
+%S:Player:[id,name,position,number]
+%N:Team>Player
+%C:Team.total=2
+%C:Player.total=4
+---
+teams:@Team
+ |t1,Lakers,Los Angeles
+  @Player#2:
+  |p1,LeBron,%sg,23
+  |p2,Davis,Center,3
+ |t2,Celtics,Boston
+  @Player#2:
+  |p3,Tatum,%sg,0
+  |p4,Brown,%pg,7
+```
+
+**What this document defines:**
+
+1. **Aliases** (`%A`): Shorthand `%pg` and `%sg` expand to full position names
+2. **Schemas** (`%S`): Team and Player structures with their fields
+3. **Nesting** (`%N`): Players nest under Teams
+4. **Counts** (`%C`): 2 teams total, 4 players total
+5. **Data**: Two NBA teams with two players each, using references and aliases

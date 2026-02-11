@@ -30,10 +30,10 @@ fn arb_simple_hedl() -> impl Strategy<Value = String> {
         Just("%VERSION: 1.0\n---\nname: Alice\nage: 30\n".to_string()),
 
         // Object with nested values
-        Just("%VERSION: 1.0\n---\nuser:\n  name: Bob\n  email: bob@example.com\n".to_string()),
+        Just("%VERSION: 1.0\n---\nuser:\n name: Bob\n email: bob@example.com\n".to_string()),
 
         // Matrix list
-        Just("%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n".to_string()),
+        Just("%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n".to_string()),
 
         // Mix of types
         Just("%VERSION: 1.0\n---\ncount: 42\nactive: true\nratio: 3.14\n".to_string()),

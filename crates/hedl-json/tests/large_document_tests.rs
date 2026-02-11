@@ -242,13 +242,13 @@ fn test_schema_generation_large_struct() {
     use hedl_json::schema_gen::{generate_schema, SchemaConfig};
 
     // Create HEDL with many struct fields (max 100 columns total)
-    let mut hedl = String::from("%VERSION: 1.0\n%STRUCT: Record: [id");
+    let mut hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Record:[id");
     // Add 99 more fields (id + 99 = 100 columns, max allowed)
     for i in 0..99 {
         hedl.push_str(&format!(", field_{i}"));
     }
-    // Matrix list rows need | prefix
-    hedl.push_str("]\n---\ndata: @Record\n  | r1");
+    // Matrix list rows need |prefix (1-space indent in v2.0)
+    hedl.push_str("]\n---\ndata:@Record\n |r1");
     for i in 0..99 {
         hedl.push_str(&format!(", value_{i}"));
     }
@@ -266,14 +266,14 @@ fn test_schema_generation_many_types() {
     use hedl_json::schema_gen::{generate_schema, SchemaConfig};
 
     // Create HEDL with many type definitions
-    let mut hedl = String::from("%VERSION: 1.0\n");
+    let mut hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
     for i in 0..50 {
-        hedl.push_str(&format!("%STRUCT: Type{i}: [id, value]\n"));
+        hedl.push_str(&format!("%S:Type{i}:[id,value]\n"));
     }
     hedl.push_str("---\n");
     for i in 0..50 {
-        // Matrix list rows need | prefix
-        hedl.push_str(&format!("type{i}: @Type{i}\n  | t{i}, val{i}\n"));
+        // Matrix list rows need |prefix (1-space indent in v2.0)
+        hedl.push_str(&format!("type{i}:@Type{i}\n |t{i}, val{i}\n"));
     }
 
     let doc = parse(hedl.as_bytes()).unwrap();
@@ -291,10 +291,11 @@ fn test_jsonpath_large_array_filter() {
     use hedl_json::jsonpath::{query, QueryConfig};
 
     // Create document with large array
-    let mut hedl = String::from("%VERSION: 1.0\n%STRUCT: Item: [id, value]\n---\nitems: @Item\n");
+    let mut hedl =
+        String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Item:[id,value]\n---\nitems:@Item\n");
     for i in 0..1_000 {
-        // Matrix list rows need | prefix
-        hedl.push_str(&format!("  | i{i}, {i}\n"));
+        // Matrix list rows need |prefix (1-space indent in v2.0)
+        hedl.push_str(&format!(" |i{i}, {i}\n"));
     }
 
     let doc = parse(hedl.as_bytes()).unwrap();
@@ -309,7 +310,7 @@ fn test_jsonpath_with_max_results() {
     use hedl_core::parse;
     use hedl_json::jsonpath::{query, QueryConfigBuilder};
 
-    let mut hedl = String::from("%VERSION: 1.0\n---\n");
+    let mut hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
     for i in 0..1_000 {
         hedl.push_str(&format!("field_{i}: {i}\n"));
     }
