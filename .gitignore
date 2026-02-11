@@ -78,5 +78,12 @@ logs/
 *.proptest-regressions
 crates/hedl-bench/target/
 
+# Fuzz artifacts
+**/fuzz/corpus/
+**/fuzz/artifacts/
+
+# wasm-pack build output (not playground/pkg/ which is pre-built)
+crates/hedl-wasm/pkg/
+
 # Dweve internal project tracking
 .dweve/

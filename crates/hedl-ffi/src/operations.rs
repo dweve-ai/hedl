@@ -34,7 +34,7 @@ use std::time::Instant;
 /// returns an appropriate error code.
 unsafe fn get_valid_doc_ref<'a>(
     doc: *const HedlDocument,
-    op_name: &str,
+    op_name: &'static str,
     start: Instant,
 ) -> Result<&'a hedl_core::Document, c_int> {
     // Explicitly reject NULL pointers before attempting to dereference.
