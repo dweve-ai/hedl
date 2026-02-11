@@ -1,0 +1,203 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Customer:[id,name,email,phone,city,state,dob,risk_score,created]
+%S:Account:[id,type,status,balance,currency,interest_rate,opened,last_activity]
+%S:Transaction:[id,type,status,amount,description,merchant,category,timestamp]
+%S:Card:[id,type,network,last4,expiry,credit_limit,rewards_rate,primary]
+%S:Investment:[id,type,symbol,name,shares,cost_basis,current_price,purchase_date]
+%S:Loan:[id,type,status,principal,rate,term_months,monthly_pmt,start,balance]
+%S:Alert:[id,type,message,severity,timestamp,acked]
+%S:Statement:[id,period_start,period_end,open_bal,close_bal,deposits,withdrawals,fees,interest]
+%N:Customer>Account
+%N:Customer>Loan
+%N:Customer>Alert
+%N:Account>Transaction
+%N:Account>Card
+%N:Account>Investment
+%N:Account>Statement
+%C:Customer.total=20
+%C:Account.total=36
+%C:Account.type:checking=20,savings=7,investment=5,credit=4
+%C:Account.status:active=35,frozen=1
+%C:Transaction.total=74
+%C:Transaction.type:Deposit=20,Withdrawal=2,Transfer=8,Payment=25,Fee=1,Interest=8,Dividend=10
+%C:Transaction.status:completed=74
+%C:Card.total=24
+%C:Card.type:debit=20,credit=4
+%C:Card.network:visa=12,mastercard=8,amex=3,discover=1
+%C:Investment.total=30
+%C:Investment.type:stock=15,etf=5,bond=5,mutual_fund=3,crypto=2
+%C:Loan.total=7
+%C:Loan.type:mortgage=3,auto=2,personal=1,student=1
+%C:Loan.status:current=7
+%C:Alert.total=11
+%C:Alert.severity:low=4,medium=3,high=3,critical=1
+%C:Statement.total=11
+---
+customers:@Customer
+ |cust-001,James Wilson,james.wilson@email.com,555-0101,New York,NY,1975-03-15,720,2018-06-15
+  @Account#3:
+ |acc-001,checking,active,15234.56,USD,0.01,2018-06-15,2024-03-10
+   @Transaction#5:|txn-001,Deposit,completed,5000.00,Payroll Direct Deposit,Acme Corp,income,2024-03-01T09:00:00Z|txn-002,Withdrawal,completed,200.00,ATM Withdrawal,Chase ATM,cash,2024-03-02T14:30:00Z|txn-003,Payment,completed,1500.00,Rent Payment,Skyline Apts,housing,2024-03-03T08:00:00Z|txn-004,Transfer,completed,2000.00,Transfer to Savings,Internal,transfer,2024-03-04T10:15:00Z|txn-005,Payment,completed,85.50,Electric Bill,ConEd,utilities,2024-03-05T08:00:00Z
+   @Card#1:|card-001,debit,visa,4521,2027-06,~,~,true
+ |acc-002,savings,active,48750.00,USD,4.25,2018-06-15,2024-03-08
+   @Transaction#2:|txn-006,Transfer,completed,2000.00,Transfer from Checking,Internal,transfer,2024-03-04T10:15:00Z|txn-007,Interest,completed,172.40,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z
+   @Statement#1:|stmt-001,2024-02-01,2024-02-29,46500.00,48750.00,2000.00,0.00,0.00,250.00
+ |acc-003,investment,active,125680.45,USD,0,2019-03-20,2024-03-10
+   @Investment#6:|inv-001,stock,AAPL,Apple Inc,150,145.50,178.25,2022-01-15|inv-002,stock,MSFT,Microsoft Corp,75,285.00,412.50,2022-03-10|inv-003,etf,VOO,Vanguard S&P 500,100,380.00,465.20,2021-06-01|inv-004,stock,GOOGL,Alphabet Inc,30,125.00,142.80,2023-01-20|inv-005,bond,BND,Vanguard Bond ETF,200,78.50,76.20,2022-08-15|inv-006,crypto,BTC,Bitcoin,0.5,35000.00,67500.00,2023-06-01
+   @Transaction#2:|txn-008,Dividend,completed,245.00,Quarterly Dividend,AAPL,dividend,2024-02-15T00:00:00Z|txn-009,Dividend,completed,168.75,Quarterly Dividend,MSFT,dividend,2024-02-20T00:00:00Z
+  @Loan#2:|loan-001,mortgage,current,450000.00,6.25,360,2772.05,2020-08-01,412500.00|loan-002,auto,current,35000.00,4.99,60,660.46,2023-01-15,28500.00
+  @Alert#1:|alert-001,large_withdrawal,Withdrawal >$1000 from checking,medium,2024-03-02T14:30:00Z,true
+ |cust-002,Maria Garcia,maria.garcia@email.com,555-0102,Los Angeles,CA,1982-07-22,680,2019-01-20
+  @Account#2:
+ |acc-004,checking,active,3456.78,USD,0.01,2019-01-20,2024-03-09
+   @Transaction#3:|txn-010,Deposit,completed,3200.00,Payroll Direct Deposit,Tech Solutions,income,2024-03-01T09:00:00Z|txn-011,Payment,completed,850.00,Car Payment,Auto Finance,auto,2024-03-05T08:00:00Z|txn-012,Payment,completed,125.00,Insurance Premium,State Farm,insurance,2024-03-06T08:00:00Z
+   @Card#1:|card-002,debit,mastercard,8934,2026-09,~,~,true
+ |acc-005,credit,active,-2150.00,USD,19.99,2019-05-15,2024-03-10
+   @Transaction#4:|txn-013,Payment,completed,125.50,Restaurant Purchase,The Italian Place,dining,2024-03-02T19:45:00Z|txn-014,Payment,completed,89.99,Streaming Services,Netflix,entertainment,2024-03-03T00:00:00Z|txn-015,Payment,completed,234.56,Online Shopping,Amazon,shopping,2024-03-04T16:20:00Z|txn-016,Fee,completed,35.00,Late Payment Fee,Bank,fees,2024-03-05T00:00:00Z
+   @Card#1:|card-003,credit,visa,6743,2025-12,5000.00,1.5,true
+   @Statement#1:|stmt-002,2024-02-01,2024-02-29,-1800.00,-2150.00,0.00,485.05,35.00,0.00
+  @Loan#1:|loan-003,personal,current,15000.00,9.99,36,484.01,2023-06-01,10500.00
+  @Alert#2:|alert-002,credit_limit,Credit card at 43% utilization,low,2024-03-10T08:00:00Z,false|alert-003,late_payment,Late payment fee charged,high,2024-03-05T00:00:00Z,true
+ |cust-003,Robert Chen,robert.chen@email.com,555-0103,Chicago,IL,1968-11-08,785,2015-09-10
+  @Account#3:
+ |acc-006,checking,active,28945.12,USD,0.02,2015-09-10,2024-03-10
+   @Transaction#3:|txn-017,Deposit,completed,8500.00,Consulting Fee,Chen Consulting,income,2024-03-01T09:00:00Z|txn-018,Transfer,completed,5000.00,Transfer to Savings,Internal,transfer,2024-03-02T10:00:00Z|txn-019,Payment,completed,2200.00,Mortgage Payment,Wells Fargo,housing,2024-03-03T08:00:00Z
+   @Card#1:|card-004,debit,visa,2156,2028-03,~,~,true
+ |acc-007,savings,active,156780.00,USD,4.50,2015-09-10,2024-03-05
+   @Transaction#2:|txn-020,Transfer,completed,5000.00,Transfer from Checking,Internal,transfer,2024-03-02T10:00:00Z|txn-021,Interest,completed,587.93,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z
+   @Statement#1:|stmt-003,2024-02-01,2024-02-29,151000.00,156780.00,5000.00,0.00,0.00,780.00
+ |acc-008,investment,active,892450.78,USD,0,2016-01-15,2024-03-10
+   @Investment#8:|inv-007,stock,AAPL,Apple Inc,500,95.00,178.25,2018-06-01|inv-008,stock,NVDA,NVIDIA Corp,200,150.00,875.50,2020-03-15|inv-009,stock,AMZN,Amazon.com,100,125.00,178.50,2022-07-01|inv-010,etf,QQQ,Invesco QQQ,300,320.00,445.80,2021-01-10|inv-011,etf,VTI,Vanguard Total Market,400,180.00,252.40,2019-09-01|inv-012,bond,AGG,iShares Core Bond,500,105.00,98.50,2020-11-15|inv-013,mutual_fund,FXAIX,Fidelity 500 Index,250,145.00,185.60,2018-03-01|inv-014,crypto,ETH,Ethereum,5,2000.00,3250.00,2023-04-01
+   @Transaction#2:|txn-022,Dividend,completed,890.00,Quarterly Dividend,AAPL,dividend,2024-02-15T00:00:00Z|txn-023,Dividend,completed,180.00,Quarterly Dividend,NVDA,dividend,2024-02-20T00:00:00Z
+  @Alert#1:|alert-004,portfolio_gain,Portfolio up 12% YTD,low,2024-03-01T09:00:00Z,true
+ |cust-004,Sarah Johnson,sarah.johnson@email.com,555-0104,Houston,TX,1990-04-30,650,2020-03-05
+  @Account#2:
+ |acc-009,checking,active,1245.89,USD,0.01,2020-03-05,2024-03-10
+   @Transaction#3:|txn-024,Deposit,completed,2800.00,Payroll Direct Deposit,Houston Energy,income,2024-03-01T09:00:00Z|txn-025,Withdrawal,completed,400.00,ATM Withdrawal,BOA ATM,cash,2024-03-03T12:00:00Z|txn-026,Payment,completed,1200.00,Rent Payment,Oak Apartments,housing,2024-03-04T08:00:00Z
+   @Card#1:|card-005,debit,mastercard,6743,2026-04,~,~,true
+ |acc-010,credit,active,-4580.25,USD,22.99,2020-06-10,2024-03-09
+   @Transaction#4:|txn-027,Payment,completed,450.00,Furniture Purchase,IKEA,shopping,2024-02-15T14:30:00Z|txn-028,Payment,completed,89.00,Gym Membership,LA Fitness,health,2024-03-01T00:00:00Z|txn-029,Payment,completed,156.78,Groceries,Whole Foods,groceries,2024-03-05T18:20:00Z|txn-030,Interest,completed,87.92,Monthly Interest,Bank,interest,2024-03-01T00:00:00Z
+   @Card#1:|card-006,credit,amex,1298,2025-08,8000.00,2.0,true
+   @Statement#1:|stmt-004,2024-02-01,2024-02-29,-3800.00,-4580.25,0.00,695.78,0.00,84.47
+  @Loan#1:|loan-004,student,current,45000.00,5.50,120,488.26,2022-09-01,38500.00
+  @Alert#1:|alert-005,credit_limit,Credit card at 57% utilization,medium,2024-03-09T08:00:00Z,false
+ |cust-005,Michael Brown,michael.brown@email.com,555-0105,Phoenix,AZ,1955-09-12,810,2012-11-28
+  @Account#3:
+ |acc-011,checking,active,45678.90,USD,0.03,2012-11-28,2024-03-10
+   @Transaction#2:|txn-031,Deposit,completed,12500.00,Pension Deposit,State Pension,income,2024-03-01T09:00:00Z|txn-032,Transfer,completed,8000.00,Transfer to Savings,Internal,transfer,2024-03-02T10:00:00Z
+   @Card#1:|card-007,debit,visa,1298,2027-11,~,~,true
+ |acc-012,savings,active,234500.00,USD,4.75,2012-11-28,2024-03-01
+   @Transaction#2:|txn-033,Transfer,completed,8000.00,Transfer from Checking,Internal,transfer,2024-03-02T10:00:00Z|txn-034,Interest,completed,928.44,Monthly Interest,Bank,interest,2024-03-01T00:00:00Z
+   @Statement#1:|stmt-005,2024-02-01,2024-02-29,225500.00,234500.00,8000.00,0.00,0.00,1000.00
+ |acc-013,investment,active,1567890.23,USD,0,2013-05-01,2024-03-10
+   @Investment#6:|inv-015,stock,BRK.B,Berkshire Hathaway,500,280.00,415.50,2015-01-01|inv-016,stock,JNJ,Johnson & Johnson,400,140.00,158.90,2016-06-01|inv-017,etf,SPY,SPDR S&P 500,800,290.00,512.80,2017-03-01|inv-018,bond,TLT,iShares 20+ Year Treasury,600,145.00,95.50,2019-01-01|inv-019,mutual_fund,VFIAX,Vanguard 500 Index,1000,280.00,485.20,2014-09-01|inv-020,stock,PG,Procter & Gamble,300,85.00,165.40,2013-05-01
+   @Transaction#3:|txn-035,Dividend,completed,1250.00,Quarterly Dividend,BRK.B,dividend,2024-02-15T00:00:00Z|txn-036,Dividend,completed,480.00,Quarterly Dividend,JNJ,dividend,2024-02-20T00:00:00Z|txn-037,Dividend,completed,960.00,Quarterly Dividend,SPY,dividend,2024-02-25T00:00:00Z
+ |cust-006,Emily Davis,emily.davis@email.com,555-0106,Philadelphia,PA,1985-12-03,695,2017-07-14
+  @Account#2:
+ |acc-014,checking,active,8765.43,USD,0.01,2017-07-14,2024-03-10
+   @Transaction#3:|txn-038,Deposit,completed,4200.00,Payroll Direct Deposit,Philly Schools,income,2024-03-01T09:00:00Z|txn-039,Payment,completed,1100.00,Rent Payment,Center City Apts,housing,2024-03-03T08:00:00Z|txn-040,Payment,completed,250.00,Utilities,PECO Energy,utilities,2024-03-05T08:00:00Z
+   @Card#1:|card-008,debit,mastercard,5672,2026-07,~,~,true
+ |acc-015,savings,frozen,12500.00,USD,4.25,2017-07-14,2024-01-15
+   @Statement#1:|stmt-006,2024-01-01,2024-01-31,12450.00,12500.00,0.00,0.00,0.00,50.00
+  @Alert#2:|alert-006,account_frozen,Savings account frozen pending review,critical,2024-01-15T10:00:00Z,true|alert-007,suspicious_activity,Unusual login attempt detected,high,2024-01-14T22:30:00Z,true
+ |cust-007,David Martinez,david.martinez@email.com,555-0107,San Antonio,TX,1972-06-18,740,2016-04-22
+  @Account#2:
+ |acc-016,checking,active,19876.54,USD,0.02,2016-04-22,2024-03-09
+   @Transaction#3:|txn-041,Deposit,completed,6500.00,Business Income,Martinez Plumbing,income,2024-03-01T09:00:00Z|txn-042,Payment,completed,1800.00,Mortgage Payment,Chase,housing,2024-03-04T08:00:00Z|txn-043,Payment,completed,450.00,Truck Payment,Ford Credit,auto,2024-03-05T08:00:00Z
+   @Card#1:|card-009,debit,visa,3489,2027-04,~,~,true
+ |acc-017,investment,active,345670.89,USD,0,2017-01-10,2024-03-10
+   @Investment#5:|inv-021,stock,XOM,Exxon Mobil,400,65.00,108.50,2018-01-01|inv-022,stock,CVX,Chevron,300,110.00,155.20,2019-06-01|inv-023,etf,VYM,Vanguard High Dividend,500,85.00,115.80,2020-03-01|inv-024,stock,T,AT&T,800,32.00,17.50,2017-01-10|inv-025,bond,HYG,iShares High Yield,400,82.00,76.80,2021-09-01
+   @Transaction#2:|txn-044,Dividend,completed,640.00,Quarterly Dividend,XOM,dividend,2024-02-15T00:00:00Z|txn-045,Dividend,completed,540.00,Quarterly Dividend,CVX,dividend,2024-02-20T00:00:00Z
+  @Loan#1:|loan-005,auto,current,42000.00,5.49,72,686.71,2022-03-01,32500.00
+ |cust-008,Jennifer Lee,jennifer.lee@email.com,555-0108,San Diego,CA,1988-02-25,710,2019-08-30
+  @Account#2:
+ |acc-018,checking,active,5432.10,USD,0.01,2019-08-30,2024-03-10
+   @Transaction#2:|txn-046,Deposit,completed,3800.00,Payroll Direct Deposit,Biotech Labs,income,2024-03-01T09:00:00Z|txn-047,Payment,completed,1450.00,Rent Payment,La Jolla Apts,housing,2024-03-03T08:00:00Z
+   @Card#1:|card-010,debit,visa,7821,2026-08,~,~,true
+ |acc-019,credit,active,-1875.50,USD,18.99,2019-10-15,2024-03-08
+   @Transaction#3:|txn-048,Payment,completed,320.00,Airline Ticket,Southwest,travel,2024-02-20T10:00:00Z|txn-049,Payment,completed,185.00,Hotel Booking,Marriott,travel,2024-02-21T14:00:00Z|txn-050,Payment,completed,95.50,Dining,Restaurant Week,dining,2024-03-02T19:30:00Z
+   @Card#1:|card-011,credit,discover,4523,2025-10,7500.00,1.0,true
+   @Statement#1:|stmt-007,2024-02-01,2024-02-29,-1200.00,-1875.50,0.00,600.50,0.00,75.00
+  @Alert#1:|alert-008,travel_notice,Travel detected: San Diego to Denver,low,2024-02-20T10:00:00Z,true
+ |cust-009,William Taylor,william.taylor@email.com,555-0109,Dallas,TX,1960-08-14,755,2014-02-18
+  @Account#2:
+ |acc-020,checking,active,67890.12,USD,0.02,2014-02-18,2024-03-10
+   @Transaction#2:|txn-051,Deposit,completed,15000.00,Investment Distribution,Fidelity,income,2024-03-01T09:00:00Z|txn-052,Transfer,completed,10000.00,Transfer to Savings,Internal,transfer,2024-03-02T10:00:00Z
+   @Card#1:|card-012,debit,mastercard,4156,2028-02,~,~,true
+ |acc-021,savings,active,189500.00,USD,4.50,2014-02-18,2024-03-03
+   @Transaction#2:|txn-053,Transfer,completed,10000.00,Transfer from Checking,Internal,transfer,2024-03-02T10:00:00Z|txn-054,Interest,completed,710.63,Monthly Interest,Bank,interest,2024-03-03T00:00:00Z
+   @Statement#1:|stmt-008,2024-02-01,2024-02-29,178700.00,189500.00,10000.00,0.00,0.00,800.00
+ |cust-010,Amanda White,amanda.white@email.com,555-0110,San Jose,CA,1992-01-29,620,2021-05-12
+  @Account#2:
+ |acc-022,checking,active,2345.67,USD,0.01,2021-05-12,2024-03-10
+   @Transaction#2:|txn-055,Deposit,completed,4500.00,Payroll Direct Deposit,Tech Startup,income,2024-03-01T09:00:00Z|txn-056,Payment,completed,2000.00,Rent Payment,Valley Apts,housing,2024-03-03T08:00:00Z
+   @Card#1:|card-013,debit,visa,9234,2026-05,~,~,true
+ |acc-023,credit,active,-6750.00,USD,24.99,2021-08-20,2024-03-10
+   @Transaction#3:|txn-057,Payment,completed,1200.00,Electronics,Best Buy,shopping,2024-02-10T15:00:00Z|txn-058,Payment,completed,350.00,Concert Tickets,Ticketmaster,entertainment,2024-02-25T12:00:00Z|txn-059,Interest,completed,140.63,Monthly Interest,Bank,interest,2024-03-01T00:00:00Z
+   @Card#1:|card-014,credit,mastercard,8345,2025-08,10000.00,1.5,true
+   @Statement#1:|stmt-009,2024-02-01,2024-02-29,-5200.00,-6750.00,0.00,1410.00,0.00,140.00
+  @Alert#2:|alert-009,credit_limit,Credit card at 67.5% utilization,high,2024-03-10T08:00:00Z,false|alert-010,high_interest,High interest charges this month,medium,2024-03-01T00:00:00Z,false
+ |cust-011,Christopher Harris,christopher.harris@email.com,555-0111,Austin,TX,1978-05-06,770,2013-10-05
+  @Account#2:
+ |acc-024,checking,active,34567.89,USD,0.02,2013-10-05,2024-03-10
+   @Transaction#1:|txn-060,Deposit,completed,9200.00,Consulting Fee,Harris Tech,income,2024-03-01T09:00:00Z
+   @Card#1:|card-015,debit,amex,1567,2027-10,~,~,true
+ |acc-025,savings,active,87650.00,USD,4.25,2013-10-05,2024-03-06
+   @Transaction#1:|txn-061,Interest,completed,310.22,Monthly Interest,Bank,interest,2024-03-06T00:00:00Z
+   @Statement#1:|stmt-010,2024-02-01,2024-02-29,87300.00,87650.00,0.00,0.00,0.00,350.00
+ |cust-012,Jessica Clark,jessica.clark@email.com,555-0112,Jacksonville,FL,1995-10-17,700,2020-12-01
+  @Account#1:
+ |acc-026,checking,active,4567.12,USD,0.01,2020-12-01,2024-03-09
+   @Transaction#2:|txn-062,Deposit,completed,3100.00,Payroll Direct Deposit,Jacksonville Hospital,income,2024-03-01T09:00:00Z|txn-063,Payment,completed,950.00,Rent Payment,Riverside Apts,housing,2024-03-04T08:00:00Z
+   @Card#1:|card-016,debit,visa,8345,2026-12,~,~,true
+ |cust-013,Daniel Lewis,daniel.lewis@email.com,555-0113,Fort Worth,TX,1965-12-22,790,2011-06-30
+  @Account#2:
+ |acc-027,checking,active,56789.34,USD,0.02,2011-06-30,2024-03-10
+   @Transaction#1:|txn-064,Deposit,completed,11000.00,Rental Income,Lewis Properties,income,2024-03-01T09:00:00Z
+   @Card#1:|card-017,debit,mastercard,2678,2028-06,~,~,true
+ |acc-028,investment,active,678900.56,USD,0,2012-02-15,2024-03-10
+   @Investment#5:|inv-026,stock,O,Realty Income,800,55.00,58.90,2015-01-01|inv-027,stock,VNQ,Vanguard REIT,500,85.00,92.50,2016-06-01|inv-028,mutual_fund,VGSLX,Vanguard Real Estate,400,120.00,145.80,2017-03-01|inv-029,stock,AMT,American Tower,200,180.00,195.50,2018-09-01|inv-030,bond,MUB,iShares Muni Bond,600,112.00,105.80,2019-12-01
+   @Transaction#1:|txn-065,Dividend,completed,480.00,Monthly Dividend,O,dividend,2024-03-01T00:00:00Z
+ |cust-014,Michelle Robinson,michelle.robinson@email.com,555-0114,Columbus,OH,1983-03-08,665,2018-09-25
+  @Account#1:
+ |acc-029,checking,active,6543.21,USD,0.01,2018-09-25,2024-03-10
+   @Transaction#2:|txn-066,Deposit,completed,3600.00,Payroll Direct Deposit,Ohio State Univ,income,2024-03-01T09:00:00Z|txn-067,Payment,completed,1100.00,Mortgage Payment,US Bank,housing,2024-03-04T08:00:00Z
+   @Card#1:|card-018,debit,visa,5912,2026-09,~,~,true
+  @Loan#1:|loan-006,mortgage,current,185000.00,5.75,360,1079.19,2018-09-25,168500.00
+ |cust-015,Joseph Walker,joseph.walker@email.com,555-0115,Charlotte,NC,1970-07-14,725,2015-01-15
+  @Account#1:
+ |acc-030,checking,active,23456.78,USD,0.02,2015-01-15,2024-03-08
+   @Transaction#1:|txn-068,Deposit,completed,5800.00,Payroll Direct Deposit,Bank of America,income,2024-03-01T09:00:00Z
+   @Card#1:|card-019,debit,mastercard,3745,2027-01,~,~,true
+ |cust-016,Elizabeth Hall,elizabeth.hall@email.com,555-0116,San Francisco,CA,1958-11-30,800,2010-08-20
+  @Account#2:
+ |acc-031,checking,active,78901.23,USD,0.03,2010-08-20,2024-03-10
+   @Transaction#1:|txn-069,Deposit,completed,18000.00,Pension + SS,Federal Pension,income,2024-03-01T09:00:00Z
+   @Card#1:|card-020,debit,visa,6189,2028-08,~,~,true
+ |acc-032,savings,active,345600.00,USD,4.75,2010-08-20,2024-03-02
+   @Transaction#1:|txn-070,Interest,completed,1369.50,Monthly Interest,Bank,interest,2024-03-02T00:00:00Z
+   @Statement#1:|stmt-011,2024-02-01,2024-02-29,344000.00,345600.00,0.00,0.00,0.00,1600.00
+  @Alert#1:|alert-011,large_deposit,Deposit >$10000 to checking,low,2024-03-01T09:00:00Z,true
+ |cust-017,Thomas Allen,thomas.allen@email.com,555-0117,Indianapolis,IN,1987-04-25,735,2016-11-08
+  @Account#1:
+ |acc-033,checking,active,12345.67,USD,0.01,2016-11-08,2024-03-10
+   @Transaction#1:|txn-071,Deposit,completed,4800.00,Payroll Direct Deposit,Eli Lilly,income,2024-03-01T09:00:00Z
+   @Card#1:|card-021,debit,mastercard,4523,2027-11,~,~,true
+ |cust-018,Patricia Young,patricia.young@email.com,555-0118,Seattle,WA,1993-09-11,675,2021-02-28
+  @Account#1:
+ |acc-034,checking,active,3456.78,USD,0.01,2021-02-28,2024-03-09
+   @Transaction#1:|txn-072,Deposit,completed,5200.00,Payroll Direct Deposit,Amazon,income,2024-03-01T09:00:00Z
+   @Card#1:|card-022,debit,visa,7856,2026-02,~,~,true
+ |cust-019,Richard King,richard.king@email.com,555-0119,Denver,CO,1962-02-17,760,2012-04-10
+  @Account#1:
+ |acc-035,checking,active,45678.90,USD,0.02,2012-04-10,2024-03-10
+   @Transaction#1:|txn-073,Deposit,completed,8500.00,Consulting Fee,King Advisory,income,2024-03-01T09:00:00Z
+   @Card#1:|card-023,debit,amex,1934,2028-04,~,~,true
+ |cust-020,Linda Scott,linda.scott@email.com,555-0120,Washington,DC,1980-06-05,705,2017-03-22
+  @Account#1:
+ |acc-036,checking,active,15678.90,USD,0.01,2017-03-22,2024-03-10
+   @Transaction#1:|txn-074,Deposit,completed,6200.00,Payroll Direct Deposit,Federal Govt,income,2024-03-01T09:00:00Z
+   @Card#1:|card-024,debit,visa,8267,2027-03,~,~,true
+  @Loan#1:|loan-007,mortgage,current,320000.00,6.00,360,1918.56,2019-05-01,295000.00

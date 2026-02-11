@@ -108,6 +108,9 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
         // FFI parsing
         group.throughput(Throughput::Bytes(bytes));
         group.bench_with_input(BenchmarkId::new("ffi", size), &hedl, |b, input| {
+            // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+            // `doc` is a valid mutable pointer for output.
+            // SAFETY: FFI function requires raw pointer for output parameter
             b.iter(|| unsafe {
                 let c_str = CString::new(input.as_str()).unwrap();
                 let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -137,6 +140,9 @@ fn bench_ffi_parse_overhead(c: &mut Criterion) {
         for _ in 0..iterations {
             let c_str = CString::new(hedl.as_str()).unwrap();
             let start = std::time::Instant::now();
+            // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+            // `doc` is a valid mutable pointer for output.
+            // SAFETY: FFI function requires raw pointer for output parameter
             unsafe {
                 let mut doc: *mut HedlDocument = ptr::null_mut();
                 hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -187,11 +193,15 @@ fn bench_ffi_to_json(c: &mut Criterion) {
         // FFI conversion
         let c_str = CString::new(hedl.as_str()).unwrap();
         let mut ffi_doc: *mut HedlDocument = ptr::null_mut();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: Testing FFI function with known-valid input
         unsafe {
             hedl_parse(c_str.as_ptr(), -1, 0, &mut ffi_doc);
         }
 
         group.bench_function(BenchmarkId::new("ffi", size), |b| {
+            // SAFETY: FFI call with valid pointers from HEDL API.
             b.iter(|| unsafe {
                 let mut json_str: *mut c_char = ptr::null_mut();
                 let result = hedl_to_json(ffi_doc, 0, &mut json_str);
@@ -200,6 +210,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
             });
         });
 
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             hedl_free_document(ffi_doc);
         }
@@ -220,6 +231,9 @@ fn bench_ffi_to_json(c: &mut Criterion) {
         );
 
         let mut ffi_doc: *mut HedlDocument = ptr::null_mut();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI call with valid C-compatible types and checked pointers
         unsafe {
             hedl_parse(c_str.as_ptr(), -1, 0, &mut ffi_doc);
         }
@@ -227,6 +241,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
         let mut ffi_ns = 0u64;
         for _ in 0..iterations {
             let start = std::time::Instant::now();
+            // SAFETY: FFI call with valid pointers from HEDL API.
             unsafe {
                 let mut json_str: *mut c_char = ptr::null_mut();
                 hedl_to_json(ffi_doc, 0, &mut json_str);
@@ -236,6 +251,7 @@ fn bench_ffi_to_json(c: &mut Criterion) {
         }
         record_perf(&format!("to_json_ffi_{size}"), ffi_ns, iterations, None);
 
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             hedl_free_document(ffi_doc);
         }
@@ -266,6 +282,7 @@ fn bench_ffi_string_marshalling(c: &mut Criterion) {
         let c_str = CString::new(hedl.as_str()).unwrap();
         group.throughput(Throughput::Bytes(bytes));
         group.bench_function(BenchmarkId::new("from_cstring", size), |b| {
+            // SAFETY: `c_str.as_ptr()` points to a valid null-terminated C string.
             b.iter(|| unsafe { CStr::from_ptr(c_str.as_ptr()).to_str().unwrap() });
         });
 
@@ -288,6 +305,7 @@ fn bench_ffi_string_marshalling(c: &mut Criterion) {
         let mut from_cstring_ns = 0u64;
         for _ in 0..iterations {
             let start = std::time::Instant::now();
+            // SAFETY: FFI call with valid pointers from HEDL API.
             unsafe {
                 let _ = CStr::from_ptr(c_str.as_ptr()).to_str().unwrap();
             }
@@ -317,6 +335,9 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
 
     // Document alloc/free
     group.bench_function("doc_alloc_free", |b| {
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         b.iter(|| unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -326,11 +347,15 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
 
     // String alloc/free
     let mut doc: *mut HedlDocument = ptr::null_mut();
+    // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+    // `doc` is a valid mutable pointer for output.
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
     }
 
     group.bench_function("string_alloc_free", |b| {
+        // SAFETY: FFI call with valid pointers from HEDL API.
         b.iter(|| unsafe {
             let mut out_str: *mut c_char = ptr::null_mut();
             hedl_canonicalize(doc, &mut out_str);
@@ -338,6 +363,7 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
         });
     });
 
+    // SAFETY: FFI call with valid pointers from HEDL API.
     unsafe {
         hedl_free_document(doc);
     }
@@ -348,6 +374,9 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
     let mut doc_ns = 0u64;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -358,6 +387,9 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
     record_perf("memory_doc_alloc_free", doc_ns, iterations, None);
 
     let mut doc: *mut HedlDocument = ptr::null_mut();
+    // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+    // `doc` is a valid mutable pointer for output.
+    // SAFETY: FFI call with valid C-compatible types and checked pointers
     unsafe {
         hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
     }
@@ -365,6 +397,7 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
     let mut string_ns = 0u64;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             let mut out_str: *mut c_char = ptr::null_mut();
             hedl_canonicalize(doc, &mut out_str);
@@ -374,6 +407,7 @@ fn bench_ffi_memory_management(c: &mut Criterion) {
     }
     record_perf("memory_string_alloc_free", string_ns, iterations, None);
 
+    // SAFETY: FFI call with valid pointers from HEDL API.
     unsafe {
         hedl_free_document(doc);
     }
@@ -392,12 +426,16 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
     let hedl = generate_users(sizes::SMALL);
     let c_str = CString::new(hedl.as_str()).unwrap();
     let mut doc: *mut HedlDocument = ptr::null_mut();
+    // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+    // `doc` is a valid mutable pointer for output.
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
     }
 
     // Lightweight info queries
     group.bench_function("get_version", |b| {
+        // SAFETY: FFI call with valid pointers from HEDL API.
         b.iter(|| unsafe {
             let mut major = 0;
             let mut minor = 0;
@@ -406,13 +444,16 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
     });
 
     group.bench_function("schema_count", |b| {
+        // SAFETY: `doc` is a valid document pointer from `hedl_parse`.
         b.iter(|| unsafe { hedl_schema_count(black_box(doc)) });
     });
 
     group.bench_function("alias_count", |b| {
+        // SAFETY: `doc` is a valid document pointer from `hedl_parse`.
         b.iter(|| unsafe { hedl_alias_count(black_box(doc)) });
     });
 
+    // SAFETY: FFI call with valid pointers from HEDL API.
     unsafe {
         hedl_free_document(doc);
     }
@@ -420,6 +461,9 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
     // Metrics
     let iterations = 1000u64;
     let mut doc: *mut HedlDocument = ptr::null_mut();
+    // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+    // `doc` is a valid mutable pointer for output.
+    // SAFETY: FFI call with valid C-compatible types and checked pointers
     unsafe {
         hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
     }
@@ -427,6 +471,7 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
     let mut get_version_ns = 0u64;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             let mut major = 0;
             let mut minor = 0;
@@ -444,6 +489,7 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
     let mut schema_count_ns = 0u64;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             hedl_schema_count(doc);
         }
@@ -456,6 +502,7 @@ fn bench_ffi_call_overhead(c: &mut Criterion) {
         None,
     );
 
+    // SAFETY: FFI call with valid pointers from HEDL API.
     unsafe {
         hedl_free_document(doc);
     }
@@ -488,6 +535,9 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
     // FFI full workflow
     group.throughput(Throughput::Bytes(bytes));
     group.bench_function("ffi", |b| {
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         b.iter(|| unsafe {
             let c_str = CString::new(hedl.as_str()).unwrap();
             let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -522,6 +572,9 @@ fn bench_ffi_full_workflow(c: &mut Criterion) {
     for _ in 0..iterations {
         let c_str = CString::new(hedl.as_str()).unwrap();
         let start = std::time::Instant::now();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -562,6 +615,9 @@ fn bench_ffi_callbacks(c: &mut Criterion) {
 
     // Direct function call (no callback)
     group.bench_function("direct_call", |b| {
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         b.iter(|| unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -572,7 +628,9 @@ fn bench_ffi_callbacks(c: &mut Criterion) {
     // Function pointer indirection
     group.bench_function("function_pointer", |b| {
         let parse_fn = hedl_parse
+            // SAFETY: FFI call with valid pointers from HEDL API.
             as unsafe extern "C" fn(*const c_char, c_int, c_int, *mut *mut HedlDocument) -> c_int;
+        // SAFETY: FFI call with valid pointers from HEDL API.
         b.iter(|| unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             parse_fn(c_str.as_ptr(), -1, 0, &mut doc);
@@ -588,6 +646,9 @@ fn bench_ffi_callbacks(c: &mut Criterion) {
     let mut direct_ns = 0u64;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -599,9 +660,11 @@ fn bench_ffi_callbacks(c: &mut Criterion) {
 
     let mut indirect_ns = 0u64;
     let parse_fn = hedl_parse
+        // SAFETY: FFI call with valid pointers from HEDL API.
         as unsafe extern "C" fn(*const c_char, c_int, c_int, *mut *mut HedlDocument) -> c_int;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             parse_fn(c_str.as_ptr(), -1, 0, &mut doc);
@@ -622,6 +685,9 @@ fn bench_ffi_threading(c: &mut Criterion) {
     group.bench_function("single_thread", |b| {
         b.iter(|| {
             let c_str = CString::new(hedl.as_str()).unwrap();
+            // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+            // `doc` is a valid mutable pointer for output.
+            // SAFETY: FFI function requires raw pointer for output parameter
             unsafe {
                 let mut doc: *mut HedlDocument = ptr::null_mut();
                 hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -639,6 +705,9 @@ fn bench_ffi_threading(c: &mut Criterion) {
     for _ in 0..iterations {
         let c_str = CString::new(hedl.as_str()).unwrap();
         let start = std::time::Instant::now();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -667,6 +736,9 @@ fn bench_ffi_large_buffers(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("copy", size), &hedl, |b, input| {
             b.iter(|| {
                 let c_str = CString::new(input.as_str()).unwrap();
+                // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+                // `doc` is a valid mutable pointer for output.
+                // SAFETY: FFI function requires raw pointer for output parameter
                 unsafe {
                     let mut doc: *mut HedlDocument = ptr::null_mut();
                     hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -681,6 +753,9 @@ fn bench_ffi_large_buffers(c: &mut Criterion) {
         for _ in 0..iterations {
             let c_str = CString::new(hedl.as_str()).unwrap();
             let start = std::time::Instant::now();
+            // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+            // `doc` is a valid mutable pointer for output.
+            // SAFETY: FFI function requires raw pointer for output parameter
             unsafe {
                 let mut doc: *mut HedlDocument = ptr::null_mut();
                 hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -708,11 +783,15 @@ fn bench_ffi_struct_marshaling(c: &mut Criterion) {
 
     // Simple: version query (2 integers)
     let mut doc: *mut HedlDocument = ptr::null_mut();
+    // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+    // `doc` is a valid mutable pointer for output.
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
     }
 
     group.bench_function("simple_struct", |b| {
+        // SAFETY: FFI call with valid pointers from HEDL API.
         b.iter(|| unsafe {
             let mut major = 0;
             let mut minor = 0;
@@ -721,6 +800,7 @@ fn bench_ffi_struct_marshaling(c: &mut Criterion) {
         });
     });
 
+    // SAFETY: FFI call with valid pointers from HEDL API.
     unsafe {
         hedl_free_document(doc);
     }
@@ -730,6 +810,9 @@ fn bench_ffi_struct_marshaling(c: &mut Criterion) {
     // Metrics
     let iterations = 1000u64;
     let mut doc: *mut HedlDocument = ptr::null_mut();
+    // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+    // `doc` is a valid mutable pointer for output.
+    // SAFETY: FFI call with valid C-compatible types and checked pointers
     unsafe {
         hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
     }
@@ -737,6 +820,7 @@ fn bench_ffi_struct_marshaling(c: &mut Criterion) {
     let mut simple_ns = 0u64;
     for _ in 0..iterations {
         let start = std::time::Instant::now();
+        // SAFETY: FFI call with valid pointers from HEDL API.
         unsafe {
             let mut major = 0;
             let mut minor = 0;
@@ -746,6 +830,7 @@ fn bench_ffi_struct_marshaling(c: &mut Criterion) {
     }
     record_perf("struct_simple", simple_ns, iterations, None);
 
+    // SAFETY: FFI call with valid pointers from HEDL API.
     unsafe {
         hedl_free_document(doc);
     }
@@ -762,6 +847,9 @@ fn bench_ffi_error_handling(c: &mut Criterion) {
     group.bench_function("success_path", |b| {
         b.iter(|| {
             let c_str = CString::new(valid_hedl.as_str()).unwrap();
+            // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+            // `doc` is a valid mutable pointer for output.
+            // SAFETY: FFI function requires raw pointer for output parameter
             unsafe {
                 let mut doc: *mut HedlDocument = ptr::null_mut();
                 let result = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -775,6 +863,9 @@ fn bench_ffi_error_handling(c: &mut Criterion) {
     group.bench_function("error_path", |b| {
         b.iter(|| {
             let c_str = CString::new(invalid_hedl).unwrap();
+            // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+            // `doc` is a valid mutable pointer for output.
+            // SAFETY: FFI function requires raw pointer for output parameter
             unsafe {
                 let mut doc: *mut HedlDocument = ptr::null_mut();
                 let result = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -792,6 +883,9 @@ fn bench_ffi_error_handling(c: &mut Criterion) {
     for _ in 0..iterations {
         let c_str = CString::new(valid_hedl.as_str()).unwrap();
         let start = std::time::Instant::now();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);
@@ -805,6 +899,9 @@ fn bench_ffi_error_handling(c: &mut Criterion) {
     for _ in 0..iterations {
         let c_str = CString::new(invalid_hedl).unwrap();
         let start = std::time::Instant::now();
+        // SAFETY: `c_str.as_ptr()` is valid UTF-8 null-terminated string.
+        // `doc` is a valid mutable pointer for output.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             let _ = hedl_parse(c_str.as_ptr(), -1, 0, &mut doc);

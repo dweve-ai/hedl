@@ -1,0 +1,24 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates nested objects and hierarchical structure
+# Uses 1-space indentation to create parent-child relationships
+---
+database:
+ host: localhost
+ port: 5432
+ credentials:
+  username: admin
+  password: secret
+  timeout: 30
+ pools:
+  read: 10
+  write: 5
+
+server:
+ http:
+  port: 8080
+  tls: true
+ logging:
+  level: info
+  format: json

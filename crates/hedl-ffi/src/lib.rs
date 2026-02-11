@@ -198,17 +198,20 @@
 // =============================================================================
 
 #![cfg_attr(not(test), warn(missing_docs))]
+/// Async FFI operations.
 pub mod async_ops;
+/// FFI audit logging.
 pub mod audit;
 mod conversions;
 mod diagnostics;
 mod error;
+mod ffi_strings;
 mod memory;
 mod operations;
 mod parsing;
+/// Reentrancy guard.
 pub mod reentrancy;
 mod types;
-mod utils;
 
 // =============================================================================
 // Re-exports
@@ -329,15 +332,19 @@ pub use async_ops::hedl_to_toon_async;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(any(feature = "json", feature = "yaml", feature = "xml"))]
     use std::ffi::CStr;
     use std::os::raw::c_char;
     use std::ptr;
 
-    const VALID_HEDL: &[u8] = b"%VERSION: 1.0\n---\nkey: value\0";
+    const VALID_HEDL: &[u8] = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
     const INVALID_HEDL: &[u8] = b"not valid hedl\0";
 
     #[test]
     fn test_parse_and_free() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             let result = hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 1, &mut doc);
@@ -351,6 +358,7 @@ mod tests {
 
     #[test]
     fn test_validate_valid() {
+        // SAFETY: Test constant is valid null-terminated UTF-8 string.
         unsafe {
             assert_eq!(
                 hedl_validate(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 1),
@@ -361,6 +369,7 @@ mod tests {
 
     #[test]
     fn test_validate_invalid() {
+        // SAFETY: Test constant is valid null-terminated UTF-8 string.
         unsafe {
             assert_ne!(
                 hedl_validate(INVALID_HEDL.as_ptr().cast::<c_char>(), -1, 1),
@@ -371,6 +380,9 @@ mod tests {
 
     #[test]
     fn test_null_ptr_handling() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             assert_eq!(hedl_parse(ptr::null(), -1, 0, &mut doc), HEDL_ERR_NULL_PTR);
@@ -379,6 +391,9 @@ mod tests {
 
     #[test]
     fn test_get_version() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -388,7 +403,7 @@ mod tests {
             let result = hedl_get_version(doc, &mut major, &mut minor);
 
             assert_eq!(result, HEDL_OK);
-            assert_eq!(major, 1);
+            assert_eq!(major, 2);
             assert_eq!(minor, 0);
 
             hedl_free_document(doc);
@@ -397,6 +412,9 @@ mod tests {
 
     #[test]
     fn test_canonicalize() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -415,6 +433,9 @@ mod tests {
     #[cfg(feature = "json")]
     #[test]
     fn test_to_json() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -436,6 +457,9 @@ mod tests {
     #[cfg(feature = "yaml")]
     #[test]
     fn test_to_yaml() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -457,6 +481,9 @@ mod tests {
     #[cfg(feature = "xml")]
     #[test]
     fn test_to_xml() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -477,6 +504,9 @@ mod tests {
 
     #[test]
     fn test_lint() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -498,6 +528,9 @@ mod tests {
     #[cfg(feature = "json")]
     #[test]
     fn test_from_json_roundtrip() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             // Parse original HEDL
             let mut doc1: *mut HedlDocument = ptr::null_mut();
@@ -523,6 +556,9 @@ mod tests {
     #[cfg(feature = "neo4j")]
     #[test]
     fn test_to_neo4j_cypher() {
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
         unsafe {
             let mut doc: *mut HedlDocument = ptr::null_mut();
             hedl_parse(VALID_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
@@ -536,6 +572,32 @@ mod tests {
             // The simple key: value doc doesn't produce Cypher nodes,
             // but the function should succeed
             hedl_free_string(out_str);
+            hedl_free_document(doc);
+        }
+    }
+
+    #[test]
+    fn test_list_value_support() {
+        const LIST_HEDL: &[u8] = b"%VERSION: 1.1
+%STRUCT: User: [id, roles]
+---
+id: alice, roles: (admin, editor, viewer)
+\0";
+
+        // SAFETY: Test uses valid null-terminated UTF-8 string from constant.
+        // `doc` is a valid mutable pointer for receiving document handle.
+        // SAFETY: FFI function requires raw pointer for output parameter
+        unsafe {
+            let mut doc: *mut HedlDocument = ptr::null_mut();
+            let result = hedl_parse(LIST_HEDL.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
+
+            assert_eq!(result, HEDL_OK);
+            assert!(!doc.is_null());
+
+            // Document should parse successfully with list values
+            let root_count = hedl_root_item_count(doc);
+            assert_eq!(root_count, 1);
+
             hedl_free_document(doc);
         }
     }

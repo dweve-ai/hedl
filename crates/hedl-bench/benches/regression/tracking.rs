@@ -142,9 +142,25 @@ fn record_perf_with_baseline(measurement: &BenchmarkMeasurement<'_>) {
 
     // Create baseline data
     let avg_ns = measurement.time_ns / measurement.iterations.max(1);
+    // Calculate standard deviation from samples
+    let mean = avg_ns as f64;
+    let variance = if sorted_samples.len() > 1 {
+        sorted_samples
+            .iter()
+            .map(|&s| {
+                let diff = s as f64 - mean;
+                diff * diff
+            })
+            .sum::<f64>()
+            / (sorted_samples.len() - 1) as f64
+    } else {
+        0.0
+    };
+    let std_dev_ns = variance.sqrt() as u64;
+
     let baseline_data = BenchmarkBaseline::new(
         Duration::from_nanos(avg_ns),
-        Duration::from_nanos(0), // TODO: Calculate std dev from samples
+        Duration::from_nanos(std_dev_ns),
         percentiles.clone(),
     );
 

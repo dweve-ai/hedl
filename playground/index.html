@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEDL Playground - Convert JSON to Token-Efficient Format</title>
+  <meta name="description" content="Convert JSON, YAML, XML, and CSV to HEDL format. See token savings in real-time. No installation required.">
+  <meta name="keywords" content="HEDL, JSON, YAML, XML, CSV, LLM, tokens, AI, data format, converter">
+  <link rel="canonical" href="https://dweve-ai.github.io/hedl/">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="HEDL Playground - Token-Efficient Data Converter">
+  <meta property="og:description" content="Convert JSON to HEDL and save 50% tokens on LLM API calls. Try it live in your browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dweve-ai.github.io/hedl/">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HEDL Playground">
+  <meta name="twitter:description" content="Convert JSON to HEDL and save 50% tokens on LLM API calls.">
+
+  <style>
+    :root {
+      /* Dweve Brand - Neutral Palette */
+      --bg-primary: #0A0A0A;      /* Black */
+      --bg-secondary: #111827;    /* Gray 900 */
+      --bg-tertiary: #1F2937;     /* Gray 800 */
+      --border-color: #374151;    /* Gray 700 */
+      --border-subtle: #4B5563;   /* Gray 600 */
+      --text-primary: #FFFFFF;    /* White */
+      --text-secondary: #9CA3AF;  /* Gray 400 */
+      --text-muted: #6B7280;      /* Gray 500 */
+
+      /* Dweve Brand - Primary (Blue → Purple) */
+      --accent-blue: #3B82F6;
+      --accent-purple: #8B5CF6;
+      --gradient-primary: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+
+      /* Dweve Brand - Accent Colors */
+      --accent-green: #10B981;    /* Teal */
+      --accent-cyan: #06B6D4;     /* Cyan */
+      --accent-red: #EF4444;      /* Error red */
+      --accent-amber: #FBBF24;    /* Warning amber */
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--gradient-primary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      color: white;
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .logo-badge {
+      background: var(--accent-cyan);
+      color: var(--bg-primary);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .header-links {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .header-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    .header-links a:hover {
+      color: var(--accent-blue);
+    }
+
+    .github-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-tertiary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .github-btn:hover {
+      border-color: var(--text-secondary);
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      gap: 16px;
+      width: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* Controls Bar */
+    .controls {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .controls-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .controls-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-color);
+    }
+
+    .format-select {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    .format-btn {
+      padding: 8px 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .format-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .format-btn.active {
+      background: var(--gradient-primary);
+      color: white;
+    }
+
+    .action-btn {
+      padding: 8px 16px;
+      background: var(--gradient-primary);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .action-btn.secondary {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+    }
+
+    .action-btn.secondary:hover {
+      border-color: var(--accent-purple);
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    /* Editor Area */
+    .editor-container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      min-height: 0;
+      height: 100%;
+    }
+
+    @media (max-width: 900px) {
+      .editor-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .editor-pane {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .pane-header {
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pane-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pane-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+    }
+
+    .pane-badge.success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+    }
+
+    .pane-badge.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+    }
+
+    .pane-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pane-btn {
+      padding: 4px 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .pane-btn:hover {
+      border-color: var(--accent-purple);
+      color: var(--text-primary);
+    }
+
+    .pane-btn.copied {
+      background: var(--gradient-primary);
+      border-color: var(--accent-blue);
+      color: white;
+    }
+
+    .pane-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .editor-area {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    textarea, .output-display {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+      max-height: 100%;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: none;
+      padding: 16px;
+      font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+    }
+
+    .output-display {
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    /* Custom Scrollbars */
+    textarea, .output-display {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-subtle) var(--bg-tertiary);
+    }
+
+    textarea::-webkit-scrollbar,
+    .output-display::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    textarea::-webkit-scrollbar-track,
+    .output-display::-webkit-scrollbar-track {
+      background: var(--bg-tertiary);
+      border-radius: 5px;
+    }
+
+    textarea::-webkit-scrollbar-thumb,
+    .output-display::-webkit-scrollbar-thumb {
+      background: var(--border-subtle);
+      border-radius: 5px;
+      border: 2px solid var(--bg-tertiary);
+    }
+
+    textarea::-webkit-scrollbar-thumb:hover,
+    .output-display::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-purple);
+    }
+
+    textarea::-webkit-scrollbar-corner,
+    .output-display::-webkit-scrollbar-corner {
+      background: var(--bg-tertiary);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 24px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .stat-value.savings {
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-value.negative {
+      background: linear-gradient(135deg, var(--accent-red) 0%, var(--accent-amber) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Error Display */
+    .error-display {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--accent-red);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--accent-red);
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 10, 10, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-purple);
+      border-right-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      padding: 16px 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .footer a {
+      color: var(--accent-blue);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Swap Button */
+    .swap-btn {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      border: 3px solid var(--bg-primary);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .swap-btn:hover {
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+    }
+
+    .editor-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+      .swap-btn {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div id="loading" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading HEDL WebAssembly...</div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <a href="https://github.com/dweve-ai/hedl" class="logo">
+      <div class="logo-icon">H</div>
+      <span class="logo-text">HEDL Playground</span>
+      <span class="logo-badge">Live</span>
+    </a>
+    <nav class="header-links">
+      <a href="https://github.com/dweve-ai/hedl#readme">Documentation</a>
+      <a href="https://github.com/dweve-ai/hedl" class="github-btn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        Star on GitHub
+      </a>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Controls Bar -->
+    <div class="controls">
+      <div class="controls-group">
+        <div class="format-select">
+          <button class="format-btn active" data-format="json">JSON</button>
+          <button class="format-btn" data-format="yaml">YAML</button>
+          <button class="format-btn" data-format="xml">XML</button>
+          <button class="format-btn" data-format="csv">CSV</button>
+        </div>
+      </div>
+      <div class="controls-divider"></div>
+      <div class="controls-group">
+        <button id="convert-btn" class="action-btn" disabled>
+          Convert to HEDL
+        </button>
+        <button id="swap-btn" class="action-btn secondary" disabled title="Swap: HEDL to JSON">
+          Swap Direction
+        </button>
+      </div>
+      <div class="controls-divider"></div>
+      <div class="controls-group">
+        <button id="example-btn" class="action-btn secondary">
+          Load Example
+        </button>
+      </div>
+    </div>
+
+    <!-- Editor Container -->
+    <div class="editor-wrapper">
+      <div class="editor-container">
+        <!-- Input Pane -->
+        <div class="editor-pane">
+          <div class="pane-header">
+            <span class="pane-title">
+              <span id="input-format-label">JSON</span> Input
+              <span class="pane-badge" id="input-badge">Ready</span>
+            </span>
+            <div class="pane-actions">
+              <span style="font-size: 12px; color: var(--text-secondary);" id="input-tokens">0 tokens</span>
+              <input type="file" id="file-input" class="file-input" accept=".json,.yaml,.yml,.xml,.csv,.txt">
+              <button id="import-btn" class="pane-btn" title="Import file">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 12h9a.5.5 0 0 0 0-1h-9a.5.5 0 0 0 0 1zm5-8.5a.5.5 0 0 0-1 0v5.793L5.854 7.646a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l2.5-2.5a.5.5 0 0 0-.708-.708L8.5 9.293V3.5z"/></svg>
+                Import
+              </button>
+              <button id="copy-input-btn" class="pane-btn" title="Copy input">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
+                Copy
+              </button>
+            </div>
+          </div>
+          <div class="editor-area">
+            <textarea id="input-editor" spellcheck="false" placeholder="Paste your JSON here..."></textarea>
+          </div>
+        </div>
+
+        <!-- Output Pane -->
+        <div class="editor-pane">
+          <div class="pane-header">
+            <span class="pane-title">
+              <span id="output-format-label">HEDL</span> Output
+              <span class="pane-badge success" id="output-badge">Auto-convert</span>
+            </span>
+            <div class="pane-actions">
+              <span style="font-size: 12px; color: var(--text-secondary);" id="output-tokens">0 tokens</span>
+              <button id="copy-output-btn" class="pane-btn" title="Copy output">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>
+                Copy
+              </button>
+              <button id="download-btn" class="pane-btn" title="Download output">
+                <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                Download
+              </button>
+            </div>
+          </div>
+          <div class="editor-area">
+            <div class="output-display" id="output-display">Converting...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Swap Button (center) -->
+      <button id="swap-center-btn" class="swap-btn" title="Swap direction">⇄</button>
+    </div>
+
+    <!-- Error Display -->
+    <div id="error-display" class="error-display hidden"></div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-input-tokens">0</div>
+        <div class="stat-label">Input Tokens</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-output-tokens">0</div>
+        <div class="stat-label">HEDL Tokens</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value savings" id="stat-savings">0%</div>
+        <div class="stat-label">Token Savings</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-input-bytes">0 B</div>
+        <div class="stat-label">Input Size</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-output-bytes">0 B</div>
+        <div class="stat-label">HEDL Size</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value savings" id="stat-byte-savings">0%</div>
+        <div class="stat-label">Size Savings</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    Built by <a href="https://dweve.com">Dweve</a> &middot;
+    <a href="https://github.com/dweve-ai/hedl">View Source</a> &middot;
+    <a href="https://github.com/dweve-ai/hedl/issues">Report Issue</a>
+  </footer>
+
+  <script type="module">
+    // Import HEDL WASM from local package
+    // All format converters available: JSON, YAML, XML, CSV
+    import init, {
+      fromJson,
+      toJson,
+      fromYaml,
+      toYaml,
+      fromXml,
+      toXml,
+      fromCsv,
+      toCsv,
+      version
+    } from './pkg/hedl_wasm.js';
+
+    let currentFormat = 'json';
+    let isHedlToFormat = false; // Direction: false = format->HEDL, true = HEDL->format
+    let debounceTimer = null;
+
+    const CHARS_PER_TOKEN = 4;
+
+    // Elements
+    const inputEditor = document.getElementById('input-editor');
+    const outputDisplay = document.getElementById('output-display');
+    const errorDisplay = document.getElementById('error-display');
+    const loadingOverlay = document.getElementById('loading');
+    const convertBtn = document.getElementById('convert-btn');
+    const exampleBtn = document.getElementById('example-btn');
+    const swapBtn = document.getElementById('swap-btn');
+    const swapCenterBtn = document.getElementById('swap-center-btn');
+    const formatBtns = document.querySelectorAll('.format-btn');
+    const fileInput = document.getElementById('file-input');
+    const importBtn = document.getElementById('import-btn');
+    const copyInputBtn = document.getElementById('copy-input-btn');
+    const copyOutputBtn = document.getElementById('copy-output-btn');
+    const downloadBtn = document.getElementById('download-btn');
+
+    // Initialize
+    async function initialize() {
+      try {
+        await init();
+        loadingOverlay.classList.add('hidden');
+        convertBtn.disabled = false;
+        swapBtn.disabled = false;
+
+        // Initial conversion
+        convert();
+      } catch (e) {
+        loadingOverlay.querySelector('.loading-text').textContent = `Error: ${e.message}`;
+        console.error('Failed to initialize:', e);
+      }
+    }
+
+    // Estimate tokens (simple approximation)
+    function estimateTokens(text) {
+      if (!text) return 0;
+      const bytes = new TextEncoder().encode(text).length;
+      const whitespace = (text.match(/\s/g) || []).length;
+      const punct = (text.match(/[^\w\s]/g) || []).length;
+      return Math.ceil((bytes + whitespace + punct) / CHARS_PER_TOKEN);
+    }
+
+    // Convert function
+    function convert() {
+      const input = inputEditor.value;
+
+      if (!input.trim()) {
+        outputDisplay.textContent = 'Enter some data to convert...';
+        updateStats(0, 0);
+        return;
+      }
+
+      try {
+        let result;
+
+        if (isHedlToFormat) {
+          // HEDL -> Format
+          switch (currentFormat) {
+            case 'json': result = toJson(input, true); break;
+            case 'yaml': result = toYaml(input); break;
+            case 'xml': result = toXml(input); break;
+            case 'csv': result = toCsv(input); break;
+          }
+        } else {
+          // Format -> HEDL
+          switch (currentFormat) {
+            case 'json': result = fromJson(input); break;
+            case 'yaml': result = fromYaml(input); break;
+            case 'xml': result = fromXml(input); break;
+            case 'csv': result = fromCsv(input, null); break;
+          }
+        }
+
+        outputDisplay.textContent = result;
+        errorDisplay.classList.add('hidden');
+
+        document.getElementById('input-badge').textContent = 'Valid';
+        document.getElementById('input-badge').className = 'pane-badge success';
+        document.getElementById('output-badge').textContent = 'Converted';
+        document.getElementById('output-badge').className = 'pane-badge success';
+
+        // Update stats
+        const inputTokens = estimateTokens(input);
+        const outputTokens = estimateTokens(result);
+
+        if (isHedlToFormat) {
+          updateStats(outputTokens, inputTokens); // Swap for display
+        } else {
+          updateStats(inputTokens, outputTokens);
+        }
+
+      } catch (e) {
+        outputDisplay.textContent = `Error: ${e.message}`;
+        errorDisplay.textContent = e.message;
+        errorDisplay.classList.remove('hidden');
+
+        document.getElementById('input-badge').textContent = 'Error';
+        document.getElementById('input-badge').className = 'pane-badge error';
+      }
+    }
+
+    // Format bytes for display
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    // Update stats display
+    function updateStats(inputTokens, hedlTokens) {
+      const input = inputEditor.value;
+      const output = outputDisplay.textContent;
+
+      const inputBytes = new TextEncoder().encode(input).length;
+      const outputBytes = new TextEncoder().encode(output).length;
+
+      // Token stats
+      document.getElementById('stat-input-tokens').textContent = inputTokens.toLocaleString();
+      document.getElementById('stat-output-tokens').textContent = hedlTokens.toLocaleString();
+      document.getElementById('input-tokens').textContent = `${inputTokens.toLocaleString()} tokens`;
+      document.getElementById('output-tokens').textContent = `${hedlTokens.toLocaleString()} tokens`;
+
+      const tokenSavings = inputTokens > 0
+        ? Math.round((inputTokens - hedlTokens) / inputTokens * 100)
+        : 0;
+
+      const tokenSavingsEl = document.getElementById('stat-savings');
+      tokenSavingsEl.textContent = `${tokenSavings}%`;
+      tokenSavingsEl.className = tokenSavings >= 0 ? 'stat-value savings' : 'stat-value negative';
+
+      // Byte stats
+      document.getElementById('stat-input-bytes').textContent = formatBytes(inputBytes);
+      document.getElementById('stat-output-bytes').textContent = formatBytes(outputBytes);
+
+      const byteSavings = inputBytes > 0
+        ? Math.round((inputBytes - outputBytes) / inputBytes * 100)
+        : 0;
+
+      const byteSavingsEl = document.getElementById('stat-byte-savings');
+      byteSavingsEl.textContent = `${byteSavings}%`;
+      byteSavingsEl.className = byteSavings >= 0 ? 'stat-value savings' : 'stat-value negative';
+    }
+
+    // Format selection
+    formatBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        formatBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFormat = btn.dataset.format;
+        document.getElementById('input-format-label').textContent = currentFormat.toUpperCase();
+
+        // Load appropriate example
+        loadExample();
+      });
+    });
+
+    // Swap direction
+    function swapDirection() {
+      // Don't swap if output contains an error or placeholder text
+      const output = outputDisplay.textContent;
+      if (!output || output.startsWith('Error:') || output.startsWith('Converting...') || output.startsWith('Enter some data')) {
+        return;
+      }
+
+      isHedlToFormat = !isHedlToFormat;
+
+      // Swap content
+      inputEditor.value = output;
+
+      // Update labels
+      if (isHedlToFormat) {
+        document.getElementById('input-format-label').textContent = 'HEDL';
+        document.getElementById('output-format-label').textContent = currentFormat.toUpperCase();
+        convertBtn.textContent = `Convert to ${currentFormat.toUpperCase()}`;
+        swapBtn.title = `Swap: ${currentFormat.toUpperCase()} to HEDL`;
+      } else {
+        document.getElementById('input-format-label').textContent = currentFormat.toUpperCase();
+        document.getElementById('output-format-label').textContent = 'HEDL';
+        convertBtn.textContent = 'Convert to HEDL';
+        swapBtn.title = `Swap: HEDL to ${currentFormat.toUpperCase()}`;
+      }
+
+      convert();
+    }
+
+    swapBtn.addEventListener('click', swapDirection);
+    swapCenterBtn.addEventListener('click', swapDirection);
+
+    // Load example data
+    function loadExample() {
+      isHedlToFormat = false;
+      document.getElementById('input-format-label').textContent = currentFormat.toUpperCase();
+      document.getElementById('output-format-label').textContent = 'HEDL';
+      convertBtn.textContent = 'Convert to HEDL';
+
+      switch (currentFormat) {
+        case 'json':
+          inputEditor.value = `{
+  "company": {
+    "name": "Acme Corp",
+    "industry": "Technology",
+    "founded": 2015,
+    "public": true,
+    "headquarters": "San Francisco"
+  },
+  "departments": [
+    {"id": "eng", "name": "Engineering", "budget": 500000, "headcount": 25, "building": "HQ", "floor": 3},
+    {"id": "sales", "name": "Sales", "budget": 300000, "headcount": 15, "building": "HQ", "floor": 2},
+    {"id": "hr", "name": "Human Resources", "budget": 150000, "headcount": 8, "building": "HQ", "floor": 1}
+  ],
+  "employees": [
+    {"id": "e001", "name": "Alice Chen", "dept": "eng", "role": "Senior Engineer", "salary": 120000, "skills": ["rust", "python", "kubernetes"]},
+    {"id": "e002", "name": "Bob Martinez", "dept": "eng", "role": "Senior Engineer", "salary": 115000, "skills": ["go", "python", "docker"]},
+    {"id": "e003", "name": "Carol Smith", "dept": "eng", "role": "Engineer", "salary": 95000, "skills": ["javascript", "react", "nodejs"]},
+    {"id": "e004", "name": "Dave Johnson", "dept": "eng", "role": "Engineer", "salary": 92000, "skills": ["python", "django", "postgresql"]},
+    {"id": "e005", "name": "Eve Williams", "dept": "sales", "role": "Sales Manager", "salary": 105000, "skills": ["negotiation", "crm", "analytics"]},
+    {"id": "e006", "name": "Frank Brown", "dept": "sales", "role": "Account Executive", "salary": 85000, "skills": ["sales", "crm", "presentation"]},
+    {"id": "e007", "name": "Grace Lee", "dept": "hr", "role": "HR Director", "salary": 110000, "skills": ["recruitment", "compliance", "training"]}
+  ],
+  "projects": [
+    {"id": "p001", "name": "Platform Rewrite", "status": "active", "lead": "e001", "team": ["e001", "e002", "e003"]},
+    {"id": "p002", "name": "Mobile App", "status": "active", "lead": "e003", "team": ["e003", "e004"]},
+    {"id": "p003", "name": "Sales Dashboard", "status": "planned", "lead": "e005", "team": ["e005", "e006"]}
+  ],
+  "office_locations": ["San Francisco", "New York", "London", "Tokyo"],
+  "quarterly_revenue": [1250000, 1380000, 1520000, 1650000],
+  "growth_matrix": [[1.0, 1.1, 1.2], [1.1, 1.25, 1.35], [1.15, 1.3, 1.45]]
+}`;
+          break;
+        case 'yaml':
+          inputEditor.value = `company:
+  name: Acme Corp
+  industry: Technology
+  founded: 2015
+  public: true
+  headquarters: San Francisco
+
+departments:
+  - id: eng
+    name: Engineering
+    budget: 500000
+    headcount: 25
+    building: HQ
+    floor: 3
+  - id: sales
+    name: Sales
+    budget: 300000
+    headcount: 15
+    building: HQ
+    floor: 2
+  - id: hr
+    name: Human Resources
+    budget: 150000
+    headcount: 8
+    building: HQ
+    floor: 1
+
+employees:
+  - id: e001
+    name: Alice Chen
+    dept: eng
+    role: Senior Engineer
+    salary: 120000
+    skills: [rust, python, kubernetes]
+  - id: e002
+    name: Bob Martinez
+    dept: eng
+    role: Senior Engineer
+    salary: 115000
+    skills: [go, python, docker]
+  - id: e003
+    name: Carol Smith
+    dept: eng
+    role: Engineer
+    salary: 95000
+    skills: [javascript, react, nodejs]
+  - id: e004
+    name: Dave Johnson
+    dept: eng
+    role: Engineer
+    salary: 92000
+    skills: [python, django, postgresql]
+  - id: e005
+    name: Eve Williams
+    dept: sales
+    role: Sales Manager
+    salary: 105000
+    skills: [negotiation, crm, analytics]
+
+projects:
+  - id: p001
+    name: Platform Rewrite
+    status: active
+    lead: e001
+    team: [e001, e002, e003]
+  - id: p002
+    name: Mobile App
+    status: active
+    lead: e003
+    team: [e003, e004]
+
+office_locations: [San Francisco, New York, London, Tokyo]
+quarterly_revenue: [1250000, 1380000, 1520000, 1650000]`;
+          break;
+        case 'xml':
+          inputEditor.value = `<?xml version="1.0"?>
+<root>
+  <company name="Acme Corp" industry="Technology" founded="2015" public="true" headquarters="San Francisco"/>
+  <departments>
+    <department id="eng" name="Engineering" budget="500000" headcount="25" building="HQ" floor="3"/>
+    <department id="sales" name="Sales" budget="300000" headcount="15" building="HQ" floor="2"/>
+    <department id="hr" name="Human Resources" budget="150000" headcount="8" building="HQ" floor="1"/>
+  </departments>
+  <employees>
+    <employee id="e001" name="Alice Chen" dept="eng" role="Senior Engineer" salary="120000"/>
+    <employee id="e002" name="Bob Martinez" dept="eng" role="Senior Engineer" salary="115000"/>
+    <employee id="e003" name="Carol Smith" dept="eng" role="Engineer" salary="95000"/>
+    <employee id="e004" name="Dave Johnson" dept="eng" role="Engineer" salary="92000"/>
+    <employee id="e005" name="Eve Williams" dept="sales" role="Sales Manager" salary="105000"/>
+    <employee id="e006" name="Frank Brown" dept="sales" role="Account Executive" salary="85000"/>
+    <employee id="e007" name="Grace Lee" dept="hr" role="HR Director" salary="110000"/>
+  </employees>
+  <projects>
+    <project id="p001" name="Platform Rewrite" status="active" lead="e001"/>
+    <project id="p002" name="Mobile App" status="active" lead="e003"/>
+    <project id="p003" name="Sales Dashboard" status="planned" lead="e005"/>
+  </projects>
+</root>`;
+          break;
+        case 'csv':
+          inputEditor.value = `id,name,dept,role,salary,building,floor
+e001,Alice Chen,eng,Senior Engineer,120000,HQ,3
+e002,Bob Martinez,eng,Senior Engineer,115000,HQ,3
+e003,Carol Smith,eng,Engineer,95000,HQ,3
+e004,Dave Johnson,eng,Engineer,92000,HQ,3
+e005,Eve Williams,sales,Sales Manager,105000,HQ,2
+e006,Frank Brown,sales,Account Executive,85000,HQ,2
+e007,Grace Lee,hr,HR Director,110000,HQ,1
+e008,Henry Davis,hr,Recruiter,75000,HQ,1
+e009,Ivy Wilson,eng,Tech Lead,130000,HQ,3
+e010,Jack Thompson,sales,Sales Rep,70000,HQ,2`;
+          break;
+      }
+
+      convert();
+    }
+
+    // Event listeners
+    convertBtn.addEventListener('click', convert);
+    exampleBtn.addEventListener('click', loadExample);
+
+    // File import
+    importBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        inputEditor.value = text;
+
+        // Auto-detect format from extension
+        const ext = file.name.split('.').pop().toLowerCase();
+        const formatMap = { json: 'json', yaml: 'yaml', yml: 'yaml', xml: 'xml', csv: 'csv' };
+        if (formatMap[ext]) {
+          currentFormat = formatMap[ext];
+          formatBtns.forEach(b => {
+            b.classList.toggle('active', b.dataset.format === currentFormat);
+          });
+          document.getElementById('input-format-label').textContent = currentFormat.toUpperCase();
+        }
+
+        convert();
+      } catch (err) {
+        errorDisplay.textContent = `Failed to read file: ${err.message}`;
+        errorDisplay.classList.remove('hidden');
+      }
+
+      // Reset file input so same file can be re-imported
+      fileInput.value = '';
+    });
+
+    // Copy input button
+    copyInputBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(inputEditor.value);
+        copyInputBtn.classList.add('copied');
+        copyInputBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg> Copied!';
+        setTimeout(() => {
+          copyInputBtn.classList.remove('copied');
+          copyInputBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg> Copy';
+        }, 2000);
+      } catch (e) {
+        console.error('Failed to copy:', e);
+      }
+    });
+
+    // Copy output button
+    copyOutputBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(outputDisplay.textContent);
+        copyOutputBtn.classList.add('copied');
+        copyOutputBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg> Copied!';
+        setTimeout(() => {
+          copyOutputBtn.classList.remove('copied');
+          copyOutputBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg> Copy';
+        }, 2000);
+      } catch (e) {
+        console.error('Failed to copy:', e);
+      }
+    });
+
+    // Download button
+    downloadBtn.addEventListener('click', () => {
+      const content = outputDisplay.textContent;
+      const ext = isHedlToFormat ? currentFormat : 'hedl';
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `output.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Auto-convert on input (debounced)
+    inputEditor.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(convert, 300);
+      document.getElementById('input-badge').textContent = 'Typing...';
+      document.getElementById('input-badge').className = 'pane-badge';
+    });
+
+    // Initialize on load
+    loadExample(); // Load example data into editor before WASM init
+    initialize();
+  </script>
+</body>
+</html>

@@ -31,7 +31,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::{
     generate_blog, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
-    ExportConfig, Insight, PerfResult, TableCell,
+    ExportConfig, Insight, TableCell,
 };
 use hedl_mcp::{McpServer, McpServerConfig};
 use serde_json::json;
@@ -84,13 +84,6 @@ fn init_report() {
     });
     MCP_RESULTS.with(|r| {
         r.borrow_mut().clear();
-    });
-}
-
-#[allow(dead_code)] // Used for future incremental data collection
-fn add_mcp_result(result: MCPRequestResult) {
-    MCP_RESULTS.with(|r| {
-        r.borrow_mut().push(result);
     });
 }
 
@@ -294,26 +287,6 @@ fn collect_mcp_results() -> Vec<MCPRequestResult> {
     }
 
     results
-}
-
-#[allow(dead_code)] // Reserved for future benchmark-time data collection
-fn add_perf_result(name: &str, time_ns: u64, iterations: u64, throughput_bytes: Option<u64>) {
-    REPORT.with(|r| {
-        if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes.map(|bytes| {
-                let bytes_per_sec = (bytes as f64 * 1e9) / time_ns as f64;
-                bytes_per_sec / 1_000_000.0
-            });
-            report.add_perf(PerfResult {
-                name: name.to_string(),
-                iterations,
-                total_time_ns: time_ns,
-                throughput_bytes,
-                avg_time_ns: Some(time_ns / iterations),
-                throughput_mbs,
-            });
-        }
-    });
 }
 
 fn export_reports() {

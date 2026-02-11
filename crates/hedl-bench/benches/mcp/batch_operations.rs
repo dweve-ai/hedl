@@ -29,7 +29,7 @@ fn create_validation_batch(size: usize) -> BatchRequest {
         .map(|i| BatchOperation {
             id: format!("val_{}", i),
             tool: "hedl_validate".to_string(),
-            arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+            arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
             depends_on: vec![],
         })
         .collect();
@@ -92,7 +92,7 @@ fn bench_dependency_resolution(c: &mut Criterion) {
                     let mut operations = vec![BatchOperation {
                         id: "op_0".to_string(),
                         tool: "hedl_validate".to_string(),
-                        arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+                        arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
                         depends_on: vec![],
                     }];
 
@@ -100,7 +100,7 @@ fn bench_dependency_resolution(c: &mut Criterion) {
                         operations.push(BatchOperation {
                             id: format!("op_{}", i),
                             tool: "hedl_validate".to_string(),
-                            arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+                            arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
                             depends_on: vec![format!("op_{}", i - 1)],
                         });
                     }
@@ -149,7 +149,7 @@ fn bench_batch_vs_sequential(c: &mut Criterion) {
         use hedl_mcp::tools::execute_tool;
         b.iter(|| {
             for _i in 0..size {
-                let args = json!({"hedl": "%VERSION 1.0\n---"});
+                let args = json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"});
                 execute_tool("hedl_validate", Some(args), black_box(Path::new("."))).unwrap();
             }
         });
@@ -207,7 +207,7 @@ fn bench_error_handling(c: &mut Criterion) {
                 BatchOperation {
                     id: "val1".to_string(),
                     tool: "hedl_validate".to_string(),
-                    arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+                    arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
                     depends_on: vec![],
                 },
                 BatchOperation {
@@ -219,7 +219,7 @@ fn bench_error_handling(c: &mut Criterion) {
                 BatchOperation {
                     id: "val2".to_string(),
                     tool: "hedl_validate".to_string(),
-                    arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+                    arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
                     depends_on: vec![],
                 },
             ];
@@ -243,7 +243,7 @@ fn bench_error_handling(c: &mut Criterion) {
                 BatchOperation {
                     id: "val1".to_string(),
                     tool: "hedl_validate".to_string(),
-                    arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+                    arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
                     depends_on: vec![],
                 },
                 BatchOperation {
@@ -255,7 +255,7 @@ fn bench_error_handling(c: &mut Criterion) {
                 BatchOperation {
                     id: "val2".to_string(),
                     tool: "hedl_validate".to_string(),
-                    arguments: Some(json!({"hedl": "%VERSION 1.0\n---"})),
+                    arguments: Some(json!({"hedl": "%V:2.0\n%NULL:~\n%QUOTE:\"\n---"})),
                     depends_on: vec![],
                 },
             ];

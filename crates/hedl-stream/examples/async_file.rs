@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 %VERSION: 1.0
 %STRUCT: Employee: [id, name, department, salary]
 ---
-employees: @Employee
+employees:@Employee
   | emp1, Alice Johnson, Engineering, 95000
   | emp2, Bob Smith, Sales, 75000
   | emp3, Carol White, Engineering, 105000

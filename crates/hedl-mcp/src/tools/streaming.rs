@@ -19,8 +19,8 @@
 
 use crate::error::{McpError, McpResult};
 use crate::protocol::{CallToolResult, Content};
-use crate::tools::helpers::{parse_args, validate_input_size};
-use crate::tools::json_utils::value_to_json;
+use crate::tools::argument_parsing::{parse_args, validate_input_size};
+use crate::tools::json_serialization::value_to_json;
 use crate::tools::types::{StreamArgs, MAX_INPUT_SIZE};
 use serde_json::{json, Value as JsonValue};
 
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_hedl_stream_basic() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n";
         let args = json!({ "hedl": hedl });
         let result = execute_hedl_stream(Some(args)).unwrap();
 
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_hedl_stream_with_limit() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n  | charlie, Charlie\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n | charlie, Charlie\n";
         let args = json!({ "hedl": hedl, "limit": 2 });
         let result = execute_hedl_stream(Some(args)).unwrap();
 
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_hedl_stream_with_offset() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n  | charlie, Charlie\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n | charlie, Charlie\n";
         let args = json!({ "hedl": hedl, "offset": 1, "limit": 10 });
         let result = execute_hedl_stream(Some(args)).unwrap();
 
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_hedl_stream_with_type_filter() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nusers: @User\n  | alice, Alice\nproducts: @Product\n  | widget, Widget\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nusers:@User\n | alice, Alice\nproducts:@Product\n | widget, Widget\n";
         let args = json!({ "hedl": hedl, "type_filter": "User" });
         let result = execute_hedl_stream(Some(args)).unwrap();
 

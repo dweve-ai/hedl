@@ -52,7 +52,7 @@ fn test_file_not_found_returns_io_error() {
 
 #[test]
 fn test_write_to_invalid_path_returns_io_error() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
 
     // Try to write to a path that doesn't exist (parent directory doesn't exist)
     let invalid_path = Path::new("/tmp/nonexistent_dir_12345/output.parquet");
@@ -81,7 +81,7 @@ fn test_write_to_read_only_directory_returns_io_error() {
     let file_path = temp_dir.path().join("test.parquet");
 
     // Create a simple document
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -151,7 +151,7 @@ fn test_successful_write_and_read_no_io_error() {
     let file_path = temp_dir.path().join("success.parquet");
 
     // Create a simple document
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Item",

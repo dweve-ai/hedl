@@ -37,9 +37,9 @@
 //! %VERSION: 1.0
 //! %STRUCT: User: [id, name]
 //! ---
-//! users: @User
-//!   | alice, Alice
-//!   | bob, Bob
+//! users:@User
+//!  | alice, Alice
+//!  | bob, Bob
 //! ```
 //!
 //! The parser yields:
@@ -95,8 +95,8 @@ use std::collections::BTreeMap;
 /// }
 ///
 /// // Check nesting rule
-/// if let Some(child) = header.get_child_type("User") {
-///     println!("User can contain {}", child);
+/// if let Some(children) = header.get_child_types("User") {
+///     println!("User can contain {:?}", children);
 /// }
 /// # Ok(())
 /// # }
@@ -109,8 +109,17 @@ pub struct HeaderInfo {
     pub structs: BTreeMap<String, Vec<String>>,
     /// Alias definitions.
     pub aliases: BTreeMap<String, String>,
-    /// Nest relationships: parent -> child.
-    pub nests: BTreeMap<String, String>,
+    /// Nest relationships: parent -> children.
+    /// A parent type can have multiple child types.
+    pub nests: BTreeMap<String, Vec<String>>,
+    /// Null literal character (v2.0+). Default: '~'.
+    pub null_char: char,
+    /// Quote character (v2.0+). Default: '"'.
+    pub quote_char: char,
+    /// Count hints: Type.total -> count (v2.0+).
+    pub count_totals: BTreeMap<String, usize>,
+    /// Count hints: Type.field:value -> count (v2.0+).
+    pub count_fields: BTreeMap<String, BTreeMap<String, usize>>,
 }
 
 impl HeaderInfo {
@@ -122,6 +131,10 @@ impl HeaderInfo {
             structs: BTreeMap::new(),
             aliases: BTreeMap::new(),
             nests: BTreeMap::new(),
+            null_char: '~',
+            quote_char: '"',
+            count_totals: BTreeMap::new(),
+            count_fields: BTreeMap::new(),
         }
     }
 
@@ -132,10 +145,10 @@ impl HeaderInfo {
         self.structs.get(type_name)
     }
 
-    /// Get child type for a parent type (from NEST).
+    /// Get child types for a parent type (from NEST).
     #[inline]
     #[must_use]
-    pub fn get_child_type(&self, parent_type: &str) -> Option<&String> {
+    pub fn get_child_types(&self, parent_type: &str) -> Option<&Vec<String>> {
         self.nests.get(parent_type)
     }
 }
@@ -170,7 +183,7 @@ impl Default for HeaderInfo {
 /// %VERSION: 1.0
 /// %STRUCT: User: [id, name, email, active]
 /// ---
-/// users: @User
+/// users:@User
 ///   | alice, Alice Smith, alice@example.com, true
 /// "#;
 ///
@@ -204,7 +217,7 @@ impl Default for HeaderInfo {
 /// %STRUCT: Order: [id, amount]
 /// %NEST: User > Order
 /// ---
-/// users: @User
+/// users:@User
 ///   | alice, Alice
 ///     | order1, 100.00
 /// "#;
@@ -424,12 +437,19 @@ mod tests {
     }
 
     #[test]
-    fn test_header_info_get_child_type() {
+    fn test_header_info_get_child_types() {
         let mut header = HeaderInfo::new();
-        header.nests.insert("User".to_string(), "Order".to_string());
+        header
+            .nests
+            .entry("User".to_string())
+            .or_default()
+            .push("Order".to_string());
 
-        assert_eq!(header.get_child_type("User"), Some(&"Order".to_string()));
-        assert_eq!(header.get_child_type("Product"), None);
+        assert_eq!(
+            header.get_child_types("User"),
+            Some(&vec!["Order".to_string()])
+        );
+        assert_eq!(header.get_child_types("Product"), None);
     }
 
     #[test]
@@ -470,16 +490,25 @@ mod tests {
     #[test]
     fn test_header_info_multiple_nests() {
         let mut header = HeaderInfo::new();
-        header.nests.insert("User".to_string(), "Order".to_string());
         header
             .nests
-            .insert("Order".to_string(), "LineItem".to_string());
+            .entry("User".to_string())
+            .or_default()
+            .push("Order".to_string());
+        header
+            .nests
+            .entry("Order".to_string())
+            .or_default()
+            .push("LineItem".to_string());
 
         assert_eq!(header.nests.len(), 2);
-        assert_eq!(header.get_child_type("User"), Some(&"Order".to_string()));
         assert_eq!(
-            header.get_child_type("Order"),
-            Some(&"LineItem".to_string())
+            header.get_child_types("User"),
+            Some(&vec!["Order".to_string()])
+        );
+        assert_eq!(
+            header.get_child_types("Order"),
+            Some(&vec!["LineItem".to_string()])
         );
     }
 

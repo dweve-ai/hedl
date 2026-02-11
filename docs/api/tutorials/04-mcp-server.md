@@ -1,8 +1,10 @@
 # MCP Server Usage Tutorial
 
-This tutorial demonstrates how to use the HEDL Model Context Protocol (MCP) server for AI/LLM integration.
+Your AI agent needs to work with structured data. It's reading user records, parsing configuration files, validating schemas. Every time it stuffs JSON into the context window, you watch your token costs climb and your response quality drop as the model struggles with verbose, repetitive input.
 
-> **Note**: The HEDL MCP server is under active development. Features described in this tutorial are implemented but may undergo API changes in future releases.
+The HEDL MCP server changes this. Your agent gets native access to HEDL's token-efficient format through the Model Context Protocol. It can read files, query specific entities, validate documents, optimize JSON to HEDL, and convert between formats, all through standardized tool calls. Claude, custom agents, and any MCP-compatible system can work with HEDL data directly.
+
+This tutorial shows you how to set up the MCP server, integrate it with Claude Desktop, and build workflows that leverage HEDL's 56% token savings in AI applications.
 
 ## What is MCP?
 
@@ -30,7 +32,7 @@ The Model Context Protocol (MCP) is a standardized interface that allows AI/LLM 
 ### From Source
 
 ```bash
-git clone https://github.com/dweve/hedl.git
+git clone https://github.com/dweve-ai/hedl.git
 cd hedl
 cargo build --release -p hedl-mcp
 
@@ -43,7 +45,7 @@ cargo build --release -p hedl-mcp
 Download from GitHub releases:
 
 ```bash
-wget https://github.com/dweve/hedl/releases/download/v1.2.0/hedl-mcp
+wget https://github.com/dweve-ai/hedl/releases/download/v2.0.0/hedl-mcp
 chmod +x hedl-mcp
 ```
 
@@ -96,7 +98,7 @@ Query entities by type and ID.
   "params": {
     "name": "hedl_query",
     "arguments": {
-      "hedl": "%VERSION: 1.0\n...",
+      "hedl": "%V:2.0\n...",
       "type_name": "User",
       "id": "alice"
     }
@@ -121,7 +123,7 @@ async function main() {
 
     const client = new Client({
         name: "hedl-client",
-        version: "1.0.0"
+        version: "2.0.0"
     }, {
         capabilities: {}
     });
@@ -132,7 +134,7 @@ async function main() {
     const result = await client.callTool({
         name: "hedl_validate",
         arguments: {
-            hedl: "%VERSION: 1.0\n---\nkey: value"
+            hedl: "%V:2.0\n---\nkey: value"
         }
     });
 
@@ -326,40 +328,40 @@ The MCP server uses STDIO transport (JSON-RPC 2.0 over standard input/output). I
 
 ### Supported Methods
 
-| Method | Description |
+ |Method |Description |
 |--------|-------------|
-| `initialize` | Protocol handshake with capability negotiation |
-| `initialized` | Notification after handshake completion |
-| `shutdown` | Graceful server shutdown |
-| `tools/list` | List available HEDL tools |
-| `tools/call` | Execute a specific tool |
-| `resources/list` | List available HEDL files |
-| `resources/read` | Read HEDL file content |
-| `ping` | Health check endpoint |
+ |`initialize` |Protocol handshake with capability negotiation |
+ |`initialized` |Notification after handshake completion |
+ |`shutdown` |Graceful server shutdown |
+ |`tools/list` |List available HEDL tools |
+ |`tools/call` |Execute a specific tool |
+ |`resources/list` |List available HEDL files |
+ |`resources/read` |Read HEDL file content |
+ |`ping` |Health check endpoint |
 
 ### Error Codes
 
-| Code | Error | Description |
+ |Code |Error |Description |
 |------|-------|-------------|
-| `-32700` | Json | Invalid JSON received |
-| `-32600` | InvalidRequest | Invalid JSON-RPC request |
-| `-32601` | ToolNotFound | Tool not found |
-| `-32602` | InvalidArguments | Invalid tool arguments |
-| `-32603` | ResourceNotFound | Resource not found |
-| `-32001` | Parse | HEDL parsing error |
-| `-32002` | Io | IO error |
-| `-32003` | PathTraversal | Path traversal attempt blocked |
-| `-32004` | FileNotFound | Requested file not found |
-| `-32005` | ResourceLimit | Resource limit exceeded |
+ |`-32700` |Json |Invalid JSON received |
+ |`-32600` |InvalidRequest |Invalid JSON-RPC request |
+ |`-32601` |ToolNotFound |Tool not found |
+ |`-32602` |InvalidArguments |Invalid tool arguments |
+ |`-32603` |ResourceNotFound |Resource not found |
+ |`-32001` |Parse |HEDL parsing error |
+ |`-32002` |Io |IO error |
+ |`-32003` |PathTraversal |Path traversal attempt blocked |
+ |`-32004` |FileNotFound |Requested file not found |
+ |`-32005` |ResourceLimit |Resource limit exceeded |
 
 ## Next Steps
 
 - **[MCP API Reference](../mcp-api.md)** - Complete MCP documentation
 - **[Examples](../examples.md)** - More integration examples
-- **[GitHub](https://github.com/dweve/hedl)** - Source code and issues
+- **[GitHub](https://github.com/dweve-ai/hedl)** - Source code and issues
 
 ## Resources
 
 - **[MCP Specification](https://spec.modelcontextprotocol.io/)** - MCP standard
 - **[HEDL Documentation](https://hedl.dev/docs)** - Full documentation
-- **[Community](https://github.com/dweve/hedl/discussions)** - Discussions and support
+- **[Community](https://github.com/dweve-ai/hedl/discussions)** - Discussions and support

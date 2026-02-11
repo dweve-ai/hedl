@@ -8,7 +8,7 @@
 //!
 //! Tests caching, buffer allocation, and other performance optimizations.
 
-use hedl_c14n::{add_count_hints, canonicalize, CanonicalConfig};
+use hedl_c14n::{add_count_hints, canonicalize, canonicalize_with_config, CanonicalConfig};
 use hedl_core::{Document, Item, MatrixList, Node, Value};
 
 // =============================================================================
@@ -17,7 +17,7 @@ use hedl_core::{Document, Item, MatrixList, Node, Value};
 
 #[test]
 fn test_add_count_hints_to_document() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "User".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -56,7 +56,7 @@ fn test_add_count_hints_to_document() {
 
 #[test]
 fn test_count_hints_in_canonical_output() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Item".to_string(),
         vec!["id".to_string(), "value".to_string()],
@@ -81,13 +81,14 @@ fn test_count_hints_in_canonical_output() {
     let _config = CanonicalConfig::new().with_inline_schemas(false);
     let output = canonicalize(&doc).unwrap();
 
-    // Should have count in STRUCT declaration
-    assert!(output.contains("%STRUCT: Item (5): [id,value]"));
+    // v2.0 uses separate %C: directive for counts
+    assert!(output.contains("%S:Item:[id,value]"));
+    assert!(output.contains("%C:Item.total=5"));
 }
 
 #[test]
 fn test_count_hints_multiple_types() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs
         .insert("User".to_string(), vec!["id".to_string()]);
     doc.structs
@@ -109,9 +110,9 @@ fn test_count_hints_multiple_types() {
 
     let output = canonicalize(&doc).unwrap();
 
-    // Should have counts for both types
-    assert!(output.contains("User (3)"));
-    assert!(output.contains("Post (2)"));
+    // v2.0 uses separate %C: directives for counts
+    assert!(output.contains("%C:User.total=3"));
+    assert!(output.contains("%C:Post.total=2"));
 }
 
 // =============================================================================
@@ -120,7 +121,7 @@ fn test_count_hints_multiple_types() {
 
 #[test]
 fn test_large_matrix_list() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
 
     // Add 1000 rows
@@ -147,7 +148,7 @@ fn test_large_matrix_list() {
 
 #[test]
 fn test_many_keys() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Add 100 keys
     for i in 0..100 {
@@ -173,7 +174,7 @@ fn test_many_keys() {
 
 #[test]
 fn test_ditto_partial_matches() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Item",
         vec![
@@ -215,8 +216,8 @@ fn test_ditto_partial_matches() {
         .with_ditto(true);
     let output = canonicalize(&doc).unwrap();
 
-    // Second row should use ditto for b and c
-    assert!(output.contains("|i2,5,^,^"));
+    // Second row should repeat values explicitly (ditto removed in new format)
+    assert!(output.contains("|i2,5,2,3"));
 }
 
 // =============================================================================
@@ -225,7 +226,7 @@ fn test_ditto_partial_matches() {
 
 #[test]
 fn test_empty_document_allocates_minimal_buffer() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let output = canonicalize(&doc).unwrap();
 
     // Empty document should be very small
@@ -234,7 +235,7 @@ fn test_empty_document_allocates_minimal_buffer() {
 
 #[test]
 fn test_nested_objects_allocate_correctly() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut inner = std::collections::BTreeMap::new();
 
     for i in 0..10 {
@@ -256,7 +257,7 @@ fn test_nested_objects_allocate_correctly() {
 
 #[test]
 fn test_same_type_multiple_lists() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs
         .insert("User".to_string(), vec!["id".to_string()]);
 
@@ -273,8 +274,8 @@ fn test_same_type_multiple_lists() {
     let output = canonicalize(&doc).unwrap();
 
     // Should have both lists with same type
-    assert!(output.contains("users1: @User"));
-    assert!(output.contains("users2: @User"));
+    assert!(output.contains("users1:@User"));
+    assert!(output.contains("users2:@User"));
 }
 
 // =============================================================================
@@ -283,7 +284,7 @@ fn test_same_type_multiple_lists() {
 
 #[test]
 fn test_inline_vs_header_schemas_basic() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "User",
         vec!["id".to_string(), "name".to_string(), "email".to_string()],
@@ -310,9 +311,9 @@ fn test_inline_vs_header_schemas_basic() {
     assert!(output_inline.contains("@User"));
     assert!(output_header.contains("@User"));
 
-    // Both have %STRUCT since the type is collected from matrix lists
-    assert!(output_inline.contains("%STRUCT"));
-    assert!(output_header.contains("%STRUCT"));
+    // Uses %S: compact syntax for struct declarations
+    assert!(output_inline.contains("%S:"));
+    assert!(output_header.contains("%S:"));
 
     // The difference is in how list declarations look
     // (inline vs separate, but both end up with STRUCT declarations)
@@ -320,7 +321,7 @@ fn test_inline_vs_header_schemas_basic() {
 
 #[test]
 fn test_header_schemas_reuse() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let schema = vec!["id".to_string(), "name".to_string(), "email".to_string()];
 
     // Create 5 lists of same type
@@ -338,19 +339,21 @@ fn test_header_schemas_reuse() {
         doc.root.insert(format!("users{i}"), Item::List(list));
     }
 
-    let _config_inline = CanonicalConfig::new().with_inline_schemas(true);
-    let output_inline = canonicalize(&doc).unwrap();
+    let config_inline = CanonicalConfig::new().with_inline_schemas(true);
+    let output_inline = canonicalize_with_config(&doc, &config_inline).unwrap();
 
-    let _config_header = CanonicalConfig::new().with_inline_schemas(false);
-    let output_header = canonicalize(&doc).unwrap();
+    let config_header = CanonicalConfig::new().with_inline_schemas(false);
+    let output_header = canonicalize_with_config(&doc, &config_header).unwrap();
 
     // Inline should have schema in each list declaration
-    assert!(output_inline.contains("users1: @User"));
-    assert!(output_inline.contains("users5: @User"));
+    assert!(output_inline.contains("users1:@User"));
+    assert!(output_inline.contains("users5:@User"));
 
-    // Header defines schema once in STRUCT
-    assert!(output_header.contains("%STRUCT: User"));
+    // Header defines schema once in %S: (v2.0 format, NO count in parentheses)
+    assert!(output_header.contains("%S:User:[id,name,email]"));
+    // Count is in separate %C: directive
+    assert!(output_header.contains("%C:User.total=5"));
     // All list declarations should reference the type
-    assert!(output_header.contains("users1: @User"));
-    assert!(output_header.contains("users5: @User"));
+    assert!(output_header.contains("users1:@User"));
+    assert!(output_header.contains("users5:@User"));
 }

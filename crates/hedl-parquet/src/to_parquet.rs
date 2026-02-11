@@ -35,7 +35,7 @@
 //! use hedl_core::{Document, MatrixList, Node, Value, Item};
 //! use hedl_parquet::to_parquet_bytes;
 //!
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document::new((2, 0));
 //! let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
 //!
 //! // Rows are added in order
@@ -74,7 +74,7 @@
 //! }
 //! ```
 //!
-//! See `POSITION_ENCODING.md` for detailed documentation.
+//! Position encoding uses a packed `u64` representation for row/column tracking.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -304,7 +304,7 @@ impl ToParquetConfig {
 /// use hedl_parquet::to_parquet;
 /// use std::path::Path;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// to_parquet(&doc, Path::new("output.parquet")).unwrap();
 /// ```
 pub fn to_parquet(doc: &Document, path: &Path) -> Result<(), HedlError> {
@@ -331,7 +331,7 @@ pub fn to_parquet_with_config(
 /// use hedl_core::Document;
 /// use hedl_parquet::to_parquet_bytes;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let bytes = to_parquet_bytes(&doc).unwrap();
 /// ```
 pub fn to_parquet_bytes(doc: &Document) -> Result<Vec<u8>, HedlError> {
@@ -479,6 +479,7 @@ fn infer_arrow_type(value: &Value) -> DataType {
         Value::Reference(_) => DataType::Utf8,
         Value::Expression(_) => DataType::Utf8,
         Value::Tensor(_) => DataType::Utf8, // Serialize tensors as strings
+        Value::List(_) => DataType::Utf8,   // Serialize lists as JSON-like strings for now
     }
 }
 
@@ -514,6 +515,39 @@ pub(crate) fn build_record_batch_from_nodes(
             0,
         )
     })
+}
+
+/// Serialize a list of values to a HEDL-like string representation.
+///
+/// Converts a list of values into a string format that can be stored in Parquet
+/// and later parsed back into a `Value::List`. Uses parentheses syntax: (val1, val2, val3)
+///
+/// # Arguments
+///
+/// * `items` - The list items to serialize
+///
+/// # Returns
+///
+/// A string representation of the list, e.g., "(1, 2, 3)" or "(foo, bar, baz)"
+fn serialize_list_to_string(items: &[Value]) -> String {
+    if items.is_empty() {
+        return "()".to_string();
+    }
+
+    let mut result = String::from("(");
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 {
+            result.push_str(", ");
+        }
+        match item {
+            Value::String(s) => result.push_str(s),
+            Value::Reference(r) => result.push_str(&r.to_ref_string()),
+            Value::Expression(e) => result.push_str(&format!("$({e})")),
+            other => result.push_str(&other.to_string()),
+        }
+    }
+    result.push(')');
+    result
 }
 
 /// Build an Arrow array for a specific field index across all nodes.
@@ -612,6 +646,10 @@ fn build_array_for_field(
                             // Serialize tensor as JSON-like string
                             builder.append_value(format!("{:?}", t.flatten()));
                         }
+                        Value::List(items) => {
+                            // Serialize list as parentheses-delimited string
+                            builder.append_value(serialize_list_to_string(items));
+                        }
                         other => builder.append_value(other.to_string()),
                     }
                 } else {
@@ -696,14 +734,14 @@ mod tests {
 
     #[test]
     fn test_to_parquet_bytes_empty_doc() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let result = to_parquet_bytes(&doc);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_to_parquet_bytes_with_matrix_list() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut matrix_list = MatrixList::new(
             "User",
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
@@ -741,7 +779,7 @@ mod tests {
 
     #[test]
     fn test_to_parquet_bytes_with_metadata() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "version".to_string(),
             Item::Scalar(Value::String("1.0".to_string().into())),

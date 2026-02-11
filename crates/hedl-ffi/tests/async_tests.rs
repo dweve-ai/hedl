@@ -22,7 +22,6 @@
 //! Tests the async FFI API for parsing, conversion, and other operations.
 
 // Allow Arc with non-Send/Sync for FFI test callbacks
-#![allow(clippy::arc_with_non_send_sync)]
 
 use hedl_ffi::*;
 use std::ffi::{c_char, c_int, c_void, CStr};
@@ -30,18 +29,31 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-const VALID_HEDL: &[u8] = b"%VERSION: 1.0\n---\nkey: value\0";
+const VALID_HEDL: &[u8] = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\0";
 const INVALID_HEDL: &[u8] = b"invalid hedl syntax\0";
 
 // =============================================================================
 // Helper Structures
 // =============================================================================
 
+/// Wrapper for raw pointers that is Send+Sync.
+///
+/// SAFETY: Access to the inner pointer is always protected by a Mutex in
+/// TestContext, so concurrent access is synchronized.
+struct SendSyncPtr(*mut c_void);
+
+// SAFETY: The pointer is only accessed under a Mutex lock in TestContext,
+// ensuring synchronized access across threads.
+unsafe impl Send for SendSyncPtr {}
+// SAFETY: The pointer is only accessed under a Mutex lock in TestContext,
+// ensuring synchronized access across threads.
+unsafe impl Sync for SendSyncPtr {}
+
 /// Test context for callbacks.
 struct TestContext {
     completed: Arc<AtomicBool>,
     status: Arc<AtomicI32>,
-    result: Arc<Mutex<*mut c_void>>,
+    result: Arc<Mutex<SendSyncPtr>>,
     error_msg: Arc<Mutex<String>>,
 }
 
@@ -50,7 +62,7 @@ impl TestContext {
         TestContext {
             completed: Arc::new(AtomicBool::new(false)),
             status: Arc::new(AtomicI32::new(0)),
-            result: Arc::new(Mutex::new(std::ptr::null_mut())),
+            result: Arc::new(Mutex::new(SendSyncPtr(std::ptr::null_mut()))),
             error_msg: Arc::new(Mutex::new(String::new())),
         }
     }
@@ -73,6 +85,7 @@ impl TestContext {
 
 #[test]
 fn test_async_parse_success() {
+    // SAFETY: Types have compatible memory layouts and alignment
     unsafe {
         let ctx = TestContext::new();
         let ctx_ptr = std::ptr::addr_of!(ctx) as *mut c_void;
@@ -83,14 +96,16 @@ fn test_async_parse_success() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -117,7 +132,7 @@ fn test_async_parse_success() {
         // Verify success
         assert_eq!(ctx.status.load(Ordering::Acquire), HEDL_OK);
 
-        let doc_ptr = (*ctx.result.lock().unwrap()).cast::<HedlDocument>();
+        let doc_ptr = ctx.result.lock().unwrap().0.cast::<HedlDocument>();
         assert!(!doc_ptr.is_null(), "Document should not be null");
 
         // Clean up
@@ -128,6 +143,7 @@ fn test_async_parse_success() {
 
 #[test]
 fn test_async_parse_failure() {
+    // SAFETY: Types have compatible memory layouts and alignment
     unsafe {
         let ctx = TestContext::new();
         let ctx_ptr = std::ptr::addr_of!(ctx) as *mut c_void;
@@ -138,14 +154,16 @@ fn test_async_parse_failure() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -172,7 +190,7 @@ fn test_async_parse_failure() {
         // Verify failure
         assert_eq!(ctx.status.load(Ordering::Acquire), HEDL_ERR_PARSE);
 
-        let doc_ptr = *ctx.result.lock().unwrap();
+        let doc_ptr = ctx.result.lock().unwrap().0;
         assert!(doc_ptr.is_null(), "Document should be null on error");
 
         let error_msg = ctx.error_msg.lock().unwrap();
@@ -189,6 +207,7 @@ fn test_async_parse_failure() {
 
 #[test]
 fn test_async_parse_null_input() {
+    // SAFETY: Types have compatible memory layouts and alignment
     unsafe {
         let ctx = TestContext::new();
         let ctx_ptr = std::ptr::addr_of!(ctx) as *mut c_void;
@@ -219,6 +238,7 @@ fn test_async_parse_null_input() {
 
 #[test]
 fn test_async_parse_cancellation() {
+    // SAFETY: Types have compatible memory layouts and alignment
     unsafe {
         let ctx = TestContext::new();
         let ctx_ptr = std::ptr::addr_of!(ctx) as *mut c_void;
@@ -229,14 +249,16 @@ fn test_async_parse_cancellation() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -272,14 +294,14 @@ fn test_async_parse_cancellation() {
 
         // If cancelled, document should be null. If completed, document may be present.
         if status == HEDL_ERR_CANCELLED {
-            let doc_ptr = *ctx.result.lock().unwrap();
+            let doc_ptr = ctx.result.lock().unwrap().0;
             assert!(
                 doc_ptr.is_null(),
                 "Document should be null for cancelled operation"
             );
         } else {
             // Clean up document if parse succeeded
-            let doc_ptr = (*ctx.result.lock().unwrap()).cast::<HedlDocument>();
+            let doc_ptr = ctx.result.lock().unwrap().0.cast::<HedlDocument>();
             if !doc_ptr.is_null() {
                 hedl_free_document(doc_ptr);
             }
@@ -296,6 +318,7 @@ fn test_async_parse_cancellation() {
 
 #[test]
 fn test_async_canonicalize_success() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // First parse a document
         let mut doc: *mut HedlDocument = std::ptr::null_mut();
@@ -311,14 +334,16 @@ fn test_async_canonicalize_success() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -338,7 +363,7 @@ fn test_async_canonicalize_success() {
         // Verify success
         assert_eq!(ctx.status.load(Ordering::Acquire), HEDL_OK);
 
-        let canonical_ptr = (*ctx.result.lock().unwrap()).cast::<c_char>();
+        let canonical_ptr = ctx.result.lock().unwrap().0.cast::<c_char>();
         assert!(
             !canonical_ptr.is_null(),
             "Canonical string should not be null"
@@ -359,6 +384,7 @@ fn test_async_canonicalize_success() {
 
 #[test]
 fn test_async_canonicalize_null_document() {
+    // SAFETY: Types have compatible memory layouts and alignment
     unsafe {
         let ctx = TestContext::new();
         let ctx_ptr = std::ptr::addr_of!(ctx) as *mut c_void;
@@ -393,6 +419,7 @@ fn test_async_canonicalize_null_document() {
 
 #[test]
 fn test_async_lint_success() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // First parse a document
         let mut doc: *mut HedlDocument = std::ptr::null_mut();
@@ -408,14 +435,16 @@ fn test_async_lint_success() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -435,7 +464,7 @@ fn test_async_lint_success() {
         // Verify success
         assert_eq!(ctx.status.load(Ordering::Acquire), HEDL_OK);
 
-        let diag_ptr = (*ctx.result.lock().unwrap()).cast::<HedlDiagnostics>();
+        let diag_ptr = ctx.result.lock().unwrap().0.cast::<HedlDiagnostics>();
         assert!(!diag_ptr.is_null(), "Diagnostics should not be null");
 
         let count = hedl_diagnostics_count(diag_ptr);
@@ -455,6 +484,7 @@ fn test_async_lint_success() {
 #[cfg(feature = "json")]
 #[test]
 fn test_async_to_json_success() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // First parse a document
         let mut doc: *mut HedlDocument = std::ptr::null_mut();
@@ -470,14 +500,16 @@ fn test_async_to_json_success() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -497,7 +529,7 @@ fn test_async_to_json_success() {
         // Verify success
         assert_eq!(ctx.status.load(Ordering::Acquire), HEDL_OK);
 
-        let json_ptr = (*ctx.result.lock().unwrap()).cast::<c_char>();
+        let json_ptr = ctx.result.lock().unwrap().0.cast::<c_char>();
         assert!(!json_ptr.is_null(), "JSON string should not be null");
 
         let json_str = CStr::from_ptr(json_ptr).to_str().unwrap();
@@ -517,6 +549,7 @@ fn test_async_to_json_success() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_async_to_yaml_success() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // First parse a document
         let mut doc: *mut HedlDocument = std::ptr::null_mut();
@@ -532,14 +565,16 @@ fn test_async_to_yaml_success() {
             error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             if !error.is_null() {
+                // SAFETY: FFI call with valid C-compatible types and checked pointers
                 let error_str = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
                 *ctx.error_msg.lock().unwrap() = error_str;
             }
@@ -559,7 +594,7 @@ fn test_async_to_yaml_success() {
         // Verify success
         assert_eq!(ctx.status.load(Ordering::Acquire), HEDL_OK);
 
-        let yaml_ptr = (*ctx.result.lock().unwrap()).cast::<c_char>();
+        let yaml_ptr = ctx.result.lock().unwrap().0.cast::<c_char>();
         assert!(!yaml_ptr.is_null(), "YAML string should not be null");
 
         let yaml_str = CStr::from_ptr(yaml_ptr).to_str().unwrap();
@@ -584,6 +619,7 @@ fn test_concurrent_async_operations() {
     let mut handles = vec![];
 
     for thread_id in 0..num_threads {
+        // SAFETY: Types have compatible memory layouts and alignment
         let handle = thread::spawn(move || unsafe {
             let ctx = TestContext::new();
             let ctx_ptr = std::ptr::addr_of!(ctx) as *mut c_void;
@@ -594,11 +630,12 @@ fn test_concurrent_async_operations() {
                 _error: *const c_char,
                 user_data: *mut c_void,
             ) {
+                // SAFETY: Types have compatible memory layouts and alignment
                 let ctx = unsafe { &*(user_data as *const TestContext) };
                 ctx.status.store(status, Ordering::Release);
 
                 if !result.is_null() {
-                    *ctx.result.lock().unwrap() = result;
+                    ctx.result.lock().unwrap().0 = result;
                 }
 
                 ctx.completed.store(true, Ordering::Release);
@@ -630,7 +667,7 @@ fn test_concurrent_async_operations() {
                 "Thread {thread_id} should succeed"
             );
 
-            let doc_ptr = (*ctx.result.lock().unwrap()).cast::<HedlDocument>();
+            let doc_ptr = ctx.result.lock().unwrap().0.cast::<HedlDocument>();
             assert!(
                 !doc_ptr.is_null(),
                 "Thread {thread_id} document should not be null"
@@ -656,6 +693,7 @@ fn test_concurrent_async_operations() {
 
 #[test]
 fn test_async_cancel_null_pointer() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Should not crash
         hedl_async_cancel(std::ptr::null_mut());
@@ -664,6 +702,7 @@ fn test_async_cancel_null_pointer() {
 
 #[test]
 fn test_async_free_null_pointer() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Should not crash
         hedl_async_free(std::ptr::null_mut());
@@ -676,6 +715,7 @@ fn test_async_free_null_pointer() {
 
 #[test]
 fn test_multiple_async_operations_same_document() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Parse a document
         let mut doc: *mut HedlDocument = std::ptr::null_mut();
@@ -697,11 +737,12 @@ fn test_multiple_async_operations_same_document() {
             _error: *const c_char,
             user_data: *mut c_void,
         ) {
+            // SAFETY: Types have compatible memory layouts and alignment
             let ctx = unsafe { &*(user_data as *const TestContext) };
             ctx.status.store(status, Ordering::Release);
 
             if !result.is_null() {
-                *ctx.result.lock().unwrap() = result;
+                ctx.result.lock().unwrap().0 = result;
             }
 
             ctx.completed.store(true, Ordering::Release);
@@ -731,10 +772,10 @@ fn test_multiple_async_operations_same_document() {
         assert_eq!(ctx3.status.load(Ordering::Acquire), HEDL_OK);
 
         // Clean up results
-        let canonical_ptr = (*ctx1.result.lock().unwrap()).cast::<c_char>();
-        let diag_ptr = (*ctx2.result.lock().unwrap()).cast::<HedlDiagnostics>();
+        let canonical_ptr = ctx1.result.lock().unwrap().0.cast::<c_char>();
+        let diag_ptr = ctx2.result.lock().unwrap().0.cast::<HedlDiagnostics>();
         #[cfg(feature = "json")]
-        let json_ptr = (*ctx3.result.lock().unwrap()).cast::<c_char>();
+        let json_ptr = ctx3.result.lock().unwrap().0.cast::<c_char>();
 
         hedl_free_string(canonical_ptr);
         hedl_free_diagnostics(diag_ptr);

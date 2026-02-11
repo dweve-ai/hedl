@@ -1,0 +1,11 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,status]
+%C:User.total=3
+%C:User.status:active=2,inactive=1
+---
+users:@User
+ |u1,Alice,active
+ |u2,Bob,active
+ |u3,Carol,inactive

@@ -40,14 +40,14 @@ fn parse_document(input: &str) -> Result<Vec<String>, String> {
 
 #[test]
 fn test_simd_no_comments() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
-";
+users:@User
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
+"#;
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -57,14 +57,14 @@ users: @User
 
 #[test]
 fn test_simd_inline_comments() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
-users: @User  # list of users
-  | alice, Alice Smith, alice@example.com  # first user
-  | bob, Bob Jones, bob@example.com  # second user
-";
+users:@User  # list of users
+ | alice, Alice Smith, alice@example.com  # first user
+ | bob, Bob Jones, bob@example.com  # second user
+"#;
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -80,9 +80,9 @@ fn test_simd_quoted_hashes() {
         "%VERSION: 1.0\n",
         "%STRUCT: Data: [id, tag, description]\n",
         "---\n",
-        "data: @Data\n",
-        "  | row1, \"#hashtag\", \"Contains # symbol\"\n",
-        "  | row2, \"#tag2\", \"Another # in quotes\"\n"
+        "data:@Data\n",
+        " | row1, \"#hashtag\", \"Contains # symbol\"\n",
+        " | row2, \"#tag2\", \"Another # in quotes\"\n"
     );
 
     let result = parse_document(input);
@@ -95,14 +95,14 @@ fn test_simd_quoted_hashes() {
 
 #[test]
 fn test_simd_escaped_hashes() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-  | row1, value\#1
-  | row2, value\#2
-";
+data:@Data
+ | row1, value\#1
+ | row2, value\#2
+"#;
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -116,9 +116,9 @@ fn test_simd_long_lines_with_comments() {
 %VERSION: 1.0
 %STRUCT: Data: [id, long_field]
 ---
-data: @Data
-  | row1, {long_value} # comment at end of long line
-  | row2, {long_value} # another long line comment
+data:@Data
+ | row1, {long_value} # comment at end of long line
+ | row2, {long_value} # another long line comment
 "
     );
 
@@ -130,14 +130,14 @@ data: @Data
 
 #[test]
 fn test_simd_multiple_hashes() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Data: [id, field1, field2]
 ---
-data: @Data
-  | row1, value1, value2 # comment with # multiple # hashes
-  | row2, value3, value4 # # # more hashes
-";
+data:@Data
+ | row1, value1, value2 # comment with # multiple # hashes
+ | row2, value3, value4 # # # more hashes
+"#;
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -145,13 +145,13 @@ data: @Data
 
 #[test]
 fn test_simd_hash_at_various_positions() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Data: [id]
 ---
-data: @Data
-  | # full line comment (should fail as invalid row)
-";
+data:@Data
+ | # full line comment (should fail as invalid row)
+"#;
 
     // This should fail because "# full line..." is not a valid row
     let result = parse_document(input);
@@ -162,13 +162,30 @@ data: @Data
 
 #[test]
 fn test_simd_mixed_quotes_and_escapes() {
+    // Test that quoted strings properly protect # characters from being treated as comments,
+    // and that unquoted # starts a comment. Backslash escape is NOT valid HEDL for #.
     let input = r#"
 %VERSION: 1.0
 %STRUCT: Data: [id, field1, field2, field3]
 ---
-data: @Data
-  | row1, "quoted #hash", value\#escaped, normal # real comment
-  | row2, value, "another\"quote#hash", test # comment
+data:@Data
+ | row1, "quoted #hash", "value#with-hash", normal # real comment
+ | row2, value, "another quote#hash", test # comment
+"#;
+
+    let result = parse_document(input);
+    assert!(result.is_ok(), "Parse failed: {:?}", result);
+}
+
+#[test]
+fn test_simd_empty_fields_with_comments() {
+    let input = r#"
+%VERSION: 1.0
+%STRUCT: Data: [id, opt1, opt2, opt3]
+---
+data:@Data
+ | row1, ~, value2, ~ # comment
+ | row2, value1, ~, value3 # another comment
 "#;
 
     let result = parse_document(input);
@@ -176,31 +193,16 @@ data: @Data
 }
 
 #[test]
-fn test_simd_empty_fields_with_comments() {
-    let input = r"
-%VERSION: 1.0
-%STRUCT: Data: [id, opt1, opt2, opt3]
----
-data: @Data
-  | row1, ~, value2, ~ # comment
-  | row2, value1, ~, value3 # another comment
-";
-
-    let result = parse_document(input);
-    assert!(result.is_ok());
-}
-
-#[test]
 fn test_simd_unicode_with_comments() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | user1, 张三 # Chinese name
-  | user2, Иван # Russian name
-  | user3, José # Spanish name
-";
+users:@User
+ | user1, 张三 # Chinese name
+ | user2, Иван # Russian name
+ | user3, José # Spanish name
+"#;
 
     let result = parse_document(input);
     assert!(result.is_ok());
@@ -210,15 +212,15 @@ users: @User
 fn test_simd_very_long_document() {
     // Generate a large document to stress-test SIMD implementation
     let mut input = String::from(
-        r"%VERSION: 1.0
+        r#"%VERSION: 1.0
 %STRUCT: Data: [id, value]
 ---
-data: @Data
-",
+data:@Data
+"#,
     );
 
     for i in 0..10000 {
-        input.push_str(&format!("  | row{i}, value{i} # comment {i}\n"));
+        input.push_str(&format!(" | row{i}, value{i} # comment {i}\n"));
     }
 
     let result = parse_document(&input);
@@ -233,12 +235,12 @@ fn test_simd_alignment_edge_cases() {
     for len in 1..100 {
         let padding = "a".repeat(len);
         let input = format!(
-            r"%VERSION: 1.0
+            r#"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
-data: @Data
-  | row1, {padding} # comment
-"
+data:@Data
+ | row1, {padding} # comment
+"#
         );
 
         let result = parse_document(&input);
@@ -250,12 +252,12 @@ data: @Data
 fn test_simd_comment_after_32_bytes() {
     // Ensure SIMD correctly handles comments that appear after the first 32-byte chunk
     let input = format!(
-        r"%VERSION: 1.0
+        r#"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
-data: @Data
-  | row1, {} # comment here
-",
+data:@Data
+ | row1, {} # comment here
+"#,
         "a".repeat(50)
     );
 
@@ -267,12 +269,12 @@ data: @Data
 fn test_simd_no_hash_long_line() {
     // Test long lines without any hash to verify SIMD doesn't false-positive
     let input = format!(
-        r"%VERSION: 1.0
+        r#"%VERSION: 1.0
 %STRUCT: Data: [id, field1, field2, field3]
 ---
-data: @Data
-  | row1, {}, {}, {}
-",
+data:@Data
+ | row1, {}, {}, {}
+"#,
         "a".repeat(100),
         "b".repeat(100),
         "c".repeat(100)
@@ -287,12 +289,12 @@ fn test_simd_hash_exactly_at_32_boundary() {
     // Place hash at exactly 32 bytes to test boundary condition
     let prefix = "a".repeat(31);
     let input = format!(
-        r"%VERSION: 1.0
+        r#"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
-data: @Data
-  | row1, {prefix}# comment
-"
+data:@Data
+ | row1, {prefix}# comment
+"#
     );
 
     let result = parse_document(&input);
@@ -314,12 +316,12 @@ fn test_simd_consistency_with_different_patterns() {
 
     for (name, pattern) in patterns {
         let input = format!(
-            r"%VERSION: 1.0
+            r#"%VERSION: 1.0
 %STRUCT: Data: [id, field]
 ---
-data: @Data
-  | row1, {pattern}
-"
+data:@Data
+ | row1, {pattern}
+"#
         );
 
         let result = parse_document(&input);

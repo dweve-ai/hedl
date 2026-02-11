@@ -7,7 +7,7 @@
 //! Integration tests for rename refactoring functionality.
 
 use hedl_lsp::analysis::AnalyzedDocument;
-use hedl_lsp::document_manager::DocumentManager;
+use hedl_lsp::document_manager::DocumentCache;
 use hedl_lsp::rename::{
     find_all_occurrences, generate_workspace_edit, get_symbol_name, identify_symbol_at_position,
     validate_rename, RenameOperation, SymbolKind,
@@ -15,22 +15,24 @@ use hedl_lsp::rename::{
 use tower_lsp::lsp_types::*;
 
 fn sample_hedl_document() -> String {
-    r#"%VERSION: 1.0
-%STRUCT: User: [id,name,email,role]
-%STRUCT: Post: [id,title,author,status]
-%ALIAS: %active: "Active"
-%ALIAS: %draft: "Draft"
-%NEST: User > Post
+    r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email,role]
+%S:Post:[id,title,author,status]
+%A:%active:"Active"
+%A:%draft:"Draft"
+%N:User>Post
 ---
-users: @User
-  |alice,Alice Smith,alice@example.com,admin
-  |bob,Bob Jones,bob@example.com,user
-  |charlie,Charlie Brown,charlie@example.com,user
+users:@User
+ |alice,Alice Smith,alice@example.com,admin
+ |bob,Bob Jones,bob@example.com,user
+ |charlie,Charlie Brown,charlie@example.com,user
 
-posts: @Post
-  |post1,First Post,@User:alice,%active
-  |post2,Second Post,@User:bob,%draft
-  |post3,Third Post,@User:alice,%active
+posts:@Post
+ |post1,First Post,@User:alice,%active
+ |post2,Second Post,@User:bob,%draft
+ |post3,Third Post,@User:alice,%active
 "#
     .to_string()
 }
@@ -39,8 +41,8 @@ fn test_uri() -> Url {
     Url::parse("file:///test.hedl").unwrap()
 }
 
-fn create_test_document_manager(uri: &Url, content: &str) -> DocumentManager {
-    let manager = DocumentManager::new(10, 1024 * 1024);
+fn create_test_document_manager(uri: &Url, content: &str) -> DocumentCache {
+    let manager = DocumentCache::new(10, 1024 * 1024);
     manager.insert_or_update(uri, content);
     manager
 }
@@ -50,11 +52,11 @@ fn test_identify_entity_id_at_definition() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "alice" in entity definition (line 9 in 1-indexed, line 8 in 0-indexed)
-    // Format: "  |alice,Alice Smith,alice@example.com,admin"
+    // Position on "alice" in entity definition (line 10 in 0-indexed)
+    // Format: " |alice,Alice Smith,alice@example.com,admin"
     let position = Position {
-        line: 8,
-        character: 4, // Position in "alice" after "  |"
+        line: 10,
+        character: 3, // Position in "alice" after " |"
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
 
@@ -73,10 +75,11 @@ fn test_identify_entity_id_at_qualified_reference() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "@User:alice" in reference (line 14)
+    // Position on "@User:alice" in reference (line 15, 0-indexed)
+    // Line: " |post1,First Post,@User:alice,%active"
     let position = Position {
-        line: 13,
-        character: 30,
+        line: 15,
+        character: 27, // Inside "alice"
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
 
@@ -95,10 +98,10 @@ fn test_identify_entity_id_at_unqualified_reference() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "@bob" in reference (line 15)
+    // Position on "@User:bob" in reference (line 16)
     // Character 27-29 is "bob" in "@User:bob"
     let position = Position {
-        line: 14,
+        line: 16,
         character: 28,
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
@@ -118,10 +121,10 @@ fn test_identify_type_name_in_struct() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "User" in %STRUCT: (line 2)
+    // Position on "User" in %S: (line 3)
     let position = Position {
-        line: 1,
-        character: 12,
+        line: 3,
+        character: 4,
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
 
@@ -139,10 +142,9 @@ fn test_identify_type_name_in_matrix_declaration() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "User" in "users: @User" (line 8 in 1-indexed, line 7 in 0-indexed)
-    // "User" starts at character 8, so position 9 is in the middle
+    // Position on "User" in "users:@User" (line 9 in 0-indexed)
     let position = Position {
-        line: 7,
+        line: 9,
         character: 9,
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
@@ -161,9 +163,9 @@ fn test_identify_alias_name_in_reference() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "%active" in reference (line 14)
+    // Position on "%active" in reference (line 15)
     let position = Position {
-        line: 13,
+        line: 15,
         character: 32,
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
@@ -182,10 +184,10 @@ fn test_identify_field_name() {
     let content = sample_hedl_document();
     let analysis = AnalyzedDocument::analyze(&content);
 
-    // Position on "email" in %STRUCT: User: [id,name,email,role]
+    // Position on "email" in %S:User:[id,name,email,role]
     let position = Position {
-        line: 1,
-        character: 26, // Position in middle of "email"
+        line: 3,
+        character: 17, // Position in middle of "email"
     };
     let symbol = identify_symbol_at_position(&analysis, &content, position);
 
@@ -468,17 +470,19 @@ fn test_identify_no_symbol() {
 
 #[test]
 fn test_utf8_handling() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,status,author]
-%ALIAS: %active: "Active 活跃"
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,status,author]
+%A:%active:"Active 活跃"
 ---
-users: @User
-  |alice,Alice 世界
-  |bob,Bob 你好
+users:@User
+ |alice,Alice 世界
+ |bob,Bob 你好
 
-posts: @Post
-  |post1,%active,@User:alice
+posts:@Post
+ |post1,%active,@User:alice
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -510,13 +514,15 @@ fn test_validate_rename_case_warning() {
 
 #[test]
 fn test_rename_with_hyphens_and_underscores() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name-full, email_address]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name-full, email_address]
 ---
-users: @User
-  | user-1, Alice, alice@example.com
-  | user_2, Bob, bob@example.com
-";
+users:@User
+ |user-1, Alice, alice@example.com
+ |user_2, Bob, bob@example.com
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -613,12 +619,14 @@ fn test_edit_ordering() {
 #[test]
 fn test_rename_type_preserves_at_prefix_in_matrix_declaration() {
     // Issue: Renaming a type that appears with the @Type: prefix syntax should preserve the @
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id,name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  |alice,Alice Smith
-";
+users:@User
+ |alice,Alice Smith
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = test_uri();
@@ -643,7 +651,7 @@ users: @User
     for text_edit in file_edits {
         let lines: Vec<&str> = content.lines().collect();
         if let Some(line) = lines.get(text_edit.range.start.line as usize) {
-            if line.contains("users: @") {
+            if line.contains("users:@") {
                 // The replacement should be just "Person", not "@Person"
                 // because the range should NOT include the @ character
                 assert_eq!(text_edit.new_text, "Person");
@@ -662,18 +670,20 @@ users: @User
 fn test_rename_type_with_row_level_annotation_preserves_at_prefix() {
     // Issue 1: Renaming type with @Type: prefix (row-level type annotation) should preserve @Type:
     // Example: Renaming User to Person should change "@User: alice" to "@Person: alice"
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,title,author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,title,author]
 ---
-users: @User
-  |alice,Alice Smith
-  |bob,Bob Jones
+users:@User
+ |alice,Alice Smith
+ |bob,Bob Jones
 
-posts: @Post
-  |post1,First Post,@User:alice
-  |post2,Second Post,@User:bob
-";
+posts:@Post
+ |post1,First Post,@User:alice
+ |post2,Second Post,@User:bob
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = test_uri();
@@ -722,22 +732,24 @@ posts: @Post
 #[test]
 fn test_rename_quoted_id_in_single_column_list() {
     // Issue 2: Renaming IDs with special characters requiring quoting in single-column lists
-    let content = r#"%VERSION: 1.0
-%STRUCT: Item: [id]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Item:[id]
 ---
-items: @Item
-  |"my-special-id"
-  |"another-id"
-  |normal_id
+items:@Item
+ |"my-special-id"
+ |"another-id"
+ |normal_id
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = test_uri();
 
     // Try to identify the quoted ID
-    // Line 4 (0-indexed) is: |"my-special-id"
+    // Line 6 (0-indexed) is: |"my-special-id"
     let position = Position {
-        line: 4,
+        line: 6,
         character: 5, // Inside the quoted ID
     };
 
@@ -780,17 +792,19 @@ fn test_rename_quoted_id_with_unquoted_reference() {
     // Test renaming a quoted ID that also appears in unquoted references
     // In HEDL, identifiers with hyphens need quotes in definitions but
     // can appear unquoted in references if the reference itself is outside quotes
-    let content = r#"%VERSION: 1.0
-%STRUCT: Product: [id,name]
-%STRUCT: Order: [id,product]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id,name]
+%S:Order:[id,product]
 ---
-products: @Product
-  |"prod-123",Widget
-  |"prod-456",Gadget
+products:@Product
+ |"prod-123",Widget
+ |"prod-456",Gadget
 
-orders: @Order
-  |order1,@Product:prod-123
-  |order2,@Product:prod-456
+orders:@Order
+ |order1,@Product:prod-123
+ |order2,@Product:prod-456
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -863,21 +877,23 @@ orders: @Order
     );
 }
 
-// Integration test: Verify the ACTUAL bugs mentioned in the issue are fixed
+// Integration tests for rename edge cases
 #[test]
-fn test_issue_rename_preserves_at_type_prefix() {
-    // HIGH PRIORITY BUG #1: When renaming a type that appears with @Type: prefix,
-    // the rename operation should NOT drop the @ character.
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,author]
+fn test_rename_preserves_at_type_prefix() {
+    // When renaming a type that appears with @Type: prefix,
+    // the rename operation must NOT drop the @ character.
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,author]
 ---
-users: @User
-  |alice,Alice
+users:@User
+ |alice,Alice
 
-posts: @Post
-  |post1,@User:alice
-";
+posts:@Post
+ |post1,@User:alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = test_uri();
@@ -930,22 +946,24 @@ posts: @Post
 }
 
 #[test]
-fn test_issue_rename_works_for_quoted_ids() {
-    // HIGH PRIORITY BUG #2: Renaming should work for IDs with special characters
+fn test_rename_works_for_quoted_ids() {
+    // Renaming must work for IDs with special characters
     // that require quoting, especially in single-column lists
-    let content = r#"%VERSION: 1.0
-%STRUCT: Item: [id,name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Item:[id,name]
 ---
-items: @Item
-  |"my-special-id",Widget
-  |normal_id,Gadget
+items:@Item
+ |"my-special-id",Widget
+ |normal_id,Gadget
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Should be able to identify the quoted ID
     let position = Position {
-        line: 4,
+        line: 6,
         character: 5, // Inside "my-special-id"
     };
 
@@ -981,22 +999,24 @@ items: @Item
 }
 
 #[test]
-fn test_issue_rename_works_for_single_column_lists() {
-    // HIGH PRIORITY BUG #2 continued: Single-column lists should work correctly
-    let content = r#"%VERSION: 1.0
-%STRUCT: Tag: [id]
+fn test_rename_works_for_single_column_lists() {
+    // Single-column lists should work correctly for rename operations
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Tag:[id]
 ---
-tags: @Tag
-  |important
-  |urgent
-  |"low-priority"
+tags:@Tag
+ |important
+ |urgent
+ |"low-priority"
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Test unquoted ID in single column
     let position1 = Position {
-        line: 4,
+        line: 6,
         character: 3, // Inside "important"
     };
 
@@ -1008,7 +1028,7 @@ tags: @Tag
 
     // Test quoted ID in single column
     let position2 = Position {
-        line: 6,
+        line: 8,
         character: 5, // Inside "low-priority"
     };
 
@@ -1026,19 +1046,21 @@ tags: @Tag
 #[test]
 fn test_rename_hyphenated_id_in_single_column() {
     // Test that we can identify and rename hyphenated IDs in single-column lists
-    let content = r"%VERSION: 1.0
-%STRUCT: Resource: [id]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Resource:[id]
 ---
-resources: @Resource
-  |my-resource-1
-  |my-resource-2
-";
+resources:@Resource
+ |my-resource-1
+ |my-resource-2
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
-    // Position on "my-resource-1" (line 4, 0-indexed)
+    // Position on "my-resource-1" (line 6, 0-indexed)
     let position = Position {
-        line: 4,
+        line: 6,
         character: 3, // Inside "my-resource-1"
     };
 
@@ -1058,16 +1080,18 @@ resources: @Resource
 fn test_apply_rename_type_with_at_prefix() {
     // This test actually applies the rename and checks the resulting text
     // to verify @Type: prefix is preserved
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,author]
 ---
-users: @User
-  |alice,Alice
+users:@User
+ |alice,Alice
 
-posts: @Post
-  |post1,@User:alice
-";
+posts:@Post
+ |post1,@User:alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let uri = test_uri();
@@ -1126,13 +1150,13 @@ posts: @Post
 
     // Check matrix declaration has @Person
     assert!(
-        result.contains("users: @Person"),
-        "Matrix declaration should be 'users: @Person', got:\n{result}"
+        result.contains("users:@Person"),
+        "Matrix declaration should be 'users:@Person', got:\n{result}"
     );
 
     // Check STRUCT has Person
     assert!(
-        result.contains("%STRUCT: Person:"),
-        "STRUCT should be '%STRUCT: Person:', got:\n{result}"
+        result.contains("%S:Person:"),
+        "STRUCT should be '%S:Person:', got:\n{result}"
     );
 }

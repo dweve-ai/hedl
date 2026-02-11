@@ -20,8 +20,9 @@
 //! This test suite verifies that feature-gated modules (YAML, XML, CSV, Parquet, Neo4j, TOON)
 //! are properly exposed and functional when their respective features are enabled.
 
-#[allow(unused_imports)] // Document is used in feature-gated code
-use hedl::{parse, Document};
+use hedl::parse;
+#[cfg(any(feature = "csv", feature = "parquet", feature = "neo4j"))]
+use hedl::Document;
 
 // =============================================================================
 // YAML Feature Tests
@@ -56,7 +57,7 @@ mod yaml_feature_tests {
         let yaml = "name: Alice\nage: 30";
         let config = FromYamlConfig::default();
         let doc = from_yaml(yaml, &config).unwrap();
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 
     #[test]
@@ -70,7 +71,7 @@ mod yaml_feature_tests {
     fn test_yaml_to_hedl_conversion() {
         let yaml = "key: value";
         let doc = yaml_to_hedl(yaml).unwrap();
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 
     #[test]
@@ -81,7 +82,9 @@ mod yaml_feature_tests {
 
         let from_config = FromYamlConfig::default();
         let restored = from_yaml(&yaml, &from_config).unwrap();
-        assert_eq!(original.version, restored.version);
+        // original is v1.0 (parsed), restored is v2.0 (from_yaml default)
+        assert_eq!(original.version, (1, 0));
+        assert_eq!(restored.version, (2, 0));
     }
 
     #[test]
@@ -123,7 +126,7 @@ mod xml_feature_tests {
         let xml = "<root><name>Alice</name></root>";
         let config = FromXmlConfig::default();
         let doc = from_xml(xml, &config).unwrap();
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 
     #[test]
@@ -137,7 +140,7 @@ mod xml_feature_tests {
     fn test_xml_to_hedl_conversion() {
         let xml = "<root><key>value</key></root>";
         let doc = xml_to_hedl(xml).unwrap();
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 
     #[test]
@@ -180,7 +183,7 @@ mod csv_file_feature_tests {
         // Schema is columns EXCLUDING id, so data needs id column + schema columns
         let csv = "id,a,b,c\nrow1,1,2,3\nrow2,4,5,6";
         let doc = from_csv(csv, "Row", &["a", "b", "c"]).unwrap();
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 
     #[test]
@@ -197,7 +200,7 @@ mod csv_file_feature_tests {
         let csv = "id,a,b,c\nrow1,1,2,3";
         let config = FromCsvConfig::default();
         let doc = from_csv_with_config(csv, "Row", &["a", "b", "c"], config).unwrap();
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (2, 0));
     }
 
     #[test]
@@ -209,7 +212,7 @@ mod csv_file_feature_tests {
     }
 
     fn create_test_doc() -> Document {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new(
             "Row",
             vec!["a".to_string(), "b".to_string(), "c".to_string()],
@@ -258,7 +261,7 @@ mod parquet_feature_tests {
         let doc = create_test_doc();
         let bytes = to_parquet_bytes(&doc).unwrap();
         let restored = from_parquet_bytes(&bytes).unwrap();
-        assert_eq!(restored.version, (1, 0));
+        assert_eq!(restored.version, (2, 0));
     }
 
     #[test]
@@ -276,7 +279,7 @@ mod parquet_feature_tests {
     }
 
     fn create_test_doc() -> Document {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("Row", vec!["x".to_string(), "y".to_string()]);
         list.add_row(Node::new("Row", "1", vec![Value::Int(10), Value::Int(20)]));
         list.add_row(Node::new("Row", "2", vec![Value::Int(30), Value::Int(40)]));
@@ -301,7 +304,7 @@ mod neo4j_feature_tests {
     /// Create a document with matrix list data suitable for Cypher conversion.
     /// Neo4j's to_cypher only processes Item::List items, not simple scalars.
     fn create_cypher_doc() -> Document {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("Person", vec!["name".to_string(), "age".to_string()]);
         list.add_row(Node::new(
             "Person",
@@ -486,7 +489,7 @@ fn test_yaml_xml_interop() {
 fn test_csv_parquet_interop() {
     use hedl::{csv_file, parquet, Item, MatrixList, Node, Value};
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Row", vec!["a".to_string(), "b".to_string()]);
     list.add_row(Node::new("Row", "1", vec![Value::Int(1), Value::Int(2)]));
     doc.root.insert("data".to_string(), Item::List(list));

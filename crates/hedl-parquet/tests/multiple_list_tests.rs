@@ -27,7 +27,7 @@ use hedl_parquet::{from_parquet_bytes, to_parquet_bytes};
 
 #[test]
 fn test_single_matrix_list_succeeds() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
 
     list.add_row(Node::new(
@@ -47,7 +47,7 @@ fn test_single_matrix_list_succeeds() {
 
 #[test]
 fn test_two_matrix_lists_writes_first() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create first matrix list
     let mut users = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
@@ -102,7 +102,7 @@ fn test_two_matrix_lists_writes_first() {
 
 #[test]
 fn test_three_matrix_lists_writes_first() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create three matrix lists
     let mut list1 = MatrixList::new("Type1", vec!["id".to_string()]);
@@ -144,7 +144,7 @@ fn test_three_matrix_lists_writes_first() {
 
 #[test]
 fn test_warning_printed_for_multiple_lists() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list1 = MatrixList::new("User", vec!["id".to_string()]);
     list1.add_row(Node::new("User", "a", vec![Value::String("a".into())]));
@@ -163,7 +163,7 @@ fn test_warning_printed_for_multiple_lists() {
 
 #[test]
 fn test_mixed_items_single_list_succeeds() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Add scalar items
     doc.root.insert(
@@ -194,7 +194,7 @@ fn test_mixed_items_single_list_succeeds() {
 
 #[test]
 fn test_mixed_items_multiple_lists_writes_first() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Add scalar items
     doc.root.insert(
@@ -221,7 +221,7 @@ fn test_mixed_items_multiple_lists_writes_first() {
 
 #[test]
 fn test_deterministic_first_selection() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list1 = MatrixList::new("A", vec!["id".to_string()]);
     list1.add_row(Node::new("A", "first", vec![Value::String("first".into())]));
@@ -240,7 +240,7 @@ fn test_deterministic_first_selection() {
     let result1 = to_parquet_bytes(&doc).unwrap();
 
     // Create same doc with different insertion order
-    let mut doc2 = Document::new((1, 0));
+    let mut doc2 = Document::new((2, 0));
     let mut list1 = MatrixList::new("A", vec!["id".to_string()]);
     list1.add_row(Node::new("A", "first", vec![Value::String("first".into())]));
     let mut list2 = MatrixList::new("B", vec!["id".to_string()]);
@@ -271,7 +271,7 @@ fn test_deterministic_first_selection() {
 
 #[test]
 fn test_empty_lists_also_counted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Two empty matrix lists
     let list1 = MatrixList::new("Empty1", vec!["id".to_string()]);
@@ -290,7 +290,7 @@ fn test_empty_lists_also_counted() {
 
 #[test]
 fn test_zero_matrix_lists_with_scalars_succeeds() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Only scalar items
     doc.root.insert(
@@ -306,7 +306,7 @@ fn test_zero_matrix_lists_with_scalars_succeeds() {
 
 #[test]
 fn test_behavior_suggestion_for_multiple_lists() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list1 = MatrixList::new("User", vec!["id".to_string()]);
     list1.add_row(Node::new("User", "a", vec![Value::String("a".into())]));

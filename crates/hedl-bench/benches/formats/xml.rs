@@ -27,7 +27,7 @@
 //! - Compression compatibility testing
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hedl_bench::helpers::{compare_sizes, measure_throughput_ns};
+use hedl_bench::benchmark_utilities::{compare_sizes, measure_throughput_ns};
 use hedl_bench::{
     count_tokens, generate_blog, generate_orders, generate_products, generate_users, sizes,
     BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -1560,7 +1560,24 @@ fn generate_insights(
 
 fn bench_export(c: &mut Criterion) {
     let mut group = c.benchmark_group("export");
-    group.bench_function("finalize", |b| b.iter(|| 1 + 1));
+
+    // Benchmark report serialization - measures actual XML report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "xml_conversion".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(4096),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = black_box(&sample_report).to_json().unwrap();
+            black_box(json)
+        })
+    });
+
     group.finish();
 
     export_reports();

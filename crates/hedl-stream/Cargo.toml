@@ -49,6 +49,7 @@ workspace = true
 
 [dependencies]
 hedl-core = { workspace = true }
+memchr = { workspace = true }
 thiserror = { workspace = true }
 
 tokio = { workspace = true, optional = true }

@@ -163,7 +163,8 @@
 
 #![cfg_attr(not(test), warn(missing_docs))]
 mod error;
-mod from_csv;
+/// CSV to HEDL conversion.
+pub mod from_csv;
 mod to_csv;
 
 // Re-export public API

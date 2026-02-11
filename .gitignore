@@ -1,6 +1,7 @@
 # Build artifacts
 /target/
 **/*.rs.bk
+**/target
 
 # Cargo
 Cargo.lock
@@ -75,13 +76,7 @@ logs/
 
 # Proptest regressions
 *.proptest-regressions
-.backup
 crates/hedl-bench/target/
 
-# Dweve
-.analysis
-.plan
-
-# Deprecated files
-.deprecated/
-*.proptest-regressions
+# Dweve internal project tracking
+.dweve/

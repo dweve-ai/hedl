@@ -36,8 +36,8 @@ import (
 func main() {
     // Parse HEDL content
     doc, err := hedl.Parse(`
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User
   | alice, Alice Smith, alice@example.com

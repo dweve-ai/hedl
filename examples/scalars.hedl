@@ -1,0 +1,27 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates all scalar types in HEDL
+# Includes: string, integer, float, boolean, null
+---
+# String values
+name: HEDL
+description: "Hierarchical Entity Data Language"
+multiword: "hello world"
+
+# Integer values
+count: 42
+negative: -17
+zero: 0
+
+# Float values
+pi: 3.14159
+scientific: 1.23e-4
+negative_float: -2.5
+
+# Boolean values
+enabled: true
+disabled: false
+
+# Null value
+optional: ~

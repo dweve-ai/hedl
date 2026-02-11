@@ -86,7 +86,7 @@
 //! use hedl_xml::{to_xml, ToXmlConfig};
 //! use std::collections::BTreeMap;
 //!
-//! let mut doc = Document::new((1, 0));
+//! let mut doc = Document::new((2, 0));
 //! doc.root.insert("name".to_string(), Item::Scalar(Value::String("example".to_string().into())));
 //!
 //! let config = ToXmlConfig::default();
@@ -189,12 +189,16 @@
 
 #![cfg_attr(not(test), warn(missing_docs))]
 mod from_xml;
+/// XML schema support.
 pub mod schema;
+/// XML security validation.
 pub mod security;
+/// Streaming XML parsing.
 pub mod streaming;
 mod to_xml;
 
 #[cfg(feature = "async")]
+/// Async XML API.
 pub mod async_api;
 
 pub use from_xml::{from_xml, EntityPolicy, FromXmlConfig};
@@ -223,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_round_trip_scalars() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("null_val".to_string(), Item::Scalar(Value::Null));
         doc.root
@@ -256,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_round_trip_object() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut inner = BTreeMap::new();
         inner.insert(
             "name".to_string(),
@@ -281,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_round_trip_reference() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "ref1".to_string(),
             Item::Scalar(Value::Reference(Reference::local("user123"))),
@@ -308,7 +312,7 @@ mod tests {
     fn test_round_trip_expression() {
         use hedl_core::lex::{ExprLiteral, Expression, Span};
 
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let expr = Expression::Call {
             name: "add".to_string(),
             args: vec![
@@ -342,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_matrix_list() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
 
         let node1 = Node::new(
@@ -375,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_special_characters_escaping() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "text".to_string(),
             Item::Scalar(Value::String(
@@ -395,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_nested_objects() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let mut level2 = BTreeMap::new();
         level2.insert(
@@ -416,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_config_pretty_print() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "test".to_string(),
             Item::Scalar(Value::String("value".to_string().into())),
@@ -442,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_config_custom_root() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
 
         let config = ToXmlConfig {
             root_element: "custom_root".to_string(),
@@ -469,7 +473,7 @@ mod tests {
 
     #[test]
     fn test_empty_values() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("empty".to_string(), Item::Scalar(Value::Null));
 
@@ -483,7 +487,7 @@ mod tests {
     fn test_tensor_values() {
         use hedl_core::lex::Tensor;
 
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let tensor = Tensor::Array(vec![
             Tensor::Scalar(1.0),
             Tensor::Scalar(2.0),

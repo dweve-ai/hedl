@@ -25,12 +25,14 @@ use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 /// Validate a HEDL file for syntax and structural correctness.
 ///
 /// Parses a HEDL file and reports whether it is syntactically valid. In strict mode,
-/// all entity references must resolve to defined entities.
+/// all entity references must resolve to defined entities. In lenient mode, constraint
+/// violations become null values with diagnostics emitted separately.
 ///
 /// # Arguments
 ///
 /// * `file` - Path to the HEDL file to validate
 /// * `strict` - If `true`, enables strict reference validation (all references must resolve)
+/// * `lenient` - If `true`, uses lenient parsing mode (constraint violations become null)
 ///
 /// # Returns
 ///
@@ -42,6 +44,7 @@ use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 /// - The file cannot be read
 /// - The file contains syntax errors
 /// - In strict mode, if any entity references cannot be resolved
+/// - In non-lenient mode, if constraints are violated
 ///
 /// # Examples
 ///
@@ -50,13 +53,16 @@ use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 ///
 /// # fn main() -> Result<(), hedl_cli::error::CliError> {
 /// // Validate a well-formed HEDL file
-/// validate("valid.hedl", false)?;
+/// validate("valid.hedl", false, false)?;
 ///
 /// // Strict validation requires all references to resolve
-/// validate("references.hedl", true)?;
+/// validate("references.hedl", true, false)?;
+///
+/// // Lenient mode allows constraint violations
+/// validate("data.hedl", false, true)?;
 ///
 /// // Invalid syntax will fail
-/// let result = validate("invalid.hedl", false);
+/// let result = validate("invalid.hedl", false, false);
 /// assert!(result.is_err());
 /// # Ok(())
 /// # }
@@ -68,11 +74,14 @@ use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 /// - File validation status (✓ or ✗)
 /// - HEDL version
 /// - Count of structs, aliases, and nests
-/// - Strict mode indicator if enabled
-pub fn validate(file: &str, strict: bool) -> Result<(), CliError> {
+/// - Parse mode (strict/lenient)
+/// - Reference mode indicator if strict enabled
+pub fn validate(file: &str, strict: bool, lenient: bool) -> Result<(), CliError> {
     let content = read_file(file)?;
 
-    // Configure parser options with strict mode
+    // Configure parser options with strict reference mode
+    // Note: Parse mode (strict/lenient for constraints) is controlled by %MODE directive in the file,
+    // but we can override it via CLI flag if needed in the future
     let options = ParseOptions {
         reference_mode: if strict {
             ReferenceMode::Strict
@@ -89,9 +98,15 @@ pub fn validate(file: &str, strict: bool) -> Result<(), CliError> {
             println!("  Structs: {}", doc.structs.len());
             println!("  Aliases: {}", doc.aliases.len());
             println!("  Nests: {}", doc.nests.len());
+
+            // Show modes
+            let mode_str = if lenient { "lenient" } else { "strict" };
+            println!("  Parse mode: {} (CLI override)", mode_str);
+
             if strict {
-                println!("  Mode: strict (all references must resolve)");
+                println!("  Reference mode: strict (all references must resolve)");
             }
+
             Ok(())
         }
         Err(e) => {

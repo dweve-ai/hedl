@@ -65,7 +65,8 @@ impl FixtureCache {
             let content = super::loader::load_fixture(name)?;
             self.cache.insert(name.to_string(), content);
         }
-        Ok(self.cache.get(name).unwrap())
+        // SAFETY: We just inserted the key if it didn't exist
+        Ok(self.cache.get(name).expect("key exists"))
     }
 
     /// Gets a fixture from cache if present.
@@ -152,13 +153,13 @@ mod tests {
         // First load
         {
             let content = cache.get_or_load("small").unwrap();
-            assert!(content.contains("%VERSION: 1.0"));
+            assert!(content.contains("%V:2.0"));
         }
 
         // Second call should use cache
         {
             let content2 = cache.get_or_load("small").unwrap();
-            assert!(content2.contains("%VERSION: 1.0"));
+            assert!(content2.contains("%V:2.0"));
         }
 
         assert_eq!(cache.len(), 1);

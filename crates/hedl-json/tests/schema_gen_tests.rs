@@ -26,9 +26,14 @@ use serde_json::{json, Value as JsonValue};
 /// Helper to parse HEDL from string
 fn parse_hedl(input: &str) -> hedl_core::Document {
     // Prepend HEDL header if not present, or separate header from body if needed
-    let hedl = if input.contains("%VERSION") || input.starts_with("%HEDL") {
+    let hedl = if input.contains("%VERSION") || input.contains("%V:") || input.starts_with("%HEDL")
+    {
         input.to_string()
-    } else if input.contains("%STRUCT") || input.contains("%NEST") {
+    } else if input.contains("%STRUCT")
+        || input.contains("%NEST")
+        || input.contains("%S:")
+        || input.contains("%N:")
+    {
         // Has directives but no VERSION - add VERSION and ensure separator
         let (header, body) = if input.contains("---") {
             let parts: Vec<&str> = input.splitn(2, "---").collect();
@@ -52,9 +57,9 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
             }
             (header_lines.join("\n"), body_lines.join("\n"))
         };
-        format!("%VERSION: 1.0\n{header}\n---\n{body}")
+        format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n{header}\n---\n{body}")
     } else {
-        format!("%VERSION: 1.0\n---\n{input}")
+        format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{input}")
     };
     parse(hedl.as_bytes()).unwrap()
 }
@@ -156,9 +161,9 @@ string_val: "hello"
 #[test]
 fn test_reference_type() {
     let hedl = r"
-%STRUCT: User: [id, name]
-users: @User
-  |u123, Alice
+%S:User:[id,name]
+users:@User
+ |u123, Alice
 owner: @User:u123
 ";
     let doc = parse_hedl(hedl);
@@ -211,9 +216,9 @@ array: [[1.0, 2.0], [3.0, 4.0]]
 #[test]
 fn test_struct_definition() {
     let hedl = r"
-%STRUCT: User: [id, name, email]
-users: @User
-  |u1, Alice, alice@example.com
+%S:User:[id,name,email]
+users:@User
+ |u1, Alice, alice@example.com
 ";
 
     let doc = parse_hedl(hedl);
@@ -234,9 +239,9 @@ users: @User
 #[test]
 fn test_struct_required_fields() {
     let hedl = r"
-%STRUCT: User: [id, name]
-users: @User
-  |u1, Alice
+%S:User:[id,name]
+users:@User
+ |u1, Alice
 ";
 
     let doc = parse_hedl(hedl);
@@ -253,12 +258,12 @@ users: @User
 #[test]
 fn test_multiple_structs() {
     let hedl = r"
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
-%STRUCT: Comment: [id, text]
+%S:User:[id,name]
+%S:Post:[id,title]
+%S:Comment:[id,text]
 
-users: @User
-  |u1, Alice
+users:@User
+ |u1, Alice
 ";
 
     let doc = parse_hedl(hedl);
@@ -274,9 +279,9 @@ users: @User
 #[test]
 fn test_matrix_list_references_definition() {
     let hedl = r"
-%STRUCT: Product: [id, name, price]
-products: @Product
-  |p1, Widget, 9.99
+%S:Product:[id,name,price]
+products:@Product
+ |p1, Widget, 9.99
 ";
 
     let doc = parse_hedl(hedl);
@@ -299,12 +304,12 @@ products: @Product
 #[test]
 fn test_nest_relationship() {
     let hedl = r"
-%STRUCT: Team: [id, name]
-%STRUCT: Member: [id, name]
-%NEST: Team > Member
+%S:Team:[id,name]
+%S:Member:[id,name]
+%N:Team>Member
 
-teams: @Team
-  |t1, Engineering
+teams:@Team
+ |t1, Engineering
 ";
 
     let doc = parse_hedl(hedl);
@@ -330,12 +335,12 @@ teams: @Team
 #[test]
 fn test_nested_children_array() {
     let hedl = r"
-%STRUCT: Department: [id, name]
-%STRUCT: Employee: [id, name]
-%NEST: Department > Employee
+%S:Department:[id,name]
+%S:Employee:[id,name]
+%N:Department>Employee
 
-departments: @Department
-  |d1, Engineering
+departments:@Department
+ |d1, Engineering
 ";
 
     let doc = parse_hedl(hedl);
@@ -411,9 +416,9 @@ fn test_config_strict_mode() {
 #[test]
 fn test_config_strict_mode_in_definitions() {
     let hedl = r"
-%STRUCT: User: [id, name]
-users: @User
-  |u1, Alice
+%S:User:[id,name]
+users:@User
+ |u1, Alice
 ";
 
     let doc = parse_hedl(hedl);
@@ -531,9 +536,9 @@ fn test_validate_invalid_type() {
 #[test]
 fn test_validate_generated_schema() {
     let hedl = r"
-%STRUCT: User: [id, name, email]
-users: @User
-  |u1, Alice, alice@example.com
+%S:User:[id,name,email]
+users:@User
+ |u1, Alice, alice@example.com
 ";
 
     let doc = parse_hedl(hedl);
@@ -556,9 +561,9 @@ users: @User
 #[test]
 fn test_infer_email_field() {
     let hedl = r"
-%STRUCT: User: [id, email]
-users: @User
-  |u1, alice@example.com
+%S:User:[id,email]
+users:@User
+ |u1, alice@example.com
 ";
 
     let doc = parse_hedl(hedl);
@@ -575,9 +580,9 @@ users: @User
 #[test]
 fn test_infer_url_field() {
     let hedl = r"
-%STRUCT: Site: [id, url]
-sites: @Site
-  |s1, https://example.com
+%S:Site:[id,url]
+sites:@Site
+ |s1, https://example.com
 ";
 
     let doc = parse_hedl(hedl);
@@ -594,9 +599,9 @@ sites: @Site
 #[test]
 fn test_infer_date_field() {
     let hedl = r"
-%STRUCT: Event: [id, created_at]
-events: @Event
-  |e1, 2024-01-01T00:00:00Z
+%S:Event:[id,created_at]
+events:@Event
+ |e1, 2024-01-01T00:00:00Z
 ";
 
     let doc = parse_hedl(hedl);
@@ -616,9 +621,9 @@ events: @Event
 #[test]
 fn test_infer_boolean_field() {
     let hedl = r"
-%STRUCT: User: [id, is_active]
-users: @User
-  |u1, true
+%S:User:[id,is_active]
+users:@User
+ |u1, true
 ";
 
     let doc = parse_hedl(hedl);
@@ -641,10 +646,10 @@ users: @User
 fn test_nested_objects() {
     let hedl = r"
 user:
-  name: Alice
-  address:
-    city: Seattle
-    zip: 98101
+ name: Alice
+ address:
+  city: Seattle
+  zip: 98101
 ";
 
     let doc = parse_hedl(hedl);
@@ -665,10 +670,10 @@ user:
 fn test_deep_nesting() {
     let hedl = r"
 root:
-  level1:
-    level2:
-      level3:
-        value: deep
+ level1:
+  level2:
+   level3:
+    value: deep
 ";
 
     let doc = parse_hedl(hedl);
@@ -683,7 +688,7 @@ root:
 
 #[test]
 fn test_empty_struct() {
-    let mut doc = hedl_core::Document::new((1, 0));
+    let mut doc = hedl_core::Document::new((2, 0));
     doc.structs.insert("Empty".to_string(), vec![]);
 
     let schema = generate_schema_value(&doc, &SchemaConfig::default()).unwrap();
@@ -694,9 +699,9 @@ fn test_empty_struct() {
 #[test]
 fn test_special_characters_in_field_names() {
     let hedl = r"
-%STRUCT: User: [id, user_name, email_address]
-users: @User
-  |u1, Alice, alice@example.com
+%S:User:[id,user_name,email_address]
+users:@User
+ |u1, Alice, alice@example.com
 ";
 
     let doc = parse_hedl(hedl);
@@ -726,24 +731,24 @@ fn test_unicode_in_values() {
 #[test]
 fn test_complete_api_schema() {
     let hedl = r#"
-%STRUCT: User: [id, name, email, created_at]
-%STRUCT: Post: [id, title, content, author_id]
-%STRUCT: Comment: [id, text, post_id, user_id]
+%S:User:[id,name,email,created_at]
+%S:Post:[id,title,content,author_id]
+%S:Comment:[id,text,post_id,user_id]
 
-%NEST: User > Post
-%NEST: Post > Comment
+%N:User>Post
+%N:Post>Comment
 
-users: @User
-  |u1, Alice, alice@example.com, 2024-01-01T00:00:00Z
-  |u2, Bob, bob@example.com, 2024-01-02T00:00:00Z
+users:@User
+ |u1, Alice, alice@example.com, 2024-01-01T00:00:00Z
+ |u2, Bob, bob@example.com, 2024-01-02T00:00:00Z
 
-posts: @Post
-  |p1, "Hello World", "First post", u1
-  |p2, "Second Post", "More content", u2
+posts:@Post
+ |p1, "Hello World", "First post", u1
+ |p2, "Second Post", "More content", u2
 
-comments: @Comment
-  |c1, "Nice post!", p1, u2
-  |c2, "Thanks!", p1, u1
+comments:@Comment
+ |c1, "Nice post!", p1, u2
+ |c2, "Thanks!", p1, u1
 "#;
 
     let doc = parse_hedl(hedl);
@@ -793,9 +798,9 @@ comments: @Comment
 #[test]
 fn test_schema_serialization() {
     let hedl = r"
-%STRUCT: Product: [id, name, price]
-products: @Product
-  |p1, Widget, 9.99
+%S:Product:[id,name,price]
+products:@Product
+ |p1, Widget, 9.99
 ";
 
     let doc = parse_hedl(hedl);
@@ -812,9 +817,9 @@ products: @Product
 #[test]
 fn test_roundtrip_schema_generation() {
     let hedl = r"
-%STRUCT: User: [id, name, age]
-users: @User
-  |u1, Alice, 30
+%S:User:[id,name,age]
+users:@User
+ |u1, Alice, 30
 ";
 
     let doc = parse_hedl(hedl);

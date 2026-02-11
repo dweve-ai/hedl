@@ -92,7 +92,7 @@ members = [
 ]
 
 [workspace.dependencies]
-hedl-protobuf = { version = "1.0.0", path = "crates/hedl-protobuf" }
+hedl-protobuf = { version = "2.0.0", path = "crates/hedl-protobuf" }
 ```
 
 5. **Optional: Integrate with facade**:
@@ -226,7 +226,7 @@ cargo new --lib crates/hedl-python
 ```toml
 [package]
 name = "hedl-python"
-version = "1.0.0"
+version = "2.0.0"
 
 [dependencies]
 hedl.workspace = true

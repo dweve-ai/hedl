@@ -28,7 +28,7 @@ use std::hint::black_box;
 /// Creates a table with `num_rows` rows and `num_columns` columns.
 /// Data types are varied to simulate real-world tables.
 fn generate_table(num_rows: usize, num_columns: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Build schema: id + col1, col2, col3, ...
     let mut schema = vec!["id".to_string()];
@@ -225,7 +225,7 @@ fn bench_string_heavy_table(c: &mut Criterion) {
     let mut group = c.benchmark_group("string_heavy_table");
 
     // Generate table with mostly string columns
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let num_columns = 30;
     let num_rows = 5_000;
 

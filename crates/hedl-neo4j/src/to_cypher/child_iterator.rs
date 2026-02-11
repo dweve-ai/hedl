@@ -32,9 +32,6 @@ const DEFAULT_MAX_NEST_DEPTH: usize = 100;
 
 /// Iterator state for depth-first NEST traversal.
 struct TraversalFrame<'a> {
-    /// The current node being traversed (stored for potential debugging/logging)
-    #[allow(dead_code)]
-    node: &'a Node,
     /// Iterator over children collections in the node
     children_iter: std::collections::btree_map::Iter<'a, String, Vec<Node>>,
     /// Current children vector being processed
@@ -106,7 +103,6 @@ impl<'a> ChildNodeIterator<'a> {
                 if !children_map.is_empty() {
                     // Push parent to stack for traversal
                     self.stack.push(TraversalFrame {
-                        node: parent,
                         children_iter: children_map.iter(),
                         current_children: None,
                         depth: 0,
@@ -166,7 +162,6 @@ impl<'a> ChildNodeIterator<'a> {
                 if let Some(child_children) = child.children() {
                     if !child_children.is_empty() {
                         self.stack.push(TraversalFrame {
-                            node: child,
                             children_iter: child_children.iter(),
                             current_children: None,
                             depth: child_depth,

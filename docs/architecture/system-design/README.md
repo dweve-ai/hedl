@@ -20,16 +20,36 @@ This section covers the high-level system design patterns and architectural deci
 
 HEDL follows a strict layered design where dependencies flow inward:
 
-```
-┌─────────────────────────────────────┐
-│   Application Layer (CLI, LSP)     │
-├─────────────────────────────────────┤
-│   Bindings Layer (FFI, WASM)       │
-├─────────────────────────────────────┤
-│   Format Layer (JSON, YAML, etc)   │
-├─────────────────────────────────────┤
-│   Core Layer (Parser, AST)         │
-└─────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph App["Application Layer"]
+        CLI["CLI"]
+        LSP["LSP"]
+    end
+
+    subgraph Bindings["Bindings Layer"]
+        FFI["FFI"]
+        WASM["WASM"]
+    end
+
+    subgraph Formats["Format Layer"]
+        JSON["JSON"]
+        YAML["YAML"]
+        XML["XML"]
+        CSV["CSV"]
+    end
+
+    subgraph Core["Core Layer"]
+        PARSER["Parser"]
+        AST["AST"]
+    end
+
+    App --> Bindings --> Formats --> Core
+
+    style App fill:#e3f2fd,stroke:#1565c0
+    style Bindings fill:#e8f5e9,stroke:#2e7d32
+    style Formats fill:#fff3e0,stroke:#ef6c00
+    style Core fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
 ```
 
 Each layer:

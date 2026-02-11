@@ -1,0 +1,2189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<financial_transactions>
+  <customers>
+    <customer id="cust-001">
+      <name>James Wilson</name>
+      <email>james.wilson@email.com</email>
+      <phone>555-0101</phone>
+      <address>123 Oak Street</address>
+      <city>New York</city>
+      <state>NY</state>
+      <zip>10001</zip>
+      <dob>1975-03-15</dob>
+      <ssn_last4>4521</ssn_last4>
+      <risk_score>720</risk_score>
+      <created_date>2018-06-15</created_date>
+    </customer>
+    <customer id="cust-002">
+      <name>Maria Garcia</name>
+      <email>maria.garcia@email.com</email>
+      <phone>555-0102</phone>
+      <address>456 Maple Ave</address>
+      <city>Los Angeles</city>
+      <state>CA</state>
+      <zip>90001</zip>
+      <dob>1982-07-22</dob>
+      <ssn_last4>8934</ssn_last4>
+      <risk_score>680</risk_score>
+      <created_date>2019-01-20</created_date>
+    </customer>
+    <customer id="cust-003">
+      <name>Robert Chen</name>
+      <email>robert.chen@email.com</email>
+      <phone>555-0103</phone>
+      <address>789 Pine Road</address>
+      <city>Chicago</city>
+      <state>IL</state>
+      <zip>60601</zip>
+      <dob>1968-11-08</dob>
+      <ssn_last4>2156</ssn_last4>
+      <risk_score>785</risk_score>
+      <created_date>2015-09-10</created_date>
+    </customer>
+    <customer id="cust-004">
+      <name>Sarah Johnson</name>
+      <email>sarah.johnson@email.com</email>
+      <phone>555-0104</phone>
+      <address>321 Elm Lane</address>
+      <city>Houston</city>
+      <state>TX</state>
+      <zip>77001</zip>
+      <dob>1990-04-30</dob>
+      <ssn_last4>6743</ssn_last4>
+      <risk_score>650</risk_score>
+      <created_date>2020-03-05</created_date>
+    </customer>
+    <customer id="cust-005">
+      <name>Michael Brown</name>
+      <email>michael.brown@email.com</email>
+      <phone>555-0105</phone>
+      <address>654 Cedar Blvd</address>
+      <city>Phoenix</city>
+      <state>AZ</state>
+      <zip>85001</zip>
+      <dob>1955-09-12</dob>
+      <ssn_last4>1298</ssn_last4>
+      <risk_score>810</risk_score>
+      <created_date>2012-11-28</created_date>
+    </customer>
+    <customer id="cust-006">
+      <name>Emily Davis</name>
+      <email>emily.davis@email.com</email>
+      <phone>555-0106</phone>
+      <address>987 Birch Court</address>
+      <city>Philadelphia</city>
+      <state>PA</state>
+      <zip>19101</zip>
+      <dob>1985-12-03</dob>
+      <ssn_last4>5672</ssn_last4>
+      <risk_score>695</risk_score>
+      <created_date>2017-07-14</created_date>
+    </customer>
+    <customer id="cust-007">
+      <name>David Martinez</name>
+      <email>david.martinez@email.com</email>
+      <phone>555-0107</phone>
+      <address>147 Walnut Way</address>
+      <city>San Antonio</city>
+      <state>TX</state>
+      <zip>78201</zip>
+      <dob>1972-06-18</dob>
+      <ssn_last4>3489</ssn_last4>
+      <risk_score>740</risk_score>
+      <created_date>2016-04-22</created_date>
+    </customer>
+    <customer id="cust-008">
+      <name>Jennifer Lee</name>
+      <email>jennifer.lee@email.com</email>
+      <phone>555-0108</phone>
+      <address>258 Ash Drive</address>
+      <city>San Diego</city>
+      <state>CA</state>
+      <zip>92101</zip>
+      <dob>1988-02-25</dob>
+      <ssn_last4>7821</ssn_last4>
+      <risk_score>710</risk_score>
+      <created_date>2019-08-30</created_date>
+    </customer>
+    <customer id="cust-009">
+      <name>William Taylor</name>
+      <email>william.taylor@email.com</email>
+      <phone>555-0109</phone>
+      <address>369 Spruce Lane</address>
+      <city>Dallas</city>
+      <state>TX</state>
+      <zip>75201</zip>
+      <dob>1960-08-14</dob>
+      <ssn_last4>4156</ssn_last4>
+      <risk_score>755</risk_score>
+      <created_date>2014-02-18</created_date>
+    </customer>
+    <customer id="cust-010">
+      <name>Amanda White</name>
+      <email>amanda.white@email.com</email>
+      <phone>555-0110</phone>
+      <address>741 Poplar Street</address>
+      <city>San Jose</city>
+      <state>CA</state>
+      <zip>95101</zip>
+      <dob>1992-01-29</dob>
+      <ssn_last4>9234</ssn_last4>
+      <risk_score>620</risk_score>
+      <created_date>2021-05-12</created_date>
+    </customer>
+    <customer id="cust-011">
+      <name>Christopher Harris</name>
+      <email>christopher.harris@email.com</email>
+      <phone>555-0111</phone>
+      <address>852 Willow Ave</address>
+      <city>Austin</city>
+      <state>TX</state>
+      <zip>78701</zip>
+      <dob>1978-05-06</dob>
+      <ssn_last4>1567</ssn_last4>
+      <risk_score>770</risk_score>
+      <created_date>2013-10-05</created_date>
+    </customer>
+    <customer id="cust-012">
+      <name>Jessica Clark</name>
+      <email>jessica.clark@email.com</email>
+      <phone>555-0112</phone>
+      <address>963 Hickory Road</address>
+      <city>Jacksonville</city>
+      <state>FL</state>
+      <zip>32099</zip>
+      <dob>1995-10-17</dob>
+      <ssn_last4>8345</ssn_last4>
+      <risk_score>700</risk_score>
+      <created_date>2020-12-01</created_date>
+    </customer>
+    <customer id="cust-013">
+      <name>Daniel Lewis</name>
+      <email>daniel.lewis@email.com</email>
+      <phone>555-0113</phone>
+      <address>174 Chestnut Blvd</address>
+      <city>Fort Worth</city>
+      <state>TX</state>
+      <zip>76101</zip>
+      <dob>1965-12-22</dob>
+      <ssn_last4>2678</ssn_last4>
+      <risk_score>790</risk_score>
+      <created_date>2011-06-30</created_date>
+    </customer>
+    <customer id="cust-014">
+      <name>Michelle Robinson</name>
+      <email>michelle.robinson@email.com</email>
+      <phone>555-0114</phone>
+      <address>285 Magnolia Court</address>
+      <city>Columbus</city>
+      <state>OH</state>
+      <zip>43085</zip>
+      <dob>1983-03-08</dob>
+      <ssn_last4>5912</ssn_last4>
+      <risk_score>665</risk_score>
+      <created_date>2018-09-25</created_date>
+    </customer>
+    <customer id="cust-015">
+      <name>Joseph Walker</name>
+      <email>joseph.walker@email.com</email>
+      <phone>555-0115</phone>
+      <address>396 Dogwood Lane</address>
+      <city>Charlotte</city>
+      <state>NC</state>
+      <zip>28201</zip>
+      <dob>1970-07-14</dob>
+      <ssn_last4>3745</ssn_last4>
+      <risk_score>725</risk_score>
+      <created_date>2015-01-15</created_date>
+    </customer>
+    <customer id="cust-016">
+      <name>Elizabeth Hall</name>
+      <email>elizabeth.hall@email.com</email>
+      <phone>555-0116</phone>
+      <address>507 Redwood Drive</address>
+      <city>San Francisco</city>
+      <state>CA</state>
+      <zip>94102</zip>
+      <dob>1958-11-30</dob>
+      <ssn_last4>6189</ssn_last4>
+      <risk_score>800</risk_score>
+      <created_date>2010-08-20</created_date>
+    </customer>
+    <customer id="cust-017">
+      <name>Thomas Allen</name>
+      <email>thomas.allen@email.com</email>
+      <phone>555-0117</phone>
+      <address>618 Sequoia Way</address>
+      <city>Indianapolis</city>
+      <state>IN</state>
+      <zip>46201</zip>
+      <dob>1987-04-25</dob>
+      <ssn_last4>4523</ssn_last4>
+      <risk_score>735</risk_score>
+      <created_date>2016-11-08</created_date>
+    </customer>
+    <customer id="cust-018">
+      <name>Patricia Young</name>
+      <email>patricia.young@email.com</email>
+      <phone>555-0118</phone>
+      <address>729 Cypress Street</address>
+      <city>Seattle</city>
+      <state>WA</state>
+      <zip>98101</zip>
+      <dob>1993-09-11</dob>
+      <ssn_last4>7856</ssn_last4>
+      <risk_score>675</risk_score>
+      <created_date>2021-02-28</created_date>
+    </customer>
+    <customer id="cust-019">
+      <name>Richard King</name>
+      <email>richard.king@email.com</email>
+      <phone>555-0119</phone>
+      <address>840 Juniper Ave</address>
+      <city>Denver</city>
+      <state>CO</state>
+      <zip>80201</zip>
+      <dob>1962-02-17</dob>
+      <ssn_last4>1934</ssn_last4>
+      <risk_score>760</risk_score>
+      <created_date>2012-04-10</created_date>
+    </customer>
+    <customer id="cust-020">
+      <name>Linda Scott</name>
+      <email>linda.scott@email.com</email>
+      <phone>555-0120</phone>
+      <address>951 Sycamore Road</address>
+      <city>Washington</city>
+      <state>DC</state>
+      <zip>20001</zip>
+      <dob>1980-06-05</dob>
+      <ssn_last4>8267</ssn_last4>
+      <risk_score>705</risk_score>
+      <created_date>2017-03-22</created_date>
+    </customer>
+  </customers>
+  <accounts>
+    <account id="acc-001">
+      <customer>cust-001</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>15234.56</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2018-06-15</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-002">
+      <customer>cust-001</customer>
+      <type>savings</type>
+      <status>active</status>
+      <balance>48750.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.25</interest_rate>
+      <opened_date>2018-06-15</opened_date>
+      <last_activity>2024-03-08</last_activity>
+    </account>
+    <account id="acc-003">
+      <customer>cust-001</customer>
+      <type>investment</type>
+      <status>active</status>
+      <balance>125680.45</balance>
+      <currency>USD</currency>
+      <interest_rate>0</interest_rate>
+      <opened_date>2019-03-20</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-004">
+      <customer>cust-002</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>3456.78</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2019-01-20</opened_date>
+      <last_activity>2024-03-09</last_activity>
+    </account>
+    <account id="acc-005">
+      <customer>cust-002</customer>
+      <type>credit</type>
+      <status>active</status>
+      <balance>-2150.00</balance>
+      <currency>USD</currency>
+      <interest_rate>19.99</interest_rate>
+      <opened_date>2019-05-15</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-006">
+      <customer>cust-003</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>28945.12</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2015-09-10</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-007">
+      <customer>cust-003</customer>
+      <type>savings</type>
+      <status>active</status>
+      <balance>156780.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.50</interest_rate>
+      <opened_date>2015-09-10</opened_date>
+      <last_activity>2024-03-05</last_activity>
+    </account>
+    <account id="acc-008">
+      <customer>cust-003</customer>
+      <type>investment</type>
+      <status>active</status>
+      <balance>892450.78</balance>
+      <currency>USD</currency>
+      <interest_rate>0</interest_rate>
+      <opened_date>2016-01-15</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-009">
+      <customer>cust-004</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>1245.89</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2020-03-05</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-010">
+      <customer>cust-004</customer>
+      <type>credit</type>
+      <status>active</status>
+      <balance>-4580.25</balance>
+      <currency>USD</currency>
+      <interest_rate>22.99</interest_rate>
+      <opened_date>2020-06-10</opened_date>
+      <last_activity>2024-03-09</last_activity>
+    </account>
+    <account id="acc-011">
+      <customer>cust-005</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>45678.90</balance>
+      <currency>USD</currency>
+      <interest_rate>0.03</interest_rate>
+      <opened_date>2012-11-28</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-012">
+      <customer>cust-005</customer>
+      <type>savings</type>
+      <status>active</status>
+      <balance>234500.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.75</interest_rate>
+      <opened_date>2012-11-28</opened_date>
+      <last_activity>2024-03-01</last_activity>
+    </account>
+    <account id="acc-013">
+      <customer>cust-005</customer>
+      <type>investment</type>
+      <status>active</status>
+      <balance>1567890.23</balance>
+      <currency>USD</currency>
+      <interest_rate>0</interest_rate>
+      <opened_date>2013-05-01</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-014">
+      <customer>cust-006</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>8765.43</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2017-07-14</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-015">
+      <customer>cust-006</customer>
+      <type>savings</type>
+      <status>frozen</status>
+      <balance>12500.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.25</interest_rate>
+      <opened_date>2017-07-14</opened_date>
+      <last_activity>2024-01-15</last_activity>
+    </account>
+    <account id="acc-016">
+      <customer>cust-007</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>19876.54</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2016-04-22</opened_date>
+      <last_activity>2024-03-09</last_activity>
+    </account>
+    <account id="acc-017">
+      <customer>cust-007</customer>
+      <type>investment</type>
+      <status>active</status>
+      <balance>345670.89</balance>
+      <currency>USD</currency>
+      <interest_rate>0</interest_rate>
+      <opened_date>2017-01-10</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-018">
+      <customer>cust-008</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>5432.10</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2019-08-30</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-019">
+      <customer>cust-008</customer>
+      <type>credit</type>
+      <status>active</status>
+      <balance>-1875.50</balance>
+      <currency>USD</currency>
+      <interest_rate>18.99</interest_rate>
+      <opened_date>2019-10-15</opened_date>
+      <last_activity>2024-03-08</last_activity>
+    </account>
+    <account id="acc-020">
+      <customer>cust-009</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>67890.12</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2014-02-18</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-021">
+      <customer>cust-009</customer>
+      <type>savings</type>
+      <status>active</status>
+      <balance>189500.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.50</interest_rate>
+      <opened_date>2014-02-18</opened_date>
+      <last_activity>2024-03-03</last_activity>
+    </account>
+    <account id="acc-022">
+      <customer>cust-010</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>2345.67</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2021-05-12</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-023">
+      <customer>cust-010</customer>
+      <type>credit</type>
+      <status>active</status>
+      <balance>-6750.00</balance>
+      <currency>USD</currency>
+      <interest_rate>24.99</interest_rate>
+      <opened_date>2021-08-20</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-024">
+      <customer>cust-011</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>34567.89</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2013-10-05</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-025">
+      <customer>cust-011</customer>
+      <type>savings</type>
+      <status>active</status>
+      <balance>87650.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.25</interest_rate>
+      <opened_date>2013-10-05</opened_date>
+      <last_activity>2024-03-06</last_activity>
+    </account>
+    <account id="acc-026">
+      <customer>cust-012</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>4567.12</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2020-12-01</opened_date>
+      <last_activity>2024-03-09</last_activity>
+    </account>
+    <account id="acc-027">
+      <customer>cust-013</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>56789.34</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2011-06-30</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-028">
+      <customer>cust-013</customer>
+      <type>investment</type>
+      <status>active</status>
+      <balance>678900.56</balance>
+      <currency>USD</currency>
+      <interest_rate>0</interest_rate>
+      <opened_date>2012-02-15</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-029">
+      <customer>cust-014</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>6543.21</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2018-09-25</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-030">
+      <customer>cust-015</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>23456.78</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2015-01-15</opened_date>
+      <last_activity>2024-03-08</last_activity>
+    </account>
+    <account id="acc-031">
+      <customer>cust-016</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>78901.23</balance>
+      <currency>USD</currency>
+      <interest_rate>0.03</interest_rate>
+      <opened_date>2010-08-20</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-032">
+      <customer>cust-016</customer>
+      <type>savings</type>
+      <status>active</status>
+      <balance>345600.00</balance>
+      <currency>USD</currency>
+      <interest_rate>4.75</interest_rate>
+      <opened_date>2010-08-20</opened_date>
+      <last_activity>2024-03-02</last_activity>
+    </account>
+    <account id="acc-033">
+      <customer>cust-017</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>12345.67</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2016-11-08</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+    <account id="acc-034">
+      <customer>cust-018</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>3456.78</balance>
+      <currency>USD</currency>
+      <interest_rate>0.01</interest_rate>
+      <opened_date>2021-02-28</opened_date>
+      <last_activity>2024-03-09</last_activity>
+    </account>
+    <account id="acc-035">
+      <customer>cust-019</customer>
+      <type>checking</type>
+      <status>active</status>
+      <balance>45678.90</balance>
+      <currency>USD</currency>
+      <interest_rate>0.02</interest_rate>
+      <opened_date>2012-04-10</opened_date>
+      <last_activity>2024-03-10</last_activity>
+    </account>
+  </accounts>
+  <transactions>
+    <transaction id="txn-001">
+      <account>acc-001</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>5000.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Acme Corp</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-002">
+      <account>acc-001</account>
+      <type>withdrawal</type>
+      <status>completed</status>
+      <amount>200.00</amount>
+      <currency>USD</currency>
+      <description>ATM Withdrawal</description>
+      <merchant>Chase ATM</merchant>
+      <category>cash</category>
+      <timestamp>2024-03-02T14:30:00Z</timestamp>
+      <reference>ATM-2024-0302-001</reference>
+    </transaction>
+    <transaction id="txn-003">
+      <account>acc-001</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>1500.00</amount>
+      <currency>USD</currency>
+      <description>Rent Payment</description>
+      <merchant>Skyline Apartments</merchant>
+      <category>housing</category>
+      <timestamp>2024-03-03T08:00:00Z</timestamp>
+      <reference>PMT-2024-0303-001</reference>
+    </transaction>
+    <transaction id="txn-004">
+      <account>acc-001</account>
+      <type>transfer</type>
+      <status>completed</status>
+      <amount>2000.00</amount>
+      <currency>USD</currency>
+      <description>Transfer to Savings</description>
+      <merchant>Internal</merchant>
+      <category>transfer</category>
+      <timestamp>2024-03-04T10:15:00Z</timestamp>
+      <reference>TRF-2024-0304-001</reference>
+    </transaction>
+    <transaction id="txn-005">
+      <account>acc-002</account>
+      <type>transfer</type>
+      <status>completed</status>
+      <amount>2000.00</amount>
+      <currency>USD</currency>
+      <description>Transfer from Checking</description>
+      <merchant>Internal</merchant>
+      <category>transfer</category>
+      <timestamp>2024-03-04T10:15:00Z</timestamp>
+      <reference>TRF-2024-0304-002</reference>
+    </transaction>
+    <transaction id="txn-006">
+      <account>acc-002</account>
+      <type>interest</type>
+      <status>completed</status>
+      <amount>172.40</amount>
+      <currency>USD</currency>
+      <description>Monthly Interest</description>
+      <merchant>Bank</merchant>
+      <category>interest</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>INT-2024-0305-001</reference>
+    </transaction>
+    <transaction id="txn-007">
+      <account>acc-004</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>3200.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Tech Solutions Inc</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-002</reference>
+    </transaction>
+    <transaction id="txn-008">
+      <account>acc-004</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>850.00</amount>
+      <currency>USD</currency>
+      <description>Car Payment</description>
+      <merchant>Auto Finance Co</merchant>
+      <category>auto</category>
+      <timestamp>2024-03-05T08:00:00Z</timestamp>
+      <reference>PMT-2024-0305-001</reference>
+    </transaction>
+    <transaction id="txn-009">
+      <account>acc-005</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>125.50</amount>
+      <currency>USD</currency>
+      <description>Restaurant Purchase</description>
+      <merchant>The Italian Place</merchant>
+      <category>dining</category>
+      <timestamp>2024-03-02T19:45:00Z</timestamp>
+      <reference>POS-2024-0302-001</reference>
+    </transaction>
+    <transaction id="txn-010">
+      <account>acc-005</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>89.99</amount>
+      <currency>USD</currency>
+      <description>Streaming Services</description>
+      <merchant>Netflix</merchant>
+      <category>entertainment</category>
+      <timestamp>2024-03-03T00:00:00Z</timestamp>
+      <reference>REC-2024-0303-001</reference>
+    </transaction>
+    <transaction id="txn-011">
+      <account>acc-005</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>234.56</amount>
+      <currency>USD</currency>
+      <description>Online Shopping</description>
+      <merchant>Amazon</merchant>
+      <category>shopping</category>
+      <timestamp>2024-03-04T16:20:00Z</timestamp>
+      <reference>ONL-2024-0304-001</reference>
+    </transaction>
+    <transaction id="txn-012">
+      <account>acc-005</account>
+      <type>fee</type>
+      <status>completed</status>
+      <amount>35.00</amount>
+      <currency>USD</currency>
+      <description>Late Payment Fee</description>
+      <merchant>Bank</merchant>
+      <category>fees</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>FEE-2024-0305-001</reference>
+    </transaction>
+    <transaction id="txn-013">
+      <account>acc-006</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>8500.00</amount>
+      <currency>USD</currency>
+      <description>Consulting Income</description>
+      <merchant>Client ABC</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T10:30:00Z</timestamp>
+      <reference>DEP-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-014">
+      <account>acc-006</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>2800.00</amount>
+      <currency>USD</currency>
+      <description>Mortgage Payment</description>
+      <merchant>Home Lenders Inc</merchant>
+      <category>housing</category>
+      <timestamp>2024-03-01T08:00:00Z</timestamp>
+      <reference>PMT-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-015">
+      <account>acc-006</account>
+      <type>withdrawal</type>
+      <status>completed</status>
+      <amount>500.00</amount>
+      <currency>USD</currency>
+      <description>ATM Withdrawal</description>
+      <merchant>Bank ATM</merchant>
+      <category>cash</category>
+      <timestamp>2024-03-03T11:45:00Z</timestamp>
+      <reference>ATM-2024-0303-001</reference>
+    </transaction>
+    <transaction id="txn-016">
+      <account>acc-007</account>
+      <type>interest</type>
+      <status>completed</status>
+      <amount>587.93</amount>
+      <currency>USD</currency>
+      <description>Monthly Interest</description>
+      <merchant>Bank</merchant>
+      <category>interest</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>INT-2024-0305-002</reference>
+    </transaction>
+    <transaction id="txn-017">
+      <account>acc-009</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>2800.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Retail Corp</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-003</reference>
+    </transaction>
+    <transaction id="txn-018">
+      <account>acc-009</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>1200.00</amount>
+      <currency>USD</currency>
+      <description>Rent Payment</description>
+      <merchant>Metro Living</merchant>
+      <category>housing</category>
+      <timestamp>2024-03-02T08:00:00Z</timestamp>
+      <reference>PMT-2024-0302-001</reference>
+    </transaction>
+    <transaction id="txn-019">
+      <account>acc-010</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>456.78</amount>
+      <currency>USD</currency>
+      <description>Grocery Shopping</description>
+      <merchant>Whole Foods</merchant>
+      <category>groceries</category>
+      <timestamp>2024-03-01T15:30:00Z</timestamp>
+      <reference>POS-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-020">
+      <account>acc-010</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>78.90</amount>
+      <currency>USD</currency>
+      <description>Gas Station</description>
+      <merchant>Shell</merchant>
+      <category>transportation</category>
+      <timestamp>2024-03-03T08:15:00Z</timestamp>
+      <reference>POS-2024-0303-001</reference>
+    </transaction>
+    <transaction id="txn-021">
+      <account>acc-011</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>12000.00</amount>
+      <currency>USD</currency>
+      <description>Pension Deposit</description>
+      <merchant>State Pension Fund</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PEN-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-022">
+      <account>acc-011</account>
+      <type>transfer</type>
+      <status>completed</status>
+      <amount>5000.00</amount>
+      <currency>USD</currency>
+      <description>Transfer to Savings</description>
+      <merchant>Internal</merchant>
+      <category>transfer</category>
+      <timestamp>2024-03-02T10:00:00Z</timestamp>
+      <reference>TRF-2024-0302-001</reference>
+    </transaction>
+    <transaction id="txn-023">
+      <account>acc-012</account>
+      <type>transfer</type>
+      <status>completed</status>
+      <amount>5000.00</amount>
+      <currency>USD</currency>
+      <description>Transfer from Checking</description>
+      <merchant>Internal</merchant>
+      <category>transfer</category>
+      <timestamp>2024-03-02T10:00:00Z</timestamp>
+      <reference>TRF-2024-0302-002</reference>
+    </transaction>
+    <transaction id="txn-024">
+      <account>acc-012</account>
+      <type>interest</type>
+      <status>completed</status>
+      <amount>928.44</amount>
+      <currency>USD</currency>
+      <description>Monthly Interest</description>
+      <merchant>Bank</merchant>
+      <category>interest</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>INT-2024-0305-003</reference>
+    </transaction>
+    <transaction id="txn-025">
+      <account>acc-014</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>4500.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Marketing Agency</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-004</reference>
+    </transaction>
+    <transaction id="txn-026">
+      <account>acc-014</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>1800.00</amount>
+      <currency>USD</currency>
+      <description>Rent Payment</description>
+      <merchant>Urban Apartments</merchant>
+      <category>housing</category>
+      <timestamp>2024-03-03T08:00:00Z</timestamp>
+      <reference>PMT-2024-0303-002</reference>
+    </transaction>
+    <transaction id="txn-027">
+      <account>acc-016</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>6200.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Construction Co</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-005</reference>
+    </transaction>
+    <transaction id="txn-028">
+      <account>acc-016</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>350.00</amount>
+      <currency>USD</currency>
+      <description>Utility Bills</description>
+      <merchant>City Power</merchant>
+      <category>utilities</category>
+      <timestamp>2024-03-04T08:00:00Z</timestamp>
+      <reference>PMT-2024-0304-001</reference>
+    </transaction>
+    <transaction id="txn-029">
+      <account>acc-018</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>3800.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Design Studio</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-006</reference>
+    </transaction>
+    <transaction id="txn-030">
+      <account>acc-018</account>
+      <type>withdrawal</type>
+      <status>completed</status>
+      <amount>300.00</amount>
+      <currency>USD</currency>
+      <description>ATM Withdrawal</description>
+      <merchant>Bank ATM</merchant>
+      <category>cash</category>
+      <timestamp>2024-03-02T12:00:00Z</timestamp>
+      <reference>ATM-2024-0302-002</reference>
+    </transaction>
+    <transaction id="txn-031">
+      <account>acc-019</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>567.89</amount>
+      <currency>USD</currency>
+      <description>Department Store</description>
+      <merchant>Macy's</merchant>
+      <category>shopping</category>
+      <timestamp>2024-03-01T14:20:00Z</timestamp>
+      <reference>POS-2024-0301-002</reference>
+    </transaction>
+    <transaction id="txn-032">
+      <account>acc-019</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>45.00</amount>
+      <currency>USD</currency>
+      <description>Subscription</description>
+      <merchant>Spotify</merchant>
+      <category>entertainment</category>
+      <timestamp>2024-03-01T00:00:00Z</timestamp>
+      <reference>REC-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-033">
+      <account>acc-020</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>7500.00</amount>
+      <currency>USD</currency>
+      <description>Business Income</description>
+      <merchant>Self-Employment</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T11:00:00Z</timestamp>
+      <reference>DEP-2024-0301-002</reference>
+    </transaction>
+    <transaction id="txn-034">
+      <account>acc-020</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>2200.00</amount>
+      <currency>USD</currency>
+      <description>Mortgage Payment</description>
+      <merchant>Wells Fargo</merchant>
+      <category>housing</category>
+      <timestamp>2024-03-01T08:00:00Z</timestamp>
+      <reference>PMT-2024-0301-002</reference>
+    </transaction>
+    <transaction id="txn-035">
+      <account>acc-021</account>
+      <type>interest</type>
+      <status>completed</status>
+      <amount>710.63</amount>
+      <currency>USD</currency>
+      <description>Monthly Interest</description>
+      <merchant>Bank</merchant>
+      <category>interest</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>INT-2024-0305-004</reference>
+    </transaction>
+    <transaction id="txn-036">
+      <account>acc-022</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>2500.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Startup Inc</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-007</reference>
+    </transaction>
+    <transaction id="txn-037">
+      <account>acc-023</account>
+      <type>payment</type>
+      <status>completed</status>
+      <amount>1234.56</amount>
+      <currency>USD</currency>
+      <description>Electronics Purchase</description>
+      <merchant>Best Buy</merchant>
+      <category>shopping</category>
+      <timestamp>2024-03-02T16:45:00Z</timestamp>
+      <reference>POS-2024-0302-002</reference>
+    </transaction>
+    <transaction id="txn-038">
+      <account>acc-024</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>5800.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Law Firm LLP</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-008</reference>
+    </transaction>
+    <transaction id="txn-039">
+      <account>acc-025</account>
+      <type>interest</type>
+      <status>completed</status>
+      <amount>310.17</amount>
+      <currency>USD</currency>
+      <description>Monthly Interest</description>
+      <merchant>Bank</merchant>
+      <category>interest</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>INT-2024-0305-005</reference>
+    </transaction>
+    <transaction id="txn-040">
+      <account>acc-026</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>3100.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Hospital</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-009</reference>
+    </transaction>
+    <transaction id="txn-041">
+      <account>acc-027</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>9800.00</amount>
+      <currency>USD</currency>
+      <description>Investment Returns</description>
+      <merchant>Dividend Income</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T10:00:00Z</timestamp>
+      <reference>DIV-2024-0301-001</reference>
+    </transaction>
+    <transaction id="txn-042">
+      <account>acc-027</account>
+      <type>transfer</type>
+      <status>completed</status>
+      <amount>3000.00</amount>
+      <currency>USD</currency>
+      <description>Transfer to Investment</description>
+      <merchant>Internal</merchant>
+      <category>transfer</category>
+      <timestamp>2024-03-03T09:00:00Z</timestamp>
+      <reference>TRF-2024-0303-001</reference>
+    </transaction>
+    <transaction id="txn-043">
+      <account>acc-029</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>4200.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>School District</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-010</reference>
+    </transaction>
+    <transaction id="txn-044">
+      <account>acc-030</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>5500.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Insurance Co</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-011</reference>
+    </transaction>
+    <transaction id="txn-045">
+      <account>acc-031</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>15000.00</amount>
+      <currency>USD</currency>
+      <description>Consulting Income</description>
+      <merchant>Client XYZ</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T10:30:00Z</timestamp>
+      <reference>DEP-2024-0301-003</reference>
+    </transaction>
+    <transaction id="txn-046">
+      <account>acc-032</account>
+      <type>interest</type>
+      <status>completed</status>
+      <amount>1368.00</amount>
+      <currency>USD</currency>
+      <description>Monthly Interest</description>
+      <merchant>Bank</merchant>
+      <category>interest</category>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <reference>INT-2024-0305-006</reference>
+    </transaction>
+    <transaction id="txn-047">
+      <account>acc-033</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>4100.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Manufacturing Co</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-012</reference>
+    </transaction>
+    <transaction id="txn-048">
+      <account>acc-034</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>2900.00</amount>
+      <currency>USD</currency>
+      <description>Payroll Direct Deposit</description>
+      <merchant>Media Company</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PAY-2024-0301-013</reference>
+    </transaction>
+    <transaction id="txn-049">
+      <account>acc-035</account>
+      <type>deposit</type>
+      <status>completed</status>
+      <amount>6800.00</amount>
+      <currency>USD</currency>
+      <description>Pension Deposit</description>
+      <merchant>Federal Pension</merchant>
+      <category>income</category>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <reference>PEN-2024-0301-002</reference>
+    </transaction>
+    <transaction id="txn-050">
+      <account>acc-001</account>
+      <type>payment</type>
+      <status>pending</status>
+      <amount>750.00</amount>
+      <currency>USD</currency>
+      <description>Insurance Premium</description>
+      <merchant>State Farm</merchant>
+      <category>insurance</category>
+      <timestamp>2024-03-10T08:00:00Z</timestamp>
+      <reference>PMT-2024-0310-001</reference>
+    </transaction>
+  </transactions>
+  <cards>
+    <card id="card-001">
+      <account>acc-001</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>4521</last4>
+      <expiry>2027-06</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-002">
+      <account>acc-005</account>
+      <type>credit</type>
+      <network>mastercard</network>
+      <last4>8934</last4>
+      <expiry>2026-09</expiry>
+      <credit_limit>5000.00</credit_limit>
+      <rewards_rate>1.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-003">
+      <account>acc-006</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>2156</last4>
+      <expiry>2028-03</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-004">
+      <account>acc-010</account>
+      <type>credit</type>
+      <network>visa</network>
+      <last4>6743</last4>
+      <expiry>2025-12</expiry>
+      <credit_limit>8000.00</credit_limit>
+      <rewards_rate>2.0</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-005">
+      <account>acc-011</account>
+      <type>debit</type>
+      <network>mastercard</network>
+      <last4>1298</last4>
+      <expiry>2027-09</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-006">
+      <account>acc-014</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>5672</last4>
+      <expiry>2026-06</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-007">
+      <account>acc-016</account>
+      <type>debit</type>
+      <network>discover</network>
+      <last4>3489</last4>
+      <expiry>2028-01</expiry>
+      <credit_limit/>
+      <rewards_rate>1.0</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-008">
+      <account>acc-018</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>7821</last4>
+      <expiry>2027-04</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-009">
+      <account>acc-019</account>
+      <type>credit</type>
+      <network>amex</network>
+      <last4>4156</last4>
+      <expiry>2026-08</expiry>
+      <credit_limit>3000.00</credit_limit>
+      <rewards_rate>2.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-010">
+      <account>acc-020</account>
+      <type>debit</type>
+      <network>mastercard</network>
+      <last4>9234</last4>
+      <expiry>2027-11</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-011">
+      <account>acc-022</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>1567</last4>
+      <expiry>2028-05</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-012">
+      <account>acc-023</account>
+      <type>credit</type>
+      <network>visa</network>
+      <last4>8345</last4>
+      <expiry>2025-10</expiry>
+      <credit_limit>10000.00</credit_limit>
+      <rewards_rate>1.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-013">
+      <account>acc-024</account>
+      <type>debit</type>
+      <network>discover</network>
+      <last4>2678</last4>
+      <expiry>2027-07</expiry>
+      <credit_limit/>
+      <rewards_rate>1.0</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-014">
+      <account>acc-026</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>5912</last4>
+      <expiry>2026-12</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-015">
+      <account>acc-027</account>
+      <type>debit</type>
+      <network>mastercard</network>
+      <last4>3745</last4>
+      <expiry>2028-02</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-016">
+      <account>acc-029</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>6189</last4>
+      <expiry>2027-08</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-017">
+      <account>acc-030</account>
+      <type>debit</type>
+      <network>amex</network>
+      <last4>4523</last4>
+      <expiry>2026-05</expiry>
+      <credit_limit/>
+      <rewards_rate>1.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-018">
+      <account>acc-031</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>7856</last4>
+      <expiry>2028-04</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-019">
+      <account>acc-033</account>
+      <type>debit</type>
+      <network>mastercard</network>
+      <last4>1934</last4>
+      <expiry>2027-10</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+    <card id="card-020">
+      <account>acc-034</account>
+      <type>debit</type>
+      <network>visa</network>
+      <last4>8267</last4>
+      <expiry>2026-11</expiry>
+      <credit_limit/>
+      <rewards_rate>0.5</rewards_rate>
+      <is_primary>true</is_primary>
+    </card>
+  </cards>
+  <investments>
+    <investment id="inv-001">
+      <account>acc-003</account>
+      <type>stock</type>
+      <symbol>AAPL</symbol>
+      <name>Apple Inc</name>
+      <shares>150</shares>
+      <purchase_price>142.50</purchase_price>
+      <current_price>178.25</current_price>
+      <purchase_date>2019-03-20</purchase_date>
+    </investment>
+    <investment id="inv-002">
+      <account>acc-003</account>
+      <type>stock</type>
+      <symbol>MSFT</symbol>
+      <name>Microsoft Corp</name>
+      <shares>100</shares>
+      <purchase_price>245.00</purchase_price>
+      <current_price>415.80</current_price>
+      <purchase_date>2020-01-15</purchase_date>
+    </investment>
+    <investment id="inv-003">
+      <account>acc-003</account>
+      <type>etf</type>
+      <symbol>SPY</symbol>
+      <name>S&amp;P 500 ETF</name>
+      <shares>50</shares>
+      <purchase_price>380.00</purchase_price>
+      <current_price>512.45</current_price>
+      <purchase_date>2019-06-10</purchase_date>
+    </investment>
+    <investment id="inv-004">
+      <account>acc-003</account>
+      <type>stock</type>
+      <symbol>GOOGL</symbol>
+      <name>Alphabet Inc</name>
+      <shares>25</shares>
+      <purchase_price>1250.00</purchase_price>
+      <current_price>141.95</current_price>
+      <purchase_date>2021-02-20</purchase_date>
+    </investment>
+    <investment id="inv-005">
+      <account>acc-003</account>
+      <type>bond</type>
+      <symbol>BND</symbol>
+      <name>Vanguard Bond ETF</name>
+      <shares>200</shares>
+      <purchase_price>82.50</purchase_price>
+      <current_price>73.25</current_price>
+      <purchase_date>2020-08-15</purchase_date>
+    </investment>
+    <investment id="inv-006">
+      <account>acc-008</account>
+      <type>stock</type>
+      <symbol>NVDA</symbol>
+      <name>NVIDIA Corp</name>
+      <shares>80</shares>
+      <purchase_price>220.00</purchase_price>
+      <current_price>878.35</current_price>
+      <purchase_date>2019-01-10</purchase_date>
+    </investment>
+    <investment id="inv-007">
+      <account>acc-008</account>
+      <type>stock</type>
+      <symbol>AMZN</symbol>
+      <name>Amazon.com Inc</name>
+      <shares>60</shares>
+      <purchase_price>1850.00</purchase_price>
+      <current_price>178.50</current_price>
+      <purchase_date>2018-05-20</purchase_date>
+    </investment>
+    <investment id="inv-008">
+      <account>acc-008</account>
+      <type>etf</type>
+      <symbol>QQQ</symbol>
+      <name>Nasdaq 100 ETF</name>
+      <shares>75</shares>
+      <purchase_price>285.00</purchase_price>
+      <current_price>438.20</current_price>
+      <purchase_date>2019-09-15</purchase_date>
+    </investment>
+    <investment id="inv-009">
+      <account>acc-008</account>
+      <type>mutual_fund</type>
+      <symbol>VFIAX</symbol>
+      <name>Vanguard 500 Index</name>
+      <shares>120</shares>
+      <purchase_price>350.00</purchase_price>
+      <current_price>485.60</current_price>
+      <purchase_date>2016-03-01</purchase_date>
+    </investment>
+    <investment id="inv-010">
+      <account>acc-008</account>
+      <type>stock</type>
+      <symbol>META</symbol>
+      <name>Meta Platforms</name>
+      <shares>45</shares>
+      <purchase_price>185.00</purchase_price>
+      <current_price>505.75</current_price>
+      <purchase_date>2022-11-10</purchase_date>
+    </investment>
+    <investment id="inv-011">
+      <account>acc-013</account>
+      <type>stock</type>
+      <symbol>TSLA</symbol>
+      <name>Tesla Inc</name>
+      <shares>100</shares>
+      <purchase_price>180.00</purchase_price>
+      <current_price>175.45</current_price>
+      <purchase_date>2020-06-15</purchase_date>
+    </investment>
+    <investment id="inv-012">
+      <account>acc-013</account>
+      <type>stock</type>
+      <symbol>JPM</symbol>
+      <name>JPMorgan Chase</name>
+      <shares>150</shares>
+      <purchase_price>125.00</purchase_price>
+      <current_price>198.50</current_price>
+      <purchase_date>2015-04-20</purchase_date>
+    </investment>
+    <investment id="inv-013">
+      <account>acc-013</account>
+      <type>etf</type>
+      <symbol>VTI</symbol>
+      <name>Vanguard Total Market</name>
+      <shares>200</shares>
+      <purchase_price>180.00</purchase_price>
+      <current_price>264.30</current_price>
+      <purchase_date>2014-01-10</purchase_date>
+    </investment>
+    <investment id="inv-014">
+      <account>acc-013</account>
+      <type>bond</type>
+      <symbol>TLT</symbol>
+      <name>iShares 20+ Year Treasury</name>
+      <shares>100</shares>
+      <purchase_price>145.00</purchase_price>
+      <current_price>92.15</current_price>
+      <purchase_date>2019-12-01</purchase_date>
+    </investment>
+    <investment id="inv-015">
+      <account>acc-013</account>
+      <type>stock</type>
+      <symbol>V</symbol>
+      <name>Visa Inc</name>
+      <shares>80</shares>
+      <purchase_price>185.00</purchase_price>
+      <current_price>282.40</current_price>
+      <purchase_date>2017-08-15</purchase_date>
+    </investment>
+    <investment id="inv-016">
+      <account>acc-017</account>
+      <type>stock</type>
+      <symbol>DIS</symbol>
+      <name>Walt Disney Co</name>
+      <shares>120</shares>
+      <purchase_price>140.00</purchase_price>
+      <current_price>112.85</current_price>
+      <purchase_date>2018-03-20</purchase_date>
+    </investment>
+    <investment id="inv-017">
+      <account>acc-017</account>
+      <type>etf</type>
+      <symbol>IWM</symbol>
+      <name>Russell 2000 ETF</name>
+      <shares>100</shares>
+      <purchase_price>165.00</purchase_price>
+      <current_price>207.50</current_price>
+      <purchase_date>2019-07-10</purchase_date>
+    </investment>
+    <investment id="inv-018">
+      <account>acc-017</account>
+      <type>mutual_fund</type>
+      <symbol>FXAIX</symbol>
+      <name>Fidelity 500 Index</name>
+      <shares>80</shares>
+      <purchase_price>145.00</purchase_price>
+      <current_price>185.25</current_price>
+      <purchase_date>2020-04-15</purchase_date>
+    </investment>
+    <investment id="inv-019">
+      <account>acc-028</account>
+      <type>stock</type>
+      <symbol>JNJ</symbol>
+      <name>Johnson &amp; Johnson</name>
+      <shares>200</shares>
+      <purchase_price>145.00</purchase_price>
+      <current_price>156.80</current_price>
+      <purchase_date>2013-02-10</purchase_date>
+    </investment>
+    <investment id="inv-020">
+      <account>acc-028</account>
+      <type>stock</type>
+      <symbol>PG</symbol>
+      <name>Procter &amp; Gamble</name>
+      <shares>150</shares>
+      <purchase_price>125.00</purchase_price>
+      <current_price>162.45</current_price>
+      <purchase_date>2014-06-20</purchase_date>
+    </investment>
+    <investment id="inv-021">
+      <account>acc-028</account>
+      <type>etf</type>
+      <symbol>VYM</symbol>
+      <name>Vanguard High Dividend</name>
+      <shares>175</shares>
+      <purchase_price>95.00</purchase_price>
+      <current_price>118.60</current_price>
+      <purchase_date>2015-09-15</purchase_date>
+    </investment>
+    <investment id="inv-022">
+      <account>acc-028</account>
+      <type>bond</type>
+      <symbol>AGG</symbol>
+      <name>iShares Core Bond</name>
+      <shares>250</shares>
+      <purchase_price>108.00</purchase_price>
+      <current_price>96.75</current_price>
+      <purchase_date>2016-01-10</purchase_date>
+    </investment>
+    <investment id="inv-023">
+      <account>acc-028</account>
+      <type>crypto</type>
+      <symbol>BTC</symbol>
+      <name>Bitcoin</name>
+      <shares>2.5</shares>
+      <purchase_price>28000.00</purchase_price>
+      <current_price>67500.00</current_price>
+      <purchase_date>2021-07-15</purchase_date>
+    </investment>
+    <investment id="inv-024">
+      <account>acc-028</account>
+      <type>crypto</type>
+      <symbol>ETH</symbol>
+      <name>Ethereum</name>
+      <shares>15</shares>
+      <purchase_price>1800.00</purchase_price>
+      <current_price>3450.00</current_price>
+      <purchase_date>2021-08-20</purchase_date>
+    </investment>
+    <investment id="inv-025">
+      <account>acc-003</account>
+      <type>mutual_fund</type>
+      <symbol>VTSAX</symbol>
+      <name>Vanguard Total Stock</name>
+      <shares>50</shares>
+      <purchase_price>95.00</purchase_price>
+      <current_price>125.40</current_price>
+      <purchase_date>2022-01-10</purchase_date>
+    </investment>
+  </investments>
+  <loans>
+    <loan id="loan-001">
+      <customer>cust-003</customer>
+      <type>mortgage</type>
+      <status>current</status>
+      <principal>450000.00</principal>
+      <interest_rate>3.75</interest_rate>
+      <term_months>360</term_months>
+      <monthly_payment>2084.82</monthly_payment>
+      <start_date>2020-06-01</start_date>
+      <remaining_balance>412500.00</remaining_balance>
+    </loan>
+    <loan id="loan-002">
+      <customer>cust-004</customer>
+      <type>auto</type>
+      <status>current</status>
+      <principal>28000.00</principal>
+      <interest_rate>5.99</interest_rate>
+      <term_months>60</term_months>
+      <monthly_payment>541.87</monthly_payment>
+      <start_date>2022-01-15</start_date>
+      <remaining_balance>18500.00</remaining_balance>
+    </loan>
+    <loan id="loan-003">
+      <customer>cust-006</customer>
+      <type>personal</type>
+      <status>current</status>
+      <principal>15000.00</principal>
+      <interest_rate>9.99</interest_rate>
+      <term_months>36</term_months>
+      <monthly_payment>484.15</monthly_payment>
+      <start_date>2023-03-01</start_date>
+      <remaining_balance>8750.00</remaining_balance>
+    </loan>
+    <loan id="loan-004">
+      <customer>cust-007</customer>
+      <type>mortgage</type>
+      <status>current</status>
+      <principal>325000.00</principal>
+      <interest_rate>4.25</interest_rate>
+      <term_months>360</term_months>
+      <monthly_payment>1599.24</monthly_payment>
+      <start_date>2019-09-01</start_date>
+      <remaining_balance>298000.00</remaining_balance>
+    </loan>
+    <loan id="loan-005">
+      <customer>cust-009</customer>
+      <type>auto</type>
+      <status>paid_off</status>
+      <principal>35000.00</principal>
+      <interest_rate>4.99</interest_rate>
+      <term_months>48</term_months>
+      <monthly_payment>805.84</monthly_payment>
+      <start_date>2020-02-01</start_date>
+      <remaining_balance>0.00</remaining_balance>
+    </loan>
+    <loan id="loan-006">
+      <customer>cust-010</customer>
+      <type>student</type>
+      <status>current</status>
+      <principal>45000.00</principal>
+      <interest_rate>6.50</interest_rate>
+      <term_months>120</term_months>
+      <monthly_payment>510.25</monthly_payment>
+      <start_date>2021-09-01</start_date>
+      <remaining_balance>38500.00</remaining_balance>
+    </loan>
+    <loan id="loan-007">
+      <customer>cust-011</customer>
+      <type>mortgage</type>
+      <status>current</status>
+      <principal>550000.00</principal>
+      <interest_rate>3.50</interest_rate>
+      <term_months>360</term_months>
+      <monthly_payment>2470.53</monthly_payment>
+      <start_date>2018-04-01</start_date>
+      <remaining_balance>485000.00</remaining_balance>
+    </loan>
+    <loan id="loan-008">
+      <customer>cust-012</customer>
+      <type>auto</type>
+      <status>current</status>
+      <principal>22000.00</principal>
+      <interest_rate>6.49</interest_rate>
+      <term_months>60</term_months>
+      <monthly_payment>430.78</monthly_payment>
+      <start_date>2023-06-01</start_date>
+      <remaining_balance>19200.00</remaining_balance>
+    </loan>
+    <loan id="loan-009">
+      <customer>cust-013</customer>
+      <type>business</type>
+      <status>current</status>
+      <principal>150000.00</principal>
+      <interest_rate>7.50</interest_rate>
+      <term_months>84</term_months>
+      <monthly_payment>2292.15</monthly_payment>
+      <start_date>2021-01-15</start_date>
+      <remaining_balance>98500.00</remaining_balance>
+    </loan>
+    <loan id="loan-010">
+      <customer>cust-014</customer>
+      <type>personal</type>
+      <status>delinquent</status>
+      <principal>10000.00</principal>
+      <interest_rate>12.99</interest_rate>
+      <term_months>24</term_months>
+      <monthly_payment>475.88</monthly_payment>
+      <start_date>2023-08-01</start_date>
+      <remaining_balance>6200.00</remaining_balance>
+    </loan>
+    <loan id="loan-011">
+      <customer>cust-015</customer>
+      <type>mortgage</type>
+      <status>current</status>
+      <principal>280000.00</principal>
+      <interest_rate>4.00</interest_rate>
+      <term_months>360</term_months>
+      <monthly_payment>1337.02</monthly_payment>
+      <start_date>2017-11-01</start_date>
+      <remaining_balance>248000.00</remaining_balance>
+    </loan>
+    <loan id="loan-012">
+      <customer>cust-016</customer>
+      <type>auto</type>
+      <status>paid_off</status>
+      <principal>42000.00</principal>
+      <interest_rate>4.25</interest_rate>
+      <term_months>48</term_months>
+      <monthly_payment>952.85</monthly_payment>
+      <start_date>2019-08-01</start_date>
+      <remaining_balance>0.00</remaining_balance>
+    </loan>
+    <loan id="loan-013">
+      <customer>cust-017</customer>
+      <type>student</type>
+      <status>current</status>
+      <principal>65000.00</principal>
+      <interest_rate>5.99</interest_rate>
+      <term_months>120</term_months>
+      <monthly_payment>721.65</monthly_payment>
+      <start_date>2020-05-01</start_date>
+      <remaining_balance>52000.00</remaining_balance>
+    </loan>
+    <loan id="loan-014">
+      <customer>cust-018</customer>
+      <type>personal</type>
+      <status>current</status>
+      <principal>8000.00</principal>
+      <interest_rate>11.99</interest_rate>
+      <term_months>24</term_months>
+      <monthly_payment>377.42</monthly_payment>
+      <start_date>2024-01-15</start_date>
+      <remaining_balance>7250.00</remaining_balance>
+    </loan>
+    <loan id="loan-015">
+      <customer>cust-020</customer>
+      <type>mortgage</type>
+      <status>current</status>
+      <principal>380000.00</principal>
+      <interest_rate>3.875</interest_rate>
+      <term_months>360</term_months>
+      <monthly_payment>1787.21</monthly_payment>
+      <start_date>2021-03-01</start_date>
+      <remaining_balance>358000.00</remaining_balance>
+    </loan>
+  </loans>
+  <alerts>
+    <alert id="alert-001">
+      <customer>cust-002</customer>
+      <account>acc-005</account>
+      <type>low_balance</type>
+      <message>Credit utilization above 40%</message>
+      <severity>medium</severity>
+      <timestamp>2024-03-05T10:00:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-002">
+      <customer>cust-004</customer>
+      <account>acc-010</account>
+      <type>high_utilization</type>
+      <message>Credit limit reached 57%</message>
+      <severity>high</severity>
+      <timestamp>2024-03-04T14:30:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-003">
+      <customer>cust-006</customer>
+      <account>acc-015</account>
+      <type>account_frozen</type>
+      <message>Account frozen due to suspicious activity</message>
+      <severity>critical</severity>
+      <timestamp>2024-01-15T08:45:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-004">
+      <customer>cust-010</customer>
+      <account>acc-023</account>
+      <type>over_limit</type>
+      <message>Credit limit exceeded by $750</message>
+      <severity>critical</severity>
+      <timestamp>2024-03-08T16:20:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-005">
+      <customer>cust-001</customer>
+      <account>acc-002</account>
+      <type>large_deposit</type>
+      <message>Large deposit detected: $2000</message>
+      <severity>low</severity>
+      <timestamp>2024-03-04T10:15:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-006">
+      <customer>cust-003</customer>
+      <account>acc-006</account>
+      <type>unusual_activity</type>
+      <message>Multiple transactions in short period</message>
+      <severity>medium</severity>
+      <timestamp>2024-03-03T12:30:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-007">
+      <customer>cust-005</customer>
+      <account>acc-011</account>
+      <type>large_withdrawal</type>
+      <message>Large withdrawal: $5000</message>
+      <severity>medium</severity>
+      <timestamp>2024-03-02T10:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-008">
+      <customer>cust-008</customer>
+      <account>acc-019</account>
+      <type>payment_due</type>
+      <message>Payment due in 3 days</message>
+      <severity>low</severity>
+      <timestamp>2024-03-05T09:00:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-009">
+      <customer>cust-014</customer>
+      <account/>
+      <type>loan_delinquent</type>
+      <message>Loan payment overdue 15 days</message>
+      <severity>critical</severity>
+      <timestamp>2024-03-10T08:00:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-010">
+      <customer>cust-009</customer>
+      <account>acc-020</account>
+      <type>security</type>
+      <message>New device login detected</message>
+      <severity>high</severity>
+      <timestamp>2024-03-06T22:15:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-011">
+      <customer>cust-011</customer>
+      <account>acc-024</account>
+      <type>fraud_attempt</type>
+      <message>Potential fraud detected - transaction blocked</message>
+      <severity>critical</severity>
+      <timestamp>2024-03-07T03:45:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-012">
+      <customer>cust-012</customer>
+      <account>acc-026</account>
+      <type>low_balance</type>
+      <message>Balance below $500 threshold</message>
+      <severity>low</severity>
+      <timestamp>2024-03-09T11:00:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-013">
+      <customer>cust-015</customer>
+      <account>acc-030</account>
+      <type>statement_ready</type>
+      <message>Monthly statement available</message>
+      <severity>low</severity>
+      <timestamp>2024-03-01T06:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-014">
+      <customer>cust-016</customer>
+      <account>acc-031</account>
+      <type>large_transfer</type>
+      <message>Wire transfer: $10000 initiated</message>
+      <severity>high</severity>
+      <timestamp>2024-03-08T14:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-015">
+      <customer>cust-017</customer>
+      <account>acc-033</account>
+      <type>card_expiring</type>
+      <message>Debit card expires next month</message>
+      <severity>medium</severity>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-016">
+      <customer>cust-018</customer>
+      <account>acc-034</account>
+      <type>direct_deposit</type>
+      <message>Direct deposit received: $2900</message>
+      <severity>low</severity>
+      <timestamp>2024-03-01T09:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-017">
+      <customer>cust-019</customer>
+      <account>acc-035</account>
+      <type>interest_paid</type>
+      <message>Interest credited: $250.45</message>
+      <severity>low</severity>
+      <timestamp>2024-03-05T00:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-018">
+      <customer>cust-020</customer>
+      <account/>
+      <type>loan_payment</type>
+      <message>Mortgage payment due in 5 days</message>
+      <severity>medium</severity>
+      <timestamp>2024-03-05T08:00:00Z</timestamp>
+      <acknowledged>false</acknowledged>
+    </alert>
+    <alert id="alert-019">
+      <customer>cust-003</customer>
+      <account>acc-008</account>
+      <type>dividend</type>
+      <message>Dividend payment received: $1250</message>
+      <severity>low</severity>
+      <timestamp>2024-03-10T10:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+    <alert id="alert-020">
+      <customer>cust-007</customer>
+      <account>acc-017</account>
+      <type>market_alert</type>
+      <message>Portfolio down 5% today</message>
+      <severity>high</severity>
+      <timestamp>2024-03-04T16:00:00Z</timestamp>
+      <acknowledged>true</acknowledged>
+    </alert>
+  </alerts>
+  <statements>
+    <statement id="stmt-001">
+      <account>acc-001</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>12234.56</opening_balance>
+      <closing_balance>15234.56</closing_balance>
+      <total_deposits>8500.00</total_deposits>
+      <total_withdrawals>5500.00</total_withdrawals>
+      <fees>15.00</fees>
+      <interest_earned>0.12</interest_earned>
+    </statement>
+    <statement id="stmt-002">
+      <account>acc-002</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>46577.60</opening_balance>
+      <closing_balance>48750.00</closing_balance>
+      <total_deposits>2000.00</total_deposits>
+      <total_withdrawals>0.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>172.40</interest_earned>
+    </statement>
+    <statement id="stmt-003">
+      <account>acc-004</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>2106.78</opening_balance>
+      <closing_balance>3456.78</closing_balance>
+      <total_deposits>3200.00</total_deposits>
+      <total_withdrawals>1850.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>0.02</interest_earned>
+    </statement>
+    <statement id="stmt-004">
+      <account>acc-006</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>23245.12</opening_balance>
+      <closing_balance>28945.12</closing_balance>
+      <total_deposits>8500.00</total_deposits>
+      <total_withdrawals>3300.00</total_withdrawals>
+      <fees>25.00</fees>
+      <interest_earned>25.00</interest_earned>
+    </statement>
+    <statement id="stmt-005">
+      <account>acc-007</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>151192.07</opening_balance>
+      <closing_balance>156780.00</closing_balance>
+      <total_deposits>5000.00</total_deposits>
+      <total_withdrawals>0.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>587.93</interest_earned>
+    </statement>
+    <statement id="stmt-006">
+      <account>acc-009</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>645.89</opening_balance>
+      <closing_balance>1245.89</closing_balance>
+      <total_deposits>2800.00</total_deposits>
+      <total_withdrawals>2200.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>0.01</interest_earned>
+    </statement>
+    <statement id="stmt-007">
+      <account>acc-011</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>38678.90</opening_balance>
+      <closing_balance>45678.90</closing_balance>
+      <total_deposits>12000.00</total_deposits>
+      <total_withdrawals>5000.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>13.68</interest_earned>
+    </statement>
+    <statement id="stmt-008">
+      <account>acc-012</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>228571.56</opening_balance>
+      <closing_balance>234500.00</closing_balance>
+      <total_deposits>5000.00</total_deposits>
+      <total_withdrawals>0.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>928.44</interest_earned>
+    </statement>
+    <statement id="stmt-009">
+      <account>acc-014</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>6065.43</opening_balance>
+      <closing_balance>8765.43</closing_balance>
+      <total_deposits>4500.00</total_deposits>
+      <total_withdrawals>1800.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>4.38</interest_earned>
+    </statement>
+    <statement id="stmt-010">
+      <account>acc-016</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>14026.54</opening_balance>
+      <closing_balance>19876.54</closing_balance>
+      <total_deposits>6200.00</total_deposits>
+      <total_withdrawals>350.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>11.92</interest_earned>
+    </statement>
+    <statement id="stmt-011">
+      <account>acc-020</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>62590.12</opening_balance>
+      <closing_balance>67890.12</closing_balance>
+      <total_deposits>7500.00</total_deposits>
+      <total_withdrawals>2200.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>62.59</interest_earned>
+    </statement>
+    <statement id="stmt-012">
+      <account>acc-021</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>183789.37</opening_balance>
+      <closing_balance>189500.00</closing_balance>
+      <total_deposits>5000.00</total_deposits>
+      <total_withdrawals>0.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>710.63</interest_earned>
+    </statement>
+    <statement id="stmt-013">
+      <account>acc-024</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>28767.89</opening_balance>
+      <closing_balance>34567.89</closing_balance>
+      <total_deposits>5800.00</total_deposits>
+      <total_withdrawals>0.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>17.38</interest_earned>
+    </statement>
+    <statement id="stmt-014">
+      <account>acc-027</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>50989.34</opening_balance>
+      <closing_balance>56789.34</closing_balance>
+      <total_deposits>9800.00</total_deposits>
+      <total_withdrawals>4000.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>50.99</interest_earned>
+    </statement>
+    <statement id="stmt-015">
+      <account>acc-031</account>
+      <period_start>2024-02-01</period_start>
+      <period_end>2024-02-29</period_end>
+      <opening_balance>63901.23</opening_balance>
+      <closing_balance>78901.23</closing_balance>
+      <total_deposits>15000.00</total_deposits>
+      <total_withdrawals>0.00</total_withdrawals>
+      <fees>0.00</fees>
+      <interest_earned>63.90</interest_earned>
+    </statement>
+  </statements>
+</financial_transactions>

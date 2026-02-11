@@ -27,13 +27,15 @@ use tower_lsp::lsp_types::Position;
 
 #[test]
 fn test_bug_1_reference_in_comment_not_indexed() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
 # This is a comment with @User:alice
-users: @User
-  | alice, Alice Smith
-";
+users:@User
+ |alice, Alice Smith
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -51,11 +53,13 @@ users: @User
 
 #[test]
 fn test_bug_1_reference_in_string_not_indexed() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, Alice Smith, "email@example.com"
+users:@User
+ |alice, Alice Smith, "email@example.com"
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -77,12 +81,14 @@ users: @User
 
 #[test]
 fn test_bug_2_quoted_id_definition_found() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | "my-id", My User
-  | "another-id", Another User
+users:@User
+ |"my-id", My User
+ |"another-id", Another User
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -105,15 +111,17 @@ users: @User
 
 #[test]
 fn test_bug_2_quoted_id_reference_found() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, author]
 ---
-users: @User
-  | "my-id", My User
+users:@User
+ |"my-id", My User
 
-posts: @Post
-  | post1, @User:"my-id"
+posts:@Post
+ |post1, @User:"my-id"
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -125,14 +133,16 @@ posts: @Post
 
 #[test]
 fn test_bug_3_reference_hit_testing_at_start() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
 ref: @User:alice
-";
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -158,14 +168,16 @@ ref: @User:alice
 
 #[test]
 fn test_bug_3_reference_hit_testing_at_end() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
 ref: @User:alice
-";
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -192,14 +204,16 @@ ref: @User:alice
 
 #[test]
 fn test_bug_3_reference_hit_testing_just_before_end() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
 ref: @User:alice
-";
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -227,13 +241,15 @@ ref: @User:alice
 
 #[test]
 fn test_comment_and_string_complex_scenario() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name, email, bio]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email, bio]
 ---
 # Comment with @fake:ref and email@test.com
-users: @User
-  | alice, "Alice", "alice@example.com", "Bio with @mention"
-  | bob, "Bob", "bob@test.org", "Not a comment but bio"
+users:@User
+ |alice, "Alice", "alice@example.com", "Bio with @mention"
+ |bob, "Bob", "bob@test.org", "Not a comment but bio"
 
 # Another comment with @User:bob
 "#;
@@ -268,13 +284,15 @@ users: @User
 
 #[test]
 fn test_quoted_id_with_special_chars() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: Product: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id, name]
 ---
-products: @Product
-  | "product-123", "Product 123"
-  | "item_456", "Item 456"
-  | "test:special", "Test Special"
+products:@Product
+ |"product-123", "Product 123"
+ |"item_456", "Item 456"
+ |"test:special", "Test Special"
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);

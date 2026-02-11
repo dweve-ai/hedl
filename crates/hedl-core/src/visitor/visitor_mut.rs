@@ -206,8 +206,8 @@ mod tests {
     #[test]
     fn test_default_implementations() {
         let mut visitor = NoOpVisitorMut;
-        let mut doc = Document::new((1, 0));
-        let temp_doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
+        let temp_doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&temp_doc);
 
         assert_eq!(
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn test_mutable_visitor_can_modify_values() {
         let mut visitor = ValueModifier;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let mut value = Value::Int(21);
@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn test_mutable_visitor_can_modify_nodes() {
         let mut visitor = NodeIdModifier;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let mut node = Node::new("User", "alice", vec![]);
@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn test_mutable_visitor_can_skip_empty_lists() {
         let mut visitor = SkipEmptyLists;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let mut empty_list = MatrixList::new("User", vec!["id".to_string()]);
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_mutable_visitor_can_clean_objects() {
         let mut visitor = ObjectCleaner;
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         let mut obj = BTreeMap::new();

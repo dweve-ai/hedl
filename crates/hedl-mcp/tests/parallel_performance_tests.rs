@@ -45,7 +45,7 @@ fn create_test_files(n: usize) -> TempDir {
     for i in 0..n {
         // Create simpler HEDL files that are definitely valid
         let content = format!(
-            "%VERSION: 1.0\n%STRUCT: Item: [id, name, value]\n---\nitems{}: @Item\n  | item{}, Item {}, {}\n  | item{}, Item {}, {}\n",
+            "%VERSION: 1.0\n%STRUCT: Item: [id, name, value]\n---\nitems{}:@Item\n | item{}, Item {}, {}\n | item{}, Item {}, {}\n",
             i,
             i, i, i * 10,
             i + 1000, i + 1000, (i + 1000) * 10

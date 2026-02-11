@@ -31,7 +31,7 @@ pub enum Neo4jError {
     InvalidReference(String),
 
     /// Unresolved reference to a non-existent node.
-    #[error("unresolved reference: @{type_name}:{id}", type_name = .type_name.as_deref().unwrap_or(""), id = .id)]
+    #[error("unresolved reference:@{type_name}:{id}", type_name = .type_name.as_deref().unwrap_or(""), id = .id)]
     UnresolvedReference {
         /// The type name of the reference (if specified).
         type_name: Option<String>,

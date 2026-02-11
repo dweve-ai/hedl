@@ -160,10 +160,12 @@
   <div class="container">
     <div class="panel">
       <h2>HEDL Input</h2>
-      <textarea id="hedl-input">%VERSION: 1.0
-%STRUCT: User[id,name,email,role]
-%STRUCT: Post[id,title,content,views]
-%NEST: User > Post
+      <textarea id="hedl-input">%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email,role]
+%S:Post:[id,title,content,views]
+%N:User>Post
 %ALIAS: %active: "true"
 %ALIAS: %admin: "admin"
 ---
@@ -314,7 +316,7 @@ settings:
 
     // Clear
     document.getElementById('clear-btn').addEventListener('click', () => {
-      document.getElementById('hedl-input').value = '%VERSION: 1.0\n---\n';
+      document.getElementById('hedl-input').value = '%V:2.0\n%NULL:~\n%QUOTE:"\n---\n';
       document.getElementById('output').textContent = 'Waiting for conversion...';
       document.getElementById('status').className = 'success';
       document.getElementById('status').textContent = 'Cleared!';

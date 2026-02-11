@@ -45,10 +45,10 @@ pub enum Action {
     Delete,
 }
 
-impl Action {
-    /// Parse action from string.
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self, AuthError> {
+impl std::str::FromStr for Action {
+    type Err = AuthError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "read" => Ok(Self::Read),
             "write" => Ok(Self::Write),
@@ -399,6 +399,7 @@ impl PathPattern {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_action_from_str() {

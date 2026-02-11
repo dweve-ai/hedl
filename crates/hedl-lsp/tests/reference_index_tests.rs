@@ -28,19 +28,21 @@ use tower_lsp::lsp_types::Position;
 
 #[test]
 fn test_reference_index_v2_basic() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title, author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title, author]
 ---
-users: @User
-  | alice, Alice Smith
-  | bob, Bob Jones
+users:@User
+ |alice, Alice Smith
+ |bob, Bob Jones
 
-posts: @Post
-  | post1, First Post, @User:alice
-  | post2, Second Post, @User:bob
-  | post3, Third Post, @User:alice
-";
+posts:@Post
+ |post1, First Post, @User:alice
+ |post2, Second Post, @User:bob
+ |post3, Third Post, @User:alice
+"#;
 
     eprintln!("Content:\n{content}");
     eprintln!("Content length: {}", content.len());
@@ -68,11 +70,11 @@ posts: @Post
 
     let alice_def = analysis.reference_index_v2.find_definition("User", "alice");
     assert!(alice_def.is_some(), "Should find alice definition");
-    assert_eq!(alice_def.unwrap().line, 5);
+    assert_eq!(alice_def.unwrap().line, 7);
 
     let bob_def = analysis.reference_index_v2.find_definition("User", "bob");
     assert!(bob_def.is_some(), "Should find bob definition");
-    assert_eq!(bob_def.unwrap().line, 6);
+    assert_eq!(bob_def.unwrap().line, 8);
 
     // Test reference lookup
     let alice_refs = analysis.reference_index_v2.find_references("@User:alice");
@@ -80,7 +82,7 @@ posts: @Post
 
     // Test find reference at position
     let pos = Position {
-        line: 9,
+        line: 11,
         character: 28, // Position on @User:alice
     };
     let ref_at = analysis.reference_index_v2.find_reference_at(pos);
@@ -91,14 +93,16 @@ posts: @Post
 
 #[test]
 fn test_reference_index_v2_unqualified() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
 ref: @alice
-";
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -109,19 +113,21 @@ ref: @alice
 
 #[test]
 fn test_reference_index_v2_multiple_references() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, author]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
-posts: @Post
-  | p1, @User:alice
-  | p2, @User:alice
-  | p3, @User:alice
-  | p4, @alice
-";
+posts:@Post
+ |p1, @User:alice
+ |p2, @User:alice
+ |p3, @User:alice
+ |p4, @alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -143,14 +149,16 @@ posts: @Post
 
 #[test]
 fn test_reference_index_v2_character_positions() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
 ref: @User:alice
-";
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -159,7 +167,7 @@ ref: @User:alice
     assert!(!refs.is_empty(), "Should find reference");
 
     let ref_loc = &refs[0];
-    assert_eq!(ref_loc.line, 6);
+    assert_eq!(ref_loc.line, 8);
     assert!(
         ref_loc.start_char < ref_loc.end_char,
         "Should have valid character range"
@@ -173,21 +181,23 @@ ref: @User:alice
 
 #[test]
 fn test_reference_index_v2_find_at_position() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
-ref1: @User:alice
-ref2: @alice
-";
+ref1:@User:alice
+ref2:@alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Test finding qualified reference
     let pos1 = Position {
-        line: 6,
+        line: 8,
         character: 7, // Inside @User:alice
     };
     let found1 = analysis.reference_index_v2.find_reference_at(pos1);
@@ -196,7 +206,7 @@ ref2: @alice
 
     // Test finding unqualified reference
     let pos2 = Position {
-        line: 7,
+        line: 9,
         character: 7, // Inside @alice
     };
     let found2 = analysis.reference_index_v2.find_reference_at(pos2);
@@ -217,18 +227,20 @@ ref2: @alice
 
 #[test]
 fn test_reference_index_v2_statistics() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, author]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, author]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
+users:@User
+ |alice, Alice
+ |bob, Bob
 
-posts: @Post
-  | p1, @User:alice
-  | p2, @User:bob
-";
+posts:@Post
+ |p1, @User:alice
+ |p2, @User:bob
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -246,10 +258,11 @@ posts: @Post
 #[test]
 fn test_reference_index_v2_performance() {
     // Generate a large document with many references
-    let mut content = String::from("%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n");
+    let mut content =
+        String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n");
 
     for i in 0..1000 {
-        content.push_str(&format!("  | user{i}, User {i}\n"));
+        content.push_str(&format!("  |user{i}, User {i}\n"));
     }
 
     let analysis = AnalyzedDocument::analyze(&content);
@@ -273,16 +286,18 @@ fn test_reference_index_v2_performance() {
 
 #[test]
 fn test_reference_index_v2_with_special_characters() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice-smith, Alice Smith
-  | bob_jones, Bob Jones
+users:@User
+ |alice-smith, Alice Smith
+ |bob_jones, Bob Jones
 
-ref1: @User:alice-smith
-ref2: @User:bob_jones
-";
+ref1:@User:alice-smith
+ref2:@User:bob_jones
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -306,12 +321,14 @@ ref2: @User:bob_jones
 
 #[test]
 fn test_reference_index_v2_nonexistent() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
-";
+users:@User
+ |alice, Alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 

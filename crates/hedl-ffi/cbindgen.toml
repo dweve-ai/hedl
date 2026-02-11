@@ -72,7 +72,7 @@ header = """
  * #include <stdlib.h>
  *
  * int main() {
- *     const char* hedl_source = "%VERSION: 1.0\n---\nname: Alice\nage: 30\n";
+ *     const char* hedl_source = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: Alice\nage: 30\n";
  *     HedlDocument* doc = NULL;
  *
  *     // Parse HEDL document

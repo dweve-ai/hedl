@@ -56,6 +56,20 @@ pub enum DiagnosticKind {
     EmptyList,
     /// Unqualified reference in Key-Value context
     UnqualifiedKvReference,
+    /// Inline child list exceeds maximum entries
+    InlineChildExceedsMax,
+    /// Unnecessary space after pipe in row data
+    SpaceAfterPipe,
+    /// Inline child count mismatch
+    InlineCountMismatch,
+    /// Missing count hint on inline child list
+    MissingCountHint,
+    /// Ditto operator forbidden in v2.0
+    ForbidDitto,
+    /// Required headers missing in v2.0
+    RequiredHeaders,
+    /// Invalid indentation (HEDL v2.0)
+    InvalidIndentation,
     /// Custom rule violation
     Custom(String),
 }
@@ -300,6 +314,13 @@ mod tests {
             DiagnosticKind::UnusedSchema,
             DiagnosticKind::EmptyList,
             DiagnosticKind::UnqualifiedKvReference,
+            DiagnosticKind::InlineChildExceedsMax,
+            DiagnosticKind::SpaceAfterPipe,
+            DiagnosticKind::InlineCountMismatch,
+            DiagnosticKind::MissingCountHint,
+            DiagnosticKind::ForbidDitto,
+            DiagnosticKind::RequiredHeaders,
+            DiagnosticKind::InvalidIndentation,
             DiagnosticKind::Custom("test".to_string()),
         ];
 

@@ -47,7 +47,7 @@ fn get_record_batch(bytes: &[u8]) -> RecordBatch {
 
 #[test]
 fn test_string_in_int_column_writes_null_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row has correct type (Int)
@@ -86,7 +86,7 @@ fn test_string_in_int_column_writes_null_by_default() {
 
 #[test]
 fn test_bool_in_int_column_writes_null_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row with correct type to establish schema
@@ -120,7 +120,7 @@ fn test_bool_in_int_column_writes_null_by_default() {
 
 #[test]
 fn test_string_in_bool_column_writes_null_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "flag".to_string()]);
 
     list.add_row(Node::new(
@@ -155,7 +155,7 @@ fn test_string_in_bool_column_writes_null_by_default() {
 
 #[test]
 fn test_int_in_bool_column_writes_null_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "flag".to_string()]);
 
     // First row with correct type to establish schema
@@ -189,7 +189,7 @@ fn test_int_in_bool_column_writes_null_by_default() {
 
 #[test]
 fn test_string_in_float_column_writes_null_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     list.add_row(Node::new(
@@ -224,7 +224,7 @@ fn test_string_in_float_column_writes_null_by_default() {
 
 #[test]
 fn test_bool_in_float_column_writes_null_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     // First row with correct type to establish schema
@@ -259,7 +259,7 @@ fn test_bool_in_float_column_writes_null_by_default() {
 #[test]
 fn test_int_to_float_is_allowed() {
     // Int to Float is a valid coercion (widening)
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     list.add_row(Node::new(
@@ -291,7 +291,7 @@ fn test_int_to_float_is_allowed() {
 
 #[test]
 fn test_explicit_null_writes_null() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row with correct type to establish schema
@@ -329,7 +329,7 @@ fn test_explicit_null_writes_null() {
 
 #[test]
 fn test_string_in_int_column_coerces_to_zero_when_enabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row with correct type to establish schema
@@ -368,7 +368,7 @@ fn test_string_in_int_column_coerces_to_zero_when_enabled() {
 
 #[test]
 fn test_string_in_bool_column_coerces_to_false_when_enabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "flag".to_string()]);
 
     // First row with correct type to establish schema
@@ -406,7 +406,7 @@ fn test_string_in_bool_column_coerces_to_false_when_enabled() {
 
 #[test]
 fn test_string_in_float_column_coerces_to_zero_when_enabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     // First row with correct type to establish schema
@@ -444,7 +444,7 @@ fn test_string_in_float_column_coerces_to_zero_when_enabled() {
 
 #[test]
 fn test_explicit_null_stays_null_with_coercion() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row with correct type to establish schema
@@ -486,7 +486,7 @@ fn test_explicit_null_stays_null_with_coercion() {
 
 #[test]
 fn test_mixed_valid_and_invalid_types() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     list.add_row(Node::new(
@@ -535,7 +535,7 @@ fn test_mixed_valid_and_invalid_types() {
 
 #[test]
 fn test_mixed_valid_and_invalid_types_with_coercion() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     list.add_row(Node::new(
@@ -575,7 +575,7 @@ fn test_mixed_valid_and_invalid_types_with_coercion() {
 
 #[test]
 fn test_round_trip_preserves_nulls() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     list.add_row(Node::new(

@@ -30,7 +30,7 @@ const HEDL_SAMPLE: &str = r"%VERSION: 1.0
 %STRUCT: Product: [id, title, price, category, stock]
 %STRUCT: Order: [id, user_id, product_id, quantity, total]
 ---
-users: @User
+users:@User
   | alice, Alice Smith, alice@example.com, 30, San Francisco
   | bob, Bob Jones, bob@example.com, 25, New York
   | charlie, Charlie Brown, charlie@example.com, 35, Los Angeles
@@ -42,7 +42,7 @@ users: @User
   | iris, Iris Chang, iris@example.com, 33, Portland
   | jack, Jack London, jack@example.com, 26, Sacramento
 
-products: @Product
+products:@Product
   | widget, Widget Pro, 99.99, electronics, 100
   | gadget, Gadget Plus, 149.99, electronics, 50
   | tool, Tool Master, 79.99, hardware, 75
@@ -54,7 +54,7 @@ products: @Product
   | controller, Main Controller, 129.99, electronics, 40
   | adapter, Universal Adapter, 19.99, accessories, 300
 
-orders: @Order
+orders:@Order
   | order1, alice, widget, 2, 199.98
   | order2, bob, gadget, 1, 149.99
   | order3, charlie, tool, 3, 239.97
@@ -219,7 +219,7 @@ fn benchmark_mixed_workload() {
     let docs: Vec<String> = (0..5)
         .map(|i| {
             format!(
-                "%VERSION: 1.0\n%STRUCT: Item: [id, value]\n---\nitems: @Item\n  | item{}, {}\n",
+                "%VERSION: 1.0\n%STRUCT: Item: [id, value]\n---\nitems:@Item\n | item{}, {}\n",
                 i,
                 i * 100
             )

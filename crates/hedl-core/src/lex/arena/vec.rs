@@ -24,7 +24,7 @@
 //! ArenaVec stores its contents directly in an arena, avoiding heap
 //! allocation for small collections like node fields (typically 3-7 values).
 //!
-//! Unlike Vec<T> where the struct is arena-allocated but the buffer is
+//! Unlike `Vec<T>` where the struct is arena-allocated but the buffer is
 //! heap-allocated, ArenaVec stores the actual data in the arena.
 
 use bumpalo::Bump;

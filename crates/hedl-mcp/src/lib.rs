@@ -27,9 +27,12 @@
 //! - **Get token statistics** comparing HEDL vs JSON representations
 
 #![cfg_attr(not(test), warn(missing_docs))]
+/// Authentication.
 pub mod auth;
+/// Batch operations.
 pub mod batch;
 mod batch_executor;
+/// Caching.
 pub mod cache;
 mod config;
 mod error;
@@ -37,6 +40,7 @@ mod protocol;
 mod rate_limiter;
 mod resource_limits;
 mod server;
+/// MCP tools.
 pub mod tools;
 
 pub use auth::*;

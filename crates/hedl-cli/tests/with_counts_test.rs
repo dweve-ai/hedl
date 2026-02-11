@@ -24,14 +24,16 @@ use tempfile::NamedTempFile;
 
 #[test]
 fn test_with_counts_adds_counts_to_simple_lists() {
-    let input = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
 ---
-teams: @Team
-  | t1,Warriors
-  | t2,Lakers
-  | t3,Celtics
-";
+teams:@Team
+ |t1,Warriors
+ |t2,Lakers
+ |t3,Celtics
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -46,23 +48,26 @@ teams: @Team
         .expect("Failed to execute hedl");
 
     let output_str = String::from_utf8_lossy(&output.stdout);
-    // New format: count goes in %STRUCT header, not list declaration
-    assert!(output_str.contains("%STRUCT: Team (3): [id,name]"));
-    assert!(output_str.contains("teams: @Team"));
-    assert!(!output_str.contains("teams(3)"));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    // v2.0 format: count goes in %C directive
+    assert!(
+        output_str.contains("%C:Team.total=3"),
+        "Expected %C:Team.total=3, got: {output_str}"
+    );
+    assert!(output_str.contains("teams:@Team"));
 }
 
 #[test]
 fn test_with_counts_overwrites_existing_counts() {
-    let input = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
+%C:Team.total=5
 ---
-teams(5): @Team
-  | t1,Warriors
-  | t2,Lakers
-";
+teams:@Team
+ |t1,Warriors
+ |t2,Lakers
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -77,22 +82,25 @@ teams(5): @Team
         .expect("Failed to execute hedl");
 
     let output_str = String::from_utf8_lossy(&output.stdout);
-    // New format: count goes in %STRUCT header
-    assert!(output_str.contains("%STRUCT: Team (2): [id,name]"));
-    assert!(output_str.contains("teams: @Team"));
-    assert!(!output_str.contains("teams(2)"));
-    assert!(!output_str.contains("teams(5)"));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    // v2.0 format: count directive should be updated to actual count
+    assert!(
+        output_str.contains("%C:Team.total=2"),
+        "Expected %C:Team.total=2, got: {output_str}"
+    );
+    assert!(output_str.contains("teams:@Team"));
+    // Old count should not be present
+    assert!(!output_str.contains(".total=5"));
 }
 
 #[test]
 fn test_with_counts_handles_empty_lists() {
-    let input = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
 ---
-teams: @Team
-";
+teams:@Team
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -107,27 +115,30 @@ teams: @Team
         .expect("Failed to execute hedl");
 
     let output_str = String::from_utf8_lossy(&output.stdout);
-    // New format: count goes in %STRUCT header (0 for empty list)
-    assert!(output_str.contains("%STRUCT: Team (0): [id,name]"));
-    assert!(output_str.contains("teams: @Team"));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    // v2.0 format: count directive for empty list (0)
+    assert!(
+        output_str.contains("%C:Team.total=0"),
+        "Expected %C:Team.total=0, got: {output_str}"
+    );
+    assert!(output_str.contains("teams:@Team"));
 }
 
 #[test]
 fn test_with_counts_handles_nested_objects() {
-    let input = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
 ---
 sports:
-  basketball:
-    teams: @Team
-      | t1,Lakers
-      | t2,Celtics
-  football:
-    teams: @Team
-      | t3,Chiefs
-";
+ basketball:
+  teams:@Team
+   |t1,Lakers
+   |t2,Celtics
+ football:
+  teams:@Team
+   |t3,Chiefs
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -143,24 +154,27 @@ sports:
 
     let output_str = String::from_utf8_lossy(&output.stdout);
 
-    // New format: counts are in %STRUCT header (total count for the type)
+    // v2.0 format: count directive (total count for the type)
     // Since there are 3 Team rows total (2 in basketball, 1 in football)
-    assert!(output_str.contains("%STRUCT: Team (3): [id,name]"));
-    assert!(output_str.contains("teams: @Team"));
-    assert!(!output_str.contains("teams("));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    assert!(
+        output_str.contains("%C:Team.total=3"),
+        "Expected %C:Team.total=3, got: {output_str}"
+    );
+    assert!(output_str.contains("teams:@Team"));
 }
 
 #[test]
-fn test_without_counts_flag_preserves_no_counts() {
-    let input = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+fn test_without_counts_flag_still_emits_actual_counts() {
+    // v2.0 canonical output always includes %C: directives that reflect actual data
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
 ---
-teams: @Team
-  | t1,Warriors
-  | t2,Lakers
-";
+teams:@Team
+ |t1,Warriors
+ |t2,Lakers
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -171,27 +185,31 @@ teams: @Team
         .expect("Failed to execute hedl");
 
     let output_str = String::from_utf8_lossy(&output.stdout);
-    assert!(output_str.contains("teams: @Team"));
-    assert!(!output_str.contains("teams(2): @Team"));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    assert!(output_str.contains("teams:@Team"));
+    // v2.0 canonical output always includes actual counts
+    assert!(
+        output_str.contains("%C:Team.total=2"),
+        "Expected %C:Team.total=2 in canonical output, got: {output_str}"
+    );
 }
 
 #[test]
 fn test_with_counts_multiple_lists() {
-    let input = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
-%STRUCT: Player: [id,name]
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Team:[id,name]
+%S:Player:[id,name]
 ---
-teams: @Team
-  | t1,Warriors
-  | t2,Lakers
-  | t3,Celtics
+teams:@Team
+ |t1,Warriors
+ |t2,Lakers
+ |t3,Celtics
 
-players: @Player
-  | p1,Curry
-  | p2,James
-";
+players:@Player
+ |p1,Curry
+ |p2,James
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -207,25 +225,29 @@ players: @Player
 
     let output_str = String::from_utf8_lossy(&output.stdout);
 
-    // New format: counts are in %STRUCT headers
-    assert!(output_str.contains("%STRUCT: Player (2): [id,name]"));
-    assert!(output_str.contains("%STRUCT: Team (3): [id,name]"));
-    assert!(output_str.contains("teams: @Team"));
-    assert!(output_str.contains("players: @Player"));
-    assert!(!output_str.contains("teams("));
-    assert!(!output_str.contains("players("));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    // v2.0 format: count directives for each type
+    assert!(
+        output_str.contains("%C:Player.total=2"),
+        "Expected %C:Player.total=2, got: {output_str}"
+    );
+    assert!(
+        output_str.contains("%C:Team.total=3"),
+        "Expected %C:Team.total=3, got: {output_str}"
+    );
+    assert!(output_str.contains("teams:@Team"));
+    assert!(output_str.contains("players:@Player"));
 }
 
 #[test]
 fn test_with_counts_inline_schema() {
-    let input = r"%VERSION: 1.0
+    let input = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
-teams: @Team[id,name]
-  | t1,Warriors
-  | t2,Lakers
-";
+teams:@Team[id,name]
+ |t1,Warriors
+ |t2,Lakers
+"#;
 
     let temp_file = NamedTempFile::new().unwrap();
     fs::write(temp_file.path(), input).unwrap();
@@ -240,9 +262,10 @@ teams: @Team[id,name]
         .expect("Failed to execute hedl");
 
     let output_str = String::from_utf8_lossy(&output.stdout);
-    // Canonical format converts inline schemas to STRUCT declarations with counts
-    assert!(output_str.contains("teams: @Team"));
-    assert!(output_str.contains("%STRUCT: Team (2): [id,name]"));
-
-    // Tempfile automatically cleaned up when it goes out of scope
+    // Canonical format converts inline schemas to %S declarations with %C counts
+    assert!(output_str.contains("teams:@Team"));
+    assert!(
+        output_str.contains("%C:Team.total=2"),
+        "Expected %C:Team.total=2, got: {output_str}"
+    );
 }

@@ -1,31 +1,30 @@
 # hedl-c14n
 
-**Canonical form generation for HEDL documents—deterministic serialization with ditto optimization for minimal token count.**
+**Canonical form generation for HEDL documents -deterministic serialization for minimal token count.**
 
-Comparing HEDL documents shouldn't fail on whitespace differences. Git diffs shouldn't show spurious changes from inconsistent formatting. LLM context windows are expensive—every token matters. Production systems need bit-for-bit identical outputs for cache hits and content-addressable storage. Cryptographic signatures require deterministic serialization.
+Comparing HEDL documents shouldn't fail on whitespace differences. Git diffs shouldn't show spurious changes from inconsistent formatting. LLM context windows are expensive -every token matters. Production systems need bit-for-bit identical outputs for cache hits and content-addressable storage. Cryptographic signatures require deterministic serialization.
 
-`hedl-c14n` implements canonical form generation per SPEC.md Section 13.2. Transform any valid HEDL document into normalized form with consistent indentation, sorted keys, ditto optimization for repeated values, and count hints on matrix lists. Same document always produces identical output. Round-trip stable—parse(canonicalize(doc)) preserves semantic equivalence. Reduces token count by 15-40% through ditto operator while maintaining full type information.
+`hedl-c14n` implements canonical form generation per SPEC.md Section 13.2. Transform any valid HEDL document into normalized form with consistent 1-space indentation, sorted keys, and count hints on matrix lists. Same document always produces identical output. Round-trip stable -parse(canonicalize(doc)) preserves semantic equivalence.
 
 ## What's Implemented
 
 Comprehensive canonicalization with performance and security:
 
 1. **Deterministic Serialization**: Bit-for-bit identical output for equivalent documents
-2. **Ditto Optimization**: Replace repeated values with `^` operator (15-40% token reduction)
-3. **Count Hints**: Automatic `[count]` annotations on matrix lists for fast parsing
-4. **Value Normalization**: Float formatting (no trailing zeros, -0 → 0), null as `~`, lowercase booleans
-5. **Key Ordering**: Optional alphabetic sorting for consistent field ordering
-6. **Quoting Strategy**: Minimal quoting (only when necessary) or always-quote modes
-7. **Schema Options**: Inline schemas in matrix headers or separate %STRUCT declarations
-8. **Security Hardening**: 1000-level depth limit prevents stack overflow
-9. **Performance Optimizations**: Pre-allocated buffers (P1), direct BTreeMap iteration (P0)
-10. **Round-Trip Stability**: Semantic equivalence preserved through parse → canonicalize → parse
+2. **Count Hints**: Automatic `[count]` annotations on matrix lists for fast parsing
+3. **Value Normalization**: Float formatting (no trailing zeros, -0 → 0), null as `~`, lowercase booleans
+4. **Key Ordering**: Optional alphabetic sorting for consistent field ordering
+5. **Quoting Strategy**: Minimal quoting (only when necessary) or always-quote modes
+6. **Schema Options**: Inline schemas in matrix headers or separate %S: declarations
+7. **Security Hardening**: 1000-level depth limit prevents stack overflow
+8. **Performance Optimizations**: Pre-allocated buffers (P1), direct BTreeMap iteration (P0)
+9. **Round-Trip Stability**: Semantic equivalence preserved through parse → canonicalize → parse
 
 ## Installation
 
 ```toml
 [dependencies]
-hedl-c14n = "1.2"
+hedl-c14n = "2.0"
 ```
 
 ## Basic Usage
@@ -37,13 +36,13 @@ use hedl_core::parse;
 use hedl_c14n::canonicalize;
 
 let doc = parse(br#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
-  | charlie, Charlie Brown, charlie@example.com
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
+ | charlie, Charlie Brown, charlie@example.com
 "#)?;
 
 let canonical = canonicalize(&doc)?;
@@ -52,18 +51,18 @@ println!("{}", canonical);
 
 **Output**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User[3]
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
-  | charlie, Charlie Brown, charlie@example.com
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
+ | charlie, Charlie Brown, charlie@example.com
 ```
 
 **Features Applied**:
 - Count hint `[3]` added automatically
-- Consistent 2-space indentation
+- Consistent 1-space indentation
 - Minimal quoting (only when required)
 - Preserved key order
 
@@ -73,62 +72,12 @@ users: @User[3]
 use hedl_c14n::{canonicalize_with_config, CanonicalConfig, QuotingStrategy};
 
 let config = CanonicalConfig::builder()
-    .use_ditto(true)                          // Enable ditto optimization
     .sort_keys(true)                          // Alphabetically sort fields
     .inline_schemas(true)                     // Inline schemas in headers
     .quoting(QuotingStrategy::Minimal)        // Minimal quoting
     .build();
 
 let canonical = canonicalize_with_config(&doc, &config)?;
-```
-
-## Ditto Optimization
-
-Replace repeated values with `^` to reduce token count:
-
-### Without Ditto (use_ditto=false)
-
-```hedl
-orders: @Order[id, customer, status, priority]
-  | ord1, @User:alice, pending, high
-  | ord2, @User:alice, pending, high
-  | ord3, @User:bob, shipped, normal
-  | ord4, @User:bob, shipped, normal
-  | ord5, @User:bob, shipped, normal
-```
-
-### With Ditto (use_ditto=true)
-
-```hedl
-orders: @Order[id, customer, status, priority]
-  | ord1, @User:alice, pending, high
-  | ord2, ^, ^, ^
-  | ord3, @User:bob, shipped, normal
-  | ord4, ^, ^, ^
-  | ord5, ^, ^, ^
-```
-
-**Token Reduction**: 33 fewer tokens (15% reduction for this example)
-
-### Ditto Logic
-
-Ditto operator `^` applied when:
-1. **Exact Type Match**: Same Value variant (String/Int/Float/Bool/Null/Reference/Expression)
-2. **Sequential Repetition**: Value matches immediately previous row's same column
-3. **Not First Row**: Ditto never used in first row of matrix (no previous value)
-
-**Type Equality Examples**:
-```rust
-// These match (same type + value)
-Value::String("alice") == Value::String("alice")  // ✓ → ^
-Value::Int(42) == Value::Int(42)                 // ✓ → ^
-Value::Float(3.14) == Value::Float(3.14)         // ✓ → ^
-Value::Reference(qualified("User", "alice")) == Value::Reference(qualified("User", "alice"))  // ✓ → ^
-
-// These don't match (different types or values)
-Value::String("42") != Value::Int(42)            // ✗ → keep literal
-Value::Float(0.0) != Value::Int(0)               // ✗ → keep literal
-Value::Reference(local("alice")) != Value::Reference(qualified("User", "alice"))  // ✗ → keep literal
 ```
 
 ## Count Hints
@@ -138,13 +87,13 @@ Automatically generate `[count]` annotations:
 ```rust
 // Input: no count hint
 users: @User
-  | alice, Alice
-  | bob, Bob
+ | alice, Alice
+ | bob, Bob
 
 // Output: count hint added
 users: @User[2]
-  | alice, Alice
-  | bob, Bob
+ | alice, Alice
+ | bob, Bob
 ```
 
 **Benefits**:
@@ -285,12 +234,12 @@ Two modes for schema representation:
 ### Separate %STRUCT (inline_schemas=false, default)
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User[2]
-  | alice, Alice, alice@example.com
-  | bob, Bob, bob@example.com
+ | alice, Alice, alice@example.com
+ | bob, Bob, bob@example.com
 ```
 
 **Advantages**:
@@ -301,11 +250,11 @@ users: @User[2]
 ### Inline Schemas (inline_schemas=true)
 
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
 users: @User[id, name, email][2]
-  | alice, Alice, alice@example.com
-  | bob, Bob, bob@example.com
+ | alice, Alice, alice@example.com
+ | bob, Bob, bob@example.com
 ```
 
 **Advantages**:
@@ -321,19 +270,13 @@ users: @User[id, name, email][2]
 use hedl_c14n::{CanonicalConfig, QuotingStrategy};
 
 let config = CanonicalConfig::builder()
-    .use_ditto(true)                          // Enable ^ optimization (default: true)
     .sort_keys(true)                          // Alphabetic sorting (default: true)
-    .inline_schemas(false)                    // Inline vs %STRUCT (default: false)
+    .inline_schemas(false)                    // Inline vs %S: (default: false)
     .quoting(QuotingStrategy::Minimal)        // Quoting mode (default: Minimal)
     .build();
 ```
 
 ### Configuration Options
-
-**use_ditto** (default: true)
-- Replace repeated values with `^` operator
-- Reduces token count by 15-40% for repetitive data
-- Trade-off: Slightly less human-readable, much more LLM-efficient
 
 **sort_keys** (default: true)
 - Alphabetically sort object fields
@@ -342,7 +285,7 @@ let config = CanonicalConfig::builder()
 
 **inline_schemas** (default: false)
 - `true`: Inline schemas in matrix headers `@Type[field1, field2]`
-- `false`: Separate %STRUCT declarations in header
+- `false`: Separate %S: declarations in header
 - Trade-off: Self-contained vs reusable schemas
 
 **quoting** (default: Minimal)
@@ -429,7 +372,7 @@ assert_eq!(original.entities, reparsed.entities);
 
 **Version Control Normalization**: Canonicalize HEDL files before git commit to eliminate spurious formatting diffs. Enable clean git history focused on semantic changes.
 
-**LLM Context Optimization**: Reduce token count by 15-40% through ditto optimization. Fit more data in 8K/32K/100K context windows without losing information.
+**LLM Context Optimization**: Minimize token count through compact syntax. Fit more data in context windows without losing information.
 
 **Content-Addressable Storage**: Generate deterministic hashes for identical documents regardless of source formatting. Enable deduplication and cache hits.
 
@@ -459,13 +402,11 @@ assert_eq!(original.entities, reparsed.entities);
 - **P0: Direct BTreeMap Iteration** - Iterate without intermediate Vec allocation (eliminates O(n) allocation)
 - **P1: Pre-allocated Buffers** - Estimate output size, allocate once (reduces allocation count by 90%)
 
-**Ditto Performance**: Type equality checks are O(1) constant time. Minimal overhead (~1-2% slower than no-ditto).
-
 **Count Hint Generation**: O(n) single pass to count nodes. Cached during serialization (no double-traversal).
 
 ## Dependencies
 
-- `hedl-core` 1.0 - Core HEDL data structures and parsing
+- `hedl-core` 2.0 - Core HEDL data structures and parsing
 - `thiserror` 1.0 - Error type definitions
 
 ## License

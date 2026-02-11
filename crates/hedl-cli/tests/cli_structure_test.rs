@@ -75,13 +75,13 @@ fn test_batch_commands_available() {
     assert!(subcommands.contains(&"batch-lint"));
 }
 
-/// Test that all utility commands are accessible at the top level.
+/// Test that completion command is accessible at the top level.
 #[test]
-fn test_utility_commands_available() {
+fn test_completion_command_available() {
     let cmd = TestCli::command();
     let subcommands: Vec<_> = cmd.get_subcommands().map(clap::Command::get_name).collect();
 
-    // Utility commands
+    // Completion command
     assert!(subcommands.contains(&"completion"));
 }
 
@@ -232,6 +232,6 @@ fn test_command_count() {
     // - 5 core (validate, format, lint, inspect, stats)
     // - 12 conversion (to/from for json, yaml, xml, csv, parquet, toon)
     // - 3 batch (batch-validate, batch-format, batch-lint)
-    // - 1 utility (completion)
+    // - 1 completion (completion)
     assert_eq!(count, 21, "Expected 21 commands, found {count}");
 }

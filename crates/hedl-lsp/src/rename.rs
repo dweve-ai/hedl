@@ -57,9 +57,9 @@
 //! renameable symbol.
 
 use crate::analysis::AnalyzedDocument;
-use crate::document_manager::DocumentManager;
+use crate::document_manager::DocumentCache;
 use crate::reference_index::RefLocation;
-use crate::utils::{safe_slice_from, safe_slice_to};
+use crate::utf_encoding::{safe_slice_from, safe_slice_to};
 use std::collections::HashMap;
 use tower_lsp::lsp_types::{Position, Range, TextEdit, Url, WorkspaceEdit};
 
@@ -176,15 +176,15 @@ fn identify_reference_symbol(ref_str: &str, analysis: &AnalyzedDocument) -> Opti
     let ref_content = ref_str.strip_prefix('@').unwrap_or(ref_str);
 
     if let Some(colon_pos) = ref_content.find(':') {
-        // Qualified reference: @Type:id
+        // Qualified reference:@Type:id
         let type_name = ref_content[..colon_pos].to_string();
         let id = ref_content[colon_pos + 1..].to_string();
         Some(SymbolKind::EntityId { type_name, id })
     } else {
-        // Unqualified reference: @id or @Type
+        // Unqualified reference:@id or @Type
         let id = ref_content.to_string();
 
-        // First, check if it's a type name (for matrix declarations like "users: @User")
+        // First, check if it's a type name (for matrix declarations like "users:@User")
         if analysis.schemas.contains_key(&id) {
             return Some(SymbolKind::TypeName(id));
         }
@@ -334,18 +334,18 @@ fn identify_type_at_position(
     let line = lines[position.line as usize];
     let char_pos = position.character as usize;
 
-    // Check if we're in a %STRUCT: directive
-    if line.trim().starts_with("%STRUCT") {
+    // Check if we're in a %STRUCT: or %S: directive
+    if line.trim().starts_with("%STRUCT") || line.trim().starts_with("%S:") {
         return extract_type_from_struct_directive(line, char_pos);
     }
 
-    // Check if we're in a %NEST: directive
-    if line.trim().starts_with("%NEST") {
+    // Check if we're in a %NEST: or %N: directive
+    if line.trim().starts_with("%NEST") || line.trim().starts_with("%N:") {
         return extract_type_from_nest_directive(line, char_pos);
     }
 
-    // Check if we're in a matrix list declaration (key: @Type)
-    if line.contains(": @") {
+    // Check if we're in a matrix list declaration (key:@Type or key: @Type)
+    if line.contains(":@") || line.contains(": @") {
         return extract_type_from_matrix_declaration(line, char_pos, analysis);
     }
 
@@ -359,9 +359,14 @@ fn identify_type_at_position(
 
 /// Extract type name from %STRUCT: directive.
 fn extract_type_from_struct_directive(line: &str, char_pos: usize) -> Option<String> {
-    // %STRUCT: TypeName: [col1, col2]
-    let rest = line.strip_prefix("%STRUCT")?.trim();
-    let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
+    // %S:TypeName:[col1, col2] or %STRUCT: TypeName:[col1, col2]
+    let rest = if let Some(r) = line.strip_prefix("%STRUCT") {
+        r.trim().strip_prefix(':').unwrap_or(r.trim()).trim()
+    } else if let Some(r) = line.strip_prefix("%S:") {
+        r.trim()
+    } else {
+        return None;
+    };
 
     let bracket_start = rest.find('[')?;
     let type_part = &rest[..bracket_start];
@@ -380,9 +385,14 @@ fn extract_type_from_struct_directive(line: &str, char_pos: usize) -> Option<Str
 
 /// Extract type name from %NEST: directive.
 fn extract_type_from_nest_directive(line: &str, char_pos: usize) -> Option<String> {
-    // %NEST: Parent > Child
-    let rest = line.strip_prefix("%NEST")?.trim();
-    let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
+    // %N:Parent>Child or %NEST: Parent>Child
+    let rest = if let Some(r) = line.strip_prefix("%NEST") {
+        r.trim().strip_prefix(':').unwrap_or(r.trim()).trim()
+    } else if let Some(r) = line.strip_prefix("%N:") {
+        r.trim()
+    } else {
+        return None;
+    };
 
     let arrow_pos = rest.find('>')?;
     let parent = rest[..arrow_pos].trim();
@@ -413,27 +423,39 @@ fn extract_type_from_matrix_declaration(
     char_pos: usize,
     analysis: &AnalyzedDocument,
 ) -> Option<String> {
-    // Format: key: @TypeName
-    // Find all occurrences of ": @" to handle multiple on same line
-    for (idx, _) in line.match_indices(": @") {
-        let at_pos = idx;
-        let after_at = &line[at_pos + 3..];
-        let type_name: String = after_at
-            .chars()
-            .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '-')
-            .collect();
+    // Format: key:@TypeName or key: @TypeName
+    // Find all occurrences of ":@" and ": @" to handle multiple on same line
 
-        if !type_name.is_empty() && analysis.schemas.contains_key(&type_name) {
-            let type_start = at_pos + 3;
-            let type_end = type_start + type_name.len();
+    // Helper to process matches at a given pattern
+    fn check_pattern(
+        line: &str,
+        pattern: &str,
+        char_pos: usize,
+        analysis: &AnalyzedDocument,
+    ) -> Option<String> {
+        for (idx, _) in line.match_indices(pattern) {
+            let at_pos = idx;
+            let after_at = &line[at_pos + pattern.len()..];
+            let type_name: String = after_at
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '-')
+                .collect();
 
-            if char_pos >= type_start && char_pos <= type_end {
-                return Some(type_name);
+            if !type_name.is_empty() && analysis.schemas.contains_key(&type_name) {
+                let type_start = at_pos + pattern.len();
+                let type_end = type_start + type_name.len();
+
+                if char_pos >= type_start && char_pos <= type_end {
+                    return Some(type_name);
+                }
             }
         }
+        None
     }
 
-    None
+    // Check both patterns - v2.0 canonical first, then backward compat
+    check_pattern(line, ":@", char_pos, analysis)
+        .or_else(|| check_pattern(line, ": @", char_pos, analysis))
 }
 
 /// Extract type name from qualified reference.
@@ -470,14 +492,19 @@ fn identify_field_at_position(
 
     let line = lines[position.line as usize];
 
-    // Only check %STRUCT: directives
-    if !line.trim().starts_with("%STRUCT") {
+    // Only check %STRUCT: or %S: directives
+    if !line.trim().starts_with("%STRUCT") && !line.trim().starts_with("%S:") {
         return None;
     }
 
     // Parse the directive
-    let rest = line.strip_prefix("%STRUCT")?.trim();
-    let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
+    let rest = if let Some(r) = line.strip_prefix("%STRUCT") {
+        r.trim().strip_prefix(':').unwrap_or(r.trim()).trim()
+    } else if let Some(r) = line.strip_prefix("%S:") {
+        r.trim()
+    } else {
+        return None;
+    };
 
     let bracket_start = rest.find('[')?;
     let bracket_end = rest.find(']')?;
@@ -602,7 +629,7 @@ fn find_type_occurrences(
         }
     }
 
-    // 2. Matrix list declarations (key: @Type)
+    // 2. Matrix list declarations (key:@Type)
     for (line_num, line) in lines.iter().enumerate() {
         // Find all occurrences on this line (not just the first one)
         for loc in find_all_types_in_matrix_declaration(line, line_num, type_name) {
@@ -638,15 +665,17 @@ fn find_type_occurrences(
     }
 
     // 4. NEST directives
-    for (parent, (child, line_num)) in &analysis.nests {
-        if parent == type_name || child == type_name {
-            if let Some(line) = lines.get(line_num.saturating_sub(1)) {
-                if let Some(loc) = find_type_in_nest_directive(line, *line_num, type_name) {
-                    locations.push(SymbolLocation {
-                        uri: uri.clone(),
-                        location: loc,
-                        is_definition: false,
-                    });
+    for (parent, child_list) in &analysis.nests {
+        for (child, line_num) in child_list {
+            if parent == type_name || child == type_name {
+                if let Some(line) = lines.get(line_num.saturating_sub(1)) {
+                    if let Some(loc) = find_type_in_nest_directive(line, *line_num, type_name) {
+                        locations.push(SymbolLocation {
+                            uri: uri.clone(),
+                            location: loc,
+                            is_definition: false,
+                        });
+                    }
                 }
             }
         }
@@ -681,9 +710,8 @@ fn find_type_in_struct_directive(
                 None
             };
 
-            let is_word_boundary = |c: Option<char>| {
-                c.is_none() || c.unwrap().is_whitespace() || c.unwrap() == ':' || c.unwrap() == '['
-            };
+            let is_word_boundary =
+                |c: Option<char>| c.map_or(true, |ch| ch.is_whitespace() || ch == ':' || ch == '[');
 
             if is_word_boundary(before) && is_word_boundary(after) {
                 return Some(RefLocation::new(
@@ -698,33 +726,8 @@ fn find_type_in_struct_directive(
     None
 }
 
-/// Find type name in matrix declaration (deprecated, use `find_all_types_in_matrix_declaration`).
-#[allow(dead_code)]
-fn find_type_in_matrix_declaration(
-    line: &str,
-    line_num: usize,
-    type_name: &str,
-) -> Option<RefLocation> {
-    // Format: key: @TypeName
-    if let Some(at_pos) = line.find(": @") {
-        let after_at = &line[at_pos + 3..];
-        if after_at.starts_with(type_name) {
-            // Verify word boundary
-            let after = after_at.chars().nth(type_name.len());
-            if after.is_none() || !after.unwrap().is_alphanumeric() {
-                return Some(RefLocation::new(
-                    line_num as u32,
-                    (at_pos + 3) as u32,
-                    (at_pos + 3 + type_name.len()) as u32,
-                ));
-            }
-        }
-    }
-    None
-}
-
 /// Find all type name occurrences in matrix declarations on a line.
-/// Handles multiple declarations on the same line like "users: @User, posts: @Post".
+/// Handles multiple declarations on the same line like "users:@User, posts:@Post".
 fn find_all_types_in_matrix_declaration(
     line: &str,
     line_num: usize,
@@ -732,21 +735,26 @@ fn find_all_types_in_matrix_declaration(
 ) -> Vec<RefLocation> {
     let mut locations = Vec::new();
 
-    // Format: key: @TypeName
-    // Find all occurrences of ": @" to handle multiple on same line
-    for (idx, _) in line.match_indices(": @") {
-        let at_pos = idx;
-        let after_at = &line[at_pos + 3..];
+    // Format: key:@TypeName or key: @TypeName
+    // Find all occurrences to handle multiple on same line
+    for (pattern, offset) in [
+        (":@", 2usize),  // ":@" is 2 chars (v2.0 canonical)
+        (": @", 3usize), // ": @" is 3 chars (backward compat)
+    ] {
+        for (idx, _) in line.match_indices(pattern) {
+            let at_pos = idx;
+            let after_at = &line[at_pos + offset..];
 
-        if after_at.starts_with(type_name) {
-            // Verify word boundary
-            let after = after_at.chars().nth(type_name.len());
-            if after.is_none() || !after.unwrap().is_alphanumeric() {
-                locations.push(RefLocation::new(
-                    line_num as u32,
-                    (at_pos + 3) as u32,
-                    (at_pos + 3 + type_name.len()) as u32,
-                ));
+            if after_at.starts_with(type_name) {
+                // Verify word boundary
+                let after = after_at.chars().nth(type_name.len());
+                if after.map_or(true, |c| !c.is_alphanumeric()) {
+                    locations.push(RefLocation::new(
+                        line_num as u32,
+                        (at_pos + offset) as u32,
+                        (at_pos + offset + type_name.len()) as u32,
+                    ));
+                }
             }
         }
     }
@@ -769,9 +777,8 @@ fn find_type_in_nest_directive(
         };
         let after = line.chars().nth(pos + type_name.len());
 
-        let is_word_boundary = |c: Option<char>| {
-            c.is_none() || c.unwrap().is_whitespace() || c.unwrap() == ':' || c.unwrap() == '>'
-        };
+        let is_word_boundary =
+            |c: Option<char>| c.map_or(true, |ch| ch.is_whitespace() || ch == ':' || ch == '>');
 
         if is_word_boundary(before) && is_word_boundary(after) {
             return Some(RefLocation::new(
@@ -816,11 +823,7 @@ fn find_alias_occurrences(
                 if after_percent.starts_with(alias) {
                     // Verify word boundary
                     let after = after_percent.chars().nth(alias.len());
-                    if after.is_none()
-                        || (!after.unwrap().is_alphanumeric()
-                            && after.unwrap() != '_'
-                            && after.unwrap() != '-')
-                    {
+                    if after.map_or(true, |c| !c.is_alphanumeric() && c != '_' && c != '-') {
                         locations.push(SymbolLocation {
                             uri: uri.clone(),
                             location: RefLocation::new(
@@ -842,8 +845,15 @@ fn find_alias_occurrences(
 
 /// Find alias in %ALIAS: directive.
 fn find_alias_in_directive(line: &str, line_num: usize, alias: &str) -> Option<RefLocation> {
-    // %ALIAS: alias = "value" or %ALIAS: %alias: "value"
-    let rest = line.strip_prefix("%ALIAS")?.trim();
+    // %ALIAS:alias="value" (verbose) or %A:%alias:"value" (compact)
+    let rest = if let Some(r) = line.strip_prefix("%ALIAS") {
+        r
+    } else if let Some(r) = line.strip_prefix("%A:") {
+        r
+    } else {
+        return None;
+    };
+    let rest = rest.trim();
     let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
 
     // Find the alias name (may have % prefix)
@@ -867,7 +877,7 @@ fn find_alias_in_directive(line: &str, line_num: usize, alias: &str) -> Option<R
         } else {
             None
         };
-        if before.is_none() || before.unwrap().is_whitespace() || before.unwrap() == ':' {
+        if before.map_or(true, |c| c.is_whitespace() || c == ':') {
             let line_pos = line.find(alias)?;
             return Some(RefLocation::new(
                 (line_num.saturating_sub(1)) as u32,
@@ -1034,7 +1044,8 @@ fn is_valid_identifier(name: &str, _symbol: &SymbolKind) -> bool {
     }
 
     // Pattern: [a-zA-Z][a-zA-Z0-9_-]*
-    let first_char = name.chars().next().unwrap();
+    // SAFETY: is_empty() check above guarantees at least one char
+    let first_char = name.chars().next().expect("non-empty string");
     if !first_char.is_alphabetic() {
         return false;
     }
@@ -1112,7 +1123,7 @@ fn check_case_similarity(
 /// Generate workspace edit for rename operation.
 pub fn generate_workspace_edit(
     operation: &RenameOperation,
-    document_manager: &DocumentManager,
+    document_manager: &DocumentCache,
 ) -> Result<WorkspaceEdit, String> {
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
 
@@ -1165,7 +1176,8 @@ fn requires_quoting(id: &str) -> bool {
         return true;
     }
 
-    let first_char = id.chars().next().unwrap();
+    // SAFETY: is_empty() check above guarantees at least one char
+    let first_char = id.chars().next().expect("non-empty string");
     if !first_char.is_alphabetic() {
         return true;
     }
@@ -1331,7 +1343,7 @@ pub fn get_symbol_range_at_position(
 #[must_use]
 pub fn find_all_occurrences_workspace(
     symbol: &SymbolKind,
-    document_manager: &DocumentManager,
+    document_manager: &DocumentCache,
 ) -> Vec<SymbolLocation> {
     let mut all_locations = Vec::new();
 
@@ -1354,7 +1366,7 @@ pub fn find_all_occurrences_workspace(
 pub fn validate_rename_workspace(
     symbol: &SymbolKind,
     new_name: &str,
-    document_manager: &DocumentManager,
+    document_manager: &DocumentCache,
 ) -> RenameValidation {
     let mut validation = RenameValidation {
         valid: true,

@@ -1,6 +1,6 @@
 # hedl-test
 
-**Shared test fixtures and utilities for HEDL—comprehensive test data, builders, and error cases for consistent testing across all crates.**
+**Shared test fixtures and utilities for HEDL -comprehensive test data, builders, and error cases for consistent testing across all crates.**
 
 Testing format converters requires representative documents. Building test cases by hand is tedious and error-prone. Common test scenarios should be reusable across crates. Edge cases need systematic coverage. Error conditions must be validated consistently.
 
@@ -28,7 +28,7 @@ Or specify version directly:
 
 ```toml
 [dev-dependencies]
-hedl-test = "1.2"
+hedl-test = "2.0"
 ```
 
 ## Pre-Built Fixtures

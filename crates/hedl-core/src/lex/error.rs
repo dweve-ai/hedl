@@ -77,6 +77,15 @@ pub enum LexError {
         pos: SourcePos,
     },
 
+    /// Invalid escape sequence.
+    #[error("line {}, column {}: invalid escape sequence '{}'", .pos.line(), .pos.column(), .sequence)]
+    InvalidEscape {
+        /// The invalid escape sequence.
+        sequence: String,
+        /// Source position of the escape.
+        pos: SourcePos,
+    },
+
     // ==================== Token errors ====================
     /// Invalid reference format.
     #[error("line {}, column {}: invalid reference format: {}", .pos.line(), .pos.column(), .message)]
@@ -197,6 +206,7 @@ impl LexError {
             LexError::IndentTooDeep { pos, .. } => Some(*pos),
             LexError::UnclosedQuote { pos } => Some(*pos),
             LexError::UnclosedExpression { pos } => Some(*pos),
+            LexError::InvalidEscape { pos, .. } => Some(*pos),
             LexError::InvalidReference { pos, .. } => Some(*pos),
             LexError::InvalidToken { pos, .. } => Some(*pos),
             LexError::StringTooLong { pos, .. } => Some(*pos),
@@ -255,6 +265,7 @@ impl LexError {
                 | LexError::QuoteInUnquotedField(_)
                 | LexError::UnclosedQuote { .. }
                 | LexError::UnclosedExpression { .. }
+                | LexError::InvalidEscape { .. }
         )
     }
 }

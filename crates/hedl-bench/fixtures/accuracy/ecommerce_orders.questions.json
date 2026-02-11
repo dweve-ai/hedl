@@ -1,0 +1,776 @@
+{
+  "difficulty": "hard",
+  "questions": [
+    {
+      "id": "ecom-1",
+      "type": "Aggregation",
+      "prompt": "How many addresses are there in total?",
+      "ground_truth": "15",
+      "ground_truth_by_format": {
+        "hedl": "12"
+      },
+      "answer_type": "Integer",
+      "notes": "HEDL has 12 addresses nested under customers, JSON/TOON have 15 standalone addresses"
+    },
+    {
+      "id": "ecom-2",
+      "type": "Aggregation",
+      "prompt": "How many customers are there in total?",
+      "ground_truth": "10",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 10' comment for customers"
+    },
+    {
+      "id": "ecom-3",
+      "type": "Aggregation",
+      "prompt": "How many products are there in total?",
+      "ground_truth": "15",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 15' comment for products"
+    },
+    {
+      "id": "ecom-4",
+      "type": "Aggregation",
+      "prompt": "How many orders are there in total?",
+      "ground_truth": "15",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 15' comment for orders"
+    },
+    {
+      "id": "ecom-5",
+      "type": "Aggregation",
+      "prompt": "How many order items are there in total?",
+      "ground_truth": "31",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 31' comment for OrderItem struct"
+    },
+    {
+      "id": "ecom-6",
+      "type": "Aggregation",
+      "prompt": "How many shipments are there in total?",
+      "ground_truth": "10",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 10' comment for Shipment struct"
+    },
+    {
+      "id": "ecom-7",
+      "type": "Aggregation",
+      "prompt": "How many reviews are there in total?",
+      "ground_truth": "15",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 15' comment for reviews"
+    },
+    {
+      "id": "ecom-8",
+      "type": "Aggregation",
+      "prompt": "How many inventory records are there in total?",
+      "ground_truth": "30",
+      "answer_type": "Integer",
+      "notes": "HEDL shows '# 30' comment for inventory"
+    },
+    {
+      "id": "ecom-9",
+      "type": "Filtering",
+      "prompt": "How many orders have been delivered?",
+      "ground_truth": "7",
+      "answer_type": "Integer",
+      "notes": "ord-001, ord-002, ord-005, ord-007, ord-009, ord-012, ord-014"
+    },
+    {
+      "id": "ecom-10",
+      "type": "Filtering",
+      "prompt": "How many orders are currently shipped (in transit)?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "ord-003, ord-010, ord-015"
+    },
+    {
+      "id": "ecom-11",
+      "type": "Filtering",
+      "prompt": "How many orders are still pending?",
+      "ground_truth": "1",
+      "answer_type": "Integer",
+      "notes": "ord-008 only"
+    },
+    {
+      "id": "ecom-12",
+      "type": "Filtering",
+      "prompt": "How many orders were cancelled?",
+      "ground_truth": "1",
+      "answer_type": "Integer",
+      "notes": "ord-006 only"
+    },
+    {
+      "id": "ecom-13",
+      "type": "Filtering",
+      "prompt": "How many orders were returned?",
+      "ground_truth": "1",
+      "answer_type": "Integer",
+      "notes": "ord-013 only"
+    },
+    {
+      "id": "ecom-14",
+      "type": "Filtering",
+      "prompt": "How many orders are in processing status?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "ord-004, ord-011"
+    },
+    {
+      "id": "ecom-15",
+      "type": "Filtering",
+      "prompt": "How many customers have gold tier?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "cust-001 (Alice), cust-005 (Emma), cust-009 (Yuki)"
+    },
+    {
+      "id": "ecom-16",
+      "type": "Filtering",
+      "prompt": "How many customers have platinum tier?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "cust-002 (Bob), cust-007 (Giulia)"
+    },
+    {
+      "id": "ecom-17",
+      "type": "Filtering",
+      "prompt": "How many customers have silver tier?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "cust-003 (Carol), cust-006 (Frank), cust-010 (Kevin)"
+    },
+    {
+      "id": "ecom-18",
+      "type": "Filtering",
+      "prompt": "How many customers have bronze tier?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "cust-004 (David), cust-008 (Hans)"
+    },
+    {
+      "id": "ecom-19",
+      "type": "Filtering",
+      "prompt": "How many products are in the electronics category?",
+      "ground_truth": "9",
+      "answer_type": "Integer",
+      "notes": "prod-001,002,003,004,007,008,013,014,015"
+    },
+    {
+      "id": "ecom-20",
+      "type": "Filtering",
+      "prompt": "How many products are in the sports category?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "prod-006, prod-011"
+    },
+    {
+      "id": "ecom-21",
+      "type": "Filtering",
+      "prompt": "How many products are in the home_garden category?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "prod-009, prod-012"
+    },
+    {
+      "id": "ecom-22",
+      "type": "Filtering",
+      "prompt": "How many orders were paid with credit card?",
+      "ground_truth": "8",
+      "answer_type": "Integer",
+      "notes": "ord-001,003,005,007,009,011,013,014"
+    },
+    {
+      "id": "ecom-23",
+      "type": "Filtering",
+      "prompt": "How many orders were paid with PayPal?",
+      "ground_truth": "4",
+      "answer_type": "Integer",
+      "notes": "ord-002,006,010,012"
+    },
+    {
+      "id": "ecom-24",
+      "type": "Filtering",
+      "prompt": "How many orders were paid with bank transfer?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "ord-004, ord-015"
+    },
+    {
+      "id": "ecom-25",
+      "type": "Filtering",
+      "prompt": "How many orders were paid with cryptocurrency?",
+      "ground_truth": "1",
+      "answer_type": "Integer",
+      "notes": "ord-008 only"
+    },
+    {
+      "id": "ecom-26",
+      "type": "Filtering",
+      "prompt": "How many shipments used FedEx as carrier?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "ship-001, ship-004, ship-008"
+    },
+    {
+      "id": "ecom-27",
+      "type": "Filtering",
+      "prompt": "How many shipments used UPS as carrier?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "ship-002, ship-006, ship-010"
+    },
+    {
+      "id": "ecom-28",
+      "type": "Filtering",
+      "prompt": "How many shipments used DHL as carrier?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "ship-003, ship-005, ship-009"
+    },
+    {
+      "id": "ecom-29",
+      "type": "Filtering",
+      "prompt": "How many reviews have 5-star rating?",
+      "ground_truth": "7",
+      "answer_type": "Integer",
+      "notes": "rev-001,003,006,008,009,011,014"
+    },
+    {
+      "id": "ecom-30",
+      "type": "Filtering",
+      "prompt": "How many reviews have 4-star rating?",
+      "ground_truth": "6",
+      "answer_type": "Integer",
+      "notes": "rev-002,004,007,010,013,015"
+    },
+    {
+      "id": "ecom-31",
+      "type": "FieldRetrieval",
+      "prompt": "What is the email address of customer cust-001?",
+      "ground_truth": "alice.j@email.com",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-32",
+      "type": "FieldRetrieval",
+      "prompt": "What is the name of customer cust-007?",
+      "ground_truth": "Giulia Rossi",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-33",
+      "type": "FieldRetrieval",
+      "prompt": "What is the lifetime value of customer cust-002?",
+      "ground_truth": "34521.75",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-34",
+      "type": "FieldRetrieval",
+      "prompt": "What is the SKU of product prod-001?",
+      "ground_truth": "SKU-LAPTOP-001",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-35",
+      "type": "FieldRetrieval",
+      "prompt": "What is the price of the ProBook 15 Laptop?",
+      "ground_truth": "1299.99",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-36",
+      "type": "FieldRetrieval",
+      "prompt": "What is the weight in kg of the Mirrorless Camera (prod-008)?",
+      "ground_truth": "0.68",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-37",
+      "type": "FieldRetrieval",
+      "prompt": "What is the stock quantity of the Wireless Gaming Mouse (prod-015)?",
+      "ground_truth": "389",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ecom-38",
+      "type": "FieldRetrieval",
+      "prompt": "What is the total amount of order ord-001?",
+      "ground_truth": "1689.95",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-39",
+      "type": "FieldRetrieval",
+      "prompt": "What is the shipping cost for order ord-003?",
+      "ground_truth": "25.00",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-40",
+      "type": "FieldRetrieval",
+      "prompt": "What is the tax amount for order ord-005?",
+      "ground_truth": "315.00",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-41",
+      "type": "FieldRetrieval",
+      "prompt": "What is the tracking number for shipment ship-001?",
+      "ground_truth": "FX123456789US",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-42",
+      "type": "FieldRetrieval",
+      "prompt": "What is the weight in kg of shipment ship-005?",
+      "ground_truth": "19.18",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-43",
+      "type": "FieldRetrieval",
+      "prompt": "What is the title of review rev-003?",
+      "ground_truth": "Professional quality camera",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-44",
+      "type": "FieldRetrieval",
+      "prompt": "How many helpful votes does review rev-008 have?",
+      "ground_truth": "112",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ecom-45",
+      "type": "FieldRetrieval",
+      "prompt": "What is the reorder point for inventory record inv-019?",
+      "ground_truth": "200",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ecom-46",
+      "type": "FieldRetrieval",
+      "prompt": "What is the quantity available in inventory record inv-015?",
+      "ground_truth": "12",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ecom-47",
+      "type": "FieldRetrieval",
+      "prompt": "What city is address addr-002 located in?",
+      "ground_truth": "London",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-48",
+      "type": "FieldRetrieval",
+      "prompt": "What country is address addr-010 in?",
+      "ground_truth": "JPN",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-49",
+      "type": "FieldRetrieval",
+      "prompt": "What is the latitude of address addr-005?",
+      "ground_truth": "37.3318",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-50",
+      "type": "Filtering",
+      "prompt": "Which customer has the highest lifetime value? Give the customer name.",
+      "ground_truth": "Giulia Rossi",
+      "answer_type": "String",
+      "notes": "cust-007 has 45678.00"
+    },
+    {
+      "id": "ecom-51",
+      "type": "Filtering",
+      "prompt": "Which product has the highest price? Give the product name.",
+      "ground_truth": "Mirrorless Camera",
+      "answer_type": "String",
+      "notes": "prod-008 at 1899.99"
+    },
+    {
+      "id": "ecom-52",
+      "type": "Filtering",
+      "prompt": "Which order has the highest total? Give the order ID.",
+      "ground_truth": "ord-009",
+      "answer_type": "String",
+      "notes": "ord-009 total is 4619.96"
+    },
+    {
+      "id": "ecom-53",
+      "type": "Filtering",
+      "prompt": "Which review has the most helpful votes? Give the review ID.",
+      "ground_truth": "rev-008",
+      "answer_type": "String",
+      "notes": "rev-008 has 112 votes"
+    },
+    {
+      "id": "ecom-54",
+      "type": "Filtering",
+      "prompt": "Which product has the lowest stock quantity? Give the product name.",
+      "ground_truth": "Mirrorless Camera",
+      "answer_type": "String",
+      "notes": "prod-008 has stock_qty 23"
+    },
+    {
+      "id": "ecom-55",
+      "type": "FieldRetrieval",
+      "prompt": "What tier is customer cust-002?",
+      "ground_truth": "platinum",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-56",
+      "type": "FieldRetrieval",
+      "prompt": "What is the status of order ord-006?",
+      "ground_truth": "cancelled",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-57",
+      "type": "FieldRetrieval",
+      "prompt": "What payment method was used for order ord-002?",
+      "ground_truth": "paypal",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-58",
+      "type": "FieldRetrieval",
+      "prompt": "Which carrier shipped shipment ship-001?",
+      "ground_truth": "FedEx",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-59",
+      "type": "FieldRetrieval",
+      "prompt": "What category is product prod-001?",
+      "ground_truth": "electronics",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-60",
+      "type": "Filtering",
+      "prompt": "Does review rev-001 have a 5-star rating? Answer yes or no.",
+      "ground_truth": "yes",
+      "answer_type": "Boolean",
+      "notes": "HEDL uses 'r5' enum, JSON uses '5_star' - both must infer this means 5-star"
+    },
+    {
+      "id": "ecom-61",
+      "type": "Hierarchical",
+      "prompt": "How many reviews does the Mirrorless Camera have?",
+      "ground_truth": "4",
+      "answer_type": "Integer",
+      "notes": "prod-008 (Mirrorless Camera) has reviews: rev-003, rev-007, rev-008, rev-014. Requires Product→Review traversal"
+    },
+    {
+      "id": "ecom-62",
+      "type": "Hierarchical",
+      "prompt": "Which customer has a delivered order containing the Ergonomic Office Chair? Give the customer name.",
+      "ground_truth": "Giulia Rossi",
+      "answer_type": "String",
+      "notes": "prod-012 in item-012 in ord-007 (delivered) by cust-007 (Giulia Rossi). Frank Mueller's ord-006 with the chair was cancelled"
+    },
+    {
+      "id": "ecom-63",
+      "type": "Hierarchical",
+      "prompt": "What is the total combined value of all orders placed by Giulia Rossi?",
+      "ground_truth": "4330.95",
+      "answer_type": "Number",
+      "notes": "cust-007 has ord-007 (2866.97) + ord-015 (1463.98) = 4330.95. Requires Customer→Order→total traversal"
+    },
+    {
+      "id": "ecom-64",
+      "type": "Hierarchical",
+      "prompt": "How many different products did Yuki Tanaka order?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "cust-009 has ord-009 with items: prod-001, prod-013, prod-010. Requires Customer→Order→OrderItem→Product traversal"
+    },
+    {
+      "id": "ecom-65",
+      "type": "Hierarchical",
+      "prompt": "Which warehouse has more inventory of the ProBook 15 Laptop? Answer warehouse-east or warehouse-west.",
+      "ground_truth": "warehouse-east",
+      "answer_type": "String",
+      "notes": "prod-001 has inv-001 (warehouse-east, qty 23) and inv-002 (warehouse-west, qty 22). Requires Product→Inventory traversal"
+    },
+    {
+      "id": "ecom-66",
+      "type": "Hierarchical",
+      "prompt": "What products did Alice Johnson purchase in order ord-001? List the product names.",
+      "ground_truth": "ProBook 15 Laptop, Wireless Headphones",
+      "answer_type": "ListUnordered",
+      "notes": "ord-001 by cust-001 has item-001 (prod-001) and item-002 (prod-007). Requires Customer→Order→OrderItem→Product traversal"
+    },
+    {
+      "id": "ecom-67",
+      "type": "FieldRetrieval",
+      "prompt": "Which customer placed order ord-005? Give the customer ID.",
+      "ground_truth": "cust-005",
+      "answer_type": "String",
+      "notes": "Order references @cust-005"
+    },
+    {
+      "id": "ecom-68",
+      "type": "FieldRetrieval",
+      "prompt": "Which customer placed order ord-009? Give the customer name.",
+      "ground_truth": "Yuki Tanaka",
+      "answer_type": "String",
+      "notes": "ord-009 -> @cust-009 -> Yuki Tanaka"
+    },
+    {
+      "id": "ecom-69",
+      "type": "FieldRetrieval",
+      "prompt": "Which product does order item item-003 reference? Give the product ID.",
+      "ground_truth": "prod-008",
+      "answer_type": "String",
+      "notes": "item-003 references @prod-008"
+    },
+    {
+      "id": "ecom-70",
+      "type": "FieldRetrieval",
+      "prompt": "What is the unit price of order item item-008?",
+      "ground_truth": "1899.99",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-71",
+      "type": "FieldRetrieval",
+      "prompt": "What is the discount field value for order item item-029?",
+      "ground_truth": "20",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ecom-72",
+      "type": "FieldRetrieval",
+      "prompt": "What is the line total for order item item-008?",
+      "ground_truth": "1804.99",
+      "answer_type": "Number",
+      "notes": "1899.99 with 5% discount"
+    },
+    {
+      "id": "ecom-73",
+      "type": "Filtering",
+      "prompt": "How many order items have a non-zero discount value?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "item-008 (5%), item-009 (10%), item-029 (20%)"
+    },
+    {
+      "id": "ecom-74",
+      "type": "FieldRetrieval",
+      "prompt": "What product does review rev-008 review? Give the product ID.",
+      "ground_truth": "prod-008",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-75",
+      "type": "FieldRetrieval",
+      "prompt": "Which customer wrote review rev-006? Give the customer name.",
+      "ground_truth": "Emma Garcia",
+      "answer_type": "String",
+      "notes": "rev-006 -> @cust-005 -> Emma Garcia"
+    },
+    {
+      "id": "ecom-76",
+      "type": "Filtering",
+      "prompt": "How many reviews have verified set to true?",
+      "ground_truth": "14",
+      "answer_type": "Integer",
+      "notes": "All reviews have verified=true except rev-015"
+    },
+    {
+      "id": "ecom-77",
+      "type": "FieldRetrieval",
+      "prompt": "Which product does inventory record inv-019 track? Give the product ID.",
+      "ground_truth": "prod-010",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-78",
+      "type": "FieldRetrieval",
+      "prompt": "What warehouse is inventory record inv-003 located in?",
+      "ground_truth": "warehouse-east",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-79",
+      "type": "Filtering",
+      "prompt": "How many shipments have not yet been delivered (actual_delivery is null)?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "ship-003, ship-007, ship-010 have ~ for actual_delivery"
+    },
+    {
+      "id": "ecom-80",
+      "type": "Filtering",
+      "prompt": "How many shipments have a delivered date earlier than their estimated date?",
+      "ground_truth": "7",
+      "answer_type": "Integer",
+      "notes": "ship-001,002,004,005,006,008,009 all delivered before est_delivery"
+    },
+    {
+      "id": "ecom-81",
+      "type": "FieldRetrieval",
+      "prompt": "What is the quantity ordered for item-014?",
+      "ground_truth": "2",
+      "answer_type": "Integer"
+    },
+    {
+      "id": "ecom-82",
+      "type": "FieldRetrieval",
+      "prompt": "What is the quantity ordered for item-016?",
+      "ground_truth": "10",
+      "answer_type": "Integer",
+      "notes": "10 copies of Rust Programming Guide"
+    },
+    {
+      "id": "ecom-83",
+      "type": "Filtering",
+      "prompt": "How many orders does customer cust-001 have?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "ord-001, ord-011"
+    },
+    {
+      "id": "ecom-84",
+      "type": "Filtering",
+      "prompt": "How many orders does customer cust-002 have?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "ord-002, ord-012"
+    },
+    {
+      "id": "ecom-85",
+      "type": "Filtering",
+      "prompt": "How many orders does customer cust-005 have?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "ord-005, ord-014"
+    },
+    {
+      "id": "ecom-86",
+      "type": "Filtering",
+      "prompt": "How many orders does customer cust-007 have?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "ord-007, ord-015"
+    },
+    {
+      "id": "ecom-87",
+      "type": "Aggregation",
+      "prompt": "How many items are in order ord-005?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "item-007, item-008, item-009"
+    },
+    {
+      "id": "ecom-88",
+      "type": "Aggregation",
+      "prompt": "How many items are in order ord-009?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "item-014, item-015, item-016"
+    },
+    {
+      "id": "ecom-89",
+      "type": "Aggregation",
+      "prompt": "How many items are in order ord-014?",
+      "ground_truth": "5",
+      "answer_type": "Integer",
+      "notes": "item-025, item-026, item-027, item-028, item-029"
+    },
+    {
+      "id": "ecom-90",
+      "type": "Aggregation",
+      "prompt": "How many items are in order ord-010?",
+      "ground_truth": "4",
+      "answer_type": "Integer",
+      "notes": "item-017, item-018, item-019, item-020"
+    },
+    {
+      "id": "ecom-91",
+      "type": "FieldRetrieval",
+      "prompt": "What is the subtotal of order ord-009?",
+      "ground_truth": "4199.96",
+      "answer_type": "Number"
+    },
+    {
+      "id": "ecom-92",
+      "type": "FieldRetrieval",
+      "prompt": "When was order ord-001 placed? Give the date and time.",
+      "ground_truth": "2023-11-15T09:23:45Z",
+      "answer_type": "DateTime"
+    },
+    {
+      "id": "ecom-93",
+      "type": "FieldRetrieval",
+      "prompt": "When was customer cust-007 created? Give the date.",
+      "ground_truth": "2017-09-12",
+      "answer_type": "Date"
+    },
+    {
+      "id": "ecom-94",
+      "type": "Filtering",
+      "prompt": "Looking at the created dates, which customer has the oldest account? Give the customer name.",
+      "ground_truth": "Giulia Rossi",
+      "answer_type": "String",
+      "notes": "cust-007 created 2017-09-12, earliest"
+    },
+    {
+      "id": "ecom-95",
+      "type": "Filtering",
+      "prompt": "Looking at the placed timestamps, which order has the earliest date? Give just the order ID.",
+      "ground_truth": "ord-009",
+      "answer_type": "String",
+      "notes": "ord-009 placed 2023-11-05T22:34:56Z, earliest"
+    },
+    {
+      "id": "ecom-96",
+      "type": "Filtering",
+      "prompt": "How many addresses are in the USA?",
+      "ground_truth": "9",
+      "ground_truth_by_format": {
+        "hedl": "6"
+      },
+      "answer_type": "Integer",
+      "notes": "JSON/TOON: addr-001,003,004,005,011,012,013,014,015 (9). HEDL only has 12 addresses total, 6 are USA: addr-001,003,004,005,011,012"
+    },
+    {
+      "id": "ecom-97",
+      "type": "Filtering",
+      "prompt": "How many products weigh more than 5 kg?",
+      "ground_truth": "3",
+      "answer_type": "Integer",
+      "notes": "prod-011 (5.4), prod-012 (18.5), prod-013 (6.2)"
+    },
+    {
+      "id": "ecom-98",
+      "type": "Filtering",
+      "prompt": "How many products cost more than $1000?",
+      "ground_truth": "2",
+      "answer_type": "Integer",
+      "notes": "prod-001 (1299.99), prod-008 (1899.99)"
+    },
+    {
+      "id": "ecom-99",
+      "type": "FieldRetrieval",
+      "prompt": "What is the phone number of customer cust-003?",
+      "ground_truth": "+44-20-7946-0958",
+      "answer_type": "String"
+    },
+    {
+      "id": "ecom-100",
+      "type": "FieldRetrieval",
+      "prompt": "What street is address addr-004 on?",
+      "ground_truth": "350 Fifth Avenue",
+      "answer_type": "String"
+    }
+  ]
+}

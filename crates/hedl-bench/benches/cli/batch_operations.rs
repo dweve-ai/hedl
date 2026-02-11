@@ -153,9 +153,9 @@ fn batch_validate_scaling(c: &mut Criterion) {
             |b, files| {
                 b.iter(|| {
                     // Import inside to avoid linking issues if hedl-cli isn't available
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = ValidationOperation { strict: false };
 
                     processor
@@ -188,9 +188,9 @@ fn batch_validate_strict(c: &mut Criterion) {
             &files,
             |b, files| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = ValidationOperation { strict: true };
 
                     processor
@@ -229,9 +229,9 @@ fn batch_format_scaling(c: &mut Criterion) {
             &files,
             |b, files| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, FormatOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, FormatOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = FormatOperation {
                         check: false,
                         ditto: false,
@@ -268,9 +268,9 @@ fn batch_format_with_counts(c: &mut Criterion) {
             &files,
             |b, files| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, FormatOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, FormatOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = FormatOperation {
                         check: false,
                         ditto: false,
@@ -307,9 +307,9 @@ fn batch_format_check(c: &mut Criterion) {
             &files,
             |b, files| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, FormatOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, FormatOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = FormatOperation {
                         check: true,
                         ditto: false,
@@ -351,9 +351,9 @@ fn batch_lint_scaling(c: &mut Criterion) {
             &files,
             |b, files| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, LintOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, LintOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = LintOperation { warn_error: false };
 
                     processor
@@ -394,9 +394,9 @@ fn batch_file_size_impact(c: &mut Criterion) {
             &files,
             |b, files| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig::default());
+                    let processor = BatchExecutor::new(BatchConfig::default());
                     let operation = ValidationOperation { strict: false };
 
                     processor
@@ -408,9 +408,9 @@ fn batch_file_size_impact(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("format", file_size), &files, |b, files| {
             b.iter(|| {
-                use hedl_cli::batch::{BatchConfig, BatchProcessor, FormatOperation};
+                use hedl_cli::batch::{BatchConfig, BatchExecutor, FormatOperation};
 
-                let processor = BatchProcessor::new(BatchConfig::default());
+                let processor = BatchExecutor::new(BatchConfig::default());
                 let operation = FormatOperation {
                     check: false,
                     ditto: false,
@@ -447,9 +447,9 @@ fn batch_parallel_efficiency(c: &mut Criterion) {
     // Serial execution (threshold high to force serial)
     group.bench_function("serial", |b| {
         b.iter(|| {
-            use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+            use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-            let processor = BatchProcessor::new(BatchConfig {
+            let processor = BatchExecutor::new(BatchConfig {
                 parallel_threshold: 1000, // Force serial
                 ..Default::default()
             });
@@ -464,9 +464,9 @@ fn batch_parallel_efficiency(c: &mut Criterion) {
     // Parallel execution (default threshold)
     group.bench_function("parallel", |b| {
         b.iter(|| {
-            use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+            use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-            let processor = BatchProcessor::new(BatchConfig::default());
+            let processor = BatchExecutor::new(BatchConfig::default());
             let operation = ValidationOperation { strict: false };
 
             processor
@@ -478,9 +478,9 @@ fn batch_parallel_efficiency(c: &mut Criterion) {
     // Parallel with limited threads
     group.bench_function("parallel_4_threads", |b| {
         b.iter(|| {
-            use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+            use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-            let processor = BatchProcessor::new(BatchConfig {
+            let processor = BatchExecutor::new(BatchConfig {
                 max_threads: Some(4),
                 ..Default::default()
             });
@@ -516,9 +516,9 @@ fn batch_operation_comparison(c: &mut Criterion) {
 
     group.bench_function("validate", |b| {
         b.iter(|| {
-            use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+            use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-            let processor = BatchProcessor::new(BatchConfig::default());
+            let processor = BatchExecutor::new(BatchConfig::default());
             let operation = ValidationOperation { strict: false };
 
             processor
@@ -529,9 +529,9 @@ fn batch_operation_comparison(c: &mut Criterion) {
 
     group.bench_function("format", |b| {
         b.iter(|| {
-            use hedl_cli::batch::{BatchConfig, BatchProcessor, FormatOperation};
+            use hedl_cli::batch::{BatchConfig, BatchExecutor, FormatOperation};
 
-            let processor = BatchProcessor::new(BatchConfig::default());
+            let processor = BatchExecutor::new(BatchConfig::default());
             let operation = FormatOperation {
                 check: false,
                 ditto: false,
@@ -546,9 +546,9 @@ fn batch_operation_comparison(c: &mut Criterion) {
 
     group.bench_function("lint", |b| {
         b.iter(|| {
-            use hedl_cli::batch::{BatchConfig, BatchProcessor, LintOperation};
+            use hedl_cli::batch::{BatchConfig, BatchExecutor, LintOperation};
 
-            let processor = BatchProcessor::new(BatchConfig::default());
+            let processor = BatchExecutor::new(BatchConfig::default());
             let operation = LintOperation { warn_error: false };
 
             processor
@@ -586,9 +586,9 @@ fn batch_complexity_impact(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("validate", name), &files, |b, files| {
             b.iter(|| {
-                use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+                use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-                let processor = BatchProcessor::new(BatchConfig::default());
+                let processor = BatchExecutor::new(BatchConfig::default());
                 let operation = ValidationOperation { strict: false };
 
                 processor
@@ -599,9 +599,9 @@ fn batch_complexity_impact(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("format", name), &files, |b, files| {
             b.iter(|| {
-                use hedl_cli::batch::{BatchConfig, BatchProcessor, FormatOperation};
+                use hedl_cli::batch::{BatchConfig, BatchExecutor, FormatOperation};
 
-                let processor = BatchProcessor::new(BatchConfig::default());
+                let processor = BatchExecutor::new(BatchConfig::default());
                 let operation = FormatOperation {
                     check: false,
                     ditto: false,
@@ -642,9 +642,9 @@ fn batch_threshold_tuning(c: &mut Criterion) {
             &threshold,
             |b, &threshold| {
                 b.iter(|| {
-                    use hedl_cli::batch::{BatchConfig, BatchProcessor, ValidationOperation};
+                    use hedl_cli::batch::{BatchConfig, BatchExecutor, ValidationOperation};
 
-                    let processor = BatchProcessor::new(BatchConfig {
+                    let processor = BatchExecutor::new(BatchConfig {
                         parallel_threshold: threshold,
                         ..Default::default()
                     });

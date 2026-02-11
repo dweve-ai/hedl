@@ -529,8 +529,8 @@ Example:
 /// ```
 /// use hedl::parse;
 ///
-/// let doc = parse("%VERSION: 1.0\n---\nname: John")?;
-/// assert_eq!(doc.version(), "1.0");
+/// let doc = parse("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: John")?;
+/// assert_eq!(doc.version(), "2.0");
 /// ```
 pub fn parse(input: &str) -> Result<Document, ParseError> {
     // Implementation

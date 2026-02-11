@@ -17,7 +17,7 @@ const FILE1: &str = r#"
 %VERSION 1.0
 %STRUCT Product[id, name, price]
 ---
-products: @Product
+products:@Product
   | p1, Widget, 9.99
   | p2, Gadget, 19.99
   | p3, Gizmo, 29.99
@@ -27,7 +27,7 @@ const FILE2: &str = r#"
 %VERSION 1.0
 %STRUCT Order[id, product_id, quantity]
 ---
-orders: @Order
+orders:@Order
   | o1, p1, 5
   | o2, p2, 3
   | o3, p3, 1
@@ -37,7 +37,7 @@ const FILE3: &str = r#"
 %VERSION 1.0
 %STRUCT Customer[id, name, email]
 ---
-customers: @Customer
+customers:@Customer
   | c1, Alice, alice@example.com
   | c2, Bob, bob@example.com
 "#;

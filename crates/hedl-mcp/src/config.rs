@@ -21,8 +21,8 @@
 //! from TOML configuration files.
 
 use crate::resource_limits::{
-    ConcurrencyConfig, ConcurrencyLimits, MemoryAwareCache, PerClientRateLimiter, RateLimitConfig,
-    RequestSizeLimits, ResourceLimitManager, ResponseSizeLimits, TimeoutLimits,
+    ConcurrencyConfig, ConcurrencyLimits, LimitEnforcer, MemoryAwareCache, PerClientRateLimiter,
+    RateLimitConfig, RequestSizeLimits, ResponseSizeLimits, TimeoutLimits,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -356,13 +356,13 @@ impl ResourceLimitConfig {
     ///
     /// `Ok(ResourceLimitConfig)` if loading succeeds, `Err` otherwise.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
-        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| ConfigError::IoError {
+        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| ConfigError::Io {
             path: path.as_ref().display().to_string(),
             source: e,
         })?;
 
         let config: ResourceLimitConfig =
-            toml::from_str(&content).map_err(|e| ConfigError::ParseError {
+            toml::from_str(&content).map_err(|e| ConfigError::Parse {
                 path: path.as_ref().display().to_string(),
                 source: e,
             })?;
@@ -384,10 +384,9 @@ impl ResourceLimitConfig {
     /// # Returns
     ///
     /// `Ok(ResourceLimitConfig)` if parsing succeeds, `Err` otherwise.
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(content: &str) -> Result<Self, ConfigError> {
+    pub fn parse_toml(content: &str) -> Result<Self, ConfigError> {
         let config: ResourceLimitConfig =
-            toml::from_str(content).map_err(|e| ConfigError::ParseError {
+            toml::from_str(content).map_err(|e| ConfigError::Parse {
                 path: "<string>".to_string(),
                 source: e,
             })?;
@@ -397,13 +396,13 @@ impl ResourceLimitConfig {
         Ok(config)
     }
 
-    /// Convert this configuration into a `ResourceLimitManager`.
+    /// Convert this configuration into a `LimitEnforcer`.
     ///
     /// # Returns
     ///
-    /// A configured `ResourceLimitManager` instance.
+    /// A configured `LimitEnforcer` instance.
     #[must_use]
-    pub fn to_manager(&self) -> ResourceLimitManager {
+    pub fn to_manager(&self) -> LimitEnforcer {
         // Request size limits
         let request_limits = RequestSizeLimits::new(
             self.request.max_total_size_bytes,
@@ -431,7 +430,7 @@ impl ResourceLimitConfig {
             .iter()
             .map(|o| {
                 (
-                    o.client_pattern.clone(),
+                    o.client_pattern.to_string(),
                     RateLimitConfig::new(o.burst, o.per_second),
                 )
             })
@@ -464,7 +463,7 @@ impl ResourceLimitConfig {
         // Note: Per-tool timeouts would need to be set here
         // For simplicity, we'll use the defaults
 
-        ResourceLimitManager::new(
+        LimitEnforcer::new(
             request_limits,
             response_limits,
             rate_limiter,
@@ -482,59 +481,59 @@ impl ResourceLimitConfig {
     pub fn validate(&self) -> Result<(), ConfigError> {
         // Validate request size limits
         if self.request.max_total_size_bytes == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "max_total_size_bytes must be greater than 0".to_string(),
             ));
         }
 
         if self.request.max_param_size_bytes > self.request.max_total_size_bytes {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "max_param_size_bytes cannot exceed max_total_size_bytes".to_string(),
             ));
         }
 
         // Validate response size limits
         if self.response.max_total_size_bytes == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "max_total_size_bytes (response) must be greater than 0".to_string(),
             ));
         }
 
         // Validate rate limiting
         if self.rate_limiting.default_burst == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "default_burst must be greater than 0".to_string(),
             ));
         }
 
         if self.rate_limiting.default_per_second == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "default_per_second must be greater than 0".to_string(),
             ));
         }
 
         // Validate concurrency limits
         if self.concurrency.max_concurrent_requests == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "max_concurrent_requests must be greater than 0".to_string(),
             ));
         }
 
         if self.concurrency.max_concurrent_per_client == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "max_concurrent_per_client must be greater than 0".to_string(),
             ));
         }
 
         if self.concurrency.max_concurrent_per_tool == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "max_concurrent_per_tool must be greater than 0".to_string(),
             ));
         }
 
         // Validate timeout
         if self.timeouts.default_timeout_ms == 0 {
-            return Err(ConfigError::ValidationError(
+            return Err(ConfigError::Validation(
                 "default_timeout_ms must be greater than 0".to_string(),
             ));
         }
@@ -545,11 +544,10 @@ impl ResourceLimitConfig {
 
 /// Configuration error types.
 #[derive(Debug, thiserror::Error)]
-#[allow(clippy::enum_variant_names)]
 pub enum ConfigError {
     /// IO error reading configuration file.
     #[error("IO error reading config from '{path}': {source}")]
-    IoError {
+    Io {
         /// Path to the configuration file.
         path: String,
         /// Underlying I/O error.
@@ -559,7 +557,7 @@ pub enum ConfigError {
 
     /// TOML parsing error.
     #[error("Failed to parse TOML from '{path}': {source}")]
-    ParseError {
+    Parse {
         /// Path to the configuration file.
         path: String,
         /// Underlying TOML parsing error.
@@ -569,7 +567,7 @@ pub enum ConfigError {
 
     /// Configuration validation error.
     #[error("Configuration validation failed: {0}")]
-    ValidationError(
+    Validation(
         /// Description of the validation error.
         String,
     ),
@@ -677,7 +675,7 @@ default_per_second = 25
 cleanup_interval_seconds = 60
 "#;
 
-        let result = ResourceLimitConfig::from_str(toml_str);
+        let result = ResourceLimitConfig::parse_toml(toml_str);
         assert!(result.is_ok(), "Failed to parse: {result:?}");
         let config = result.unwrap();
         assert!(config.enabled);
@@ -704,7 +702,7 @@ burst = 50
 per_second = 10
 "#;
 
-        let result = ResourceLimitConfig::from_str(toml_str);
+        let result = ResourceLimitConfig::parse_toml(toml_str);
         assert!(result.is_ok());
         let config = result.unwrap();
         assert_eq!(config.rate_limiting.overrides.len(), 2);
@@ -724,10 +722,10 @@ per_second = 10
 enabled = true
 "; // Missing closing bracket
 
-        let result = ResourceLimitConfig::from_str(invalid_toml);
+        let result = ResourceLimitConfig::parse_toml(invalid_toml);
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ParseError { .. } => {}
+            ConfigError::Parse { .. } => {}
             _ => panic!("Expected ParseError"),
         }
     }
@@ -749,7 +747,7 @@ enabled = true
         let result = config.validate();
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ValidationError(msg) => {
+            ConfigError::Validation(msg) => {
                 assert!(msg.contains("max_total_size_bytes"));
             }
             _ => panic!("Expected ValidationError"),
@@ -764,7 +762,7 @@ enabled = true
         let result = config.validate();
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ValidationError(msg) => {
+            ConfigError::Validation(msg) => {
                 assert!(msg.contains("max_param_size_bytes"));
             }
             _ => panic!("Expected ValidationError"),
@@ -778,7 +776,7 @@ enabled = true
         let result = config.validate();
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ValidationError(msg) => {
+            ConfigError::Validation(msg) => {
                 assert!(msg.contains("default_burst"));
             }
             _ => panic!("Expected ValidationError"),
@@ -792,7 +790,7 @@ enabled = true
         let result = config.validate();
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ValidationError(msg) => {
+            ConfigError::Validation(msg) => {
                 assert!(msg.contains("default_per_second"));
             }
             _ => panic!("Expected ValidationError"),
@@ -806,7 +804,7 @@ enabled = true
         let result = config.validate();
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ValidationError(msg) => {
+            ConfigError::Validation(msg) => {
                 assert!(msg.contains("max_concurrent_requests"));
             }
             _ => panic!("Expected ValidationError"),
@@ -820,7 +818,7 @@ enabled = true
         let result = config.validate();
         assert!(result.is_err());
         match result.unwrap_err() {
-            ConfigError::ValidationError(msg) => {
+            ConfigError::Validation(msg) => {
                 assert!(msg.contains("default_timeout_ms"));
             }
             _ => panic!("Expected ValidationError"),
@@ -866,7 +864,7 @@ enabled = true
 
     #[test]
     fn test_config_error_display() {
-        let err = ConfigError::ValidationError("test error".to_string());
+        let err = ConfigError::Validation("test error".to_string());
         let msg = format!("{err}");
         assert!(msg.contains("test error"));
     }

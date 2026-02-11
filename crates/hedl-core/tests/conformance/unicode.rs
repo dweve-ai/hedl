@@ -36,7 +36,7 @@ use hedl_core::{parse, HedlErrorKind, Item, Value};
 /// Test Arabic text in values
 #[test]
 fn test_rtl_arabic_value() {
-    let doc = "%VERSION: 1.0\n---\ngreeting: مرحبا بك\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ngreeting: مرحبا بك\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -52,7 +52,7 @@ fn test_rtl_arabic_value() {
 /// Test Hebrew text in values
 #[test]
 fn test_rtl_hebrew_value() {
-    let doc = "%VERSION: 1.0\n---\ngreeting: שלום\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ngreeting: שלום\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -68,7 +68,7 @@ fn test_rtl_hebrew_value() {
 /// Test mixed RTL/LTR text in same value
 #[test]
 fn test_rtl_mixed_in_value() {
-    let doc = "%VERSION: 1.0\n---\nmessage: Hello مرحبا World שלום\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nmessage: Hello مرحبا World שלום\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -84,7 +84,7 @@ fn test_rtl_mixed_in_value() {
 /// Test RTL text in quoted strings
 #[test]
 fn test_rtl_arabic_quoted() {
-    let doc = "%VERSION: 1.0\n---\ngreeting: \"مرحبا بك\"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ngreeting: \"مرحبا بك\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -101,7 +101,7 @@ fn test_rtl_arabic_quoted() {
 #[test]
 fn test_rtl_in_matrix_list() {
     let doc =
-        "%VERSION: 1.0\n%STRUCT: T: [id, text]\n---\ndata: @T\n  | item1, مرحبا\n  | item2, שלום\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,text]\n---\ndata:@T\n |item1, مرحبا\n |item2, שלום\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -127,7 +127,7 @@ fn test_rtl_in_matrix_list() {
 /// Test accented characters (precomposed)
 #[test]
 fn test_combining_accents_precomposed() {
-    let doc = "%VERSION: 1.0\n---\nname: café\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: café\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -144,7 +144,7 @@ fn test_combining_accents_precomposed() {
 #[test]
 fn test_combining_diacritics() {
     // e + combining acute accent
-    let doc = "%VERSION: 1.0\n---\nname: cafe\u{0301}\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nname: cafe\u{0301}\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -161,7 +161,7 @@ fn test_combining_diacritics() {
 /// Test multiple combining characters
 #[test]
 fn test_multiple_combining_chars() {
-    let doc = "%VERSION: 1.0\n---\ntext: a\u{0301}\u{0308}\n"; // a with acute and umlaut
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: a\u{0301}\u{0308}\n"; // a with acute and umlaut
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
 }
@@ -169,7 +169,7 @@ fn test_multiple_combining_chars() {
 /// Test Spanish ñ character
 #[test]
 fn test_combining_spanish_n() {
-    let doc = "%VERSION: 1.0\n---\nword: niño\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nword: niño\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -185,7 +185,7 @@ fn test_combining_spanish_n() {
 /// Test German umlauts
 #[test]
 fn test_combining_german_umlauts() {
-    let doc = "%VERSION: 1.0\n---\nword: Müller\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nword: Müller\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -205,7 +205,7 @@ fn test_combining_german_umlauts() {
 /// Test basic emoji
 #[test]
 fn test_emoji_basic() {
-    let doc = "%VERSION: 1.0\n---\nreaction: 🎉\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nreaction: 🎉\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -221,7 +221,7 @@ fn test_emoji_basic() {
 /// Test emoji with skin tone modifier
 #[test]
 fn test_emoji_skin_tone_modifier() {
-    let doc = "%VERSION: 1.0\n---\nthumb: 👍🏿\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nthumb: 👍🏿\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -238,7 +238,7 @@ fn test_emoji_skin_tone_modifier() {
 #[test]
 fn test_emoji_zwj_family() {
     // Family emoji: 👨‍👩‍👧‍👦
-    let doc = "%VERSION: 1.0\n---\nfamily: 👨\u{200D}👩\u{200D}👧\u{200D}👦\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nfamily: 👨\u{200D}👩\u{200D}👧\u{200D}👦\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -255,7 +255,7 @@ fn test_emoji_zwj_family() {
 /// Test multiple emoji in sequence
 #[test]
 fn test_emoji_sequence() {
-    let doc = "%VERSION: 1.0\n---\nemojis: 🎉🎊🎈\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nemojis: 🎉🎊🎈\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -271,7 +271,7 @@ fn test_emoji_sequence() {
 /// Test emoji in matrix list
 #[test]
 fn test_emoji_in_matrix() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, emoji]\n---\ndata: @T\n  | e1, 🎉\n  | e2, 👍🏿\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,emoji]\n---\ndata:@T\n |e1, 🎉\n |e2, 👍🏿\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -298,7 +298,7 @@ fn test_emoji_in_matrix() {
 #[test]
 fn test_normalization_nfc() {
     // NFC: single character é (U+00E9)
-    let doc = "%VERSION: 1.0\n---\nword: café\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nword: café\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -316,7 +316,7 @@ fn test_normalization_nfc() {
 #[test]
 fn test_normalization_nfd() {
     // NFD: e + combining acute (U+0065 + U+0301)
-    let doc = "%VERSION: 1.0\n---\nword: cafe\u{0301}\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nword: cafe\u{0301}\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -333,8 +333,8 @@ fn test_normalization_nfd() {
 /// Test that both NFC and NFD forms parse successfully
 #[test]
 fn test_normalization_both_forms_valid() {
-    let doc_nfc = "%VERSION: 1.0\n---\nword: café\n";
-    let doc_nfd = "%VERSION: 1.0\n---\nword: cafe\u{0301}\n";
+    let doc_nfc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nword: café\n";
+    let doc_nfd = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nword: cafe\u{0301}\n";
 
     assert!(parse(doc_nfc.as_bytes()).is_ok());
     assert!(parse(doc_nfd.as_bytes()).is_ok());
@@ -343,7 +343,7 @@ fn test_normalization_both_forms_valid() {
 /// Test mixed normalization forms in same document
 #[test]
 fn test_normalization_mixed_forms() {
-    let doc = "%VERSION: 1.0\n---\nnfc: café\nnfd: cafe\u{0301}\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nnfc: café\nnfd: cafe\u{0301}\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -359,7 +359,7 @@ fn test_normalization_mixed_forms() {
 /// Test null character should be rejected
 #[test]
 fn test_null_character_rejected() {
-    let doc = "%VERSION: 1.0\n---\ndata: test\0value\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: test\0value\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -369,7 +369,7 @@ fn test_null_character_rejected() {
 /// Test control character (SOH) should be rejected
 #[test]
 fn test_control_character_soh_rejected() {
-    let doc = "%VERSION: 1.0\n---\ndata: test\x01value\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: test\x01value\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -379,7 +379,7 @@ fn test_control_character_soh_rejected() {
 /// Test control character (STX) should be rejected
 #[test]
 fn test_control_character_stx_rejected() {
-    let doc = "%VERSION: 1.0\n---\ndata: test\x02value\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: test\x02value\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -389,7 +389,7 @@ fn test_control_character_stx_rejected() {
 /// Test vertical tab should be rejected
 #[test]
 fn test_control_character_vtab_rejected() {
-    let doc = "%VERSION: 1.0\n---\ndata: test\x0Bvalue\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: test\x0Bvalue\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -399,7 +399,7 @@ fn test_control_character_vtab_rejected() {
 /// Test form feed should be rejected
 #[test]
 fn test_control_character_ff_rejected() {
-    let doc = "%VERSION: 1.0\n---\ndata: test\x0Cvalue\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: test\x0Cvalue\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -414,7 +414,7 @@ fn test_control_character_ff_rejected() {
 #[test]
 fn test_4byte_utf8_cjk() {
     // U+20000 (4-byte UTF-8: F0 A0 80 80)
-    let doc = "%VERSION: 1.0\n---\nchar: 𠀀\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nchar: 𠀀\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -431,7 +431,7 @@ fn test_4byte_utf8_cjk() {
 #[test]
 fn test_4byte_utf8_emoji() {
     // U+1F600 GRINNING FACE (4-byte UTF-8)
-    let doc = "%VERSION: 1.0\n---\nface: 😀\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nface: 😀\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -448,7 +448,7 @@ fn test_4byte_utf8_emoji() {
 #[test]
 fn test_4byte_utf8_musical() {
     // U+1D11E MUSICAL SYMBOL G CLEF (4-byte UTF-8)
-    let doc = "%VERSION: 1.0\n---\nmusic: 𝄞\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nmusic: 𝄞\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -464,7 +464,7 @@ fn test_4byte_utf8_musical() {
 /// Test multiple 4-byte sequences
 #[test]
 fn test_4byte_utf8_multiple() {
-    let doc = "%VERSION: 1.0\n---\ndata: 𠀀𝄞😀\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: 𠀀𝄞😀\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -500,7 +500,7 @@ fn test_bom_skipped() {
 /// Test BOM in middle of file is preserved
 #[test]
 fn test_bom_in_value() {
-    let doc = "%VERSION: 1.0\n---\ndata: test\u{FEFF}value\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ndata: test\u{FEFF}value\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -521,7 +521,7 @@ fn test_bom_in_value() {
 /// Test Unicode in quoted strings
 #[test]
 fn test_unicode_in_quoted_string() {
-    let doc = "%VERSION: 1.0\n---\ntext: \"Hello 世界 🌍\"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"Hello 世界 🌍\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -537,7 +537,8 @@ fn test_unicode_in_quoted_string() {
 /// Test Unicode in block strings
 #[test]
 fn test_unicode_in_block_string() {
-    let doc = "%VERSION: 1.0\n---\ntext: \"\"\"\nHello مرحبا\nWorld 世界\n🌍 🎉\n\"\"\"\n";
+    let doc =
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: \"\"\"\nHello مرحبا\nWorld 世界\n🌍 🎉\n\"\"\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -556,7 +557,7 @@ fn test_unicode_in_block_string() {
 /// Test RTL in block strings
 #[test]
 fn test_rtl_in_block_string() {
-    let doc = "%VERSION: 1.0\n---\ngreeting: \"\"\"\nمرحبا بك\nשלום\n\"\"\"\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ngreeting: \"\"\"\nمرحبا بك\nשלום\n\"\"\"\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -577,7 +578,7 @@ fn test_rtl_in_block_string() {
 /// Test Chinese characters
 #[test]
 fn test_cjk_chinese() {
-    let doc = "%VERSION: 1.0\n---\ngreeting: 你好世界\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ngreeting: 你好世界\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -593,7 +594,7 @@ fn test_cjk_chinese() {
 /// Test Japanese characters (Hiragana, Katakana, Kanji)
 #[test]
 fn test_cjk_japanese() {
-    let doc = "%VERSION: 1.0\n---\ntext: こんにちは カタカナ 漢字\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: こんにちは カタカナ 漢字\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -609,7 +610,7 @@ fn test_cjk_japanese() {
 /// Test Korean characters
 #[test]
 fn test_cjk_korean() {
-    let doc = "%VERSION: 1.0\n---\ngreeting: 안녕하세요\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ngreeting: 안녕하세요\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -625,7 +626,7 @@ fn test_cjk_korean() {
 /// Test mixed CJK in matrix list
 #[test]
 fn test_cjk_in_matrix() {
-    let doc = "%VERSION: 1.0\n%STRUCT: T: [id, text]\n---\ndata: @T\n  | t1, 你好\n  | t2, こんにちは\n  | t3, 안녕하세요\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id,text]\n---\ndata:@T\n |t1, 你好\n |t2, こんにちは\n |t3, 안녕하세요\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -654,7 +655,7 @@ fn test_cjk_in_matrix() {
 /// Test Zero Width Joiner (ZWJ)
 #[test]
 fn test_zero_width_joiner() {
-    let doc = "%VERSION: 1.0\n---\ntext: a\u{200D}b\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: a\u{200D}b\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -670,7 +671,7 @@ fn test_zero_width_joiner() {
 /// Test Zero Width Non-Joiner (ZWNJ)
 #[test]
 fn test_zero_width_non_joiner() {
-    let doc = "%VERSION: 1.0\n---\ntext: a\u{200C}b\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: a\u{200C}b\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();
@@ -686,7 +687,7 @@ fn test_zero_width_non_joiner() {
 /// Test Zero Width Space
 #[test]
 fn test_zero_width_space() {
-    let doc = "%VERSION: 1.0\n---\ntext: a\u{200B}b\n";
+    let doc = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\ntext: a\u{200B}b\n";
     let result = parse(doc.as_bytes());
     assert!(result.is_ok());
     let doc = result.unwrap();

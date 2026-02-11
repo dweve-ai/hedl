@@ -307,10 +307,21 @@ pub fn nest_child_not_defined(child: &str, line: usize) -> HedlError {
     HedlError::schema(format!("NEST child type '{}' not defined", child), line)
 }
 
-/// Multiple NEST rules for parent type.
+/// Multiple NEST rules for parent type (deprecated: multiple children now allowed).
 pub fn nest_multiple_rules(parent_type: &str, line: usize) -> HedlError {
     HedlError::schema(
         format!("multiple NEST rules for parent type '{}'", parent_type),
+        line,
+    )
+}
+
+/// Duplicate NEST rule for same (parent, child) pair.
+pub fn nest_duplicate_pair(parent: &str, child: &str, line: usize) -> HedlError {
+    HedlError::schema(
+        format!(
+            "duplicate NEST rule for parent '{}' and child '{}'",
+            parent, child
+        ),
         line,
     )
 }
@@ -522,6 +533,272 @@ pub fn ditto_in_first_row(line: usize) -> HedlError {
     HedlError::semantic("ditto (^) not allowed in first row", line)
 }
 
+// ==================== %MODE Directive Errors ====================
+
+/// Error when %MODE is defined more than once
+pub fn mode_already_defined(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "MODE directive already defined (line {}). Only one %MODE directive is allowed per document.",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %MODE has invalid value
+pub fn invalid_mode(mode: &str, line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "invalid mode '{}' at line {}. Expected 'strict' or 'lenient'.",
+            mode, line
+        ),
+        line,
+    )
+}
+
+// ==================== %PROMPT Directive Errors ====================
+
+/// Error when %PROMPT is defined more than once
+pub fn prompt_already_defined(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "PROMPT directive already defined (line {}). Only one %PROMPT directive is allowed per document.",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %PROMPT value is not quoted
+pub fn prompt_not_quoted(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "PROMPT value at line {} must be quoted. Expected: %PROMPT: \"instruction text\"",
+            line
+        ),
+        line,
+    )
+}
+
+// ==================== List Literal Errors ====================
+
+/// Error when list literal is missing closing parenthesis
+pub fn list_missing_close_paren(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "list literal at line {} is missing closing parenthesis ')'.",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when list literal has unexpected token
+pub fn list_unexpected_token(token: &str, line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "unexpected token '{}' in list literal at line {}.",
+            token, line
+        ),
+        line,
+    )
+}
+
+/// Error when list literal has trailing comma
+pub fn list_trailing_comma(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "list literal at line {} has trailing comma. Remove the comma before ')'.",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when list literal has empty element
+pub fn list_empty_element(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "list literal at line {} has empty element (consecutive commas).",
+            line
+        ),
+        line,
+    )
+}
+
+// ==================== %NULL Directive Errors ====================
+
+/// Error when %NULL is defined more than once
+pub fn null_char_already_defined(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "NULL directive already defined (line {}). Only one %NULL directive is allowed per document.",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %NULL has empty value
+pub fn null_char_empty(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "NULL directive at line {} requires a single character. Expected: %NULL:~",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %NULL has multiple characters
+pub fn null_char_multiple(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "NULL directive at line {} must be a single character, not multiple. Expected: %NULL:~",
+            line
+        ),
+        line,
+    )
+}
+
+// ==================== %QUOTE Directive Errors ====================
+
+/// Error when %QUOTE is defined more than once
+pub fn quote_char_already_defined(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "QUOTE directive already defined (line {}). Only one %QUOTE directive is allowed per document.",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %QUOTE has empty value
+pub fn quote_char_empty(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "QUOTE directive at line {} requires a single character. Expected: %QUOTE:\"",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %QUOTE has multiple characters
+pub fn quote_char_multiple(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "QUOTE directive at line {} must be a single character, not multiple. Expected: %QUOTE:\"",
+            line
+        ),
+        line,
+    )
+}
+
+// ==================== v2.0 Compliance Errors ====================
+
+/// Error when %NULL is missing in v2.0 document
+pub fn v20_null_required(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "v2.0 documents require %NULL directive (line {}). Add '%NULL:~' before separator '---'",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %QUOTE is missing in v2.0 document
+pub fn v20_quote_required(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "v2.0 documents require %QUOTE directive (line {}). Add '%QUOTE:\"' before separator '---'",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when ditto is used in v2.0 document
+pub fn v20_ditto_not_allowed(line: usize) -> HedlError {
+    HedlError::semantic(
+        format!(
+            "ditto (^) is not allowed in v2.0 documents (line {}). Every cell must have an explicit value",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when verbose directive syntax is used in v2.0 document
+pub fn v20_verbose_syntax_not_allowed(directive: &str, line: usize) -> HedlError {
+    let compact = match directive {
+        "%VERSION" => "%V",
+        "%STRUCT" => "%S",
+        "%NEST" => "%N",
+        "%ALIAS" => "%A",
+        "%COUNT" => "%C",
+        _ => directive,
+    };
+    HedlError::syntax(
+        format!(
+            "v2.0 documents require compact directive syntax (line {}). Use '{}' instead of '{}'",
+            line, compact, directive
+        ),
+        line,
+    )
+}
+
+/// Error when a removed directive is used.
+///
+/// %ENUM, %DICT, and %CONSTRAINT were removed in v2.0.
+pub fn removed_directive(directive: &str, line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "{} directive was removed in v2.0 (line {}). Use explicit values or external validation instead.",
+            directive, line
+        ),
+        line,
+    )
+}
+
+// ==================== %COUNT Directive Errors ====================
+
+/// Error when %COUNT / %C is missing equals sign
+pub fn count_missing_equals(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "COUNT directive at line {} is missing '='. Expected: %C:Type.total=N or %C:Type.field:val1=N1,val2=N2",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %COUNT / %C pair is missing equals sign
+pub fn count_pair_missing_equals(line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "COUNT distribution pair at line {} is missing '='. Expected: value=count",
+            line
+        ),
+        line,
+    )
+}
+
+/// Error when %COUNT / %C has invalid number
+pub fn count_invalid_number(value: &str, line: usize) -> HedlError {
+    HedlError::syntax(
+        format!(
+            "invalid count number '{}' at line {}. Expected a non-negative integer.",
+            value, line
+        ),
+        line,
+    )
+}
+
 // ==================== Test Helpers ====================
 
 #[cfg(test)]
@@ -601,5 +878,187 @@ mod tests {
         let err = nest_invalid_syntax(15);
         assert_eq!(err.kind, HedlErrorKind::Syntax);
         assert!(err.message.contains("Parent > Child"));
+    }
+
+    // ==================== Mode, Prompt, and Removed Directive Error Tests ====================
+
+    #[test]
+    fn test_mode_already_defined() {
+        let err = mode_already_defined(5);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("MODE"));
+        assert!(err.message.contains("already defined"));
+    }
+
+    #[test]
+    fn test_invalid_mode() {
+        let err = invalid_mode("invalid", 10);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("invalid"));
+        assert!(err.message.contains("strict"));
+        assert!(err.message.contains("lenient"));
+    }
+
+    #[test]
+    fn test_removed_directive() {
+        let err = removed_directive("%ENUM", 40);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("removed"));
+        assert!(err.message.contains("%ENUM"));
+    }
+
+    #[test]
+    fn test_prompt_already_defined() {
+        let err = prompt_already_defined(60);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("PROMPT"));
+        assert!(err.message.contains("already defined"));
+    }
+
+    #[test]
+    fn test_prompt_not_quoted() {
+        let err = prompt_not_quoted(65);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("quoted"));
+    }
+
+    #[test]
+    fn test_list_missing_close_paren() {
+        let err = list_missing_close_paren(95);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("closing parenthesis"));
+    }
+
+    #[test]
+    fn test_list_unexpected_token() {
+        let err = list_unexpected_token("@", 100);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("@"));
+        assert!(err.message.contains("unexpected"));
+    }
+
+    #[test]
+    fn test_list_trailing_comma() {
+        let err = list_trailing_comma(105);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("trailing comma"));
+    }
+
+    #[test]
+    fn test_list_empty_element() {
+        let err = list_empty_element(110);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("empty element"));
+    }
+
+    // ==================== %NULL/%QUOTE/%COUNT Error Tests ====================
+
+    #[test]
+    fn test_null_char_already_defined() {
+        let err = null_char_already_defined(5);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("NULL"));
+        assert!(err.message.contains("already defined"));
+    }
+
+    #[test]
+    fn test_null_char_empty() {
+        let err = null_char_empty(10);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("NULL"));
+        assert!(err.message.contains("single character"));
+    }
+
+    #[test]
+    fn test_null_char_multiple() {
+        let err = null_char_multiple(15);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("NULL"));
+        assert!(err.message.contains("single character"));
+    }
+
+    #[test]
+    fn test_quote_char_already_defined() {
+        let err = quote_char_already_defined(20);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("QUOTE"));
+        assert!(err.message.contains("already defined"));
+    }
+
+    #[test]
+    fn test_quote_char_empty() {
+        let err = quote_char_empty(25);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("QUOTE"));
+        assert!(err.message.contains("single character"));
+    }
+
+    #[test]
+    fn test_quote_char_multiple() {
+        let err = quote_char_multiple(30);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("QUOTE"));
+        assert!(err.message.contains("single character"));
+    }
+
+    #[test]
+    fn test_count_missing_equals() {
+        let err = count_missing_equals(35);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("COUNT"));
+        assert!(err.message.contains("missing '='"));
+    }
+
+    #[test]
+    fn test_count_pair_missing_equals() {
+        let err = count_pair_missing_equals(40);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("missing '='"));
+    }
+
+    #[test]
+    fn test_count_invalid_number() {
+        let err = count_invalid_number("abc", 45);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("abc"));
+        assert!(err.message.contains("non-negative integer"));
+    }
+
+    // ==================== v2.0 Compliance Error Tests ====================
+
+    #[test]
+    fn test_v20_null_required() {
+        let err = v20_null_required(5);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("v2.0"));
+        assert!(err.message.contains("%NULL"));
+        assert!(err.message.contains("require"));
+    }
+
+    #[test]
+    fn test_v20_quote_required() {
+        let err = v20_quote_required(5);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("v2.0"));
+        assert!(err.message.contains("%QUOTE"));
+        assert!(err.message.contains("require"));
+    }
+
+    #[test]
+    fn test_v20_ditto_not_allowed() {
+        let err = v20_ditto_not_allowed(10);
+        assert_eq!(err.kind, HedlErrorKind::Semantic);
+        assert!(err.message.contains("ditto"));
+        assert!(err.message.contains("v2.0"));
+        assert!(err.message.contains("not allowed"));
+    }
+
+    #[test]
+    fn test_v20_verbose_syntax_not_allowed() {
+        let err = v20_verbose_syntax_not_allowed("%VERSION", 5);
+        assert_eq!(err.kind, HedlErrorKind::Syntax);
+        assert!(err.message.contains("v2.0"));
+        assert!(err.message.contains("%V"));
+        assert!(err.message.contains("%VERSION"));
     }
 }

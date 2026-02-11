@@ -183,12 +183,12 @@ impl FormatStats {
         // Use into_iter to consume the vector and extract in order
         let mut iter = outputs.into_iter();
         Ok(FormatStats {
-            // These unwraps are safe because we verified length == 5 above
-            json_compact: iter.next().unwrap(),
-            json_pretty: iter.next().unwrap(),
-            yaml: iter.next().unwrap(),
-            xml_compact: iter.next().unwrap(),
-            xml_pretty: iter.next().unwrap(),
+            // SAFETY: We verified length == 5 above
+            json_compact: iter.next().expect("length verified"),
+            json_pretty: iter.next().expect("length verified"),
+            yaml: iter.next().expect("length verified"),
+            xml_compact: iter.next().expect("length verified"),
+            xml_pretty: iter.next().expect("length verified"),
         })
     }
 }

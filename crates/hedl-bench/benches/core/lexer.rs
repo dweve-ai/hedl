@@ -155,7 +155,7 @@ fn bench_scan_regions(c: &mut Criterion) {
         ("simple_line", "name: Alice"),
         ("quoted_string", r#"message: "Hello, world!""#),
         ("expression", "total: $(price * quantity)"),
-        ("reference", "author: @User:123"),
+        ("reference", "author:@User:123"),
         ("multiline", "description: \"Line 1\nLine 2\nLine 3\""),
     ];
 

@@ -1,6 +1,6 @@
 # hedl-lint
 
-**Production-grade linting for HEDL documents—catch errors, enforce best practices, and improve code quality before deployment.**
+**Production-grade linting for HEDL documents -catch errors, enforce best practices, and improve code quality before deployment.**
 
 Valid syntax isn't enough. Unused schemas clutter headers. Empty lists waste space. Unqualified references in key-value contexts lose type information. ID fields should follow conventions. Code reviews catch these issues too late. Automated linting enforces standards consistently across teams and prevents common mistakes from reaching production.
 
@@ -25,7 +25,7 @@ Comprehensive linting with configuration and security:
 
 ```toml
 [dependencies]
-hedl-lint = "1.2"
+hedl-lint = "2.0"
 ```
 
 ## Basic Usage
@@ -37,15 +37,15 @@ use hedl_core::parse;
 use hedl_lint::lint;
 
 let doc = parse(br#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%STRUCT: Product: [id, title, price]
+%V:2.0
+%S:User:[id, name, email]
+%S:Product:[id, title, price]
 ---
 users: @User
-  | alice, Alice, alice@example.com
-  | bob, Bob, bob@example.com
+ | alice, Alice, alice@example.com
+ | bob, Bob, bob@example.com
 products: @Item
-  | item1, Widget, 9.99
+ | item1, Widget, 9.99
 "#)?;
 
 let diagnostics = lint(&doc);
@@ -82,13 +82,13 @@ Checks ID field naming conventions for consistency:
 ```hedl
 # Good: kebab-case IDs
 users: @User[id, name]
-  | alice-smith, Alice Smith
-  | bob-jones, Bob Jones
+ | alice-smith, Alice Smith
+ | bob-jones, Bob Jones
 
 # Warning: inconsistent casing
 users: @User[id, name]
-  | AliceSmith, Alice Smith    # Hint: prefer kebab-case
-  | bob_jones, Bob Jones        # Hint: prefer kebab-case
+ | AliceSmith, Alice Smith    # Hint: prefer kebab-case
+ | bob_jones, Bob Jones        # Hint: prefer kebab-case
 ```
 
 **Checks**:
@@ -110,13 +110,13 @@ config.disable_rule("id-naming");
 Detects %STRUCT definitions that are never referenced:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%STRUCT: Product: [id, title, price]
-%STRUCT: Order: [id, customer, total]
+%V:2.0
+%S:User:[id, name, email]
+%S:Product:[id, title, price]
+%S:Order:[id, customer, total]
 ---
 users: @User
-  | alice, Alice, alice@example.com
+ | alice, Alice, alice@example.com
 
 # Warning: Product and Order schemas defined but unused
 ```
@@ -142,8 +142,8 @@ config.set_rule_error("unused-schema");
 Flags matrix lists with schema but zero rows:
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, age]
+%V:2.0
+%S:User:[id, name, age]
 ---
 users: @User[0]
   # No rows - empty list
@@ -524,7 +524,7 @@ The `hedl-lsp` crate uses `hedl-lint` for real-time diagnostics:
 
 ## Dependencies
 
-- `hedl-core` 1.2 - Core HEDL data structures and parsing
+- `hedl-core` 2.0 - Core HEDL data structures and parsing
 - `thiserror` 1.0 - Error type definitions
 
 ## License

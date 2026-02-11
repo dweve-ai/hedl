@@ -27,20 +27,24 @@ use tower_lsp::lsp_types::*;
 
 #[test]
 fn test_hover_on_hyphenated_entity_id() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Product: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id, name]
 ---
-products: @Product
-  | my-product, Test Product
-  | other-item, Another Product
-";
+products:@Product
+ |my-product, Test Product
+ |other-item, Another Product
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Test hovering over the hyphenated ID "my-product"
+    // Line 0: %V:2.0, Line 1: %NULL:~, Line 2: %QUOTE:", Line 3: %S:..., Line 4: ---, Line 5: products:, Line 6: |my-product
+    // Format: " |my-product" - char 0: space, 1: |, 2: m, 3: y, 4: -, 5: p...
     let position = Position {
-        line: 4,
-        character: 4,
+        line: 6,
+        character: 3, // Point to 'y' in 'my-product'
     };
 
     let hover = get_hover(&analysis, content, position);
@@ -61,25 +65,28 @@ products: @Product
 
 #[test]
 fn test_hover_on_hyphenated_reference() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | user-1, Alice
-  | user-2, Bob
+users:@User
+ |user-1, Alice
+ |user-2, Bob
 
-data: @Arbitrary
-  | d1, @User:user-1
-";
+data:@Arbitrary
+ |d1, @User:user-1
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Find the reference "@User:user-1" and hover over it
-    let line = "  | d1, @User:user-1";
+    let line = " |d1, @User:user-1";
     let ref_pos = line.find("@User:user-1").unwrap();
 
+    // Line 10: |d1, @User:user-1
     let position = Position {
-        line: 8,
+        line: 10,
         character: (ref_pos + 8) as u32, // In the "user-1" part
     };
 
@@ -101,13 +108,13 @@ data: @Arbitrary
 
 #[test]
 fn test_definition_indexing_with_bracket_row_prefix() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Task: [id, priority]
+    let content = r#"%V:1.2
+%S:Task:[id, priority]
 ---
-tasks: @Task
-  |[3] task-alpha, high
-  |[7] task-beta, medium
-";
+tasks:@Task
+ |[3] task-alpha, high
+ |[7] task-beta, medium
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -137,9 +144,9 @@ tasks: @Task
             def.line
         );
 
-        // Line is: "  |[3] task-alpha, high"
+        // Line is: " |[3] task-alpha, high"
         // The start char should point to "task-alpha", not the row prefix
-        let line = "  |[3] task-alpha, high";
+        let line = " |[3] task-alpha, high";
         let expected_start = line.find("task-alpha").unwrap() as u32;
 
         assert_eq!(
@@ -152,21 +159,23 @@ tasks: @Task
 
 #[test]
 fn test_hover_range_includes_full_hyphenated_word() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Widget: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Widget:[id, name]
 ---
-widgets: @Widget
-  | cool-widget-name, Test
-";
+widgets:@Widget
+ |cool-widget-name, Test
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Hover somewhere in the middle of "cool-widget-name"
-    let line = "  | cool-widget-name, Test";
+    let line = " |cool-widget-name, Test";
     let id_start = line.find("cool-widget-name").unwrap();
 
     let position = Position {
-        line: 4,
+        line: 6,
         character: (id_start + 7) as u32, // In the "widget" part
     };
 
@@ -177,7 +186,7 @@ widgets: @Widget
 
     // Check that the hover range encompasses the entire hyphenated word
     if let Some(range) = hover.range {
-        assert_eq!(range.start.line, 4, "Hover range should be on line 4");
+        assert_eq!(range.start.line, 6, "Hover range should be on line 6");
 
         // The range should cover the entire "cool-widget-name"
         let expected_start = id_start as u32;
@@ -198,23 +207,25 @@ widgets: @Widget
 
 #[test]
 fn test_multiple_hyphens_in_identifier() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Component: [id, description]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Component:[id, description]
 ---
-components: @Component
-  | very-long-hyphenated-identifier-here, Description
-";
+components:@Component
+ |very-long-hyphenated-identifier-here, Description
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     // Test that we can hover anywhere in the multi-hyphenated ID
-    let line = "  | very-long-hyphenated-identifier-here, Description";
+    let line = " |very-long-hyphenated-identifier-here, Description";
     let id_start = line.find("very-long-hyphenated-identifier-here").unwrap();
 
     // Test at different positions within the ID
     for offset in [0, 5, 10, 20, 30, 35] {
         let position = Position {
-            line: 4,
+            line: 6,
             character: (id_start + offset) as u32,
         };
 
@@ -239,14 +250,16 @@ components: @Component
 
 #[test]
 fn test_underscore_vs_hyphen_word_detection() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Mixed: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Mixed:[id, name]
 ---
-mixed: @Mixed
-  | under_score_id, Name1
-  | hyphen-id, Name2
-  | mixed_hyphen-id, Name3
-";
+mixed:@Mixed
+ |under_score_id, Name1
+ |hyphen-id, Name2
+ |mixed_hyphen-id, Name3
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -257,13 +270,13 @@ mixed: @Mixed
 
     // Test hover detection for each style
     let test_cases = vec![
-        (4, "under_score_id"),
-        (5, "hyphen-id"),
-        (6, "mixed_hyphen-id"),
+        (6, "under_score_id"),
+        (7, "hyphen-id"),
+        (8, "mixed_hyphen-id"),
     ];
 
     for (line_num, expected_id) in test_cases {
-        let line = format!("  | {expected_id}, Name");
+        let line = format!(" |{expected_id}, Name");
         let id_start = line.find(expected_id).unwrap();
 
         let position = Position {
@@ -281,11 +294,13 @@ mixed: @Mixed
 
 #[test]
 fn test_definition_indexing_with_quoted_hyphenated_id() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: Record: [id, value]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Record:[id, value]
 ---
-records: @Record
-  | "my-hyphenated-id", test-value
+records:@Record
+ |"my-hyphenated-id", test-value
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -306,9 +321,9 @@ records: @Record
     );
 
     if let Some(def) = def_opt {
-        // Line is: "  | "my-hyphenated-id", test-value"
+        // Line is: " |"my-hyphenated-id", test-value"
         // The start should point inside the quotes to the actual ID
-        let line = r#"  | "my-hyphenated-id", test-value"#;
+        let line = r#" |"my-hyphenated-id", test-value"#;
         let quote_pos = line.find('"').unwrap();
         let expected_start = (quote_pos + 1) as u32; // After opening quote
 
@@ -323,18 +338,21 @@ records: @Record
 #[test]
 fn test_comprehensive_hyphenated_workflow() {
     // Complete workflow test: parsing, hover, references, and indexing
-    let content = r#"%VERSION: 1.0
-%STRUCT: Product: [id, name, category]
-%STRUCT: Order: [id, product_ref, quantity]
+    // Note: v2.0 removed |[N] inline count hints, so we use standard row syntax
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id, name, category]
+%S:Order:[id, product_ref, quantity]
 ---
-products: @Product
-  | "gaming-laptop", Gaming Laptop Pro, electronics
-  | "office-chair", Ergonomic Office Chair, furniture
-  |[2] "wireless-mouse", Wireless Mouse, electronics
+products:@Product
+ |gaming-laptop, Gaming Laptop Pro, electronics
+ |office-chair, Ergonomic Office Chair, furniture
+ |wireless-mouse, Wireless Mouse, electronics
 
-orders: @Order
-  | order-1, @Product:gaming-laptop, 2
-  | order-2, @Product:wireless-mouse, 5
+orders:@Order
+ |order-1, @Product:gaming-laptop, 2
+ |order-2, @Product:wireless-mouse, 5
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -347,10 +365,10 @@ orders: @Order
     assert!(analysis.entity_exists(Some("Order"), "order-2"));
 
     // Test hover on hyphenated entity ID in definition
-    let line = r#"  | "gaming-laptop", Gaming Laptop Pro, electronics"#;
+    let line = " |gaming-laptop, Gaming Laptop Pro, electronics";
     let id_start = line.find("gaming-laptop").unwrap();
     let position = Position {
-        line: 5,
+        line: 7,
         character: (id_start + 5) as u32,
     };
 
@@ -366,31 +384,31 @@ orders: @Order
     }
 
     // Test hover on hyphenated reference
-    let ref_line = "  | order-1, @Product:gaming-laptop, 2";
+    let ref_line = " |order-1, @Product:gaming-laptop, 2";
     let ref_start = ref_line.find("@Product:gaming-laptop").unwrap();
     let ref_position = Position {
-        line: 10,
+        line: 12,
         character: (ref_start + 15) as u32,
     };
 
     let ref_hover = get_hover(&analysis, content, ref_position);
     assert!(ref_hover.is_some(), "Should get hover on reference");
 
-    // Test definition with row prefix |[2]
+    // Test definition indexing for the wireless-mouse entry
     let ref_index = &analysis.reference_index_v2;
     let def_opt = ref_index.find_definition("Product", "wireless-mouse");
     assert!(
         def_opt.is_some(),
-        "Should find definition with row prefix |[2]"
+        "Should find definition for wireless-mouse"
     );
 
     if let Some(def) = def_opt {
-        assert_eq!(def.line, 7, "Definition should be on line 7");
-        let prefix_line = r#"  |[2] "wireless-mouse", Wireless Mouse, electronics"#;
-        let expected_start = prefix_line.find("wireless-mouse").unwrap() as u32;
+        assert_eq!(def.line, 9, "Definition should be on line 9");
+        let standard_line = " |wireless-mouse, Wireless Mouse, electronics";
+        let expected_start = standard_line.find("wireless-mouse").unwrap() as u32;
         assert_eq!(
             def.start_char, expected_start,
-            "Start char should account for row prefix"
+            "Start char should point to the ID"
         );
     }
 }

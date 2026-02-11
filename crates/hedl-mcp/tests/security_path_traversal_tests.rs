@@ -189,7 +189,7 @@ fn test_absolute_path_inside_root_allowed() {
     let valid_path = root.join("valid.hedl");
     fs::write(
         &valid_path,
-        "%VERSION: 1.0\n%STRUCT: Test: [id, name]\n---\ntest: @Test\n  | item1, Test Item\n",
+        "%VERSION: 1.0\n%STRUCT: Test: [id, name]\n---\ntest:@Test\n | item1, Test Item\n",
     )
     .unwrap();
 
@@ -495,7 +495,7 @@ fn test_symlink_inside_root_allowed() {
     let valid = root.join("actual.hedl");
     fs::write(
         &valid,
-        "%VERSION: 1.0\n%STRUCT: Test: [id, name]\n---\ntest: @Test\n  | item1, Test Item\n",
+        "%VERSION: 1.0\n%STRUCT: Test: [id, name]\n---\ntest:@Test\n | item1, Test Item\n",
     )
     .unwrap();
 
@@ -1040,7 +1040,7 @@ fn test_directory_read_filters_symlink_escapes() {
     // Create a valid file inside sandbox
     fs::write(
         root.join("valid.hedl"),
-        "%VERSION: 1.0\n%STRUCT: Test: [id]\n---\ntest: @Test\n  | item1\n",
+        "%VERSION: 1.0\n%STRUCT: Test: [id]\n---\ntest:@Test\n | item1\n",
     )
     .unwrap();
 

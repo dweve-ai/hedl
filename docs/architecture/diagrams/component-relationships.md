@@ -333,27 +333,27 @@ graph TB
 
 ## Crate Summary
 
-| Crate | Layer | Purpose | Dependencies on Core |
+| Crate |Layer |Purpose |Dependencies on Core |
 |-------|-------|---------|---------------------|
-| **hedl-core** | Layer 1 | Core parser, types, validation | - |
-| **hedl-c14n** | Layer 2 | Canonicalization for consistent output | hedl-core |
-| **hedl-lint** | Layer 2 | Linting and validation rules | hedl-core |
-| **hedl-stream** | Layer 2 | Streaming parser for large files | hedl-core |
-| **hedl-json** | Layer 3 | JSON bidirectional conversion | hedl-core |
-| **hedl-yaml** | Layer 3 | YAML bidirectional conversion | hedl-core |
-| **hedl-xml** | Layer 3 | XML bidirectional conversion | hedl-core |
-| **hedl-csv** | Layer 3 | CSV bidirectional conversion | hedl-core |
-| **hedl-parquet** | Layer 3 | Parquet columnar format conversion | hedl-core |
-| **hedl-neo4j** | Layer 3 | Neo4j graph database integration | hedl-core |
-| **hedl-toon** | Layer 3 | TOON (Token-Oriented Object Notation) | hedl-core |
-| **hedl-ffi** | Layer 4 | C FFI bindings for cross-language use | hedl-core |
-| **hedl-wasm** | Layer 4 | WebAssembly bindings for browser/JS | hedl-core |
-| **hedl-cli** | Layer 5 | Command-line interface tool | hedl-core + formats |
-| **hedl-lsp** | Layer 5 | Language Server Protocol implementation | hedl-core, c14n, lint |
-| **hedl-mcp** | Layer 5 | Model Context Protocol server for AI/LLM | All format crates |
-| **hedl** | Facade | Unified API exposing common functionality | core, json, c14n, lint |
-| **hedl-test** | Infra | Shared test fixtures and utilities | hedl-core, c14n |
-| **hedl-bench** | Infra | Benchmarks and performance testing | Most crates |
+| **hedl-core** |Layer 1 |Core parser, types, validation | - |
+| **hedl-c14n** |Layer 2 |Canonicalization for consistent output |hedl-core |
+| **hedl-lint** |Layer 2 |Linting and validation rules |hedl-core |
+| **hedl-stream** |Layer 2 |Streaming parser for large files |hedl-core |
+| **hedl-json** |Layer 3 |JSON bidirectional conversion |hedl-core |
+| **hedl-yaml** |Layer 3 |YAML bidirectional conversion |hedl-core |
+| **hedl-xml** |Layer 3 |XML bidirectional conversion |hedl-core |
+| **hedl-csv** |Layer 3 |CSV bidirectional conversion |hedl-core |
+| **hedl-parquet** |Layer 3 |Parquet columnar format conversion |hedl-core |
+| **hedl-neo4j** |Layer 3 |Neo4j graph database integration |hedl-core |
+| **hedl-toon** |Layer 3 |TOON (Token-Oriented Object Notation) |hedl-core |
+| **hedl-ffi** |Layer 4 |C FFI bindings for cross-language use |hedl-core |
+| **hedl-wasm** |Layer 4 |WebAssembly bindings for browser/JS |hedl-core |
+| **hedl-cli** |Layer 5 |Command-line interface tool |hedl-core + formats |
+| **hedl-lsp** |Layer 5 |Language Server Protocol implementation |hedl-core, c14n, lint |
+| **hedl-mcp** |Layer 5 |Model Context Protocol server for AI/LLM |All format crates |
+| **hedl** |Facade |Unified API exposing common functionality |core, json, c14n, lint |
+| **hedl-test** |Infra |Shared test fixtures and utilities |hedl-core, c14n |
+| **hedl-bench** |Infra |Benchmarks and performance testing |Most crates |
 
 ---
 

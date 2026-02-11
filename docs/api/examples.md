@@ -25,12 +25,14 @@ use hedl::{parse, HedlError};
 
 fn main() -> Result<(), HedlError> {
     let hedl = r#"
-        %VERSION: 1.0
-        %STRUCT: User: [id, name, email]
+        %V:2.0
+%NULL:~
+%QUOTE:"
+        %S:User:[id,name,email]
         ---
-        users: @User
-          | alice, Alice Smith, alice@example.com
-          | bob, Bob Jones, bob@example.com
+        users:@User
+         |alice,Alice Smith, alice@example.com
+         |bob,Bob Jones, bob@example.com
     "#;
 
     let doc = parse(hedl)?;
@@ -52,7 +54,7 @@ use hedl::{parse, to_json, from_json};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse HEDL
-    let hedl = "%VERSION: 1.0\n---\nusers: [{id: alice, name: Alice}]";
+    let hedl = "%V:2.0\n---\nusers: [{id: alice, name: Alice}]";
     let doc = parse(hedl)?;
 
     // Convert to JSON
@@ -78,12 +80,14 @@ use hedl::{parse, validate, lint};
 
 fn main() {
     let hedl = r#"
-        %VERSION: 1.0
-        %STRUCT: User: [id, name]
+        %V:2.0
+%NULL:~
+%QUOTE:"
+        %S:User:[id,name]
         ---
-        users: @User
-          | alice, Alice Smith
-          | bob  # Missing field!
+        users:@User
+         |alice,Alice Smith
+         |bob  # Missing field!
     "#;
 
     // Validate first
@@ -124,7 +128,7 @@ use hedl::yaml::to_yaml;
 use hedl::xml::to_xml;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let hedl = "%VERSION: 1.0\n---\nkey: value";
+    let hedl = "%V:2.0\n---\nkey: value";
     let doc = parse(hedl)?;
 
     // JSON
@@ -171,15 +175,17 @@ fn print_entities(node: &Node, indent: usize) {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hedl = r#"
-        %VERSION: 1.0
-        %STRUCT: User: [id, name]
-        %STRUCT: Post: [id, title]
-        %NEST: User > Post
+        %V:2.0
+%NULL:~
+%QUOTE:"
+        %S:User:[id,name]
+        %S:Post:[id,title]
+        %N:User>Post
         ---
-        users: @User
-          | alice, Alice
-            | post1, Hello World
-            | post2, Second Post
+        users:@User
+         |alice,Alice
+          |post1,Hello World
+          |post2,Second Post
     "#;
 
     let doc = parse(hedl)?;
@@ -213,11 +219,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 int main() {
     const char* hedl =
-        "%VERSION: 1.0\n"
-        "%STRUCT: User: [id, name]\n"
+        "%V:2.0\n"
+        "%S:User:[id,name]\n"
         "---\n"
-        "users: @User\n"
-        "  | alice, Alice\n";
+        "users:@User\n"
+        " |alice,Alice\n";
 
     HedlDocument* doc = NULL;
     int result = hedl_parse(hedl, -1, 1, &doc);
@@ -258,7 +264,7 @@ gcc -o example example.c -lhedl_ffi
 #include <stdio.h>
 
 int main() {
-    const char* hedl = "%VERSION: 1.0\n---\nkey: value\n";
+    const char* hedl = "%V:2.0\n---\nkey: value\n";
     HedlDocument* doc = NULL;
     char* json = NULL;
 
@@ -325,7 +331,7 @@ void process_hedl(const char* input) {
 }
 
 int main() {
-    process_hedl("%VERSION: 1.0\n---\nkey: value");
+    process_hedl("%V:2.0\n---\nkey: value");
     process_hedl("invalid hedl");
     return 0;
 }
@@ -345,7 +351,7 @@ void write_to_file(const char* chunk, size_t len, void* user_data) {
 }
 
 int main() {
-    const char* hedl = "%VERSION: 1.0\n---\nkey: value";
+    const char* hedl = "%V:2.0\n---\nkey: value";
     HedlDocument* doc = NULL;
 
     if (hedl_parse(hedl, -1, 0, &doc) != HEDL_OK) {
@@ -405,7 +411,7 @@ hedl.hedl_free_string.argtypes = [ctypes.c_char_p]
 hedl.hedl_get_last_error.restype = ctypes.c_char_p
 
 # Parse HEDL
-hedl_input = b"%VERSION: 1.0\n---\nkey: value"
+hedl_input = b"%V:2.0\n---\nkey: value"
 doc = ctypes.c_void_p()
 
 result = hedl.hedl_parse(hedl_input, -1, 0, ctypes.byref(doc))
@@ -493,7 +499,7 @@ class HedlFFI:
 # Usage
 hedl = HedlFFI()
 
-doc = hedl.parse("%VERSION: 1.0\n---\nkey: value")
+doc = hedl.parse("%V:2.0\n---\nkey: value")
 json = hedl.to_json(doc)
 print(json)
 hedl.free_document(doc)
@@ -513,12 +519,14 @@ async function main() {
     await init();
 
     const hedl = `
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+users:@User
+ |alice,Alice Smith, alice@example.com
+ |bob,Bob Jones, bob@example.com
 `;
 
     try {
@@ -609,7 +617,7 @@ interface EditorProps {
 export function HedlEditor({ initialValue = '' }: EditorProps) {
     const [initialized, setInitialized] = useState(false);
     const [hedl, setHedl] = useState(initialValue);
-    const [doc, setDoc] = useState<HedlDocument | null>(null);
+    const [doc, setDoc] = useState<HedlDocument |null>(null);
     const [errors, setErrors] = useState<string[]>([]);
     const [stats, setStats] = useState<any>(null);
 
@@ -721,7 +729,7 @@ import (
 )
 
 func main() {
-    hedl := C.CString("%VERSION: 1.0\n---\nkey: value")
+    hedl := C.CString("%V:2.0\n---\nkey: value")
     defer C.free(unsafe.Pointer(hedl))
 
     var doc *C.HedlDocument
@@ -813,7 +821,7 @@ func (d *Document) Free() {
 
 // Usage
 func main() {
-    doc, err := Parse("%VERSION: 1.0\n---\nkey: value")
+    doc, err := Parse("%V:2.0\n---\nkey: value")
     if err != nil {
         panic(err)
     }

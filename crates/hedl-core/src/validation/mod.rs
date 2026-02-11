@@ -37,7 +37,7 @@
 //! use hedl_core::validation::{ValidationRunner, LintConfig};
 //! use hedl_core::Document;
 //!
-//! let doc = Document::new((1, 0));
+//! let doc = Document::new((2, 0));
 //! let runner = ValidationRunner::new(LintConfig::default());
 //! let result = runner.validate(&doc);
 //!
@@ -76,6 +76,7 @@ mod diagnostic;
 mod registry;
 mod rule;
 mod runner;
+/// Recursive traversal helpers for validation rules.
 pub mod traverse;
 
 // Built-in rules
@@ -90,5 +91,5 @@ pub use registry::RuleRegistry;
 pub use rule::{Rule, RuleCategory};
 pub use runner::{LintConfig, ValidationResult, ValidationRunner};
 
-// Re-export built-in rules
+/// Built-in validation rules.
 pub use rules::{DuplicateKeyRule, InvalidReferenceRule, TypeMismatchRule, UnusedReferenceRule};

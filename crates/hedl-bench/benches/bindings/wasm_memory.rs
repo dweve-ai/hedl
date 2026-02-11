@@ -9,14 +9,14 @@ use std::collections::HashMap;
 
 /// Generate test HEDL document with specified node count
 fn generate_test_doc(node_count: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Entity: [id, name, value, timestamp]\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:Entity:[id,name,value,timestamp]\n");
     doc.push_str("---\n");
-    doc.push_str("entities: @Entity\n");
+    doc.push_str("entities:@Entity\n");
 
     for i in 0..node_count {
         doc.push_str(&format!(
-            "  | entity_{}, Name {}, {}, 2024-01-01T00:00:00Z\n",
+            "  |entity_{}, Name {}, {}, 2024-01-01T00:00:00Z\n",
             i,
             i,
             i * 100

@@ -52,9 +52,9 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
             }
             (header_lines.join("\n"), body_lines.join("\n"))
         };
-        format!("%VERSION: 1.0\n{header}\n---\n{body}")
+        format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n{header}\n---\n{body}")
     } else {
-        format!("%VERSION: 1.0\n---\n{input}")
+        format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{input}")
     };
     parse(hedl.as_bytes()).unwrap()
 }
@@ -76,7 +76,7 @@ active: true
     println!("=== Example 2: Schema with %STRUCT:===\n");
     let hedl = r"
 %STRUCT: User: [id, name, email]
-users: @User
+users:@User
   |u1, Alice, alice@example.com
   |u2, Bob, bob@example.com
 ";
@@ -96,7 +96,7 @@ users: @User
 %STRUCT: Member: [id, name, role]
 %NEST: Team > Member
 
-teams: @Team
+teams:@Team
   |t1, Engineering
   |t2, Design
 ";
@@ -109,7 +109,7 @@ teams: @Team
     println!("=== Example 4: Strict Schema with Examples ===\n");
     let hedl = r"
 %STRUCT: Product: [id, name, price, in_stock]
-products: @Product
+products:@Product
   |p1, Widget, 19.99, true
   |p2, Gadget, 29.99, false
 ";
@@ -134,7 +134,7 @@ products: @Product
 %NEST: Organization > Department
 %NEST: Department > Employee
 
-organizations: @Organization
+organizations:@Organization
   |org1, Acme Corp, 1990
 ";
 

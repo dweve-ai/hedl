@@ -1,10 +1,10 @@
 # hedl
 
-**The unified HEDL API—parse, validate, convert, and canonicalize with a single, ergonomic interface.**
+**The unified HEDL API -parse, validate, convert, and canonicalize with a single, ergonomic interface.**
 
 Production systems need simple APIs. Importing a dozen crates for basic operations creates cognitive overhead. Feature flags should work intuitively. Errors need rich context without boilerplate. The most common operations should be frictionless.
 
-`hedl` is the facade crate providing the complete HEDL experience through 7 core functions and comprehensive error handling utilities. Zero default dependencies—only pay for features you enable. Full re-exports from 13 specialized crates beneath a unified API. Designed for developers who want results, not dependency management.
+`hedl` is the facade crate providing the complete HEDL experience through 7 core functions and comprehensive error handling utilities. Zero default dependencies -only pay for features you enable. Full re-exports from 13 specialized crates beneath a unified API. Designed for developers who want results, not dependency management.
 
 ## What's Implemented
 
@@ -12,11 +12,11 @@ Unified API with zero-overhead ergonomics:
 
 1. **7 Core Functions**: parse, parse_lenient, canonicalize, to_json, from_json, lint, validate
 2. **8 Feature Flags**: serde, yaml, xml, csv, parquet, neo4j, toon, all-formats
-3. **Zero Default Dependencies**: Core parsing only—enable formats as needed
+3. **Zero Default Dependencies**: Core parsing only -enable formats as needed
 4. **Error Context Extensions**: HedlResultExt trait with .context() and .with_context()
-5. **Full Re-Exports**: 13 internal crates exposed through unified namespace
+5. **Full Re-Exports**: 10 internal crates exposed through unified namespace
 6. **Type Aliases**: Convenient Result<T> = std::result::Result<T, HedlError>
-7. **130+ Error Extension Tests**: Comprehensive validation of context propagation
+7. **299 Integration Tests**: Comprehensive validation including error context propagation
 8. **Minimal Overhead**: < 1% compared to using crates directly
 9. **Feature Composition**: Mix and match formats without conflicts
 10. **Ergonomic Imports**: use hedl::*; gives you everything you need
@@ -29,7 +29,7 @@ Parse, validate, and work with HEDL documents:
 
 ```toml
 [dependencies]
-hedl = "1.2"
+hedl = "2.0"
 ```
 
 **What you get**: Parsing, canonicalization, linting, validation
@@ -41,7 +41,7 @@ Enable only the formats you need:
 
 ```toml
 [dependencies]
-hedl = { version = "1.2", features = ["yaml", "xml"] }
+hedl = { version = "2.0", features = ["yaml", "xml"] }
 ```
 
 ### All Features
@@ -50,32 +50,33 @@ Get everything (recommended for applications):
 
 ```toml
 [dependencies]
-hedl = { version = "1.2", features = ["all-formats"] }
+hedl = { version = "2.0", features = ["all-formats"] }
 ```
 
 **Includes**: JSON, YAML, XML, CSV, Parquet, Neo4j, TOON, Serde
 
 ## Core API
 
-### parse(bytes: &[u8]) -> Result<Document>
+### parse(input: &str) -> Result<Document>
 
 Parse HEDL document with strict validation:
 
 ```rust
 use hedl::parse;
 
-let hedl = br#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, age]
+let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, age]
 ---
 users: @User
-  | alice, Alice Smith, 30
-  | bob, Bob Jones, 25
+ |alice, Alice Smith, 30
+ |bob, Bob Jones, 25
 "#;
 
 let doc = parse(hedl)?;
 println!("Version: {}.{}", doc.version.0, doc.version.1);
-println!("Users: {}", doc.entities["User"].len());
 ```
 
 **Behavior**:
@@ -118,7 +119,7 @@ if validate(hedl_bytes).is_ok() {
 
 ### canonicalize(doc: &Document) -> Result<String>
 
-Convert to canonical form with ditto optimization:
+Convert to canonical form:
 
 ```rust
 use hedl::{parse, canonicalize};
@@ -131,7 +132,6 @@ let canonical = canonicalize(&doc)?;
 
 **Output Characteristics**:
 - Deterministic formatting (2-space indentation)
-- Ditto operator for repeated values
 - Count hints on matrix lists
 - Normalized floats (no trailing zeros)
 - Sorted keys (optional)
@@ -274,7 +274,7 @@ std::fs::read("file.hedl")
 Enable Serde serialization for Document type:
 
 ```toml
-hedl = { version = "1.2", features = ["serde"] }
+hedl = { version = "2.0", features = ["serde"] }
 ```
 
 **Provides**: Serialize/Deserialize impls for Document, Value, Reference
@@ -286,7 +286,7 @@ hedl = { version = "1.2", features = ["serde"] }
 Enable YAML format conversion:
 
 ```toml
-hedl = { version = "1.2", features = ["yaml"] }
+hedl = { version = "2.0", features = ["yaml"] }
 ```
 
 **Adds**:
@@ -300,7 +300,7 @@ hedl = { version = "1.2", features = ["yaml"] }
 Enable XML format conversion:
 
 ```toml
-hedl = { version = "1.2", features = ["xml"] }
+hedl = { version = "2.0", features = ["xml"] }
 ```
 
 **Adds**:
@@ -314,7 +314,7 @@ hedl = { version = "1.2", features = ["xml"] }
 Enable CSV format conversion:
 
 ```toml
-hedl = { version = "1.2", features = ["csv"] }
+hedl = { version = "2.0", features = ["csv"] }
 ```
 
 **Adds**:
@@ -328,7 +328,7 @@ hedl = { version = "1.2", features = ["csv"] }
 Enable Apache Parquet columnar format:
 
 ```toml
-hedl = { version = "1.2", features = ["parquet"] }
+hedl = { version = "2.0", features = ["parquet"] }
 ```
 
 **Adds**:
@@ -342,7 +342,7 @@ hedl = { version = "1.2", features = ["parquet"] }
 Enable Neo4j Cypher generation:
 
 ```toml
-hedl = { version = "1.2", features = ["neo4j"] }
+hedl = { version = "2.0", features = ["neo4j"] }
 ```
 
 **Adds**:
@@ -356,7 +356,7 @@ hedl = { version = "1.2", features = ["neo4j"] }
 Enable TOON format (token-optimized for LLMs):
 
 ```toml
-hedl = { version = "1.2", features = ["toon"] }
+hedl = { version = "2.0", features = ["toon"] }
 ```
 
 **Adds**:
@@ -370,7 +370,7 @@ hedl = { version = "1.2", features = ["toon"] }
 Enable all format converters:
 
 ```toml
-hedl = { version = "1.2", features = ["all-formats"] }
+hedl = { version = "2.0", features = ["all-formats"] }
 ```
 
 **Equivalent to**: `["serde", "yaml", "xml", "csv", "parquet", "neo4j", "toon"]`
@@ -479,7 +479,7 @@ fn my_function() -> Result<Document> {
 
 **Feature Gating**: Unused features don't bloat binary (tree-shaking works)
 
-**Compile Time**: Minimal—most work delegated to specialized crates
+**Compile Time**: Minimal -most work delegated to specialized crates
 
 **Binary Size**: Core-only build ~200 KB, all-formats ~800 KB (compressed)
 
@@ -487,7 +487,7 @@ fn my_function() -> Result<Document> {
 
 **Application Development**: Use `features = ["all-formats"]` for maximum flexibility without managing individual crate versions.
 
-**Library Development**: Minimize dependencies—only enable formats your library needs. Let downstream users add more formats via their own dependencies.
+**Library Development**: Minimize dependencies -only enable formats your library needs. Let downstream users add more formats via their own dependencies.
 
 **CLI Tools**: Import hedl with all-formats for comprehensive format support in user-facing tools.
 
@@ -511,7 +511,7 @@ fn my_function() -> Result<Document> {
 
 ### Core (Zero Features)
 
-- `hedl-core` 1.0 - Parsing and AST
+- `hedl-core` 2.0 - Parsing and AST
 - `hedl-c14n` 1.0 - Canonicalization
 - `hedl-json` 1.0 - JSON (always included)
 - `hedl-lint` 1.0 - Linting

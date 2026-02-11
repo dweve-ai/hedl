@@ -24,7 +24,7 @@ use crate::lex::{Expression, Tensor};
 /// Optimized memory layout:
 /// - 16 bytes on 64-bit systems (without heap allocation for short IDs)
 /// - Type names are interned during parsing to reduce duplication
-/// - Uses Box<str> to minimize heap overhead compared to String
+/// - Uses `Box<str>` to minimize heap overhead compared to String
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Reference {
@@ -32,7 +32,7 @@ pub struct Reference {
     /// Boxed to reduce size when None (common case).
     pub type_name: Option<Box<str>>,
     /// The ID being referenced.
-    /// Uses Box<str> for compact representation (16 bytes vs 24 for String).
+    /// Uses `Box<str>` for compact representation (16 bytes vs 24 for String).
     pub id: Box<str>,
 }
 
@@ -74,11 +74,12 @@ impl Reference {
 /// A scalar value in HEDL.
 ///
 /// Optimized memory layout:
-/// - Large variants (String, Tensor, Expression) are boxed to keep enum size small
+/// - Large variants (String, Tensor, Expression, List) are boxed to keep enum size small
 /// - Small values (Null, Bool, Int, Float) remain inline
 /// - Total enum size: 16 bytes (down from 32+ bytes)
 /// - Reduces memory usage by 40-50% for typical documents
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Value {
     /// Null value (~).
     Null,
@@ -96,6 +97,34 @@ pub enum Value {
     Reference(Reference),
     /// Parsed expression from $(...) (boxed to reduce enum size).
     Expression(Box<Expression>),
+    /// List of scalar values (from `(...)` syntax).
+    ///
+    /// Distinct from Tensor: lists can contain any scalar types (strings, bools, refs, etc.),
+    /// while tensors are numeric-only.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hedl_core::Value;
+    ///
+    /// // String list: (admin, editor, viewer)
+    /// let roles = Value::List(Box::new(vec![
+    ///     Value::String("admin".into()),
+    ///     Value::String("editor".into()),
+    ///     Value::String("viewer".into()),
+    /// ]));
+    ///
+    /// // Bool list: (true, false, true)
+    /// let flags = Value::List(Box::new(vec![
+    ///     Value::Bool(true),
+    ///     Value::Bool(false),
+    ///     Value::Bool(true),
+    /// ]));
+    ///
+    /// // Empty list: ()
+    /// let empty = Value::List(Box::new(vec![]));
+    /// ```
+    List(Box<Vec<Value>>),
 }
 
 impl Value {
@@ -107,6 +136,19 @@ impl Value {
     /// Returns true if this value is a reference.
     pub fn is_reference(&self) -> bool {
         matches!(self, Self::Reference(_))
+    }
+
+    /// Returns true if this value is a list.
+    pub fn is_list(&self) -> bool {
+        matches!(self, Self::List(_))
+    }
+
+    /// Try to get the value as a list.
+    pub fn as_list(&self) -> Option<&[Value]> {
+        match self {
+            Self::List(l) => Some(l),
+            _ => None,
+        }
     }
 
     /// Try to get the value as a string.
@@ -162,6 +204,16 @@ impl std::fmt::Display for Value {
             Self::Tensor(_) => write!(f, "[tensor]"),
             Self::Reference(r) => write!(f, "{}", r.to_ref_string()),
             Self::Expression(e) => write!(f, "$({})", e),
+            Self::List(items) => {
+                write!(f, "(")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }

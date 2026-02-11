@@ -195,7 +195,7 @@ proptest! {
         id in "[a-z][a-z0-9_]{0,20}"
     ) {
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems: @{type_name}\n  | {id}\nref: @{type_name}:{id}\n"
+            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\nitems:@{type_name}\n | {id}\nref: @{type_name}:{id}\n"
         );
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -222,11 +222,11 @@ proptest! {
             "%VERSION: 1.0\n\
              %STRUCT: {type_name}: [id, value]\n\
              ---\n\
-             items: @{type_name}\n"
+             items:@{type_name}\n"
         );
 
         for i in 0..count {
-            doc.push_str(&format!("  | id{}, {}\n", i, i * 10));
+            doc.push_str(&format!(" | id{}, {}\n", i, i * 10));
         }
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -255,11 +255,11 @@ proptest! {
         let mut doc = String::from("%VERSION: 1.0\n---\n");
 
         for d in 0..depth {
-            let indent = "  ".repeat(d);
+            let indent = " ".repeat(d);
             doc.push_str(&format!("{indent}level{d}:\n"));
         }
 
-        let indent = "  ".repeat(depth);
+        let indent = " ".repeat(depth);
         doc.push_str(&format!("{indent}value: 42\n"));
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -310,16 +310,16 @@ proptest! {
     }
 
     /// Property: Nested structures roundtrip with correct indentation.
-    /// Note: HEDL requires exactly 2 spaces per nesting level.
+    /// Note: HEDL requires exactly 1 space per nesting level.
     #[test]
     fn prop_whitespace_normalization(depth in 1_usize..5) {
-        // Build a nested structure with correct 2-space indentation
+        // Build a nested structure with correct 1-space indentation
         let mut doc = String::from("%VERSION: 1.0\n---\n");
         for d in 0..depth {
-            let indent = "  ".repeat(d);
+            let indent = " ".repeat(d);
             doc.push_str(&format!("{indent}level{d}:\n"));
         }
-        let indent = "  ".repeat(depth);
+        let indent = " ".repeat(depth);
         doc.push_str(&format!("{indent}value: 42\n"));
 
         let parsed1 = parse(doc.as_bytes()).unwrap();
@@ -355,7 +355,7 @@ mod edge_cases {
         /// Note: HEDL requires objects to have at least one child.
         #[test]
         fn prop_simple_object_roundtrip(key in "[a-z][a-z0-9_]{0,20}") {
-            let doc = format!("%VERSION: 1.0\n---\n{key}:\n  child: value\n");
+            let doc = format!("%VERSION: 1.0\n---\n{key}:\n child: value\n");
 
             let parsed1 = parse(doc.as_bytes()).unwrap();
             let canon = canonicalize(&parsed1).unwrap();
@@ -396,12 +396,12 @@ mod edge_cases {
                 "%VERSION: 1.0\n\
                  %STRUCT: {type_name}: [id, int_val, str_val, bool_val]\n\
                  ---\n\
-                 items: @{type_name}\n"
+                 items:@{type_name}\n"
             );
 
             for i in 0..count {
                 let bool_val = if i % 2 == 0 { "true" } else { "false" };
-                doc.push_str(&format!("  | id{}, {}, val{}, {}\n", i, i * 10, i, bool_val));
+                doc.push_str(&format!(" | id{}, {}, val{}, {}\n", i, i * 10, i, bool_val));
             }
 
             let parsed1 = parse(doc.as_bytes()).unwrap();

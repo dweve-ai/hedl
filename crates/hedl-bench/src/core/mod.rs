@@ -27,10 +27,15 @@
 //! - `baselines`: Performance baseline management and regression detection
 //! - `registry`: Benchmark discovery and metadata
 
+/// Baseline management and regression detection.
 pub mod baselines;
+/// Centralized benchmark configuration.
 pub mod config;
+/// Measurement primitives with <1% overhead.
 pub mod measurement;
+/// Benchmark name validation for path safety.
 pub mod name_validation;
+/// Benchmark discovery and metadata registry.
 pub mod registry;
 
 // Re-export commonly used types

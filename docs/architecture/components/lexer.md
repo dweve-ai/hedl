@@ -152,12 +152,12 @@ use hedl_core::lex::{calculate_indent, IndentInfo};
 
 // Calculate indentation level - returns IndentInfo with level and spaces
 // calculate_indent(line: &str, line_num: u32) -> Result<Option<IndentInfo>>
-let info = calculate_indent("  content", 1).unwrap().unwrap();
-assert_eq!(info.level, 1);  // 2 spaces = 1 level
-assert_eq!(info.spaces, 2);
+let info = calculate_indent(" content", 1).unwrap().unwrap();
+assert_eq!(info.level, 1);  // 1 space = 1 level (v2.0)
+assert_eq!(info.spaces, 1);
 
-let info = calculate_indent("    content", 1).unwrap().unwrap();
-assert_eq!(info.level, 2);  // 4 spaces = 2 levels
+let info = calculate_indent("  content", 1).unwrap().unwrap();
+assert_eq!(info.level, 2);  // 2 spaces = 2 levels
 
 // Tabs in indentation cause an error
 // calculate_indent("\tcontent", 1) returns Err(LexError::TabInIndentation)

@@ -54,6 +54,7 @@ use hedl::{
 
 #[test]
 fn test_core_parse_function() {
+    // Parsing v1.0 input should preserve the version
     let input = b"%VERSION: 1.0\n---\nkey: value";
     let doc = core_parse(input).unwrap();
     assert_eq!(doc.version, (1, 0));
@@ -62,6 +63,7 @@ fn test_core_parse_function() {
 
 #[test]
 fn test_parse_with_limits_function() {
+    // Parsing v1.0 input should preserve the version
     let input = b"%VERSION: 1.0\n---\nkey: value";
     let options = ParseOptions::default();
     let doc = parse_with_limits(input, options).unwrap();
@@ -301,8 +303,8 @@ fn test_reference_debug() {
 
 #[test]
 fn test_document_new() {
-    let doc = Document::new((1, 0));
-    assert_eq!(doc.version, (1, 0));
+    let doc = Document::new((2, 0));
+    assert_eq!(doc.version, (2, 0));
     assert!(doc.root.is_empty());
     assert!(doc.aliases.is_empty());
     assert!(doc.structs.is_empty());
@@ -310,7 +312,7 @@ fn test_document_new() {
 
 #[test]
 fn test_document_with_data() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("key".to_string(), Item::Scalar(Value::Int(42)));
     assert_eq!(doc.root.len(), 1);
@@ -318,7 +320,7 @@ fn test_document_with_data() {
 
 #[test]
 fn test_document_clone() {
-    let mut doc1 = Document::new((1, 0));
+    let mut doc1 = Document::new((2, 0));
     doc1.root
         .insert("key".to_string(), Item::Scalar(Value::Int(42)));
 
@@ -510,7 +512,7 @@ fn test_reference_mode_enum() {
 
 #[test]
 fn test_supported_version_constant() {
-    assert_eq!(SUPPORTED_VERSION, (1, 0));
+    assert_eq!(SUPPORTED_VERSION, (2, 0));
 }
 
 #[test]
@@ -595,9 +597,9 @@ fn test_lint_module_accessible() {
 
 #[test]
 fn test_full_pipeline_with_reexports() {
-    // Parse
+    // Parse - preserves input version
     let doc = parse("%VERSION: 1.0\n---\nkey: value").unwrap();
-    assert_eq!(doc.version, SUPPORTED_VERSION);
+    assert_eq!(doc.version, (1, 0));
 
     // Canonicalize
     let canonical = canonicalize(&doc).unwrap();
@@ -607,9 +609,9 @@ fn test_full_pipeline_with_reexports() {
     let json = to_json(&doc).unwrap();
     assert!(json.contains("\"key\""));
 
-    // Convert from JSON
+    // Convert from JSON - creates new v2.0 document
     let doc2 = from_json(&json).unwrap();
-    assert_eq!(doc2.version, SUPPORTED_VERSION);
+    assert_eq!(doc2.version, (2, 0));
 
     // Lint
     let diagnostics = lint(&doc);

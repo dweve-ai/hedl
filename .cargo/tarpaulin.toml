@@ -1,0 +1,159 @@
+# =============================================================================
+# HEDL - Tarpaulin Coverage Configuration
+# =============================================================================
+# This configuration provides an alternative to cargo-llvm-cov for local
+# coverage measurement. Both tools are supported.
+#
+# Usage:
+#   cargo tarpaulin                      # Run with default config
+#   cargo tarpaulin --workspace          # All crates
+#   cargo tarpaulin -p hedl-core         # Specific crate
+#   cargo tarpaulin --out Html           # HTML report
+#   cargo tarpaulin --out Lcov           # LCOV format
+# =============================================================================
+
+[workspace]
+# Enable workspace-wide coverage analysis
+workspace = true
+
+# =============================================================================
+# Output Configuration
+# =============================================================================
+[output]
+# Default output formats (can override with --out flag)
+out = ["Html", "Json", "Stdout"]
+
+# Output directory for coverage reports
+output-dir = "coverage/"
+
+# =============================================================================
+# Test Configuration
+# =============================================================================
+[test]
+# Timeout for slow tests (in seconds)
+timeout = 300
+
+# Run all feature combinations
+all-features = true
+
+# Include all targets (lib, bins, tests, examples)
+all-targets = true
+
+# Run ignored tests
+run-ignored = false
+
+# Number of test threads (0 = number of CPUs)
+test-threads = 0
+
+# =============================================================================
+# Coverage Configuration
+# =============================================================================
+[coverage]
+# Exclude test files from coverage calculation
+exclude-files = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/examples/*",
+    "**/test_*.rs",
+    "**/*_test.rs",
+]
+
+# Exclude modules/functions from coverage
+exclude = [
+    # Generated code
+    "hedl_ffi::bindings",
+
+    # Test utilities
+    "hedl_test::*",
+
+    # Main binaries (covered by integration tests)
+    "hedl_cli::main",
+    "hedl_lsp::main",
+
+    # FFI safety wrappers (difficult to test reliably)
+    "*::ffi::*",
+]
+
+# Follow symbolic links
+follow-symlinks = false
+
+# Skip clean before running tests
+no-clean = false
+
+# Generate coverage for documentation tests
+run-types = ["Tests", "Doctests"]
+
+# =============================================================================
+# Engine Configuration
+# =============================================================================
+[engine]
+# Use llvm-based coverage engine for better accuracy
+# Options: "auto", "llvm", "ptrace"
+engine = "llvm"
+
+# =============================================================================
+# Reporting Configuration
+# =============================================================================
+[report]
+# Fail if coverage falls below this percentage
+# fail-under = 90.0
+
+# Print detailed coverage statistics
+verbose = true
+
+# Don't count hits, just covered/not covered
+count = false
+
+# Number of parallel jobs (0 = number of CPUs)
+jobs = 0
+
+# =============================================================================
+# Per-Crate Configuration
+# =============================================================================
+# Individual crate coverage targets can be specified here
+# Uncomment and adjust as needed:
+
+# [[package]]
+# name = "hedl-core"
+# fail-under = 95.0
+#
+# [[package]]
+# name = "hedl-json"
+# fail-under = 90.0
+#
+# [[package]]
+# name = "hedl-yaml"
+# fail-under = 90.0
+
+# =============================================================================
+# CI/CD Configuration
+# =============================================================================
+[ci]
+# Configuration for CI environments
+# Generate machine-readable output for CI parsing
+ci = false
+
+# Forward signals to child processes
+forward-signals = true
+
+# Release mode for more accurate timing
+release = false
+
+# =============================================================================
+# Advanced Options
+# =============================================================================
+[advanced]
+# Avoid running default tests
+no-default-features = false
+
+# Include Rust standard library in coverage (usually not needed)
+avoid-cfg-tarpaulin = false
+
+# Force recompilation of workspace crates
+force-clean = false
+
+# Print command before running
+print-rust-flags = false
+
+# Print rustdoc flags
+print-rustdoc-flags = false

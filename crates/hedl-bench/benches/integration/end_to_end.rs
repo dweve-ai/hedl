@@ -182,7 +182,7 @@ fn bench_parse_canonicalize(c: &mut Criterion) {
         );
         record_perf(
             &format!("canonicalize_only_{name}"),
-            total_time - parse_time,
+            total_time.saturating_sub(parse_time),
             iterations,
             None,
         );
@@ -254,13 +254,13 @@ fn bench_full_pipeline(c: &mut Criterion) {
         );
         record_perf(
             &format!("full_convert_{name}"),
-            parse_convert_time - parse_time,
+            parse_convert_time.saturating_sub(parse_time),
             iterations,
             None,
         );
         record_perf(
             &format!("full_canonicalize_{name}"),
-            full_time - parse_convert_time,
+            full_time.saturating_sub(parse_convert_time),
             iterations,
             None,
         );

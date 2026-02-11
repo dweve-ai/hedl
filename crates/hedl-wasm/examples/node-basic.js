@@ -15,10 +15,12 @@ const path = require('path');
 const { parse, toJson, fromJson, format, validate, getStats, version } = require('hedl-wasm');
 
 // Sample HEDL document
-const sampleHedl = `%VERSION: 1.0
-%STRUCT: Product[id,name,price,stock]
-%STRUCT: Category[id,name]
-%NEST: Category > Product
+const sampleHedl = `%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Product:[id,name,price,stock]
+%S:Category:[id,name]
+%N:Category>Product
 %ALIAS: %inStock: "true"
 ---
 categories: @Category

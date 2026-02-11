@@ -84,25 +84,25 @@
 //! }
 //! ```
 
+/// Specialized utility visitors for common patterns.
+pub mod collectors;
 mod config;
 mod context;
 mod decision;
 mod fallible;
+mod traits;
 mod transformer;
 mod traverse;
-pub mod utils;
-#[allow(clippy::module_inception)]
-mod visitor;
 mod visitor_mut;
 
+pub use collectors::{
+    DepthCounter, FindNode, NodeCollector, PathCollector, ReferenceCollector, TypeCounter,
+};
 pub use config::{TraversalConfig, TraversalMode, TraversalOrder};
 pub use context::{PathSegment, TraversalStats, VisitorContext};
 pub use decision::VisitDecision;
 pub use fallible::FallibleVisitor;
+pub use traits::Visitor;
 pub use transformer::Transformer;
 pub use traverse::{transform, traverse, traverse_fallible, traverse_mut, TraversalResult};
-pub use utils::{
-    DepthCounter, FindNode, NodeCollector, PathCollector, ReferenceCollector, TypeCounter,
-};
-pub use visitor::Visitor;
 pub use visitor_mut::VisitorMut;

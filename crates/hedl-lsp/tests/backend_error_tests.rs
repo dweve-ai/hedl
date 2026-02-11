@@ -120,7 +120,7 @@ async fn test_did_open_valid_document() {
             uri: uri.clone(),
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
         },
     };
 
@@ -165,7 +165,7 @@ async fn test_did_change_empty_changes() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         })
         .await;
@@ -190,7 +190,7 @@ async fn test_did_save_with_text() {
 
     let params = DidSaveTextDocumentParams {
         text_document: TextDocumentIdentifier { uri: uri.clone() },
-        text: Some("%VERSION: 1.0\n---\nUser: u1: \"Alice\"".to_string()),
+        text: Some("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nUser: u1: \"Alice\"".to_string()),
     };
 
     server.did_save(params).await;
@@ -227,7 +227,7 @@ async fn test_did_close() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         })
         .await;
@@ -286,7 +286,7 @@ async fn test_completion_valid_document() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\n".to_string(),
             },
         })
         .await;
@@ -348,7 +348,7 @@ async fn test_hover_valid_position() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         })
         .await;
@@ -408,7 +408,7 @@ async fn test_goto_definition_no_reference_at_position() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         })
         .await;
@@ -442,7 +442,7 @@ async fn test_goto_definition_qualified_reference() {
             uri: uri.clone(),
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\nPost: p1: @User:u1".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\nUser: u1: \"Alice\"\nPost: p1:@User:u1".to_string(),
         },
     }).await;
 
@@ -476,7 +476,7 @@ async fn test_goto_definition_unqualified_reference() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\nPost: p1: @u1"
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\nUser: u1: \"Alice\"\nPost: p1:@u1"
                     .to_string(),
             },
         })
@@ -540,7 +540,7 @@ async fn test_references_with_declaration() {
             uri: uri.clone(),
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\nPost: p1: @User:u1\nPost: p2: @User:u1".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\nUser: u1: \"Alice\"\nPost: p1:@User:u1\nPost: p2:@User:u1".to_string(),
         },
     }).await;
 
@@ -575,7 +575,7 @@ async fn test_references_without_declaration() {
             uri: uri.clone(),
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"\nPost: p1: @User:u1".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\nUser: u1: \"Alice\"\nPost: p1:@User:u1".to_string(),
         },
     }).await;
 
@@ -632,7 +632,8 @@ async fn test_document_symbol_valid() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\nUser: u1: \"Alice\"".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\nUser: u1: \"Alice\""
+                    .to_string(),
             },
         })
         .await;
@@ -683,7 +684,7 @@ async fn test_workspace_symbol_with_documents() {
                     uri: uri.clone(),
                     language_id: "hedl".to_string(),
                     version: 1,
-                    text: format!("%VERSION: 1.0\n---\nEntity{i}: e{i}: \"test\""),
+                    text: format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nEntity{i}: e{i}: \"test\""),
                 },
             })
             .await;
@@ -739,7 +740,7 @@ async fn test_formatting_valid_document() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\nUser: u1:    \"Alice\"   ".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nUser: u1:    \"Alice\"   ".to_string(),
             },
         })
         .await;
@@ -837,7 +838,7 @@ async fn test_cache_statistics() {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         })
         .await;

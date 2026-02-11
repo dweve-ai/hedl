@@ -17,6 +17,16 @@ This section provides in-depth documentation for each major component in the HED
 - [Serializers](serializers.md) - Format-specific serialization
 - [Format Adapters](format-adapters.md) - Bidirectional format conversion
 
+### IDE & Tool Components
+- [LSP (Language Server Protocol)](lsp.md) - IDE integration with diagnostics, completion, and navigation
+  - Completion with 7 context types
+  - Hover information and documentation
+  - Go to Definition and Find References (O(1) lookups)
+  - Document and Workspace symbol search
+  - Diagnostics with parse errors and linting
+  - Rename refactoring with conflict detection
+  - Performance optimizations: 200ms debouncing, caching, dirty tracking
+
 ## Component Architecture Principles
 
 ### Single Responsibility
@@ -258,7 +268,7 @@ Test parsing with reference resolution and serialization:
 fn test_parse_with_references() {
     use hedl_core::{parse_with_limits, ParseOptions, ReferenceMode};
 
-    let input = b"%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice";
+    let input = b"%V:2.0\n%S:User:[id,name]\n---\nusers:@User\n  |alice,Alice";
     let opts = ParseOptions::builder()
         .reference_mode(ReferenceMode::Strict)
         .build();
@@ -349,7 +359,10 @@ All components have dedicated benchmarks.
 - [Parser Component](parser.md) - Parser architecture
 - [Validator Component](validator.md) - Validation logic
 - [Serializers](serializers.md) - Serialization components
+- [LSP Component](lsp.md) - Language Server Protocol implementation
 - [Parsing Pipeline](../parsing-pipeline.md) - End-to-end flow
+- [LSP Message Flow Diagrams](../diagrams/lsp-message-flow.md) - Protocol sequence diagrams
+- [LSP Implementation Guide](../../developer/guides/lsp-implementation.md) - Developer deep dive
 
 ---
 

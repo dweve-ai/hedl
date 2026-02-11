@@ -25,7 +25,7 @@
 //! use hedl_core::Document;
 //! use hedl_lint::{lint, Severity};
 //!
-//! let doc = Document::new((1, 0));
+//! let doc = Document::new((2, 0));
 //! let diagnostics = lint(&doc);
 //!
 //! for diag in &diagnostics {
@@ -41,7 +41,7 @@
 //! use hedl_lint::{lint_with_config, LintConfig, Severity};
 //! use hedl_core::Document;
 //!
-//! let doc = Document::new((1, 0));
+//! let doc = Document::new((2, 0));
 //!
 //! let mut config = LintConfig::default();
 //! config.disable_rule("id-naming");
@@ -70,7 +70,7 @@
 //! let mut runner = LintRunner::new(LintConfig::default());
 //! runner.add_rule(Box::new(MyCustomRule));
 //!
-//! let doc = Document::new((1, 0));
+//! let doc = Document::new((2, 0));
 //! let diagnostics = runner.run(&doc);
 //! ```
 //!
@@ -81,7 +81,7 @@
 //! use hedl_core::Document;
 //! use std::path::PathBuf;
 //!
-//! let doc = Document::new((1, 0));
+//! let doc = Document::new((2, 0));
 //! let runner = LintRunner::new(LintConfig::default());
 //!
 //! // Create context with file path and source text
@@ -102,10 +102,11 @@
 //! - **Single-pass traversal** option for specific use cases
 //!
 //! For large documents (> 10K nodes), parallel execution provides 3-4x speedup
-//! on multi-core systems. See `PERFORMANCE.md` for detailed benchmarks.
+//! on multi-core systems.
 
 #![cfg_attr(not(test), warn(missing_docs))]
 mod diagnostic;
+/// Auto-fix functionality.
 pub mod fix;
 mod rules;
 mod runner;
@@ -142,14 +143,14 @@ mod tests {
 
     #[test]
     fn test_lint_empty_document() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let diagnostics = lint(&doc);
         assert_eq!(diagnostics.len(), 0);
     }
 
     #[test]
     fn test_lint_short_ids() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         // Create a matrix list with short IDs
         let mut list = MatrixList::new("User", vec!["id".to_string(), "name".to_string()]);
@@ -175,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_lint_numeric_ids() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
         let node = Node::new("Item", "123", vec![Value::Int(100)]);
@@ -194,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_lint_unused_schema() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         // Define a schema that's never used
         doc.structs.insert(
@@ -221,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_lint_empty_list() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let list = MatrixList::new("EmptyType", vec!["id".to_string()]);
         doc.root.insert("empty_list".to_string(), Item::List(list));
@@ -238,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_lint_unqualified_reference() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         // Add an unqualified reference in key-value context
         let ref_value = Value::Reference(Reference::local("some_id"));
@@ -258,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_lint_config_disable_rule() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let list = MatrixList::new("EmptyType", vec!["id".to_string()]);
         doc.root.insert("empty_list".to_string(), Item::List(list));

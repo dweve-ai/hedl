@@ -1,0 +1,1706 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ml_training_logs>
+  <experiments>
+    <experiment id="exp-001">
+      <name>ResNet18-CIFAR10</name>
+      <dataset>cifar10</dataset>
+      <optimizer>Adam</optimizer>
+      <learning_rate>0.001</learning_rate>
+      <batch_size>128</batch_size>
+      <total_epochs>100</total_epochs>
+      <status>completed</status>
+    </experiment>
+    <experiment id="exp-002">
+      <name>VGG16-ImageNet</name>
+      <dataset>imagenet</dataset>
+      <optimizer>SGD</optimizer>
+      <learning_rate>0.01</learning_rate>
+      <batch_size>256</batch_size>
+      <total_epochs>90</total_epochs>
+      <status>completed</status>
+    </experiment>
+    <experiment id="exp-003">
+      <name>MobileNetV2-CIFAR100</name>
+      <dataset>cifar100</dataset>
+      <optimizer>AdamW</optimizer>
+      <learning_rate>0.0003</learning_rate>
+      <batch_size>64</batch_size>
+      <total_epochs>150</total_epochs>
+      <status>running</status>
+    </experiment>
+    <experiment id="exp-004">
+      <name>BERT-Base-SQuAD</name>
+      <dataset>squad</dataset>
+      <optimizer>Adam</optimizer>
+      <learning_rate>0.00003</learning_rate>
+      <batch_size>32</batch_size>
+      <total_epochs>3</total_epochs>
+      <status>completed</status>
+    </experiment>
+    <experiment id="exp-005">
+      <name>GPT2-WikiText</name>
+      <dataset>wikitext</dataset>
+      <optimizer>Adam</optimizer>
+      <learning_rate>0.0001</learning_rate>
+      <batch_size>16</batch_size>
+      <total_epochs>50</total_epochs>
+      <status>completed</status>
+    </experiment>
+    <experiment id="exp-006">
+      <name>EfficientNetB0-Flowers</name>
+      <dataset>flowers102</dataset>
+      <optimizer>AdamW</optimizer>
+      <learning_rate>0.0002</learning_rate>
+      <batch_size>32</batch_size>
+      <total_epochs>80</total_epochs>
+      <status>stopped</status>
+    </experiment>
+  </experiments>
+
+  <layers>
+    <layer id="l-001" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>64</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,3</input_shape>
+      <output_shape>32,32,64</output_shape>
+      <params>1792</params>
+    </layer>
+    <layer id="l-002" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>64</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>32,32,64</input_shape>
+      <output_shape>32,32,64</output_shape>
+      <params>256</params>
+    </layer>
+    <layer id="l-003" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>64</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,64</input_shape>
+      <output_shape>32,32,64</output_shape>
+      <params>36928</params>
+    </layer>
+    <layer id="l-004" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>64</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>32,32,64</input_shape>
+      <output_shape>32,32,64</output_shape>
+      <params>256</params>
+    </layer>
+    <layer id="l-005" experiment="exp-001">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>32,32,64</input_shape>
+      <output_shape>16,16,64</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-006" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>128</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>16,16,64</input_shape>
+      <output_shape>16,16,128</output_shape>
+      <params>73856</params>
+    </layer>
+    <layer id="l-007" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>128</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>16,16,128</input_shape>
+      <output_shape>16,16,128</output_shape>
+      <params>512</params>
+    </layer>
+    <layer id="l-008" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>128</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>16,16,128</input_shape>
+      <output_shape>16,16,128</output_shape>
+      <params>147584</params>
+    </layer>
+    <layer id="l-009" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>128</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>16,16,128</input_shape>
+      <output_shape>16,16,128</output_shape>
+      <params>512</params>
+    </layer>
+    <layer id="l-010" experiment="exp-001">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>16,16,128</input_shape>
+      <output_shape>8,8,128</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-011" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>256</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>8,8,128</input_shape>
+      <output_shape>8,8,256</output_shape>
+      <params>295168</params>
+    </layer>
+    <layer id="l-012" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>256</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>8,8,256</input_shape>
+      <output_shape>8,8,256</output_shape>
+      <params>1024</params>
+    </layer>
+    <layer id="l-013" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>256</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>8,8,256</input_shape>
+      <output_shape>8,8,256</output_shape>
+      <params>590080</params>
+    </layer>
+    <layer id="l-014" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>256</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>8,8,256</input_shape>
+      <output_shape>8,8,256</output_shape>
+      <params>1024</params>
+    </layer>
+    <layer id="l-015" experiment="exp-001">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>8,8,256</input_shape>
+      <output_shape>4,4,256</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-016" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>4,4,256</input_shape>
+      <output_shape>4,4,512</output_shape>
+      <params>1180160</params>
+    </layer>
+    <layer id="l-017" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>512</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>4,4,512</input_shape>
+      <output_shape>4,4,512</output_shape>
+      <params>2048</params>
+    </layer>
+    <layer id="l-018" experiment="exp-001">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>4,4,512</input_shape>
+      <output_shape>4,4,512</output_shape>
+      <params>2359808</params>
+    </layer>
+    <layer id="l-019" experiment="exp-001">
+      <type>BatchNorm</type>
+      <units>512</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>4,4,512</input_shape>
+      <output_shape>4,4,512</output_shape>
+      <params>2048</params>
+    </layer>
+    <layer id="l-020" experiment="exp-001">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>4,4,512</input_shape>
+      <output_shape>2,2,512</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-021" experiment="exp-001">
+      <type>Flatten</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>2,2,512</input_shape>
+      <output_shape>2048</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-022" experiment="exp-001">
+      <type>Dense</type>
+      <units>512</units>
+      <kernel_size/>
+      <activation>ReLU</activation>
+      <input_shape>2048</input_shape>
+      <output_shape>512</output_shape>
+      <params>1049088</params>
+    </layer>
+    <layer id="l-023" experiment="exp-001">
+      <type>Dropout</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>512</input_shape>
+      <output_shape>512</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-024" experiment="exp-001">
+      <type>Dense</type>
+      <units>10</units>
+      <kernel_size/>
+      <activation>Softmax</activation>
+      <input_shape>512</input_shape>
+      <output_shape>10</output_shape>
+      <params>5130</params>
+    </layer>
+    <layer id="l-025" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>64</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>224,224,3</input_shape>
+      <output_shape>224,224,64</output_shape>
+      <params>1792</params>
+    </layer>
+    <layer id="l-026" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>64</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>224,224,64</input_shape>
+      <output_shape>224,224,64</output_shape>
+      <params>36928</params>
+    </layer>
+    <layer id="l-027" experiment="exp-002">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>224,224,64</input_shape>
+      <output_shape>112,112,64</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-028" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>128</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>112,112,64</input_shape>
+      <output_shape>112,112,128</output_shape>
+      <params>73856</params>
+    </layer>
+    <layer id="l-029" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>128</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>112,112,128</input_shape>
+      <output_shape>112,112,128</output_shape>
+      <params>147584</params>
+    </layer>
+    <layer id="l-030" experiment="exp-002">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>112,112,128</input_shape>
+      <output_shape>56,56,128</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-031" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>256</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>56,56,128</input_shape>
+      <output_shape>56,56,256</output_shape>
+      <params>295168</params>
+    </layer>
+    <layer id="l-032" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>256</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>56,56,256</input_shape>
+      <output_shape>56,56,256</output_shape>
+      <params>590080</params>
+    </layer>
+    <layer id="l-033" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>256</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>56,56,256</input_shape>
+      <output_shape>56,56,256</output_shape>
+      <params>590080</params>
+    </layer>
+    <layer id="l-034" experiment="exp-002">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>56,56,256</input_shape>
+      <output_shape>28,28,256</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-035" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>28,28,256</input_shape>
+      <output_shape>28,28,512</output_shape>
+      <params>1180160</params>
+    </layer>
+    <layer id="l-036" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>28,28,512</input_shape>
+      <output_shape>28,28,512</output_shape>
+      <params>2359808</params>
+    </layer>
+    <layer id="l-037" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>28,28,512</input_shape>
+      <output_shape>28,28,512</output_shape>
+      <params>2359808</params>
+    </layer>
+    <layer id="l-038" experiment="exp-002">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>28,28,512</input_shape>
+      <output_shape>14,14,512</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-039" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>14,14,512</input_shape>
+      <output_shape>14,14,512</output_shape>
+      <params>2359808</params>
+    </layer>
+    <layer id="l-040" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>14,14,512</input_shape>
+      <output_shape>14,14,512</output_shape>
+      <params>2359808</params>
+    </layer>
+    <layer id="l-041" experiment="exp-002">
+      <type>Conv2D</type>
+      <units>512</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>14,14,512</input_shape>
+      <output_shape>14,14,512</output_shape>
+      <params>2359808</params>
+    </layer>
+    <layer id="l-042" experiment="exp-002">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>2,2</kernel_size>
+      <activation/>
+      <input_shape>14,14,512</input_shape>
+      <output_shape>7,7,512</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-043" experiment="exp-002">
+      <type>Flatten</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>7,7,512</input_shape>
+      <output_shape>25088</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-044" experiment="exp-002">
+      <type>Dense</type>
+      <units>4096</units>
+      <kernel_size/>
+      <activation>ReLU</activation>
+      <input_shape>25088</input_shape>
+      <output_shape>4096</output_shape>
+      <params>102764544</params>
+    </layer>
+    <layer id="l-045" experiment="exp-002">
+      <type>Dropout</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>4096</input_shape>
+      <output_shape>4096</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-046" experiment="exp-002">
+      <type>Dense</type>
+      <units>4096</units>
+      <kernel_size/>
+      <activation>ReLU</activation>
+      <input_shape>4096</input_shape>
+      <output_shape>4096</output_shape>
+      <params>16781312</params>
+    </layer>
+    <layer id="l-047" experiment="exp-002">
+      <type>Dropout</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>4096</input_shape>
+      <output_shape>4096</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-048" experiment="exp-002">
+      <type>Dense</type>
+      <units>1000</units>
+      <kernel_size/>
+      <activation>Softmax</activation>
+      <input_shape>4096</input_shape>
+      <output_shape>1000</output_shape>
+      <params>4097000</params>
+    </layer>
+    <layer id="l-049" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>32</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,3</input_shape>
+      <output_shape>32,32,32</output_shape>
+      <params>896</params>
+    </layer>
+    <layer id="l-050" experiment="exp-003">
+      <type>BatchNorm</type>
+      <units>32</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>32,32,32</input_shape>
+      <output_shape>32,32,32</output_shape>
+      <params>128</params>
+    </layer>
+    <layer id="l-051" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>32</units>
+      <kernel_size>1,1</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,32</input_shape>
+      <output_shape>32,32,32</output_shape>
+      <params>1056</params>
+    </layer>
+    <layer id="l-052" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>32</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,32</input_shape>
+      <output_shape>32,32,32</output_shape>
+      <params>320</params>
+    </layer>
+    <layer id="l-053" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>16</units>
+      <kernel_size>1,1</kernel_size>
+      <activation/>
+      <input_shape>32,32,32</input_shape>
+      <output_shape>32,32,16</output_shape>
+      <params>528</params>
+    </layer>
+    <layer id="l-054" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>96</units>
+      <kernel_size>1,1</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,16</input_shape>
+      <output_shape>32,32,96</output_shape>
+      <params>1632</params>
+    </layer>
+    <layer id="l-055" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>96</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>32,32,96</input_shape>
+      <output_shape>32,32,96</output_shape>
+      <params>960</params>
+    </layer>
+    <layer id="l-056" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>24</units>
+      <kernel_size>1,1</kernel_size>
+      <activation/>
+      <input_shape>32,32,96</input_shape>
+      <output_shape>32,32,24</output_shape>
+      <params>2328</params>
+    </layer>
+    <layer id="l-057" experiment="exp-003">
+      <type>Conv2D</type>
+      <units>1280</units>
+      <kernel_size>1,1</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>4,4,320</input_shape>
+      <output_shape>4,4,1280</output_shape>
+      <params>411520</params>
+    </layer>
+    <layer id="l-058" experiment="exp-003">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>4,4</kernel_size>
+      <activation/>
+      <input_shape>4,4,1280</input_shape>
+      <output_shape>1,1,1280</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-059" experiment="exp-003">
+      <type>Flatten</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>1,1,1280</input_shape>
+      <output_shape>1280</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-060" experiment="exp-003">
+      <type>Dense</type>
+      <units>100</units>
+      <kernel_size/>
+      <activation>Softmax</activation>
+      <input_shape>1280</input_shape>
+      <output_shape>100</output_shape>
+      <params>128100</params>
+    </layer>
+    <layer id="l-061" experiment="exp-004">
+      <type>Dense</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation>GELU</activation>
+      <input_shape>512,768</input_shape>
+      <output_shape>512,768</output_shape>
+      <params>590592</params>
+    </layer>
+    <layer id="l-062" experiment="exp-004">
+      <type>BatchNorm</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>512,768</input_shape>
+      <output_shape>512,768</output_shape>
+      <params>1536</params>
+    </layer>
+    <layer id="l-063" experiment="exp-004">
+      <type>Dense</type>
+      <units>3072</units>
+      <kernel_size/>
+      <activation>GELU</activation>
+      <input_shape>512,768</input_shape>
+      <output_shape>512,3072</output_shape>
+      <params>2362368</params>
+    </layer>
+    <layer id="l-064" experiment="exp-004">
+      <type>Dense</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>512,3072</input_shape>
+      <output_shape>512,768</output_shape>
+      <params>2360064</params>
+    </layer>
+    <layer id="l-065" experiment="exp-004">
+      <type>BatchNorm</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>512,768</input_shape>
+      <output_shape>512,768</output_shape>
+      <params>1536</params>
+    </layer>
+    <layer id="l-066" experiment="exp-004">
+      <type>Dense</type>
+      <units>2</units>
+      <kernel_size/>
+      <activation>Softmax</activation>
+      <input_shape>512,768</input_shape>
+      <output_shape>512,2</output_shape>
+      <params>1538</params>
+    </layer>
+    <layer id="l-067" experiment="exp-005">
+      <type>Dense</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation>GELU</activation>
+      <input_shape>1024,768</input_shape>
+      <output_shape>1024,768</output_shape>
+      <params>590592</params>
+    </layer>
+    <layer id="l-068" experiment="exp-005">
+      <type>BatchNorm</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>1024,768</input_shape>
+      <output_shape>1024,768</output_shape>
+      <params>1536</params>
+    </layer>
+    <layer id="l-069" experiment="exp-005">
+      <type>Dense</type>
+      <units>3072</units>
+      <kernel_size/>
+      <activation>GELU</activation>
+      <input_shape>1024,768</input_shape>
+      <output_shape>1024,3072</output_shape>
+      <params>2362368</params>
+    </layer>
+    <layer id="l-070" experiment="exp-005">
+      <type>Dense</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>1024,3072</input_shape>
+      <output_shape>1024,768</output_shape>
+      <params>2360064</params>
+    </layer>
+    <layer id="l-071" experiment="exp-005">
+      <type>BatchNorm</type>
+      <units>768</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>1024,768</input_shape>
+      <output_shape>1024,768</output_shape>
+      <params>1536</params>
+    </layer>
+    <layer id="l-072" experiment="exp-005">
+      <type>Dense</type>
+      <units>50257</units>
+      <kernel_size/>
+      <activation>Softmax</activation>
+      <input_shape>1024,768</input_shape>
+      <output_shape>1024,50257</output_shape>
+      <params>38597376</params>
+    </layer>
+    <layer id="l-073" experiment="exp-006">
+      <type>Conv2D</type>
+      <units>32</units>
+      <kernel_size>3,3</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>224,224,3</input_shape>
+      <output_shape>112,112,32</output_shape>
+      <params>896</params>
+    </layer>
+    <layer id="l-074" experiment="exp-006">
+      <type>BatchNorm</type>
+      <units>32</units>
+      <kernel_size/>
+      <activation/>
+      <input_shape>112,112,32</input_shape>
+      <output_shape>112,112,32</output_shape>
+      <params>128</params>
+    </layer>
+    <layer id="l-075" experiment="exp-006">
+      <type>Conv2D</type>
+      <units>16</units>
+      <kernel_size>1,1</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>112,112,32</input_shape>
+      <output_shape>112,112,16</output_shape>
+      <params>528</params>
+    </layer>
+    <layer id="l-076" experiment="exp-006">
+      <type>Conv2D</type>
+      <units>1280</units>
+      <kernel_size>1,1</kernel_size>
+      <activation>ReLU</activation>
+      <input_shape>7,7,320</input_shape>
+      <output_shape>7,7,1280</output_shape>
+      <params>411520</params>
+    </layer>
+    <layer id="l-077" experiment="exp-006">
+      <type>MaxPool2D</type>
+      <units/>
+      <kernel_size>7,7</kernel_size>
+      <activation/>
+      <input_shape>7,7,1280</input_shape>
+      <output_shape>1,1,1280</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-078" experiment="exp-006">
+      <type>Flatten</type>
+      <units/>
+      <kernel_size/>
+      <activation/>
+      <input_shape>1,1,1280</input_shape>
+      <output_shape>1280</output_shape>
+      <params>0</params>
+    </layer>
+    <layer id="l-079" experiment="exp-006">
+      <type>Dense</type>
+      <units>102</units>
+      <kernel_size/>
+      <activation>Softmax</activation>
+      <input_shape>1280</input_shape>
+      <output_shape>102</output_shape>
+      <params>130662</params>
+    </layer>
+  </layers>
+
+  <epochs>
+    <epoch id="e-001" experiment="exp-001">
+      <epoch_num>1</epoch_num>
+      <train_loss>2.3026</train_loss>
+      <train_acc>0.1023</train_acc>
+      <val_loss>2.2891</val_loss>
+      <val_acc>0.1156</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-002" experiment="exp-001">
+      <epoch_num>2</epoch_num>
+      <train_loss>1.8734</train_loss>
+      <train_acc>0.2847</train_acc>
+      <val_loss>1.7892</val_loss>
+      <val_acc>0.3012</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-003" experiment="exp-001">
+      <epoch_num>3</epoch_num>
+      <train_loss>1.4521</train_loss>
+      <train_acc>0.4123</train_acc>
+      <val_loss>1.4102</val_loss>
+      <val_acc>0.4389</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-004" experiment="exp-001">
+      <epoch_num>4</epoch_num>
+      <train_loss>1.1893</train_loss>
+      <train_acc>0.5234</train_acc>
+      <val_loss>1.1567</val_loss>
+      <val_acc>0.5512</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-005" experiment="exp-001">
+      <epoch_num>5</epoch_num>
+      <train_loss>0.9823</train_loss>
+      <train_acc>0.6012</train_acc>
+      <val_loss>0.9612</val_loss>
+      <val_acc>0.6234</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>45.3</duration_sec>
+    </epoch>
+    <epoch id="e-006" experiment="exp-001">
+      <epoch_num>6</epoch_num>
+      <train_loss>0.8234</train_loss>
+      <train_acc>0.6723</train_acc>
+      <val_loss>0.8123</val_loss>
+      <val_acc>0.6891</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>45.0</duration_sec>
+    </epoch>
+    <epoch id="e-007" experiment="exp-001">
+      <epoch_num>7</epoch_num>
+      <train_loss>0.7012</train_loss>
+      <train_acc>0.7234</train_acc>
+      <val_loss>0.6923</val_loss>
+      <val_acc>0.7412</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>44.7</duration_sec>
+    </epoch>
+    <epoch id="e-008" experiment="exp-001">
+      <epoch_num>8</epoch_num>
+      <train_loss>0.6123</train_loss>
+      <train_acc>0.7612</train_acc>
+      <val_loss>0.6012</val_loss>
+      <val_acc>0.7789</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-009" experiment="exp-001">
+      <epoch_num>9</epoch_num>
+      <train_loss>0.5423</train_loss>
+      <train_acc>0.7923</train_acc>
+      <val_loss>0.5312</val_loss>
+      <val_acc>0.8034</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-010" experiment="exp-001">
+      <epoch_num>10</epoch_num>
+      <train_loss>0.4823</train_loss>
+      <train_acc>0.8123</train_acc>
+      <val_loss>0.4712</val_loss>
+      <val_acc>0.8234</val_acc>
+      <learning_rate>0.001</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-011" experiment="exp-001">
+      <epoch_num>11</epoch_num>
+      <train_loss>0.4312</train_loss>
+      <train_acc>0.8312</train_acc>
+      <val_loss>0.4234</val_loss>
+      <val_acc>0.8389</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-012" experiment="exp-001">
+      <epoch_num>12</epoch_num>
+      <train_loss>0.3912</train_loss>
+      <train_acc>0.8456</train_acc>
+      <val_loss>0.3834</val_loss>
+      <val_acc>0.8512</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>45.0</duration_sec>
+    </epoch>
+    <epoch id="e-013" experiment="exp-001">
+      <epoch_num>13</epoch_num>
+      <train_loss>0.3567</train_loss>
+      <train_acc>0.8578</train_acc>
+      <val_loss>0.3512</val_loss>
+      <val_acc>0.8623</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-014" experiment="exp-001">
+      <epoch_num>14</epoch_num>
+      <train_loss>0.3256</train_loss>
+      <train_acc>0.8689</train_acc>
+      <val_loss>0.3201</val_loss>
+      <val_acc>0.8734</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-015" experiment="exp-001">
+      <epoch_num>15</epoch_num>
+      <train_loss>0.2989</train_loss>
+      <train_acc>0.8789</train_acc>
+      <val_loss>0.2923</val_loss>
+      <val_acc>0.8823</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-016" experiment="exp-001">
+      <epoch_num>16</epoch_num>
+      <train_loss>0.2756</train_loss>
+      <train_acc>0.8867</train_acc>
+      <val_loss>0.2712</val_loss>
+      <val_acc>0.8901</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-017" experiment="exp-001">
+      <epoch_num>17</epoch_num>
+      <train_loss>0.2556</train_loss>
+      <train_acc>0.8934</train_acc>
+      <val_loss>0.2512</val_loss>
+      <val_acc>0.8967</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>45.3</duration_sec>
+    </epoch>
+    <epoch id="e-018" experiment="exp-001">
+      <epoch_num>18</epoch_num>
+      <train_loss>0.2378</train_loss>
+      <train_acc>0.8989</train_acc>
+      <val_loss>0.2345</val_loss>
+      <val_acc>0.9012</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>45.0</duration_sec>
+    </epoch>
+    <epoch id="e-019" experiment="exp-001">
+      <epoch_num>19</epoch_num>
+      <train_loss>0.2212</train_loss>
+      <train_acc>0.9034</train_acc>
+      <val_loss>0.2189</val_loss>
+      <val_acc>0.9056</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>44.7</duration_sec>
+    </epoch>
+    <epoch id="e-020" experiment="exp-001">
+      <epoch_num>20</epoch_num>
+      <train_loss>0.2067</train_loss>
+      <train_acc>0.9078</train_acc>
+      <val_loss>0.2045</val_loss>
+      <val_acc>0.9089</val_acc>
+      <learning_rate>0.0008</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-021" experiment="exp-001">
+      <epoch_num>21</epoch_num>
+      <train_loss>0.1934</train_loss>
+      <train_acc>0.9112</train_acc>
+      <val_loss>0.1912</val_loss>
+      <val_acc>0.9123</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-022" experiment="exp-001">
+      <epoch_num>22</epoch_num>
+      <train_loss>0.1812</train_loss>
+      <train_acc>0.9145</train_acc>
+      <val_loss>0.1789</val_loss>
+      <val_acc>0.9156</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-023" experiment="exp-001">
+      <epoch_num>23</epoch_num>
+      <train_loss>0.1701</train_loss>
+      <train_acc>0.9178</train_acc>
+      <val_loss>0.1678</val_loss>
+      <val_acc>0.9189</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-024" experiment="exp-001">
+      <epoch_num>24</epoch_num>
+      <train_loss>0.1598</train_loss>
+      <train_acc>0.9206</train_acc>
+      <val_loss>0.1578</val_loss>
+      <val_acc>0.9217</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>45.0</duration_sec>
+    </epoch>
+    <epoch id="e-025" experiment="exp-001">
+      <epoch_num>25</epoch_num>
+      <train_loss>0.1502</train_loss>
+      <train_acc>0.9234</train_acc>
+      <val_loss>0.1484</val_loss>
+      <val_acc>0.9245</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-026" experiment="exp-001">
+      <epoch_num>26</epoch_num>
+      <train_loss>0.1412</train_loss>
+      <train_acc>0.9259</train_acc>
+      <val_loss>0.1396</val_loss>
+      <val_acc>0.9268</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-027" experiment="exp-001">
+      <epoch_num>27</epoch_num>
+      <train_loss>0.1328</train_loss>
+      <train_acc>0.9284</train_acc>
+      <val_loss>0.1314</val_loss>
+      <val_acc>0.9293</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-028" experiment="exp-001">
+      <epoch_num>28</epoch_num>
+      <train_loss>0.1249</train_loss>
+      <train_acc>0.9306</train_acc>
+      <val_loss>0.1237</val_loss>
+      <val_acc>0.9315</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-029" experiment="exp-001">
+      <epoch_num>29</epoch_num>
+      <train_loss>0.1175</train_loss>
+      <train_acc>0.9328</train_acc>
+      <val_loss>0.1164</val_loss>
+      <val_acc>0.9337</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>45.3</duration_sec>
+    </epoch>
+    <epoch id="e-030" experiment="exp-001">
+      <epoch_num>30</epoch_num>
+      <train_loss>0.1106</train_loss>
+      <train_acc>0.9348</train_acc>
+      <val_loss>0.1096</val_loss>
+      <val_acc>0.9356</val_acc>
+      <learning_rate>0.0005</learning_rate>
+      <duration_sec>45.0</duration_sec>
+    </epoch>
+    <epoch id="e-031" experiment="exp-001">
+      <epoch_num>31</epoch_num>
+      <train_loss>0.1041</train_loss>
+      <train_acc>0.9367</train_acc>
+      <val_loss>0.1032</val_loss>
+      <val_acc>0.9375</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>44.7</duration_sec>
+    </epoch>
+    <epoch id="e-032" experiment="exp-001">
+      <epoch_num>32</epoch_num>
+      <train_loss>0.098</train_loss>
+      <train_acc>0.9385</train_acc>
+      <val_loss>0.0972</val_loss>
+      <val_acc>0.9392</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-033" experiment="exp-001">
+      <epoch_num>33</epoch_num>
+      <train_loss>0.0923</train_loss>
+      <train_acc>0.9402</train_acc>
+      <val_loss>0.0916</val_loss>
+      <val_acc>0.9408</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-034" experiment="exp-001">
+      <epoch_num>34</epoch_num>
+      <train_loss>0.0869</train_loss>
+      <train_acc>0.9418</train_acc>
+      <val_loss>0.0863</val_loss>
+      <val_acc>0.9423</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-035" experiment="exp-001">
+      <epoch_num>35</epoch_num>
+      <train_loss>0.0819</train_loss>
+      <train_acc>0.9433</train_acc>
+      <val_loss>0.0814</val_loss>
+      <val_acc>0.9437</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-036" experiment="exp-001">
+      <epoch_num>36</epoch_num>
+      <train_loss>0.0772</train_loss>
+      <train_acc>0.9446</train_acc>
+      <val_loss>0.0768</val_loss>
+      <val_acc>0.945</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>45.0</duration_sec>
+    </epoch>
+    <epoch id="e-037" experiment="exp-001">
+      <epoch_num>37</epoch_num>
+      <train_loss>0.0728</train_loss>
+      <train_acc>0.9459</train_acc>
+      <val_loss>0.0724</val_loss>
+      <val_acc>0.9462</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>45.2</duration_sec>
+    </epoch>
+    <epoch id="e-038" experiment="exp-001">
+      <epoch_num>38</epoch_num>
+      <train_loss>0.0686</train_loss>
+      <train_acc>0.9471</train_acc>
+      <val_loss>0.0683</val_loss>
+      <val_acc>0.9474</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>44.8</duration_sec>
+    </epoch>
+    <epoch id="e-039" experiment="exp-001">
+      <epoch_num>39</epoch_num>
+      <train_loss>0.0647</train_loss>
+      <train_acc>0.9483</train_acc>
+      <val_loss>0.0644</val_loss>
+      <val_acc>0.9485</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>45.1</duration_sec>
+    </epoch>
+    <epoch id="e-040" experiment="exp-001">
+      <epoch_num>40</epoch_num>
+      <train_loss>0.061</train_loss>
+      <train_acc>0.9493</train_acc>
+      <val_loss>0.0608</val_loss>
+      <val_acc>0.9495</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>44.9</duration_sec>
+    </epoch>
+    <epoch id="e-041" experiment="exp-002">
+      <epoch_num>1</epoch_num>
+      <train_loss>6.9078</train_loss>
+      <train_acc>0.0012</train_acc>
+      <val_loss>6.8923</val_loss>
+      <val_acc>0.0018</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3245.6</duration_sec>
+    </epoch>
+    <epoch id="e-042" experiment="exp-002">
+      <epoch_num>2</epoch_num>
+      <train_loss>5.8234</train_loss>
+      <train_acc>0.0234</train_acc>
+      <val_loss>5.7891</val_loss>
+      <val_acc>0.0278</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3241.2</duration_sec>
+    </epoch>
+    <epoch id="e-043" experiment="exp-002">
+      <epoch_num>3</epoch_num>
+      <train_loss>4.9123</train_loss>
+      <train_acc>0.0567</train_acc>
+      <val_loss>4.8789</val_loss>
+      <val_acc>0.0612</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3248.9</duration_sec>
+    </epoch>
+    <epoch id="e-044" experiment="exp-002">
+      <epoch_num>4</epoch_num>
+      <train_loss>4.2345</train_loss>
+      <train_acc>0.1023</train_acc>
+      <val_loss>4.1978</val_loss>
+      <val_acc>0.1089</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3243.4</duration_sec>
+    </epoch>
+    <epoch id="e-045" experiment="exp-002">
+      <epoch_num>5</epoch_num>
+      <train_loss>3.7123</train_loss>
+      <train_acc>0.1523</train_acc>
+      <val_loss>3.6789</val_loss>
+      <val_acc>0.1598</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3246.7</duration_sec>
+    </epoch>
+    <epoch id="e-046" experiment="exp-002">
+      <epoch_num>6</epoch_num>
+      <train_loss>3.2891</train_loss>
+      <train_acc>0.2012</train_acc>
+      <val_loss>3.2567</val_loss>
+      <val_acc>0.2089</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3244.1</duration_sec>
+    </epoch>
+    <epoch id="e-047" experiment="exp-002">
+      <epoch_num>7</epoch_num>
+      <train_loss>2.9456</train_loss>
+      <train_acc>0.2489</train_acc>
+      <val_loss>2.9145</val_loss>
+      <val_acc>0.2567</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3247.8</duration_sec>
+    </epoch>
+    <epoch id="e-048" experiment="exp-002">
+      <epoch_num>8</epoch_num>
+      <train_loss>2.6723</train_loss>
+      <train_acc>0.2934</train_acc>
+      <val_loss>2.6423</val_loss>
+      <val_acc>0.3012</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3242.5</duration_sec>
+    </epoch>
+    <epoch id="e-049" experiment="exp-002">
+      <epoch_num>9</epoch_num>
+      <train_loss>2.4512</train_loss>
+      <train_acc>0.3356</train_acc>
+      <val_loss>2.4234</val_loss>
+      <val_acc>0.3423</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3245.9</duration_sec>
+    </epoch>
+    <epoch id="e-050" experiment="exp-002">
+      <epoch_num>10</epoch_num>
+      <train_loss>2.2678</train_loss>
+      <train_acc>0.3745</train_acc>
+      <val_loss>2.2412</val_loss>
+      <val_acc>0.3812</val_acc>
+      <learning_rate>0.01</learning_rate>
+      <duration_sec>3243.7</duration_sec>
+    </epoch>
+    <epoch id="e-051" experiment="exp-002">
+      <epoch_num>11</epoch_num>
+      <train_loss>2.1123</train_loss>
+      <train_acc>0.4112</train_acc>
+      <val_loss>2.0867</val_loss>
+      <val_acc>0.4178</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3246.2</duration_sec>
+    </epoch>
+    <epoch id="e-052" experiment="exp-002">
+      <epoch_num>12</epoch_num>
+      <train_loss>1.9789</train_loss>
+      <train_acc>0.4456</train_acc>
+      <val_loss>1.9545</val_loss>
+      <val_acc>0.4523</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3244.8</duration_sec>
+    </epoch>
+    <epoch id="e-053" experiment="exp-002">
+      <epoch_num>13</epoch_num>
+      <train_loss>1.8623</train_loss>
+      <train_acc>0.4778</train_acc>
+      <val_loss>1.8389</val_loss>
+      <val_acc>0.4845</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3247.1</duration_sec>
+    </epoch>
+    <epoch id="e-054" experiment="exp-002">
+      <epoch_num>14</epoch_num>
+      <train_loss>1.7589</train_loss>
+      <train_acc>0.5078</train_acc>
+      <val_loss>1.7367</val_loss>
+      <val_acc>0.5145</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3243.6</duration_sec>
+    </epoch>
+    <epoch id="e-055" experiment="exp-002">
+      <epoch_num>15</epoch_num>
+      <train_loss>1.6678</train_loss>
+      <train_acc>0.5356</train_acc>
+      <val_loss>1.6467</val_loss>
+      <val_acc>0.5423</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3245.4</duration_sec>
+    </epoch>
+    <epoch id="e-056" experiment="exp-002">
+      <epoch_num>16</epoch_num>
+      <train_loss>1.5867</train_loss>
+      <train_acc>0.5612</train_acc>
+      <val_loss>1.5667</val_loss>
+      <val_acc>0.5678</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3244.2</duration_sec>
+    </epoch>
+    <epoch id="e-057" experiment="exp-002">
+      <epoch_num>17</epoch_num>
+      <train_loss>1.5145</train_loss>
+      <train_acc>0.5856</train_acc>
+      <val_loss>1.4956</val_loss>
+      <val_acc>0.5923</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3246.9</duration_sec>
+    </epoch>
+    <epoch id="e-058" experiment="exp-002">
+      <epoch_num>18</epoch_num>
+      <train_loss>1.4489</train_loss>
+      <train_acc>0.6078</train_acc>
+      <val_loss>1.4312</val_loss>
+      <val_acc>0.6145</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3243.1</duration_sec>
+    </epoch>
+    <epoch id="e-059" experiment="exp-002">
+      <epoch_num>19</epoch_num>
+      <train_loss>1.3889</train_loss>
+      <train_acc>0.6289</train_acc>
+      <val_loss>1.3723</val_loss>
+      <val_acc>0.6356</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3245.7</duration_sec>
+    </epoch>
+    <epoch id="e-060" experiment="exp-002">
+      <epoch_num>20</epoch_num>
+      <train_loss>1.3345</train_loss>
+      <train_acc>0.6489</train_acc>
+      <val_loss>1.3189</val_loss>
+      <val_acc>0.6556</val_acc>
+      <learning_rate>0.005</learning_rate>
+      <duration_sec>3244.5</duration_sec>
+    </epoch>
+    <epoch id="e-061" experiment="exp-003">
+      <epoch_num>1</epoch_num>
+      <train_loss>4.6052</train_loss>
+      <train_acc>0.0102</train_acc>
+      <val_loss>4.5891</val_loss>
+      <val_acc>0.0123</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>89.4</duration_sec>
+    </epoch>
+    <epoch id="e-062" experiment="exp-003">
+      <epoch_num>2</epoch_num>
+      <train_loss>4.1234</train_loss>
+      <train_acc>0.0412</train_acc>
+      <val_loss>4.0978</val_loss>
+      <val_acc>0.0478</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>88.9</duration_sec>
+    </epoch>
+    <epoch id="e-063" experiment="exp-003">
+      <epoch_num>3</epoch_num>
+      <train_loss>3.7891</train_loss>
+      <train_acc>0.0834</train_acc>
+      <val_loss>3.7623</val_loss>
+      <val_acc>0.0912</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>89.2</duration_sec>
+    </epoch>
+    <epoch id="e-064" experiment="exp-003">
+      <epoch_num>4</epoch_num>
+      <train_loss>3.5123</train_loss>
+      <train_acc>0.1256</train_acc>
+      <val_loss>3.4867</val_loss>
+      <val_acc>0.1345</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>88.7</duration_sec>
+    </epoch>
+    <epoch id="e-065" experiment="exp-003">
+      <epoch_num>5</epoch_num>
+      <train_loss>3.2789</train_loss>
+      <train_acc>0.1678</train_acc>
+      <val_loss>3.2545</val_loss>
+      <val_acc>0.1778</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>89.1</duration_sec>
+    </epoch>
+    <epoch id="e-066" experiment="exp-003">
+      <epoch_num>6</epoch_num>
+      <train_loss>3.0823</train_loss>
+      <train_acc>0.2089</train_acc>
+      <val_loss>3.0589</val_loss>
+      <val_acc>0.2189</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>88.8</duration_sec>
+    </epoch>
+    <epoch id="e-067" experiment="exp-003">
+      <epoch_num>7</epoch_num>
+      <train_loss>2.9123</train_loss>
+      <train_acc>0.2478</train_acc>
+      <val_loss>2.8901</val_loss>
+      <val_acc>0.2578</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>89.3</duration_sec>
+    </epoch>
+    <epoch id="e-068" experiment="exp-003">
+      <epoch_num>8</epoch_num>
+      <train_loss>2.7645</train_loss>
+      <train_acc>0.2845</train_acc>
+      <val_loss>2.7434</val_loss>
+      <val_acc>0.2945</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>88.6</duration_sec>
+    </epoch>
+    <epoch id="e-069" experiment="exp-003">
+      <epoch_num>9</epoch_num>
+      <train_loss>2.6345</train_loss>
+      <train_acc>0.3189</train_acc>
+      <val_loss>2.6145</val_loss>
+      <val_acc>0.3289</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>89.0</duration_sec>
+    </epoch>
+    <epoch id="e-070" experiment="exp-003">
+      <epoch_num>10</epoch_num>
+      <train_loss>2.5189</train_loss>
+      <train_acc>0.3512</train_acc>
+      <val_loss>2.4998</val_loss>
+      <val_acc>0.3612</val_acc>
+      <learning_rate>0.0003</learning_rate>
+      <duration_sec>88.9</duration_sec>
+    </epoch>
+    <epoch id="e-071" experiment="exp-004">
+      <epoch_num>1</epoch_num>
+      <train_loss>1.8923</train_loss>
+      <train_acc>0.6234</train_acc>
+      <val_loss>1.8123</val_loss>
+      <val_acc>0.6512</val_acc>
+      <learning_rate>0.00003</learning_rate>
+      <duration_sec>4523.7</duration_sec>
+    </epoch>
+    <epoch id="e-072" experiment="exp-004">
+      <epoch_num>2</epoch_num>
+      <train_loss>1.2345</train_loss>
+      <train_acc>0.7856</train_acc>
+      <val_loss>1.1987</val_loss>
+      <val_acc>0.8012</val_acc>
+      <learning_rate>0.00003</learning_rate>
+      <duration_sec>4518.2</duration_sec>
+    </epoch>
+    <epoch id="e-073" experiment="exp-004">
+      <epoch_num>3</epoch_num>
+      <train_loss>0.8912</train_loss>
+      <train_acc>0.8523</train_acc>
+      <val_loss>0.8623</val_loss>
+      <val_acc>0.8689</val_acc>
+      <learning_rate>0.00003</learning_rate>
+      <duration_sec>4521.9</duration_sec>
+    </epoch>
+    <epoch id="e-074" experiment="exp-005">
+      <epoch_num>1</epoch_num>
+      <train_loss>10.8234</train_loss>
+      <train_acc>0.0012</train_acc>
+      <val_loss>10.7891</val_loss>
+      <val_acc>0.0015</val_acc>
+      <learning_rate>0.0001</learning_rate>
+      <duration_sec>8923.4</duration_sec>
+    </epoch>
+    <epoch id="e-075" experiment="exp-005">
+      <epoch_num>2</epoch_num>
+      <train_loss>6.4523</train_loss>
+      <train_acc>0.0234</train_acc>
+      <val_loss>6.3978</val_loss>
+      <val_acc>0.0278</val_acc>
+      <learning_rate>0.0001</learning_rate>
+      <duration_sec>8918.7</duration_sec>
+    </epoch>
+    <epoch id="e-076" experiment="exp-005">
+      <epoch_num>3</epoch_num>
+      <train_loss>4.8912</train_loss>
+      <train_acc>0.0567</train_acc>
+      <val_loss>4.8456</val_loss>
+      <val_acc>0.0612</val_acc>
+      <learning_rate>0.0001</learning_rate>
+      <duration_sec>8921.2</duration_sec>
+    </epoch>
+    <epoch id="e-077" experiment="exp-005">
+      <epoch_num>4</epoch_num>
+      <train_loss>4.1234</train_loss>
+      <train_acc>0.0923</train_acc>
+      <val_loss>4.0789</val_loss>
+      <val_acc>0.0989</val_acc>
+      <learning_rate>0.0001</learning_rate>
+      <duration_sec>8919.8</duration_sec>
+    </epoch>
+    <epoch id="e-078" experiment="exp-005">
+      <epoch_num>5</epoch_num>
+      <train_loss>3.6723</train_loss>
+      <train_acc>0.1256</train_acc>
+      <val_loss>3.6289</val_loss>
+      <val_acc>0.1334</val_acc>
+      <learning_rate>0.0001</learning_rate>
+      <duration_sec>8922.5</duration_sec>
+    </epoch>
+    <epoch id="e-079" experiment="exp-006">
+      <epoch_num>1</epoch_num>
+      <train_loss>4.6234</train_loss>
+      <train_acc>0.0089</train_acc>
+      <val_loss>4.5891</val_loss>
+      <val_acc>0.0112</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>156.7</duration_sec>
+    </epoch>
+    <epoch id="e-080" experiment="exp-006">
+      <epoch_num>2</epoch_num>
+      <train_loss>3.8912</train_loss>
+      <train_acc>0.0456</train_acc>
+      <val_loss>3.8523</val_loss>
+      <val_acc>0.0512</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>155.2</duration_sec>
+    </epoch>
+    <epoch id="e-081" experiment="exp-006">
+      <epoch_num>3</epoch_num>
+      <train_loss>3.4523</train_loss>
+      <train_acc>0.0912</train_acc>
+      <val_loss>3.4134</val_loss>
+      <val_acc>0.0989</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>156.1</duration_sec>
+    </epoch>
+    <epoch id="e-082" experiment="exp-006">
+      <epoch_num>4</epoch_num>
+      <train_loss>3.1234</train_loss>
+      <train_acc>0.1334</train_acc>
+      <val_loss>3.0856</val_loss>
+      <val_acc>0.1412</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>155.8</duration_sec>
+    </epoch>
+    <epoch id="e-083" experiment="exp-006">
+      <epoch_num>5</epoch_num>
+      <train_loss>2.8512</train_loss>
+      <train_acc>0.1723</train_acc>
+      <val_loss>2.8145</val_loss>
+      <val_acc>0.1801</val_acc>
+      <learning_rate>0.0002</learning_rate>
+      <duration_sec>156.4</duration_sec>
+    </epoch>
+  </epochs>
+
+  <weights>
+    <weight id="w-001" layer="l-001">
+      <sample_weights>
+        <row>0.0234,-0.0156,0.0412</row>
+        <row>-0.0289,0.0178,-0.0345</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0012,0.0008,-0.0003</row>
+        <row>0.0005,-0.0007,0.0002</row>
+      </gradients>
+      <mean>0.0006</mean>
+      <std>0.0287</std>
+    </weight>
+    <weight id="w-002" layer="l-003">
+      <sample_weights>
+        <row>0.0189,-0.0223,0.0367</row>
+        <row>-0.0145,0.0256,-0.0198</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0009,0.0006,-0.0002</row>
+        <row>0.0004,-0.0005,0.0001</row>
+      </gradients>
+      <mean>0.0041</mean>
+      <std>0.0254</std>
+    </weight>
+    <weight id="w-003" layer="l-006">
+      <sample_weights>
+        <row>0.0156,-0.0189,0.0312</row>
+        <row>-0.0134,0.0201,-0.0167</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0007,0.0005,-0.0002</row>
+        <row>0.0003,-0.0004,0.0001</row>
+      </gradients>
+      <mean>0.003</mean>
+      <std>0.0223</std>
+    </weight>
+    <weight id="w-004" layer="l-008">
+      <sample_weights>
+        <row>0.0134,-0.0167,0.0278</row>
+        <row>-0.0112,0.0178,-0.0145</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0006,0.0004,-0.0001</row>
+        <row>0.0002,-0.0003,0.0001</row>
+      </gradients>
+      <mean>0.0028</mean>
+      <std>0.0198</std>
+    </weight>
+    <weight id="w-005" layer="l-011">
+      <sample_weights>
+        <row>0.0112,-0.0145,0.0234</row>
+        <row>-0.0098,0.0156,-0.0123</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0005,0.0003,-0.0001</row>
+        <row>0.0002,-0.0003,0.0001</row>
+      </gradients>
+      <mean>0.0023</mean>
+      <std>0.0176</std>
+    </weight>
+    <weight id="w-006" layer="l-016">
+      <sample_weights>
+        <row>0.0087,-0.0109,0.0178</row>
+        <row>-0.0076,0.0118,-0.0095</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0003,0.0002,-0.0001</row>
+        <row>0.0001,-0.0002,0</row>
+      </gradients>
+      <mean>0.0017</mean>
+      <std>0.0138</std>
+    </weight>
+    <weight id="w-007" layer="l-018">
+      <sample_weights>
+        <row>0.0076,-0.0095,0.0156</row>
+        <row>-0.0065,0.0104,-0.0082</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0003,0.0002,-0.0001</row>
+        <row>0.0001,-0.0001,0</row>
+      </gradients>
+      <mean>0.0015</mean>
+      <std>0.0122</std>
+    </weight>
+    <weight id="w-008" layer="l-022">
+      <sample_weights>
+        <row>0.0065,-0.0082,0.0134</row>
+        <row>-0.0056,0.0091,-0.0071</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0002,0.0001,0</row>
+        <row>0.0001,-0.0001,0</row>
+      </gradients>
+      <mean>0.0014</mean>
+      <std>0.0108</std>
+    </weight>
+    <weight id="w-009" layer="l-025">
+      <sample_weights>
+        <row>0.0312,-0.0234,0.0456</row>
+        <row>-0.0378,0.0289,-0.0412</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0018,0.0012,-0.0005</row>
+        <row>0.0008,-0.001,0.0003</row>
+      </gradients>
+      <mean>0.0006</mean>
+      <std>0.0367</std>
+    </weight>
+    <weight id="w-010" layer="l-028">
+      <sample_weights>
+        <row>0.0289,-0.0312,0.0423</row>
+        <row>-0.0234,0.0356,-0.0298</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0014,0.0009,-0.0004</row>
+        <row>0.0006,-0.0008,0.0002</row>
+      </gradients>
+      <mean>0.0037</mean>
+      <std>0.0334</std>
+    </weight>
+    <weight id="w-011" layer="l-035">
+      <sample_weights>
+        <row>0.0201,-0.0245,0.0345</row>
+        <row>-0.0178,0.0278,-0.0223</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0009,0.0006,-0.0002</row>
+        <row>0.0004,-0.0005,0.0001</row>
+      </gradients>
+      <mean>0.003</mean>
+      <std>0.0267</std>
+    </weight>
+    <weight id="w-012" layer="l-049">
+      <sample_weights>
+        <row>0.0412,-0.0289,0.0534</row>
+        <row>-0.0378,0.0423,-0.0312</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0021,0.0014,-0.0006</row>
+        <row>0.0009,-0.0012,0.0004</row>
+      </gradients>
+      <mean>0.0065</mean>
+      <std>0.0412</std>
+    </weight>
+    <weight id="w-013" layer="l-061">
+      <sample_weights>
+        <row>0.0278,-0.0312,0.0378</row>
+        <row>-0.0245,0.0301,-0.0212</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0012,0.0008,-0.0003</row>
+        <row>0.0005,-0.0007,0.0002</row>
+      </gradients>
+      <mean>0.0031</mean>
+      <std>0.0312</std>
+    </weight>
+    <weight id="w-014" layer="l-067">
+      <sample_weights>
+        <row>0.0245,-0.0278,0.0334</row>
+        <row>-0.0212,0.0267,-0.0189</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.001,0.0007,-0.0003</row>
+        <row>0.0004,-0.0006,0.0002</row>
+      </gradients>
+      <mean>0.0028</mean>
+      <std>0.0278</std>
+    </weight>
+    <weight id="w-015" layer="l-073">
+      <sample_weights>
+        <row>0.0212,-0.0245,0.0298</row>
+        <row>-0.0189,0.0234,-0.0167</row>
+      </sample_weights>
+      <gradients>
+        <row>-0.0008,0.0006,-0.0002</row>
+        <row>0.0003,-0.0005,0.0002</row>
+      </gradients>
+      <mean>0.0026</mean>
+      <std>0.0245</std>
+    </weight>
+  </weights>
+</ml_training_logs>

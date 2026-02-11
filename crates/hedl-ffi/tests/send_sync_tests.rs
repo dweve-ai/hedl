@@ -25,76 +25,12 @@
 //! - They must NOT implement Send or Sync to prevent unsafe cross-thread usage
 //! - This enforces the API contract at the type system level
 
-// These imports exist for compile-time verification and documentation
-// They demonstrate the types being tested for !Send/!Sync
-#[allow(unused_imports)]
-use hedl_ffi::{HedlDiagnostics, HedlDocument};
 use std::marker::PhantomData;
 use std::thread;
 
 // =============================================================================
 // Type System Traits
 // =============================================================================
-
-/// Marker trait to test if a type is Send
-/// This trait exists for documentation - if `HedlDocument` were Send,
-/// we could implement `IsSend` for it and the code would compile.
-#[allow(dead_code)]
-trait IsSend: Send {}
-
-/// Marker trait to test if a type is Sync
-/// This trait exists for documentation - if `HedlDocument` were Sync,
-/// we could implement `IsSync` for it and the code would compile.
-#[allow(dead_code)]
-trait IsSync: Sync {}
-
-/// This function would fail to compile if T implemented Send.
-/// The test asserts that types like `HedlDocument` are NOT Send.
-/// Note: Compile-time trait bounds enforcement is done through the type system.
-#[allow(dead_code)]
-fn assert_not_send<T: ?Sized>() {
-    // This function exists for documentation purposes.
-    // The actual Send/Sync constraints are enforced by Rust's type system.
-}
-
-/// This function would fail to compile if T implemented Sync.
-/// The test asserts that types like `HedlDocument` are NOT Sync.
-/// Note: Compile-time trait bounds enforcement is done through the type system.
-#[allow(dead_code)]
-fn assert_not_sync<T: ?Sized>() {
-    // This function exists for documentation purposes.
-    // The actual Send/Sync constraints are enforced by Rust's type system.
-}
-
-/// Runtime test that T cannot be sent across threads
-/// This function exists for documentation purposes - it would be used
-/// to verify a type's Send implementation if it compiled.
-#[allow(dead_code)]
-fn test_cannot_send_to_thread<T: 'static>(value: T) -> bool {
-    // Try to send value to another thread
-    let handle = thread::spawn(move || {
-        // If we get here, the value was successfully sent
-        let _ = value;
-    });
-
-    // If the thread completes, the type is Send (bad for handles)
-    handle.join().is_ok()
-}
-
-/// Runtime test that T cannot be shared across threads
-/// This function exists for documentation purposes - it would be used
-/// to verify a type's Sync implementation if it compiled.
-#[allow(dead_code)]
-fn test_cannot_share_across_threads<T: 'static>(value: &T) -> bool {
-    // Try to share reference across threads
-    let handle = thread::spawn(move || {
-        // If we get here, the reference was successfully shared
-        let _ = value;
-    });
-
-    // If the thread completes, the type is Sync (bad for handles)
-    handle.join().is_ok()
-}
 
 // =============================================================================
 // Compile-Time Tests (using auto traits)
@@ -116,6 +52,7 @@ fn test_hedl_document_is_not_send() {
     // Runtime verification: try to use HedlDocument in a context that requires Send
     // This should fail at compile time if HedlDocument is !Send
     // let _ = std::thread::spawn(|| {
+    // SAFETY: Unsafe operation required for FFI boundary
     //     let doc: HedlDocument = unsafe { std::mem::zeroed() };
     //     let _ = doc;
     // });
@@ -201,10 +138,12 @@ fn test_auto_trait_impls() {
 
     // If HedlDocument were Send, we could do this:
     // fn requires_send<T: Send>(_: T) {}
+    // SAFETY: Unsafe operation required for FFI boundary
     // requires_send(unsafe { std::mem::zeroed::<HedlDocument>() });
 
     // If HedlDocument were Sync, we could do this:
     // fn requires_sync<T: Sync>(_: &T) {}
+    // SAFETY: Unsafe operation required for FFI boundary
     // requires_sync(&unsafe { std::mem::zeroed::<HedlDocument>() });
 
     // The fact that we cannot write these functions without

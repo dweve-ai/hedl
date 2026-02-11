@@ -44,7 +44,7 @@ impl PathSegment {
 /// use hedl_core::visitor::VisitorContext;
 /// use hedl_core::Document;
 ///
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let ctx = VisitorContext::new(&doc);
 ///
 /// assert_eq!(ctx.depth, 0);
@@ -144,7 +144,7 @@ impl<'a> VisitorContext<'a> {
     /// use hedl_core::visitor::{VisitorContext, PathSegment};
     /// use hedl_core::Document;
     ///
-    /// let doc = Document::new((1, 0));
+    /// let doc = Document::new((2, 0));
     /// let ctx = VisitorContext::new(&doc);
     /// assert_eq!(ctx.path_string(), "root");
     ///
@@ -181,12 +181,6 @@ impl<'a> VisitorContext<'a> {
         &self.stats
     }
 
-    /// Get mutable traversal statistics.
-    #[allow(dead_code)]
-    pub(crate) fn stats_mut(&mut self) -> &mut TraversalStats {
-        &mut self.stats
-    }
-
     /// Record a node visit in statistics.
     pub(crate) fn record_node_visit(&mut self) {
         self.stats.nodes_visited += 1;
@@ -216,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_new_context() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
 
         assert_eq!(ctx.depth, 0);
@@ -227,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_child_context_increments_depth() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
         let child = ctx.child(PathSegment::Key("users".to_string()));
 
@@ -237,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_path_string_with_nested_keys() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
         let ctx = ctx.child(PathSegment::Key("a".to_string()));
         let ctx = ctx.child(PathSegment::NestedKey("b".to_string()));
@@ -248,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_path_string_with_index() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
         let ctx = ctx.child(PathSegment::Key("users".to_string()));
         let ctx = ctx.child(PathSegment::Index(0));
@@ -258,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_with_schema() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let ctx = VisitorContext::new(&doc);
         let schema = vec!["id".to_string(), "name".to_string()];
         let ctx_with_schema = ctx.with_schema(&schema);
@@ -270,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_metadata_storage() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut ctx = VisitorContext::new(&doc);
 
         ctx.set_metadata("key", "value");
@@ -280,7 +274,7 @@ mod tests {
 
     #[test]
     fn test_metadata_persists_in_child() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut ctx = VisitorContext::new(&doc);
         ctx.set_metadata("key", "value");
 
@@ -290,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_stats_tracking() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut ctx = VisitorContext::new(&doc);
 
         ctx.record_node_visit();
@@ -307,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_stats_max_depth() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut ctx = VisitorContext::new(&doc);
 
         ctx.record_node_visit();

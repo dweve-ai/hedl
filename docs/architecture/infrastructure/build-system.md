@@ -34,14 +34,14 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.70"
 
 [workspace.dependencies]
 # Internal dependencies
-hedl-core = { version = "1.0.0", path = "crates/hedl-core" }
+hedl-core = { version = "2.0.0", path = "crates/hedl-core" }
 
 # External dependencies
 thiserror = "1.0"

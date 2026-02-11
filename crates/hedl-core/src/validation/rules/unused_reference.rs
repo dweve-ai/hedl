@@ -63,10 +63,10 @@ impl Rule for UnusedReferenceRule {
         // Second pass: collect all referenced IDs using recursive traversal
         visit_all_references(doc, |r, _ctx| {
             if let Some(type_name) = &r.type_name {
-                // Qualified reference: @Type:id
+                // Qualified reference:@Type:id
                 qualified_refs.insert((type_name.to_string(), r.id.to_string()));
             } else {
-                // Unqualified reference: @id
+                // Unqualified reference:@id
                 unqualified_refs.insert(r.id.to_string());
             }
         });

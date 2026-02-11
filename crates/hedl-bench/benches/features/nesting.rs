@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Deep nesting benchmarks.
 //!
 //! Measures HEDL deep nesting performance for hierarchical data structures.
@@ -243,35 +241,16 @@ fn generate_nested_yaml(depth: usize) -> String {
 
     let mut yaml = String::from("level: 0\ndata: value0\n");
     for i in 1..depth {
-        let indent = "  ".repeat(i);
+        let indent = " ".repeat(i);
         yaml.push_str(&format!(
             "{indent}nested:\n{indent}  level: {i}\n{indent}  data: value{i}\n"
         ));
     }
     yaml
 }
-
-/// Generate deeply nested XML for comparative benchmarking
-/// Currently unused but reserved for future quick-xml parser comparison
-#[allow(dead_code)]
-fn generate_nested_xml(depth: usize) -> String {
-    if depth == 0 {
-        return String::new();
-    }
-
-    let mut xml = String::from("<?xml version=\"1.0\"?>\n");
-    for i in 0..depth {
-        xml.push_str(&format!("<level{i} data=\"value{i}\">"));
-    }
-    for i in (0..depth).rev() {
-        xml.push_str(&format!("</level{i}>"));
-    }
-    xml
-}
-
 /// Generate flat HEDL structure for comparison
 fn generate_flat_structure(depth: usize, fields_per_level: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
     let total_fields = depth * fields_per_level;
     for i in 0..total_fields {
@@ -284,7 +263,7 @@ fn generate_flat_structure(depth: usize, fields_per_level: usize) -> String {
 /// Generate array-heavy nested structure
 /// Creates a hierarchy with multiple items at each level
 fn generate_nested_arrays(depth: usize, items_per_array: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     fn add_array_level(
         doc: &mut String,
@@ -293,15 +272,15 @@ fn generate_nested_arrays(depth: usize, items_per_array: usize) -> String {
         items: usize,
         indent: usize,
     ) {
-        let prefix = "  ".repeat(indent);
+        let prefix = " ".repeat(indent);
 
         // Only add multiple items at first level, then single chain to control depth
         let item_count = if level == 1 { items } else { 1 };
 
         for i in 0..item_count {
             doc.push_str(&format!("{prefix}item{i}:\n"));
-            doc.push_str(&format!("{prefix}  id: {i}\n"));
-            doc.push_str(&format!("{prefix}  value: item_{i}\n"));
+            doc.push_str(&format!("{prefix} id: {i}\n")); // HEDL v2.0: 1 space per indent level
+            doc.push_str(&format!("{prefix} value: item_{i}\n"));
 
             if level < max_depth && i == 0 {
                 // Only nest under first item to control total depth
@@ -321,10 +300,10 @@ fn generate_nested_objects(depth: usize, fields_per_obj: usize) -> String {
 
 /// Generate mixed array/object nested structure
 fn generate_mixed_nesting(depth: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     fn add_mixed_level(doc: &mut String, level: usize, max_depth: usize, indent: usize) {
-        let prefix = "  ".repeat(indent);
+        let prefix = " ".repeat(indent);
 
         // Always use object syntax (HEDL doesn't have array literals)
         doc.push_str(&format!("{prefix}field_a: value_a_{level}\n"));
@@ -351,10 +330,10 @@ fn generate_mixed_nesting(depth: usize) -> String {
 
 /// Generate pathological case: extremely deep single path
 fn generate_extreme_depth(depth: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     for i in 0..depth {
-        let indent = "  ".repeat(i + 1);
+        let indent = " ".repeat(i + 1);
         doc.push_str(&format!("{indent}level_{i}: value\n"));
         if i < depth - 1 {
             doc.push_str(&format!("{indent}nested:\n"));
@@ -366,10 +345,10 @@ fn generate_extreme_depth(depth: usize) -> String {
 
 /// Generate pathological case: extremely wide single level
 fn generate_extreme_width(width: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     for i in 0..width {
-        doc.push_str(&format!("  field_{i}: value_{i}\n"));
+        doc.push_str(&format!(" field_{i}: value_{i}\n")); // HEDL v2.0: 1 space indent
     }
 
     doc
@@ -377,20 +356,20 @@ fn generate_extreme_width(width: usize) -> String {
 
 /// Generate pathological case: unbalanced tree
 fn generate_unbalanced_tree(max_depth: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     // One deep path
     let mut path = String::new();
     for i in 0..max_depth {
-        let indent = "  ".repeat(i + 1);
+        let indent = " ".repeat(i + 1);
         path.push_str(&format!("{indent}deep_child:\n"));
-        path.push_str(&format!("{indent}  level: {i}\n"));
+        path.push_str(&format!("{indent} level: {i}\n")); // HEDL v2.0: 1 space indent
     }
     doc.push_str(&path);
 
     // Many shallow children at root
     for i in 0..10 {
-        doc.push_str(&format!("  shallow_{i}: leaf_{i}\n"));
+        doc.push_str(&format!(" shallow_{i}: leaf_{i}\n")); // HEDL v2.0: 1 space indent
     }
 
     doc
@@ -398,7 +377,7 @@ fn generate_unbalanced_tree(max_depth: usize) -> String {
 
 /// Generate pathological case: dense nodes with many fields
 fn generate_dense_nodes(depth: usize, fields_per_node: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
 
     fn add_dense_level(
         doc: &mut String,
@@ -407,7 +386,7 @@ fn generate_dense_nodes(depth: usize, fields_per_node: usize) -> String {
         fields: usize,
         indent: usize,
     ) {
-        let prefix = "  ".repeat(indent);
+        let prefix = " ".repeat(indent);
 
         // Add many fields at this level
         for f in 0..fields {
@@ -462,12 +441,14 @@ fn bench_deep_nesting(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = NestingResult::default();
-        result.dataset = format!("deep_{depth}levels");
-        result.depth = depth;
-        result.width = fields_per_level;
-        result.input_size_bytes = hedl.len();
-        result.field_count = count_fields(&hedl);
+        let mut result = NestingResult {
+            dataset: format!("deep_{depth}levels"),
+            depth,
+            width: fields_per_level,
+            input_size_bytes: hedl.len(),
+            field_count: count_fields(&hedl),
+            ..Default::default()
+        };
         result._stack_frames_est = depth * 2; // Reserved for future profiling
 
         let doc = parse_hedl(&hedl);
@@ -526,12 +507,14 @@ fn bench_wide_trees(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = NestingResult::default();
-        result.dataset = format!("wide_{breadth}");
-        result.depth = depth;
-        result.width = breadth;
-        result.input_size_bytes = hedl.len();
-        result.is_balanced = true;
+        let mut result = NestingResult {
+            dataset: format!("wide_{breadth}"),
+            depth,
+            width: breadth,
+            input_size_bytes: hedl.len(),
+            is_balanced: true,
+            ..Default::default()
+        };
 
         let doc = parse_hedl(&hedl);
         result.total_nodes = doc.root.values().map(count_item).sum();
@@ -568,11 +551,13 @@ fn bench_deep_vs_wide(c: &mut Criterion) {
     });
 
     // Collect deep result
-    let mut deep_result = NestingResult::default();
-    deep_result.dataset = "deep_10x2".to_string();
-    deep_result.depth = 10;
-    deep_result.width = 2;
-    deep_result.input_size_bytes = deep_hedl.len();
+    let mut deep_result = NestingResult {
+        dataset: "deep_10x2".to_string(),
+        depth: 10,
+        width: 2,
+        input_size_bytes: deep_hedl.len(),
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -593,12 +578,14 @@ fn bench_deep_vs_wide(c: &mut Criterion) {
     });
 
     // Collect wide result
-    let mut wide_result = NestingResult::default();
-    wide_result.dataset = "wide_10x2".to_string();
-    wide_result.depth = 2;
-    wide_result.width = 10;
-    wide_result.input_size_bytes = wide_hedl.len();
-    wide_result.is_balanced = true;
+    let mut wide_result = NestingResult {
+        dataset: "wide_10x2".to_string(),
+        depth: 2,
+        width: 10,
+        input_size_bytes: wide_hedl.len(),
+        is_balanced: true,
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -619,12 +606,14 @@ fn bench_deep_vs_wide(c: &mut Criterion) {
     });
 
     // Collect balanced result
-    let mut balanced_result = NestingResult::default();
-    balanced_result.dataset = "balanced_5x4".to_string();
-    balanced_result.depth = 5;
-    balanced_result.width = 4;
-    balanced_result.input_size_bytes = balanced_hedl.len();
-    balanced_result.is_balanced = true;
+    let mut balanced_result = NestingResult {
+        dataset: "balanced_5x4".to_string(),
+        depth: 5,
+        width: 4,
+        input_size_bytes: balanced_hedl.len(),
+        is_balanced: true,
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -674,11 +663,13 @@ fn bench_realistic_hierarchy(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = NestingResult::default();
-        result.dataset = format!("hierarchy_{size}");
-        result.depth = estimate_nesting_depth(&hedl);
-        result.input_size_bytes = hedl.len();
-        result.field_count = count_fields(&hedl);
+        let mut result = NestingResult {
+            dataset: format!("hierarchy_{size}"),
+            depth: estimate_nesting_depth(&hedl),
+            input_size_bytes: hedl.len(),
+            field_count: count_fields(&hedl),
+            ..Default::default()
+        };
 
         let doc = parse_hedl(&hedl);
         result.total_nodes = doc.root.values().map(count_item).sum();
@@ -721,9 +712,11 @@ fn bench_nested_traversal(c: &mut Criterion) {
         });
 
         // Collect traversal result
-        let mut result = NestingResult::default();
-        result.dataset = format!("traversal_{depth}");
-        result.depth = depth;
+        let mut result = NestingResult {
+            dataset: format!("traversal_{depth}"),
+            depth,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -775,11 +768,13 @@ fn bench_blog_nesting(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = NestingResult::default();
-        result.dataset = format!("blog_{size}");
-        result.depth = estimate_nesting_depth(&hedl);
-        result.input_size_bytes = hedl.len();
-        result.field_count = count_fields(&hedl);
+        let mut result = NestingResult {
+            dataset: format!("blog_{size}"),
+            depth: estimate_nesting_depth(&hedl),
+            input_size_bytes: hedl.len(),
+            field_count: count_fields(&hedl),
+            ..Default::default()
+        };
 
         let doc = parse_hedl(&hedl);
         result.total_nodes = doc.root.values().map(count_item).sum();
@@ -1019,12 +1014,14 @@ fn bench_pathological_cases(c: &mut Criterion) {
         });
     });
 
-    let mut result = NestingResult::default();
-    result.dataset = "extreme_depth_45".to_string();
-    result.depth = 45;
-    result.width = 1;
-    result.input_size_bytes = extreme_deep.len();
-    result.is_pathological = true;
+    let mut result = NestingResult {
+        dataset: "extreme_depth_45".to_string(),
+        depth: 45,
+        width: 1,
+        input_size_bytes: extreme_deep.len(),
+        is_pathological: true,
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -1045,12 +1042,14 @@ fn bench_pathological_cases(c: &mut Criterion) {
         });
     });
 
-    let mut result = NestingResult::default();
-    result.dataset = "extreme_width_1000".to_string();
-    result.depth = 1;
-    result.width = 1000;
-    result.input_size_bytes = extreme_wide.len();
-    result.is_pathological = true;
+    let mut result = NestingResult {
+        dataset: "extreme_width_1000".to_string(),
+        depth: 1,
+        width: 1000,
+        input_size_bytes: extreme_wide.len(),
+        is_pathological: true,
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -1071,13 +1070,15 @@ fn bench_pathological_cases(c: &mut Criterion) {
         });
     });
 
-    let mut result = NestingResult::default();
-    result.dataset = "unbalanced_tree_40".to_string();
-    result.depth = 40;
-    result.width = 10;
-    result.input_size_bytes = unbalanced.len();
-    result.is_pathological = true;
-    result.is_balanced = false;
+    let mut result = NestingResult {
+        dataset: "unbalanced_tree_40".to_string(),
+        depth: 40,
+        width: 10,
+        input_size_bytes: unbalanced.len(),
+        is_pathological: true,
+        is_balanced: false,
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -1098,13 +1099,15 @@ fn bench_pathological_cases(c: &mut Criterion) {
         });
     });
 
-    let mut result = NestingResult::default();
-    result.dataset = "dense_nodes_10x50".to_string();
-    result.depth = 10;
-    result.width = 50;
-    result.input_size_bytes = dense.len();
-    result.is_pathological = true;
-    result.field_count = 10 * 50;
+    let mut result = NestingResult {
+        dataset: "dense_nodes_10x50".to_string(),
+        depth: 10,
+        width: 50,
+        input_size_bytes: dense.len(),
+        is_pathological: true,
+        field_count: 10 * 50,
+        ..Default::default()
+    };
 
     let mut times = Vec::new();
     for _ in 0..10 {
@@ -1141,12 +1144,14 @@ fn bench_data_type_comparison(c: &mut Criterion) {
             });
         });
 
-        let mut result = NestingResult::default();
-        result.dataset = format!("arrays_{depth}");
-        result.depth = depth;
-        result.width = 3;
-        result.input_size_bytes = arrays.len();
-        result.data_type = "array".to_string();
+        let mut result = NestingResult {
+            dataset: format!("arrays_{depth}"),
+            depth,
+            width: 3,
+            input_size_bytes: arrays.len(),
+            data_type: "array".to_string(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -1167,12 +1172,14 @@ fn bench_data_type_comparison(c: &mut Criterion) {
             });
         });
 
-        let mut result = NestingResult::default();
-        result.dataset = format!("objects_{depth}");
-        result.depth = depth;
-        result.width = 3;
-        result.input_size_bytes = objects.len();
-        result.data_type = "object".to_string();
+        let mut result = NestingResult {
+            dataset: format!("objects_{depth}"),
+            depth,
+            width: 3,
+            input_size_bytes: objects.len(),
+            data_type: "object".to_string(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -1193,12 +1200,14 @@ fn bench_data_type_comparison(c: &mut Criterion) {
             });
         });
 
-        let mut result = NestingResult::default();
-        result.dataset = format!("mixed_{depth}");
-        result.depth = depth;
-        result.width = 2;
-        result.input_size_bytes = mixed.len();
-        result.data_type = "mixed".to_string();
+        let mut result = NestingResult {
+            dataset: format!("mixed_{depth}"),
+            depth,
+            width: 2,
+            input_size_bytes: mixed.len(),
+            data_type: "mixed".to_string(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {

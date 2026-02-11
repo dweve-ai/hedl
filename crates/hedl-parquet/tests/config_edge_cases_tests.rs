@@ -61,7 +61,7 @@ fn test_config_with_type_coercion_disabled() {
 
 #[test]
 fn test_compression_uncompressed() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Data",
@@ -85,7 +85,7 @@ fn test_compression_uncompressed() {
 
 #[test]
 fn test_compression_gzip() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Data",
@@ -108,7 +108,7 @@ fn test_compression_gzip() {
 
 #[test]
 fn test_compression_zstd() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Data",
@@ -131,7 +131,7 @@ fn test_compression_zstd() {
 
 #[test]
 fn test_compression_lz4() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Data",
@@ -158,7 +158,7 @@ fn test_compression_lz4() {
 
 #[test]
 fn test_dictionary_encoding_enabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "category".to_string()]);
 
     // Repeated values benefit from dictionary encoding
@@ -190,7 +190,7 @@ fn test_dictionary_encoding_enabled() {
 
 #[test]
 fn test_dictionary_encoding_disabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "category".to_string()]);
 
     for i in 0..50 {
@@ -225,7 +225,7 @@ fn test_dictionary_encoding_disabled() {
 
 #[test]
 fn test_writer_version_1_0() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string()]);
     list.add_row(Node::new(
         "Data",
@@ -246,7 +246,7 @@ fn test_writer_version_1_0() {
 
 #[test]
 fn test_writer_version_2_0() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string()]);
     list.add_row(Node::new(
         "Data",
@@ -271,7 +271,7 @@ fn test_writer_version_2_0() {
 
 #[test]
 fn test_statistics_none() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..10 {
@@ -302,7 +302,7 @@ fn test_statistics_none() {
 
 #[test]
 fn test_statistics_chunk() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..10 {
@@ -333,7 +333,7 @@ fn test_statistics_chunk() {
 
 #[test]
 fn test_statistics_page() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..10 {
@@ -521,7 +521,7 @@ fn test_from_config_with_batch_size_adaptive() {
 
 #[test]
 fn test_combined_compression_and_statistics() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..100 {
@@ -554,7 +554,7 @@ fn test_combined_compression_and_statistics() {
 
 #[test]
 fn test_combined_config_all_options() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
     list.add_row(Node::new(
         "Data",

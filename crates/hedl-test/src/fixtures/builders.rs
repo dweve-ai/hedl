@@ -32,12 +32,12 @@ use std::collections::BTreeMap;
 /// use hedl_core::Value;
 ///
 /// let doc = DocumentBuilder::new()
-///     .version(1, 0)
+///     .version(1, 2)
 ///     .scalar("name", Value::String("Alice".to_string().into()))
 ///     .scalar("age", Value::Int(30))
 ///     .build();
 ///
-/// assert_eq!(doc.version, (1, 0));
+/// assert_eq!(doc.version, (1, 2));
 /// assert!(doc.root.contains_key("name"));
 /// ```
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ pub struct DocumentBuilder {
     version: (u32, u32),
     aliases: BTreeMap<String, String>,
     structs: BTreeMap<String, Vec<String>>,
-    nests: BTreeMap<String, String>,
+    nests: BTreeMap<String, Vec<String>>,
     root: BTreeMap<String, Item>,
 }
 
@@ -60,7 +60,7 @@ impl DocumentBuilder {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            version: (1, 0),
+            version: (1, 2),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
             nests: BTreeMap::new(),
@@ -89,7 +89,10 @@ impl DocumentBuilder {
 
     /// Adds a NEST relationship.
     pub fn nest(mut self, parent: impl Into<String>, child: impl Into<String>) -> Self {
-        self.nests.insert(parent.into(), child.into());
+        self.nests
+            .entry(parent.into())
+            .or_default()
+            .push(child.into());
         self
     }
 
@@ -505,12 +508,12 @@ mod tests {
     #[test]
     fn test_document_builder() {
         let doc = DocumentBuilder::new()
-            .version(1, 0)
+            .version(1, 2)
             .scalar("name", Value::String("test".to_string().into()))
             .scalar("age", Value::Int(42))
             .build();
 
-        assert_eq!(doc.version, (1, 0));
+        assert_eq!(doc.version, (1, 2));
         assert_eq!(doc.root.len(), 2);
         assert!(doc.root.contains_key("name"));
         assert!(doc.root.contains_key("age"));

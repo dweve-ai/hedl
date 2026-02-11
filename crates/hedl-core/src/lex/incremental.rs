@@ -66,7 +66,7 @@ const MAX_CACHED_LINES: usize = 100_000;
 /// Maximum line length for incremental parsing.
 const MAX_LINE_LENGTH: usize = 10_000;
 
-/// Default maximum indentation depth (10 levels = 20 spaces).
+/// Default maximum indentation depth (10 levels = 10 spaces).
 const DEFAULT_MAX_INDENT_DEPTH: usize = 10;
 
 // ==================== Hash Function ====================
@@ -92,14 +92,14 @@ fn hash_line(s: &str) -> u64 {
 pub struct IndentInfo {
     /// Number of leading spaces.
     pub spaces: usize,
-    /// Calculated indent level (spaces / 2).
+    /// Calculated indent level (1 space = 1 level in v2.0).
     pub level: usize,
 }
 
 /// Calculate indentation info from a line.
 ///
 /// Returns `None` if the line is blank (only whitespace).
-/// Returns error if indentation uses tabs or odd number of spaces.
+/// Returns error if indentation uses tabs.
 fn calculate_indent(line: &str, line_num: usize) -> Result<Option<IndentInfo>, LexError> {
     let bytes = line.as_bytes();
     let mut spaces = 0;
@@ -126,17 +126,9 @@ fn calculate_indent(line: &str, line_num: usize) -> Result<Option<IndentInfo>, L
         return Ok(None);
     }
 
-    // Validate even number of spaces
-    if spaces % 2 != 0 {
-        return Err(LexError::InvalidIndentation {
-            spaces,
-            pos: SourcePos::new(line_num, 1),
-        });
-    }
-
     Ok(Some(IndentInfo {
         spaces,
-        level: spaces / 2,
+        level: spaces,
     }))
 }
 
@@ -978,13 +970,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_indentation_error() {
+    fn test_parser_tab_indentation_error() {
         let mut parser = IncrementalParser::new();
-        let text = "User: alice\n   name: Alice"; // 3 spaces - invalid
+        let text = "User: alice\n\tname: Alice"; // Tab - invalid
         let result = parser.parse(text);
 
         assert_eq!(result.line_count(), 2);
+        // Line 1 (index 1) should have a tab indentation error
         assert!(result.get_error(1).is_some());
+        match result.get_error(1) {
+            Some(LexError::TabInIndentation { .. }) => {}
+            _ => panic!("Expected TabInIndentation error"),
+        }
     }
 
     #[test]
@@ -1137,11 +1134,11 @@ mod tests {
     fn test_custom_max_indent_depth() {
         let mut parser = IncrementalParser::with_max_indent_depth(2);
         // Level 0, 1, 2, 3 - level 3 exceeds max of 2
-        let text = "User: alice\n  profile:\n    details:\n      age: 30";
+        let text = "User: alice\n name:\n  details:\n   age: 30";
         let result = parser.parse(text);
 
         assert_eq!(result.line_count(), 4);
-        // Line 3 (index 3) has 6 spaces = level 3, which exceeds max of 2
+        // Line 3 (index 3) has 3 spaces = level 3 (v2.0: 1 space = 1 level), which exceeds max of 2
         assert!(result.get_error(3).is_some());
     }
 }

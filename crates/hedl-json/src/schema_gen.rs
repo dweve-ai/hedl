@@ -56,7 +56,7 @@
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let hedl = r#"
 //! %STRUCT: User: [id, name, email]
-//! users: @User
+//! users:@User
 //!   u1, Alice, alice@example.com
 //! "#;
 //!
@@ -82,7 +82,7 @@
 //! %STRUCT: Member: [id, name]
 //! %NEST: Team > Member
 //!
-//! teams: @Team
+//! teams:@Team
 //!   t1, Engineering
 //! "#;
 //!
@@ -331,15 +331,17 @@ fn generate_definitions(doc: &Document, config: &SchemaConfig) -> Map<String, Js
         }
 
         // Add nested children if %NEST:relationship exists
-        if let Some(child_type) = doc.nests.get(type_name) {
-            let child_array_name = pluralize(child_type);
-            let child_ref = json!({
-                "type": "array",
-                "items": {
-                    "$ref": format!("#/definitions/{}", child_type)
-                }
-            });
-            properties.insert(child_array_name, child_ref);
+        if let Some(child_types) = doc.nests.get(type_name) {
+            for child_type in child_types {
+                let child_array_name = pluralize(child_type);
+                let child_ref = json!({
+                    "type": "array",
+                    "items": {
+                        "$ref": format!("#/definitions/{}", child_type)
+                    }
+                });
+                properties.insert(child_array_name, child_ref);
+            }
         }
 
         def.insert("properties".to_string(), JsonValue::Object(properties));
@@ -445,6 +447,18 @@ fn value_to_schema(value: &Value, field_name: Option<&str>, config: &SchemaConfi
             schema.insert("type".to_string(), json!("string"));
             schema.insert("pattern".to_string(), json!(r"^\$\(.+\)$"));
             schema.insert("description".to_string(), json!("HEDL expression $(...)"));
+        }
+        Value::List(values) => {
+            schema.insert("type".to_string(), json!("array"));
+
+            // Try to infer item schema from first element
+            if let Some(first) = values.first() {
+                let item_schema = value_to_schema(first, None, config);
+                schema.insert("items".to_string(), item_schema);
+            }
+
+            // Note: examples omitted for List since Value doesn't implement Serialize
+            // This would require converting to JSON representation first
         }
     }
 

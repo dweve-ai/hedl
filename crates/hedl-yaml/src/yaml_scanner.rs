@@ -86,13 +86,18 @@ pub fn scan_yaml_anchors(yaml_text: &str) -> Result<AnchorRegistry, YamlError> {
     // Anchor: &name (preceded by whitespace or start of line, capture the name)
     // Alias: *name (preceded by whitespace, colon, or start of line, capture the name)
     // The lookbehind ensures we only match in proper YAML contexts, not inside words like "(*_"
-    let anchor_pattern = Regex::new(r"(?:^|[\s:,\[\{])&([a-zA-Z_][a-zA-Z0-9_-]*)").unwrap();
-    let alias_pattern = Regex::new(r"(?:^|[\s:,\[\{])\*([a-zA-Z_][a-zA-Z0-9_-]*)").unwrap();
+    // SAFETY: These are compile-time constant patterns that are always valid
+    let anchor_pattern =
+        Regex::new(r"(?:^|[\s:,\[\{])&([a-zA-Z_][a-zA-Z0-9_-]*)").expect("valid regex");
+    let alias_pattern =
+        Regex::new(r"(?:^|[\s:,\[\{])\*([a-zA-Z_][a-zA-Z0-9_-]*)").expect("valid regex");
 
     // Single pass: process anchors and aliases in document order
     // This ensures forward references are detected (alias before anchor definition)
     let mut current_anchor: Option<String> = None;
     let mut brace_depth = 0;
+
+    let mut events: Vec<(usize, bool, String)> = Vec::new(); // (position, is_anchor, name)
 
     for (line_num, line) in yaml_text.lines().enumerate() {
         let line_number = line_num + 1;
@@ -101,15 +106,17 @@ pub fn scan_yaml_anchors(yaml_text: &str) -> Result<AnchorRegistry, YamlError> {
         let masked_line = mask_quoted_strings(line);
 
         // Collect all matches with their positions to process in order
-        let mut events: Vec<(usize, bool, String)> = Vec::new(); // (position, is_anchor, name)
+        events.clear();
 
         for cap in anchor_pattern.captures_iter(&masked_line) {
-            let m = cap.get(1).unwrap();
+            // SAFETY: Regex pattern has capture group 1
+            let m = cap.get(1).expect("group 1 exists");
             events.push((m.start(), true, m.as_str().to_string()));
         }
 
         for cap in alias_pattern.captures_iter(&masked_line) {
-            let m = cap.get(1).unwrap();
+            // SAFETY: Regex pattern has capture group 1
+            let m = cap.get(1).expect("group 1 exists");
             events.push((m.start(), false, m.as_str().to_string()));
         }
 
@@ -117,7 +124,7 @@ pub fn scan_yaml_anchors(yaml_text: &str) -> Result<AnchorRegistry, YamlError> {
         events.sort_by_key(|(pos, _, _)| *pos);
 
         // Process events in order
-        for (_, is_anchor, name) in events {
+        for (_, is_anchor, name) in events.drain(..) {
             if is_anchor {
                 // Validate anchor name
                 validate_anchor_name(&name)?;

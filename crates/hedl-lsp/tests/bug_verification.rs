@@ -11,13 +11,15 @@ use tower_lsp::lsp_types::Position;
 
 #[test]
 fn verify_comment_reference_behavior() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
 # This comment has @User:alice in it
-users: @User
-  | alice, Alice
-";
+users:@User
+ |alice, Alice
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
@@ -46,11 +48,13 @@ users: @User
 
 #[test]
 fn verify_string_reference_behavior() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, Alice, "email@example.com"
+users:@User
+ |alice, Alice, "email@example.com"
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -80,12 +84,14 @@ users: @User
 
 #[test]
 fn verify_quoted_id_behavior() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | "my-quoted-id", My User
-  | unquoted-id, Another User
+users:@User
+ |"my-quoted-id", My User
+ |unquoted-id, Another User
 "#;
 
     let analysis = AnalyzedDocument::analyze(content);
@@ -119,14 +125,16 @@ users: @User
 
 #[test]
 fn verify_hit_testing_boundaries() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice, Alice
 
 ref: @User:alice
-";
+"#;
 
     let analysis = AnalyzedDocument::analyze(content);
 

@@ -20,64 +20,52 @@
 //! which column the cursor is in within a matrix row.
 
 use hedl_lsp::analysis::AnalyzedDocument;
-use hedl_lsp::completion::{get_completions, CompletionContext};
+use hedl_lsp::completion::get_completions;
 use tower_lsp::lsp_types::*;
-
-/// Helper to determine context (uses internal API for testing)
-#[allow(dead_code)]
-fn determine_context(content: &str, line: u32, character: u32) -> CompletionContext {
-    let analysis = AnalyzedDocument::analyze(content);
-    let position = Position { line, character };
-
-    // We need to access the internal determine_context_optimized function
-    // For now, we'll test indirectly through get_completions
-    hedl_lsp::completion::get_completions(&analysis, content, position);
-
-    // Extract context by analyzing completion items
-    // This is a workaround since CompletionContext is not directly accessible
-    // We'll verify behavior through the completions themselves
-    CompletionContext::Unknown
-}
 
 #[test]
 fn test_matrix_completion_column_0_after_pipe() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | ";
+users:@User
+ |"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,      // Line with "  | "
+        line: 6,      // Line with "  |" (after v2.0 header: %V, %NULL, %QUOTE, %S, ---, users:)
         character: 4, // Right after the pipe and space
     };
 
     let completions = get_completions(&analysis, content, position);
 
-    // At column 0 (id field), we should get basic completions like ditto, null, true, false
+    // At column 0 (id field), we should get basic completions like null, true, false
     // Not reference completions since id is the primary field
     assert!(
         !completions.is_empty(),
         "Should have completions for column 0"
     );
 
-    // Verify we get ditto marker
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Column 0 should offer ditto marker");
+    // v2.0 does not allow ditto; verify we get null instead
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Column 0 should offer null marker");
 }
 
 #[test]
 fn test_matrix_completion_column_1_after_first_comma() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, ";
+users:@User
+ |alice, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 12, // After "alice, "
     };
 
@@ -89,21 +77,23 @@ users: @User
         "Should have completions for column 1"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Column 1 should offer ditto marker");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Column 1 should offer null marker");
 }
 
 #[test]
 fn test_matrix_completion_column_2_after_second_comma() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, Alice Smith, ";
+users:@User
+ |alice, Alice Smith, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 26, // After "alice, Alice Smith, "
     };
 
@@ -115,21 +105,23 @@ users: @User
         "Should have completions for column 2"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Column 2 should offer ditto marker");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Column 2 should offer null marker");
 }
 
 #[test]
 fn test_matrix_completion_column_index_with_quoted_fields() {
-    let content = r#"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, "Alice, Smith", "#;
+users:@User
+ |alice, "Alice, Smith", "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 29, // After the quoted field and comma
     };
 
@@ -141,21 +133,23 @@ users: @User
         "Should have completions for column 2"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Should offer ditto marker at column 2");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Should offer null marker at column 2");
 }
 
 #[test]
 fn test_matrix_completion_in_middle_of_field() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, Al";
+users:@User
+ |alice, Al"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 12, // In the middle of "Al" (column 1)
     };
 
@@ -170,15 +164,17 @@ users: @User
 
 #[test]
 fn test_matrix_completion_with_row_prefix_number() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  |5 alice, Alice Smith, ";
+users:@User
+ |5 alice, Alice Smith, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 25, // After the second comma
     };
 
@@ -190,17 +186,17 @@ users: @User
         "Should have completions for column 2 with |N prefix"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Should offer ditto marker at column 2");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Should offer null marker at column 2");
 }
 
 #[test]
 fn test_matrix_completion_with_row_prefix_bracket() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:1.2
+%S:User:[id, name, email]
 ---
-users: @User
-  |[10] alice, Alice Smith, ";
+users:@User
+ |[10] alice, Alice Smith, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
@@ -216,21 +212,23 @@ users: @User
         "Should have completions for column 2 with |[N] prefix"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Should offer ditto marker at column 2");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Should offer null marker at column 2");
 }
 
 #[test]
 fn test_matrix_completion_empty_field() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, , ";
+users:@User
+ |alice, , "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 12, // After "alice, , " - should be column 2
     };
 
@@ -245,16 +243,18 @@ users: @User
 
 #[test]
 fn test_matrix_completion_trailing_comma() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email, role]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email, role]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com, ";
+users:@User
+ |alice, Alice Smith, alice@example.com, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     let position = Position {
-        line: 4,
+        line: 6,
         character: 43, // After the trailing comma (end of line)
     };
 
@@ -266,21 +266,23 @@ users: @User
         "Should have completions for column 3"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Should offer ditto marker at column 3");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Should offer null marker at column 3");
 }
 
 #[test]
 fn test_matrix_completion_many_columns() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Wide: [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Wide:[c0, c1, c2, c3, c4, c5, c6, c7, c8, c9]
 ---
-wide: @Wide
-  | a, b, c, d, e, f, g, h, ";
+wide:@Wide
+ |a, b, c, d, e, f, g, h, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 29, // After 8 fields
     };
 
@@ -292,21 +294,23 @@ wide: @Wide
         "Should have completions for column 8"
     );
 
-    let has_ditto = completions.iter().any(|c| c.label == "^");
-    assert!(has_ditto, "Should offer ditto marker at column 8");
+    let has_null = completions.iter().any(|c| c.label == "~");
+    assert!(has_null, "Should offer null marker at column 8");
 }
 
 #[test]
 fn test_matrix_completion_cursor_at_comma() {
-    let content = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice,";
+users:@User
+ |alice,"#;
 
     let analysis = AnalyzedDocument::analyze(content);
     let position = Position {
-        line: 4,
+        line: 6,
         character: 10, // Right at the comma
     };
 
@@ -320,21 +324,23 @@ users: @User
 fn test_matrix_completion_reference_field_detection() {
     // Test completion in author_id column which should detect it's a reference field
     // and suggest entity references
-    let content = r"%VERSION: 1.0
-%STRUCT: Post: [id, title, author_id]
-%STRUCT: User: [id, name]
+    let content = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Post:[id, title, author_id]
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice Smith
-  | bob, Bob Jones
+users:@User
+ |alice, Alice Smith
+ |bob, Bob Jones
 
-posts: @Post
-  | post1, First Post, ";
+posts:@Post
+ |post1, First Post, "#;
 
     let analysis = AnalyzedDocument::analyze(content);
 
     let position = Position {
-        line: 9,       // Line with "  | post1, First Post, "
+        line: 11,      // Line with " |post1, First Post, "
         character: 24, // After "post1, First Post, " at column 2 (author_id)
     };
 
@@ -350,17 +356,17 @@ posts: @Post
     // Should have reference completions for User entities
     // Note: This requires that the parser successfully extracted the User entities
     // If the incomplete row causes parse failure, we won't have entity suggestions
-    // but we should still get basic completions (ditto, null, etc.)
+    // but we should still get basic completions (null, booleans, etc.)
     let has_user_alice = completions.iter().any(|c| c.label.contains("@User:alice"));
     let has_user_bob = completions.iter().any(|c| c.label.contains("@User:bob"));
 
     // We should have at least one User reference suggestion if entities were extracted
     if analysis.entities.is_empty() {
         // If no entities due to parse error, at least verify we get basic completions
-        let has_ditto = completions.iter().any(|c| c.label == "^");
+        let has_null = completions.iter().any(|c| c.label == "~");
         assert!(
-            has_ditto,
-            "Should at least offer ditto when no entities available"
+            has_null,
+            "Should at least offer null when no entities available"
         );
     } else {
         assert!(

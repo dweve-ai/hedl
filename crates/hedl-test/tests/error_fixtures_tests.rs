@@ -92,7 +92,7 @@ fn test_semantically_invalid_docs_have_valid_structure() {
         assert!(!name.is_empty(), "Doc name should not be empty");
         assert_eq!(
             doc.version,
-            (1, 0),
+            (2, 0),
             "Invalid doc '{name}' should have valid version"
         );
     }
@@ -139,10 +139,12 @@ fn test_undefined_nest_doc() {
     // Should have NEST pointing to non-existent type
     assert!(!doc.nests.is_empty());
 
-    for child_type in doc.nests.values() {
-        // At least one child type should not be defined
-        if !doc.structs.contains_key(child_type) {
-            return; // Test passes
+    for child_types in doc.nests.values() {
+        for child_type in child_types {
+            // At least one child type should not be defined
+            if !doc.structs.contains_key(child_type) {
+                return; // Test passes
+            }
         }
     }
 
@@ -264,7 +266,7 @@ fn test_invalid_alias_doc() {
 fn test_deeply_nested_document_basic() {
     let doc = deeply_nested_document(5);
 
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (2, 0));
     assert!(doc.root.contains_key("levels"));
 }
 
@@ -273,7 +275,7 @@ fn test_deeply_nested_document_large_depth() {
     let doc = deeply_nested_document(50);
 
     // Should succeed without stack overflow
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (2, 0));
 }
 
 #[test]

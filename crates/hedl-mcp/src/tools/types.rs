@@ -69,9 +69,6 @@ pub struct OptimizeArgs {
     pub json: String,
     #[serde(default = "default_true")]
     pub ditto: bool,
-    #[serde(default)]
-    #[allow(dead_code)]
-    pub compact: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -128,14 +125,17 @@ pub struct StreamArgs {
 
 // ============ Default Value Functions ============
 
+/// Returns `true` as a serde default.
 pub fn default_true() -> bool {
     true
 }
 
+/// Returns `"simple"` as a serde default format.
 pub fn default_simple() -> String {
     "simple".to_string()
 }
 
+/// Returns `100` as a serde default limit.
 pub fn default_limit() -> usize {
     100
 }

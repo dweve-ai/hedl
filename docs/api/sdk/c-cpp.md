@@ -8,19 +8,19 @@ Complete SDK documentation for using HEDL in C and C++ via FFI.
 
 ```bash
 # Linux
-wget https://github.com/dweve/hedl/releases/download/v1.2.0/libhedl.so
+wget https://github.com/dweve-ai/hedl/releases/download/v2.0.0/libhedl.so
 
 # macOS
-wget https://github.com/dweve/hedl/releases/download/v1.2.0/libhedl.dylib
+wget https://github.com/dweve-ai/hedl/releases/download/v2.0.0/libhedl.dylib
 
 # Windows
-curl -O https://github.com/dweve/hedl/releases/download/v1.2.0/hedl.dll
+curl -O https://github.com/dweve-ai/hedl/releases/download/v2.0.0/hedl.dll
 ```
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/dweve/hedl.git
+git clone https://github.com/dweve-ai/hedl.git
 cd hedl
 cargo build --release -p hedl-ffi
 
@@ -36,7 +36,7 @@ cargo build --release -p hedl-ffi
 
 int main() {
     const char* input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
         "---\n"
         "name: Alice\n"
         "age: 30\n";
@@ -86,7 +86,7 @@ using HedlDocPtr = std::unique_ptr<HedlDocument, HedlDocDeleter>;
 using HedlStringPtr = std::unique_ptr<char, HedlStringDeleter>;
 
 int main() {
-    const char* input = "%VERSION: 1.0\n---\nname: Alice\n";
+    const char* input = "%V:2.0\n---\nname: Alice\n";
 
     HedlDocument* raw_doc = nullptr;
     if (hedl_parse(input, -1, 0, &raw_doc) != HEDL_OK) {
@@ -528,7 +528,7 @@ void parse_callback(int status, HedlDocument* doc, const char* error, void* user
 }
 
 int main() {
-    const char* input = "%VERSION: 1.0\n---\nname: Alice\n";
+    const char* input = "%V:2.0\n---\nname: Alice\n";
 
     AsyncContext ctx = {
         .mutex = PTHREAD_MUTEX_INITIALIZER,
@@ -610,7 +610,7 @@ public:
 
 int main() {
     AsyncParse parser;
-    auto future = parser.parse("%VERSION: 1.0\n---\nname: Alice\n");
+    auto future = parser.parse("%V:2.0\n---\nname: Alice\n");
 
     try {
         std::string json = future.get();

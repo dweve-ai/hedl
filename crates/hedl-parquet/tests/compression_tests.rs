@@ -33,7 +33,7 @@ use std::collections::HashMap;
 
 /// Create a document with various data types for compression testing.
 fn create_mixed_type_document(row_count: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Record",
         vec![
@@ -68,7 +68,7 @@ fn create_mixed_type_document(row_count: usize) -> Document {
 
 /// Create a document with mostly strings for compression comparison.
 fn create_string_heavy_document(row_count: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Text",
         vec![
@@ -97,41 +97,6 @@ fn create_string_heavy_document(row_count: usize) -> Document {
     }
 
     doc.root.insert("texts".to_string(), Item::List(list));
-    doc
-}
-
-/// Create a document with mostly numeric data.
-/// Available for future compression optimization tests.
-#[allow(dead_code)]
-fn create_numeric_heavy_document(row_count: usize) -> Document {
-    let mut doc = Document::new((1, 0));
-    let mut list = MatrixList::new(
-        "Metric",
-        vec![
-            "id".to_string(),
-            "value_a".to_string(),
-            "value_b".to_string(),
-            "value_c".to_string(),
-            "count".to_string(),
-        ],
-    );
-
-    for i in 0..row_count {
-        let node = Node::new(
-            "Metric",
-            format!("m{i}"),
-            vec![
-                Value::String(format!("m{i}").into()),
-                Value::Float(100.0 * (i as f64) / (row_count as f64)),
-                Value::Float(-50.0 + (i as f64) * 0.25),
-                Value::Float((i as f64).sin() * 100.0),
-                Value::Int(i as i64 * 1000),
-            ],
-        );
-        list.add_row(node);
-    }
-
-    doc.root.insert("metrics".to_string(), Item::List(list));
     doc
 }
 
@@ -383,7 +348,7 @@ fn test_dictionary_encoding_disabled() {
 #[test]
 fn test_dictionary_encoding_with_high_cardinality() {
     // Test dictionary encoding with data that has many unique values
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "UniqueData",
         vec!["id".to_string(), "unique_val".to_string()],
@@ -417,7 +382,7 @@ fn test_dictionary_encoding_with_high_cardinality() {
 #[test]
 fn test_dictionary_encoding_with_low_cardinality() {
     // Test dictionary encoding with data that has few unique values (best case)
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "LowCardinality",
         vec![
@@ -520,7 +485,7 @@ fn test_data_integrity_with_compression_profiles() {
 
 #[test]
 fn test_null_values_with_compression() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "NullableData",
         vec![
@@ -630,7 +595,7 @@ fn test_uncompressed_vs_compressed_size() {
 
 #[test]
 fn test_empty_document_with_compression() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
 
     let profiles: [&str; 0] = [];
     for profile in profiles {
@@ -642,7 +607,7 @@ fn test_empty_document_with_compression() {
 
 #[test]
 fn test_single_row_with_compression() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Single", vec!["id".to_string(), "val".to_string()]);
     list.add_row(Node::new(
         "Single",

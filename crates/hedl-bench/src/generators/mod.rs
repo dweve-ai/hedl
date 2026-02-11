@@ -26,11 +26,17 @@
 //! - **config**: Configuration types and complexity levels
 //! - **validation**: Validation utilities for generated data
 
+/// Generator configuration and complexity levels.
 pub mod config;
+/// Graph structure generators with cross-references.
 pub mod graph;
+/// Hierarchical and nested structure generators.
 pub mod hierarchical;
+/// Simple data generators for flat and basic structures.
 pub mod simple;
+/// Domain-specific data generators.
 pub mod specialized;
+/// Generator validation utilities.
 pub mod validation;
 
 // Re-export commonly used types

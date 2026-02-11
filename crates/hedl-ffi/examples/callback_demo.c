@@ -29,7 +29,9 @@ void example_simple_stdout(void) {
     printf("=== Example 1: Write to stdout ===\n");
 
     const char* hedl_input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
         "---\n"
         "person:\n"
         "  name: Alice\n"
@@ -68,7 +70,9 @@ void example_write_to_file(void) {
     printf("=== Example 2: Write to file ===\n");
 
     const char* hedl_input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
         "---\n"
         "users: [\n"
         "  { name: Alice, role: admin }\n"
@@ -131,7 +135,9 @@ void example_accumulator(void) {
     printf("=== Example 3: Accumulate data ===\n");
 
     const char* hedl_input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
         "---\n"
         "product:\n"
         "  id: 12345\n"
@@ -179,7 +185,9 @@ void example_multiple_formats(void) {
     printf("=== Example 4: Multiple format conversions ===\n");
 
     const char* hedl_input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
         "---\n"
         "data:\n"
         "  field1: value1\n"
@@ -224,7 +232,9 @@ void example_callback_vs_regular(void) {
     printf("=== Example 5: Callback vs Regular API ===\n");
 
     const char* hedl_input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
         "---\n"
         "message: Hello, HEDL!\n";
 
@@ -260,7 +270,7 @@ void example_large_document(void) {
     char* large_hedl = malloc(10 * 1024 * 1024);  /* 10MB buffer */
     char* ptr = large_hedl;
 
-    ptr += sprintf(ptr, "%%VERSION: 1.0\n---\n");
+    ptr += sprintf(ptr, "%%V:2.0\n%%NULL:~\n%%QUOTE:\"\n---\n");
 
     /* Add many entities */
     for (int i = 0; i < 10000; i++) {

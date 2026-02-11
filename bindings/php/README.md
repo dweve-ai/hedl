@@ -41,8 +41,8 @@ use Dweve\Hedl\Hedl;
 
 // Parse HEDL content
 $doc = Hedl::parse('
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User
   | alice, Alice Smith, alice@example.com
@@ -151,7 +151,7 @@ use Amp\Loop;
 
 // Async parsing
 Loop::run(function() {
-    $promise = Hedl::parseAsync('%VERSION: 1.0\n---\nkey: value');
+    $promise = Hedl::parseAsync('%V:2.0\n---\nkey: value');
     $doc = yield $promise;
     echo $doc->toJson();
     $doc->close();
@@ -181,7 +181,7 @@ use Dweve\Hedl\Hedl;
 use Amp\Loop;
 
 Loop::run(function() {
-    $doc = Hedl::parse('%VERSION: 1.0\n---\nusers: [{id: 1, name: Alice}]');
+    $doc = Hedl::parse('%V:2.0\n---\nusers: [{id: 1, name: Alice}]');
     $asyncDoc = Hedl::wrapAsync($doc);
 
     // Async conversions

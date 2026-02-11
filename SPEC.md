@@ -1,12 +1,12 @@
-# HEDL Specification v1.0.0
+# HEDL Specification v2.0.0
 
 Hierarchical Entity Data Language
 
 **Status:** Released
-**Version:** 1.0.0
+**Version:** 2.0.0
 **MIME Type:** `application/hedl`
 **File Extension:** `.hedl`
-**Release Date:** 2026-01-08
+**Release Date:** 2026-01-25
 
 ---
 
@@ -49,13 +49,14 @@ HEDL (Hierarchical Entity Data Language) is a text-based data serialization form
 ### 1.1 Core Innovations
 
 * **Schema-defined positional matrices**: Typed lists encoded as CSV-like rows with implicit column mapping
-* **Strict indentation as structure**: Eliminates brackets and explicit delimiters through consistent 2-space indentation
+* **Strict indentation as structure**: Eliminates brackets and explicit delimiters through consistent 1-space indentation (v2.0)
 * **Document-wide identity system**: Global IDs enable graph relationships without duplication
 * **Implicit child lists**: Automatic parent-child attachment via nesting rules without explicit container declaration
-* **Scoped ditto operator**: Repeats previous values within bounded contexts, reducing redundancy
+* **Scoped ditto operator** (pre-v2.0 only, removed in v2.0): Repeats previous values within bounded contexts, reducing redundancy
 * **Alias system**: Global constants for token substitution and schema sharing
 * **Simple and complex modes**: Progressive disclosure from basic key-value pairs to full schematized graphs
 * **Tensor literals**: Built-in support for numerical arrays in AI/ML workflows
+* **Compact directive syntax**: Shortened directive names for minimal token overhead
 
 ### 1.2 Data Model
 
@@ -97,9 +98,9 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 
 ### 2.3 Parsing Terms
 
-* **Indent Level**: `LeadingSpaces / 2` (integer division, Section 4.3)
-* **Schema Registry**: Map of `TypeName → ordered Columns[]` defined by `%STRUCT` directives
-* **Matrix List**: A keyed list of typed rows, initiated by `key: @TypeName` or `key: @TypeName[...]`
+* **Indent Level**: `LeadingSpaces` (1 space = 1 level, Section 4.3)
+* **Schema Registry**: Map of `TypeName → ordered Columns[]` defined by `%S` (or `%STRUCT`) directives
+* **Matrix List**: A keyed list of typed rows, initiated by `key:@TypeName` or `key:@TypeName[...]`
 * **Matrix Row**: A `|`-prefixed CSV record parsed according to its enclosing list's schema
 * **Context Stack**: Stack of active scopes controlling what node types are allowed
 * **List Frame**: Stack frame representing an active matrix list, tracking schema and row state
@@ -108,6 +109,11 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 * **Node Registry**: Global mapping of `ID → Node` populated during parsing
 * **Alias Registry**: Global mapping of `%key → string` defined by `%ALIAS` directives
 * **Truncation State**: Tracks whether the document ends in the middle of a structure
+* **List Literal**: Parenthesized sequence of scalars `(elem, ...)` (v1.1+, Section 4.6.9)
+* **Count Registry**: Map of `Type.field → counts` from `%C` directives (v1.2, Section 6.10)
+* **Parse Mode**: `strict` (default) or `lenient`, from `%MODE` directive (v1.1+, Section 6.6)
+* **Null Symbol**: Character representing null, from `%NULL` directive (default `~`)
+* **Quote Symbol**: Character for quoting strings, from `%QUOTE` directive (default `"`)
 
 ### 2.4 Data Terms
 
@@ -134,7 +140,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 
 1. **Token Efficiency**: Minimize structural overhead for LLM context windows
    - Target: ≤50% token count compared to JSON for typical AI datasets
-   - Achieved through: implicit structure, ditto operator, positional encoding, optional schemas
+   - Achieved through: implicit structure, positional encoding, optional schemas
 
 2. **Deterministic Parsing**: Identical input yields identical structure without heuristics
    - No ambiguous grammar
@@ -193,7 +199,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **
 
 * Files MUST be UTF-8 encoded without null bytes
 * **Structural Tokens**: All structural tokens (Keys, TypeNames, Directives) MUST be ASCII-only. This ensures maximum interoperability and simplicity for tooling.
-* **ID Tokens**: ID tokens MUST be ASCII-only for v1.0.0 to ensure consistent reference resolution across platforms. Future versions may support Unicode IDs.
+* **ID Tokens**: ID tokens MUST be ASCII-only for v1.0/v1.1 to ensure consistent reference resolution across platforms. Future versions may support Unicode IDs.
 * **Data Values**: String values, comments, and tensor literals MAY contain any valid UTF-8 sequence.
 * A UTF-8 BOM (Byte Order Mark) SHOULD NOT be present
 * If a BOM is present, parsers MUST:
@@ -225,29 +231,28 @@ HEDL uses significant whitespace for structure:
 
 1. **Indentation Characters**: Only ASCII space (`U+0020`) is allowed for indentation
 2. **Tab Prohibition**: Tab characters (`U+0009`) are NOT allowed for indentation but MAY appear inside quoted strings and expressions
-3. **Step Size**: Exactly 2 spaces per indent level
-4. **Validation**: If `LeadingSpaces mod 2 ≠ 0`, it's a Syntax Error (unless line is blank)
-5. **Maximum Depth**: Parsers SHOULD enforce a maximum indent depth (default 50)
-6. **Zero Indent**: The first non-header, non-blank line MUST have indent level 0
-7. **Whitespace Definition**: Throughout this specification, "whitespace" refers to ASCII space (`U+0020`) only, unless explicitly stated otherwise. Unicode whitespace characters (e.g., NBSP, zero-width spaces) are NOT treated as whitespace for parsing purposes and SHOULD cause warnings or errors if found in structural positions.
+3. **Step Size**: Exactly 1 space per indent level (v2.0)
+4. **Maximum Depth**: Parsers SHOULD enforce a maximum indent depth (default 50)
+5. **Zero Indent**: The first non-header, non-blank line MUST have indent level 0
+6. **Whitespace Definition**: Throughout this specification, "whitespace" refers to ASCII space (`U+0020`) only, unless explicitly stated otherwise. Unicode whitespace characters (e.g., NBSP, zero-width spaces) are NOT treated as whitespace for parsing purposes and SHOULD cause warnings or errors if found in structural positions.
 
 **Definition**: For a line with `LeadingSpaces` (count of leading spaces after normalization):
 ```
-IndentLevel = LeadingSpaces // 2  (integer division)
+IndentLevel = LeadingSpaces  (1 space = 1 level)
 ```
 
 **Indentation Examples**:
 ```hedl
-level0:       # IndentLevel = 0
-  level1:     # IndentLevel = 1 (2 spaces)
-    level2:   # IndentLevel = 2 (4 spaces)
-  level1_2:   # IndentLevel = 1 (back to 2 spaces)
+level0:      # IndentLevel = 0
+ level1:     # IndentLevel = 1 (1 space)
+  level2:    # IndentLevel = 2 (2 spaces)
+ level1_2:   # IndentLevel = 1 (back to 1 space)
 ```
 
 **Syntax Error Examples**:
 ```hedl
 level0:
-   level1:    # ERROR: 3 spaces (odd number)
+	level1:    # ERROR: tab character not allowed
 	level1:    # ERROR: tab character for indentation
 ```
 
@@ -276,101 +281,149 @@ For all non-matrix-row line types, inline comments MUST be stripped by scanning 
 
 **Normative Algorithm: `strip_comment(line)`**
 
-```python
-def strip_comment(line):
-    """
-    Strips inline comments from a line, respecting quoted strings and expressions.
-    Returns the line with comment removed.
-    """
-    regions = scan_regions(line)
-    region_idx = 0
-    
-    for i, char in enumerate(line):
-        # Advance region pointer if we passed the current region
-        while region_idx < len(regions) and regions[region_idx][1] <= i:
-            region_idx += 1
-            
-        # Check if current char is inside the active region
-        is_in_protected_region = False
-        if region_idx < len(regions):
-            start, end, _ = regions[region_idx]
-            if start <= i < end:
-                is_in_protected_region = True
-        
-        if char == '#' and not is_in_protected_region:
-            return line[:i].rstrip() # Comment found outside protected region
-            
-    return line.rstrip() # No comment found
+```rust
+/// Type of protected region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegionType {
+    Quote,
+    Expression,
+}
+
+/// A protected region in a line.
+#[derive(Debug, Clone, Copy)]
+pub struct Region {
+    pub start: usize,  // Start byte offset
+    pub end: usize,    // End byte offset (exclusive)
+    pub region_type: RegionType,
+}
+
+/// Strip inline comment from a line, respecting protected regions.
+/// Returns the line with comment removed (trimmed).
+pub fn strip_comment(line: &str) -> &str {
+    let bytes = line.as_bytes();
+
+    // Find first # character
+    let hash_pos = match bytes.iter().position(|&b| b == b'#') {
+        Some(pos) => pos,
+        None => return line.trim_end(),
+    };
+
+    // Check if # appears before any protected region starts
+    let has_quote_before = bytes.iter().take(hash_pos).any(|&b| b == b'"');
+    let has_expr_before = bytes.windows(2).take(hash_pos).any(|w| w == b"$(");
+
+    if !has_quote_before && !has_expr_before {
+        // No protected regions before #, safe to strip
+        return line[..hash_pos].trim_end();
+    }
+
+    // Scan regions to find unprotected #
+    let regions = scan_regions(line);
+
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b'#' {
+            let in_region = regions.iter().any(|r| r.start <= i && i < r.end);
+            if !in_region {
+                return line[..i].trim_end();
+            }
+        }
+    }
+
+    line.trim_end()
+}
 ```
 
 **Normative Algorithm: `scan_regions(line)`**
 
-This algorithm scans a line and identifies regions of quoted strings and expressions. It returns a list of tuples `(start_index, end_index, type)` where `type` is either `"quote"` or `"expression"`. These regions indicate where special characters (like `#` or `,`) might lose their usual meaning.
+This algorithm scans a line and identifies regions of quoted strings and expressions. It returns a list of `Region` structs indicating where special characters (like `#` or `,`) lose their usual meaning.
 
-```python
-def scan_regions(line):
-    """
-    Scans a line for quoted string and expression regions.
-    Returns a list of (start_index, end_index, type) tuples.
-    """
-    regions = []
-    i = 0
-    while i < len(line):
-        if line[i] == '"':
-            start_quote = i
-            i += 1
-            while i < len(line):
-                if line[i] == '"':
-                    if i + 1 < len(line) and line[i + 1] == '"': # Escaped quote
-                        i += 2
-                    else: # Closing quote
-                        regions.append((start_quote, i + 1, "quote"))
-                        i += 1
-                        break
-                else:
-                    i += 1
-            if i == len(line) and line[i-1] != '"': # Unclosed quote at end of line
-                 regions.append((start_quote, len(line), "quote")) # Mark as region until end
-        elif line[i:i+2] == '$(':
-            start_expr = i
-            i += 2
-            depth = 1
-            in_expr_quotes = False
-            
-            while i < len(line):
-                char = line[i]
-                
-                if char == '"':
-                    if in_expr_quotes:
-                        if i + 1 < len(line) and line[i + 1] == '"': # Escaped quote
-                            i += 2
-                            continue
-                        else:
-                            in_expr_quotes = False
-                    else:
-                        in_expr_quotes = True
-                
-                if not in_expr_quotes:
-                    if char == '(':
-                        depth += 1
-                    elif char == ')':
-                        depth -= 1
-                
-                if depth == 0:
-                    regions.append((start_expr, i + 1, "expression"))
-                    i += 1
-                    break
-                elif char == '\n': # Expression cannot span multiple lines
-                    # This should ideally be caught by lexical analysis before scan_regions
-                    # For safety, if encountered, consider it ends here but is malformed
-                    regions.append((start_expr, i, "expression"))
-                    break
-                i += 1
-            if depth != 0: # Unclosed expression at end of line
-                 regions.append((start_expr, len(line), "expression")) # Mark as region until end
-        else:
-            i += 1
-    return regions
+```rust
+/// Scan a line for protected regions (quoted strings and expressions).
+pub fn scan_regions(line: &str) -> Vec<Region> {
+    let mut regions = Vec::new();
+    let bytes = line.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b'"' {
+            // Start of quoted string
+            let start = i;
+            i += 1;
+
+            while i < bytes.len() {
+                if bytes[i] == b'"' {
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'"' {
+                        // Escaped quote ""
+                        i += 2;
+                    } else {
+                        // End of quoted string
+                        regions.push(Region {
+                            start,
+                            end: i + 1,
+                            region_type: RegionType::Quote,
+                        });
+                        i += 1;
+                        break;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+
+            // Unclosed quote extends to end of line
+            if i >= bytes.len() && (regions.is_empty() || regions.last().unwrap().start != start) {
+                regions.push(Region {
+                    start,
+                    end: bytes.len(),
+                    region_type: RegionType::Quote,
+                });
+            }
+        } else if i + 1 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'(' {
+            // Start of expression
+            let start = i;
+            i += 2;
+            let mut depth = 1;
+            let mut in_expr_quotes = false;
+
+            while i < bytes.len() && depth > 0 {
+                let b = bytes[i];
+
+                if b == b'"' {
+                    if in_expr_quotes {
+                        if i + 1 < bytes.len() && bytes[i + 1] == b'"' {
+                            i += 2;
+                            continue;
+                        } else {
+                            in_expr_quotes = false;
+                        }
+                    } else {
+                        in_expr_quotes = true;
+                    }
+                }
+
+                if !in_expr_quotes {
+                    if b == b'(' {
+                        depth += 1;
+                    } else if b == b')' {
+                        depth -= 1;
+                    }
+                }
+
+                i += 1;
+            }
+
+            regions.push(Region {
+                start,
+                end: i,
+                region_type: RegionType::Expression,
+            });
+        } else {
+            i += 1;
+        }
+    }
+
+    regions
+}
 ```
 
 **Examples**:
@@ -409,7 +462,7 @@ key: value  # This is an inline comment
 - **Allowed**: ASCII lowercase letters, digits, underscore, hyphen
 - **Examples**: `user_1`, `item-two`, `_system`
 - **Invalid**: `User1` (starts with uppercase), `123` (starts with digit), `two words` (space), `ITEM` (uppercase letters)
-- **Note**: ASCII-only for v1.0.0 to ensure consistent reference resolution. Future versions may support Unicode.
+- **Note**: ASCII-only for v1.0/v1.1 to ensure consistent reference resolution. Future versions may support Unicode.
 
 #### 4.6.4 Reference Token
 
@@ -444,12 +497,14 @@ key: value  # This is an inline comment
 * **Backslash**: remains literal; no escaping rules
 * **Examples**: `$(x + 1)`, `$((a + b))` → `Expression("(a + b)")`, `$(concat("hello", "world"))`
 
-#### 4.6.7 Ditto Token
+#### 4.6.7 Ditto Token (v1.2 only)
+
+> **Note**: The ditto operator (`^`) is NOT allowed in v2.0. Every cell must have an explicit value. This section documents v1.2 behavior for reference.
 
 **Pattern**: `^` (single caret)
-- **Used for**: copying value from same column of previous row
+- **Used for**: copying value from same column of previous row (v1.2 only)
 - **Context**: Only valid in matrix cells, not in Key-Value pairs
-- **Invalid contexts**: ID column, first row of list, Key-Value values
+- **Invalid contexts**: ID column, first row of list, Key-Value values, **all v2.0 documents**
 
 #### 4.6.8 Tensor Literal
 
@@ -459,6 +514,98 @@ key: value  # This is an inline comment
 - **Rules**: Must contain only numbers, commas, spaces, and balanced brackets
 - **Examples**: `[1, 2, 3]`, `[[1.5, 2.0], [3.1, 4.2]]`
 - **Invalid**: `[1, "text"]` (mixed types), `[1, 2` (unbalanced)
+
+#### 4.6.9 List Literal (v1.1)
+
+**Pattern**: Starts with `(`, contains balanced parentheses with scalar values
+- **Used for**: ordered sequences of scalar values (distinct from numeric tensors)
+- **Format**: `(elem1, elem2, ...)` or `()`
+- **Delimiters**: `(` and `)` (distinct from tensor brackets `[` `]`)
+- **Rules**:
+  - Empty list: `()` is always valid
+  - Elements are parsed using the existing scalar inference ladder
+  - Elements are separated by commas
+  - Lists MAY be homogeneous or heterogeneous
+  - Lists can contain any scalar type: strings, numbers, booleans, null, references, expressions
+- **Distinction from Tensors**:
+  - `[...]` = numeric tensor (numbers only)
+  - `(...)` = list of scalars (any scalar type)
+- **Examples**:
+  - `(admin, editor, viewer)` - list of strings
+  - `(true, false, true)` - list of booleans
+  - `(1, "two", ~, @ref1)` - heterogeneous list
+  - `()` - empty list
+- **Invalid**: `(1, 2` (unbalanced), `((nested))` (nested lists not supported)
+
+**List Literal Parsing Algorithm**:
+
+```rust
+fn parse_list_literal(value_str: &str) -> Vec<ScalarValue> {
+    /// Parse a list literal from a string.
+    /// Precondition: value_str starts with '(' and ends with ')'.
+    /// Returns: list of parsed scalar values.
+    if value_str == "()" {
+        return Vec::new();
+    }
+
+    // Remove outer parentheses
+    let inner = value_str[1..value_str.len()-1].trim();
+    if inner.is_empty() {
+        return Vec::new();
+    }
+
+    // Split by comma, respecting quotes and nested expressions
+    let mut elements = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    let mut in_quotes = false;
+    let mut in_expr = false;
+    let mut expr_depth = 0;
+
+    let chars: Vec<char> = inner.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let char = chars[i];
+
+        if char == '"' && !in_expr {
+            in_quotes = !in_quotes;
+            current.push(char);
+        } else if char == '$' && i + 1 < chars.len() && chars[i + 1] == '(' && !in_quotes {
+            in_expr = true;
+            expr_depth = 1;
+            current.push_str("$(");
+            i += 1;
+        } else if in_expr {
+            current.push(char);
+            if char == '(' && !in_quotes {
+                expr_depth += 1;
+            } else if char == ')' && !in_quotes {
+                expr_depth -= 1;
+                if expr_depth == 0 {
+                    in_expr = false;
+                }
+            }
+        } else if char == ',' && !in_quotes && depth == 0 {
+            // End of element
+            let elem_str = current.trim();
+            elements.push(infer_scalar_value(elem_str));
+            current = String::new();
+        } else {
+            current.push(char);
+        }
+
+        i += 1;
+    }
+
+    // Don't forget the last element
+    if !current.is_empty() {
+        let elem_str = current.trim();
+        elements.push(infer_scalar_value(elem_str));
+    }
+
+    elements
+}
+```
 
 ### 4.7 Colon Spacing (Body Section Only)
 
@@ -474,7 +621,7 @@ Any non-whitespace character immediately following `:` in the Body (e.g., `key:v
 # Valid
 key:          # Object Start
 key: value    # Key-Value
-key: @Type    # Matrix List Start
+key:@Type    # Matrix List Start
 
 # Invalid
 key:value     # SyntaxError - no space after colon
@@ -513,7 +660,7 @@ In matrix cells (CSV fields), unquoted values:
 # Key-Value context
 email: alice@example.com    # Valid - @ inside string
 cost: 100$                  # Valid - $ inside string
-ref: @user1                 # Valid - reference (starts with @)
+ref:@user1                 # Valid - reference (starts with @)
 expr: $(x + 1)              # Valid - expression (starts with $()
 alias: %active              # Valid - alias (starts with %)
 ditto: ^                    # Valid - string "^" (ditto NOT special in Key-Value)
@@ -545,7 +692,7 @@ Every HEDL document consists of three mandatory parts in order:
 - **Location**: From start of file to separator line
 - **Directives**: Start with `%`, case-sensitive uppercase
 - **Order**: Directives MUST appear in dependency order (Section 6.1)
-- **Optional**: Header may contain only `%VERSION: 1.0` and separator for simple documents
+- **Optional**: Header may contain only `%V:2.0` and separator for simple documents
 
 ### 5.3 Separator Line
 
@@ -560,12 +707,12 @@ Every HEDL document consists of three mandatory parts in order:
 
 **Examples**:
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---  # Valid with trailing spaces
 ```
 
 ```hedl
-%VERSION: 1.0
+%V:2.0
   ---  # SyntaxError - leading spaces
 ```
 
@@ -582,7 +729,7 @@ Every HEDL document consists of three mandatory parts in order:
 
 * An empty document (zero bytes) is invalid
 * A document containing only whitespace and/or comments is invalid
-* Minimum valid document: `%VERSION: 1.0\n---\n`
+* Minimum valid document: `%V:2.0\n---\n`
 * A document with only header and separator but no body is valid (empty root object)
 
 **Examples**:
@@ -593,12 +740,12 @@ Every HEDL document consists of three mandatory parts in order:
 
 ```hedl
 # Invalid - no separator
-%VERSION: 1.0
+%V:2.0
 ```
 
 ```hedl
 # Valid minimal document
-%VERSION: 1.0
+%V:2.0
 ---
 ```
 
@@ -610,24 +757,46 @@ The Header configures parsing state through directives. All directives start wit
 
 ### 6.1 Directive Format
 
+HEDL v2.0 supports two directive formats: **compact** (preferred) and **verbose** (legacy):
+
+**Compact Format (v1.2+)**:
+```
+%D:payload
+```
+
+**Verbose Format (v1.0/v1.1)**:
 ```
 %DIRECTIVE: payload
 ```
 
-* `DIRECTIVE` is case-sensitive ASCII uppercase
-* `:` MUST be followed by at least one space
+* `D` or `DIRECTIVE` is case-sensitive ASCII uppercase
+* In compact format, `:` is immediately followed by payload (no space)
+* In verbose format, `:` MUST be followed by at least one space
 * `payload` format depends on the directive
 * **Order**: Directives MUST appear in dependency order:
-  - `%VERSION` MUST be first (REQUIRED)
-  - `%STRUCT` definitions MUST appear before they are referenced by `%NEST`
+  - `%V` (or `%VERSION`) MUST be first (REQUIRED)
+  - `%S` (or `%STRUCT`) definitions MUST appear before they are referenced by `%N` (or `%NEST`)
 * **Comment handling**: Inline comments allowed after payload, stripped before parsing payload
-* **Spacing**: Implementations MUST accept one or more spaces after `:`
+* **Spacing**: In verbose format, implementations MUST accept one or more spaces after `:`
 
-### 6.2 `%VERSION` Directive (REQUIRED)
+**Directive Name Mapping (Compact ↔ Verbose)**:
+
+ |Compact | Verbose | Description |
+|---------|---------|-------------|
+ |`%V` | `%VERSION` | Version declaration |
+ |`%S` | `%STRUCT` | Schema definition |
+ |`%N` | `%NEST` | Nesting relationship |
+ |`%C` | `%COUNT` | Count/statistics (v1.2+) |
+ |`%NULL` | `%NULL` | Null symbol (REQUIRED in v2.0) |
+ |`%QUOTE` | `%QUOTE` | Quote symbol (REQUIRED in v2.0) |
+
+### 6.2 `%V` / `%VERSION` Directive (REQUIRED)
 
 Declares the HEDL specification version.
 
-**Syntax**: `%VERSION: major.minor`
+**Syntax**:
+- Compact (v1.2+): `%V:major.minor`
+- Verbose (v1.0/v1.1): `%VERSION: major.minor`
 
 **Parameters**:
 - `major`: Non-negative integer
@@ -637,15 +806,15 @@ Declares the HEDL specification version.
 
 **Examples**:
 ```hedl
-%VERSION: 1.0
-%VERSION: 2.5
+%V:2.0           # Compact (preferred for v1.2+)
+%VERSION: 2.0    # Verbose (v1.0/v1.1 style)
 ```
 
 **Invalid Examples**:
 ```hedl
-%VERSION: 1      # Missing minor
-%VERSION: 1.0.0  # Too many parts
-%VERSION: 01.0   # Leading zero
+%V:1             # Missing minor
+%V:2.0.0  # Too many parts
+%V:01.0          # Leading zero
 %VERSION: a.b    # Non-numeric
 ```
 
@@ -657,13 +826,15 @@ Declares the HEDL specification version.
 5. If `major` matches but `minor > parser.minor`: MAY accept if new features can be safely ignored
 6. Otherwise: proceed normally
 
-**Note**: This specification is version `1.0`.
+**Note**: This specification is version `2.0`.
 
-### 6.3 `%STRUCT` Directive (Optional)
+### 6.3 `%S` / `%STRUCT` Directive (Optional)
 
 Defines a named schema for typed matrix lists.
 
-**Syntax**: `%STRUCT: TypeName: [col1, col2, ...]`
+**Syntax**:
+- Compact (v1.2+): `%S:TypeName:[col1,col2,...]`
+- Verbose (v1.0/v1.1): `%S:TypeName:[col1, col2, ...]`
 
 **Requirements**:
 - `TypeName` MUST be a TypeName Token
@@ -675,9 +846,14 @@ Defines a named schema for typed matrix lists.
 
 **Examples**:
 ```hedl
-%STRUCT: User: [id,name,email]
-%STRUCT: Post: [id,author_id,content,timestamp]
-%STRUCT: Item: [id,name,price,quantity,category]
+# Compact (v2.0 preferred)
+%S:User:[id,name,email]
+%S:Post:[id,author_id,content,timestamp]
+%S:Item:[id,name,price,quantity,category]
+
+# Verbose (v1.0/v1.1 style)
+%S:User:[id,name,email]
+%S:Post:[id,author_id,content,timestamp]
 ```
 
 **Redefinition Rules**:
@@ -692,7 +868,7 @@ Defines a named schema for typed matrix lists.
 
 #### 6.3.1 Column List Parsing (Normative)
 
-A column list has the form `[col1, col2, ...]`.
+A column list has the form `[col1,col2,...]` (compact) or `[col1, col2, ...]` (verbose).
 
 Parsing algorithm:
 1. Strip inline comment if present
@@ -708,57 +884,66 @@ Parsing algorithm:
 
 **Examples**:
 ```hedl
-%STRUCT: User: [id, name, email]          # Valid
-%STRUCT: User: [ id , name , email ]      # Valid - spaces allowed
-%STRUCT: User: [id,name,email]            # Valid - no spaces
-%STRUCT: User: [id, name, email,]         # SyntaxError - trailing comma
-%STRUCT: User: []                         # SyntaxError - empty
-%STRUCT: User: [id, id]                   # SchemaError - duplicate
+%S:User:[id,name,email]                   # Valid - compact (preferred)
+%S:User:[id, name, email]          # Valid - verbose
+%S:User:[ id , name , email ]      # Valid - extra spaces
+%S:User:[id,name,email,]                  # SyntaxError - trailing comma
+%S:User:[]                                # SyntaxError - empty
+%S:User:[id,id]                           # SchemaError - duplicate
 ```
 
-### 6.4 `%NEST` Directive (Optional)
+### 6.4 `%N` / `%NEST` Directive (Optional)
 
 Declares implicit parent-child relationships for automatic list nesting.
 
-**Syntax**: `%NEST: ParentType > ChildType`
+**Syntax**:
+- Compact (v1.2+): `%N:ParentType>ChildType`
+- Verbose (v1.0/v1.1): `%N:ParentType>ChildType`
 
 **Requirements**:
-- `ParentType` MUST be defined via `%STRUCT`
-- `ChildType` MUST be defined via `%STRUCT` (for v1.0.0)
-- Each `ParentType` can have AT MOST one `%NEST` rule
+- `ParentType` MUST be defined via `%S` or `%STRUCT`
+- `ChildType` MUST be defined via `%S` or `%STRUCT`
+- Each `(ParentType, ChildType)` pair MUST be unique (no duplicate rules)
+- A `ParentType` MAY have multiple `%N`/`%NEST` rules for different `ChildType`s
 - No circular nesting chains (not validated but must be acyclic)
 
 **Semantics**:
-When parsing a list of `ParentType`, rows indented one level deeper are interpreted as belonging to a child list of `ChildType`, attached to the most recent parent row.
+When parsing a list of `ParentType`, rows indented one level deeper are interpreted as belonging to a child list of the appropriate `ChildType` (determined by the `@Type` marker), attached to the most recent parent row.
 
 **Error Conditions**:
-- Multiple `%NEST` directives with same `ParentType`: `SchemaError`
+- Duplicate `%N`/`%NEST` directive for same `(ParentType, ChildType)` pair: `SchemaError`
 - `ParentType` not in Schema Registry: `SchemaError`
 - `ChildType` not in Schema Registry: `SchemaError`
 
 **Example**:
 ```hedl
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,content]
-%NEST: User > Post
+# Compact (v2.0 preferred)
+%S:User:[id,name]
+%S:Post:[id,content]
+%N:User>Post
+
+# Verbose (v1.0/v1.1 style)
+%S:User:[id,name]
+%S:Post:[id,content]
+%N:User>Post
 ```
 
 **Nesting Chains**: Multiple levels allowed:
 ```hedl
-%STRUCT: Project: [id,name]
-%STRUCT: Task: [id,description]
-%STRUCT: SubTask: [id,details]
-%NEST: Project > Task
-%NEST: Task > SubTask
+%S:Project:[id,name]
+%S:Task:[id,description]
+%S:SubTask:[id,details]
+%N:Project>Task
+%N:Task>SubTask
 ```
 
-**Multiple Children**: Not supported in v1.0.0 (one parent type, one child type). For complex hierarchies with multiple child types, use flattened lists with explicit parent references (foreign keys).
+**Multiple Children**: Not supported in v1.0/v1.1 (one parent type, one child type). For complex hierarchies with multiple child types, use flattened lists with explicit parent references (foreign keys).
 
 ### 6.5 `%ALIAS` Directive (Optional)
 
 Defines global constants for token substitution.
 
-**Syntax**: `%ALIAS: %key: "expansion value"`
+**Syntax**: `%A:%key: "expansion value"`
 
 **Requirements**:
 - Key MUST be an Alias Key Token (`%` + Key Token)
@@ -778,8 +963,8 @@ Defines global constants for token substitution.
 2. During parsing, alias references (`%key`) are replaced by the literal string value
 3. The replaced value then enters the normal inference ladder (Sections 8.2, 9.3)
    - **Important**: The expansion replaces the *unquoted* alias token. The result is treated as raw text for inference.
-   - Example: `%ALIAS: %true: "true"`. Usage `| %true`. Expands to `true`. Inferred as **Boolean**.
-   - Example: `%ALIAS: %val: "123"`. Usage `| %val`. Expands to `123`. Inferred as **Integer**.
+   - Example: `%A:%true: "true"`. Usage `| %true`. Expands to `true`. Inferred as **Boolean**.
+   - Example: `%A:%val: "123"`. Usage `| %val`. Expands to `123`. Inferred as **Integer**.
    - It is NOT possible to alias a Quoted String structure. Usage `| "%val"` treats `%val` as a literal string.
 4. NO recursive expansion (aliases cannot reference other aliases)
 5. Aliases are only expanded for unquoted tokens
@@ -787,29 +972,206 @@ Defines global constants for token substitution.
 
 **Examples**:
 ```hedl
-%ALIAS: %active: "true"          # Expands to "true", then inferred as boolean true
-%ALIAS: %inactive: "false"       # Expands to "false", then boolean false
-%ALIAS: %empty: ""               # Expands to empty string
-%ALIAS: %pi: "3.14159"           # Expands to "3.14159", then inferred as float
-%ALIAS: %name: "John ""Doc"" Doe"  # Expands to John "Doc" Doe
+%A:%active: "true"          # Expands to "true", then inferred as boolean true
+%A:%inactive: "false"       # Expands to "false", then boolean false
+%A:%empty: ""               # Expands to empty string
+%A:%pi: "3.14159"           # Expands to "3.14159", then inferred as float
+%A:%name: "John ""Doc"" Doe"  # Expands to John "Doc" Doe
 ```
 
 **Invalid Examples**:
 ```hedl
-%ALIAS: active: "true"           # Missing % on key
-%ALIAS: %active: true            # Value not quoted
-%ALIAS: %active: "true"          # OK
-%ALIAS: %active: "false"         # AliasError - duplicate key
+%A:active: "true"           # Missing % on key
+%A:%active: true            # Value not quoted
+%A:%active: "true"          # OK
+%A:%active: "false"         # AliasError - duplicate key
 ```
 
-### 6.6 Minimal Header
+### 6.6 `%MODE` Directive (Optional, v1.1)
 
-For simple documents without schemas, only the version directive is required:
+Controls parsing strictness for constraint violations.
+
+**Syntax**: `%MODE: strict` or `%MODE: lenient`
+
+**Values**:
+- `strict` (default): First constraint violation is a hard error; parsing stops immediately
+- `lenient`: Constraint violations become `~` (null); diagnostics are emitted out-of-band (implementation-defined)
+
+**Requirements**:
+- If present, MUST appear after `%VERSION` but before `%STRUCT` directives
+- Only one `%MODE` directive is allowed per document
+- If omitted, defaults to `strict`
+
+**Examples**:
+```hedl
+%V:2.0
+%MODE: strict
+---
+```
 
 ```hedl
-%VERSION: 1.0
+%V:2.0
+%MODE: lenient
+---
+```
+
+**Lenient Mode Semantics**:
+1. When a value violates a validation rule:
+   - The value is replaced with `~` (null)
+   - A diagnostic message is emitted (implementation-defined mechanism)
+   - Parsing continues
+2. Lenient mode does NOT affect syntax errors (which always halt parsing)
+3. Lenient mode does NOT affect schema shape errors (which always halt parsing)
+4. Diagnostics SHOULD include: line number, column, constraint violated, actual value
+
+### 6.7-6.9 Removed Directives
+
+The `%ENUM`, `%DICT`, and `%CONSTRAINT` directives were proposed in v1.1 but never shipped.
+They are removed in v2.0. Parsers MUST reject these directives with a clear error message
+indicating that they were removed and suggesting explicit values or external validation instead.
+
+**Error Conditions**:
+- Invalid predicate syntax: `SyntaxError`
+- Unknown enum reference: `SchemaError`
+- Constraint violation in strict mode: `ConstraintError`
+
+### 6.10 `%PROMPT` Directive (Optional, v1.1)
+
+Provides metadata hints for LLM/tooling consumption.
+
+**Syntax**: `%PROMPT: "instruction text"`
+
+**Requirements**:
+- Value MUST be a quoted string
+- Content is non-semantic (does not affect parsing or validation)
+- Multiple `%PROMPT` directives are allowed; they are concatenated
+
+**Semantics**:
+1. Parsers MUST store prompt content as document metadata
+2. Parsers MUST NOT use prompt content for parsing decisions
+3. Tools MAY surface prompt content to LLMs or other consumers
+4. Prompt content is preserved during round-trip canonicalization
+
+**Examples**:
+```hedl
+%V:2.0
+%PROMPT: "Answer questions by referencing entity IDs. Do not invent data."
+%PROMPT: "When listing employees, include their department."
+%S:Employee:[id, name, department]
+---
+employees:@Employee
+ |e1, Alice, Engineering
+ |e2, Bob, Sales
+```
+
+**Use Cases**:
+- LLM instruction injection for RAG systems
+- Documentation hints for tooling
+- Processing directives for downstream consumers
+
+### 6.11 `%NULL` Directive (REQUIRED for v2.0)
+
+Declares the character used to represent null values.
+
+**Syntax**: `%NULL:char`
+
+**Requirements**:
+- `char` MUST be a single ASCII character
+- In v2.0+, this directive is REQUIRED and MUST be `%NULL:~`
+- In v1.2 and earlier, default is `~` if not specified
+- MUST appear after `%V` and before `%QUOTE`
+
+**Examples**:
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+---
+```
+
+**Semantics**:
+1. The declared character represents null in both key-value pairs and matrix cells
+2. In matrix cells, an unquoted null character becomes the null value
+3. To represent the null character literally, quote it: `"~"`
+
+### 6.12 `%QUOTE` Directive (REQUIRED for v2.0)
+
+Declares the character used for quoting strings.
+
+**Syntax**: `%QUOTE:char`
+
+**Requirements**:
+- `char` MUST be a single ASCII character (typically `"`)
+- In v2.0+, this directive is REQUIRED and MUST be `%QUOTE:"`
+- In v1.2 and earlier, default is `"` if not specified
+- MUST appear after `%NULL` and before the separator `---`
+
+**Examples**:
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+---
+```
+
+**Semantics**:
+1. The declared character delimits quoted strings
+2. To include the quote character within a quoted string, escape it with backslash: `\"`
+3. Standard escape sequences are supported within quoted strings: `\n`, `\t`, `\\`, `\"`
+
+### 6.13 `%C` / `%COUNT` Directive (Optional, v1.2)
+
+Declares count statistics and categorical distributions for validation and documentation.
+
+**Syntax**:
+- Total count: `%C:TypeName.total=N`
+- Distribution: `%C:TypeName.field:value1=N1,value2=N2,...`
+
+**Requirements**:
+- `TypeName` SHOULD be defined via `%S` or `%STRUCT`
+- Count values MUST be non-negative integers
+- Multiple `%C` directives are allowed
+
+**Examples**:
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,status,role]
+%C:User.total=100
+%C:User.status:active=85,inactive=10,suspended=5
+%C:User.role:admin=5,editor=20,viewer=75
+---
+```
+
+**Semantics**:
+1. `total` specifies the expected total count of entities of that type
+2. Field distributions specify the expected count for each categorical value
+3. Parsers MAY validate that actual counts match declared counts
+4. In `strict` mode, count mismatches MAY cause warnings (implementation-defined)
+5. Count directives are primarily for documentation and tooling hints
+
+**Use Cases**:
+- Data quality validation
+- LLM context hints about data distribution
+- Documentation of dataset statistics
+
+### 6.14 Minimal Header
+
+For v2.0 documents, three header directives are REQUIRED:
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 # Simple key-value pairs follow
+```
+
+For v1.2 and earlier (legacy):
+```hedl
+%V:1.2
+---
 ```
 
 ---
@@ -820,12 +1182,12 @@ For simple documents without schemas, only the version directive is required:
 
 Each non-blank, non-comment line in the Body MUST be classified as exactly one of:
 
-| Type | Pattern | Description | Valid Context |
+ |Type | Pattern | Description | Valid Context |
 |------|---------|-------------|---------------|
-| Object Start | `key:` | Begins nested object mapping | Root, Object |
-| Key-Value | `key: value` | Assigns scalar to current object | Root, Object |
-| Matrix List Start | `key: @TypeName[...]` | Begins typed list with schema | Root, Object |
-| Matrix Row | `\| cell1, cell2, ...` | Data row in active matrix list | List |
+ |Object Start | `key:` | Begins nested object mapping | Root, Object |
+ |Key-Value | `key: value` | Assigns scalar to current object | Root, Object |
+ |Matrix List Start | `key:@TypeName[...]` | Begins typed list with schema | Root, Object |
+ |Matrix Row | `\| cell1, cell2, ...` | Data row in active matrix list | List |
 
 ### 7.2 Classification Algorithm
 
@@ -843,7 +1205,7 @@ After stripping indentation, let `line` be the string with leading/trailing whit
 
 1. If line starts with `|`: Matrix Row (already handled)
 2. Else if line matches `^[a-z_][a-z0-9_]*:\s+@[A-Z][A-Za-z0-9]*(\[[^\]]*\])?\s*$`: **Matrix List Start**
-   - Example: `users: @User` or `items: @Item[id, name]`
+   - Example: `users:@User` or `items:@Item[id, name]`
    - Pattern breakdown:
      - `^[a-z_][a-z0-9_]*:`: key with colon
      - `\s+`: at least one space (required by Section 4.7)
@@ -866,11 +1228,11 @@ After stripping indentation, let `line` be the string with leading/trailing whit
 
 Different line types are valid in different contexts:
 
-| Current Context | Allowed Line Types |
+ |Current Context | Allowed Line Types |
 |----------------|-------------------|
-| Root | Object Start, Key-Value, Matrix List Start |
-| Object | Object Start, Key-Value, Matrix List Start |
-| List | Matrix Row only (peer or child rows) |
+ |Root | Object Start, Key-Value, Matrix List Start |
+ |Object | Object Start, Key-Value, Matrix List Start |
+ |List | Matrix Row only (peer or child rows) |
 
 ### 7.4 Object Start
 
@@ -917,7 +1279,7 @@ parent:
 name: "Alice"      # String
 age: 30            # Integer
 active: true       # Boolean
-ref: @user1        # Reference
+ref:@user1        # Reference
 expr: $(x + 1)     # Expression
 alias: %active     # Alias expansion
 ditto: ^           # String "^" (not ditto operator)
@@ -932,7 +1294,7 @@ parent:
 
 ### 7.6 Matrix List Start
 
-**Format**: `key: @TypeName` or `key: @TypeName[col1, col2, ...]`
+**Format**: `key:@TypeName` or `key:@TypeName[col1, col2, ...]`
 
 **Schema Resolution**:
 1. **Declared Schema**: `@TypeName` alone → MUST exist in Schema Registry
@@ -956,21 +1318,21 @@ parent:
 **Examples**:
 ```hedl
 # Using declared schema
-%STRUCT: User: [id,name]
+%S:User:[id,name]
 ---
-users: @User
-  |u1,Alice
-  |u2,Bob
+users:@User
+ |u1,Alice
+ |u2,Bob
 
 # Using inline schema (no %STRUCT needed)
-items: @Item[id,name,price]
-  |i1,Apple,1.99
-  |i2,Banana,0.99
+items:@Item[id,name,price]
+ |i1,Apple,1.99
+ |i2,Banana,0.99
 
 # Error - schema mismatch
-%STRUCT: User: [id,name,email]
+%S:User:[id,name,email]
 ---
-users: @User[id,name]  # SchemaError - column mismatch
+users:@User[id,name]  # SchemaError - column mismatch
 ```
 
 ---
@@ -1058,24 +1420,27 @@ State BLOCK_STRING_CONTENT:
 ```
 
 **Indentation Stripping Algorithm**:
-```python
-def parse_block_string(lines, base_indent):
-    """
-    Parse a block string starting after the opening '"""'.
-    base_indent is the indentation of the key line.
-    """
-    content_lines = []
-    for line in lines:
-        stripped = line.lstrip()
-        if stripped == '"""':
-            # Closing found - join all content lines with newlines
-            return '\n'.join(content_lines)
-        # Strip base indentation from content line
-        if line.startswith(' ' * base_indent):
-            content_lines.append(line[base_indent:])
-        else:
-            content_lines.append(line.lstrip())
-    raise SyntaxError("Unclosed block string")
+```rust
+fn parse_block_string(lines: &[String], base_indent: usize) -> Result<String, SyntaxError> {
+    /// Parse a block string starting after the opening '"""'.
+    /// base_indent is the indentation of the key line.
+    let mut content_lines = Vec::new();
+    for line in lines {
+        let stripped = line.trim_start();
+        if stripped == "\"\"\"" {
+            // Closing found - join all content lines with newlines
+            return Ok(content_lines.join("\n"));
+        }
+        // Strip base indentation from content line
+        let indent_str = " ".repeat(base_indent);
+        if line.starts_with(&indent_str) {
+            content_lines.push(line[base_indent..].to_string());
+        } else {
+            content_lines.push(line.trim_start().to_string());
+        }
+    }
+    Err(SyntaxError::new("Unclosed block string"))
+}
 ```
 
 **Examples**:
@@ -1118,39 +1483,97 @@ Apply in strict order:
    - Implementation representation: array or nested arrays
    - **Failure Mode**: If a value starts with `[` but fails to parse as a valid tensor (unbalanced brackets, non-numeric content, etc.), it is a `SyntaxError` - NOT a fallthrough to String
 
-3. **Reference**: Token starting with `@` → validate as Reference token:
+3. **List Literal** (v1.1): Starts with `(` → attempt to parse as list
+   - Must validate parenthesis balance
+   - May contain any scalar values (null, references, expressions, booleans, numbers, strings)
+   - Empty list: `()` is valid
+   - Elements are parsed recursively using this inference ladder
+   - **Failure Mode**: If a value starts with `(` but fails to parse (unbalanced parens, etc.), it is a `SyntaxError`
+   - See Section 8.3 for detailed rules
+
+4. **Reference**: Token starting with `@` → validate as Reference token:
    - MUST match pattern `@([A-Z][A-Za-z0-9]*:)?[a-z_][a-z0-9_\-]*`
    - If pattern not matched: `SyntaxError`
    - Otherwise: `Reference(ID)` where ID is the full reference (e.g., `user_1` or `User:user_1`)
    - Resolution happens later (Section 10.3)
 
-4. **Expression**: Starts with `$(` and forms a valid Expression Token per Section 4.6.6 → `Expression(text)` (opaque)
+5. **Expression**: Starts with `$(` and forms a valid Expression Token per Section 4.6.6 → `Expression(text)` (opaque)
    - `text` is everything between `$(` and the closing `)` (excluding delimiters)
    - No validation of expression content
 
-5. **Alias**: Exact match of alias key → expand to defined string value
+6. **Alias**: Exact match of alias key → expand to defined string value
    - Apply inference to the expanded string:
      - If matches **Boolean** (true/false) → Boolean
      - If matches **Number** → Integer or Float
      - Otherwise → String (Note: The SyntaxError rule regarding quotes in unquoted strings does NOT apply here; the expanded value is accepted as-is)
 
-6. **Boolean**: `true` or `false` (case-sensitive) → boolean
+7. **Boolean**: `true` or `false` (case-sensitive) → boolean
    - Exact match, lowercase
    - No type coercion (e.g., `"true"` → string, not boolean)
 
-7. **Number**: Matches `^-?[0-9]+(\.[0-9]+)?$` → integer or float
+8. **Number**: Matches `^-?[0-9]+(\.[0-9]+)?$` → integer or float
    - **Integer**: No decimal point: `42`, `-1` → integer
    - **Float**: Contains decimal point: `42.0`, `3.14` → float
    - No scientific notation (`1e10` is string)
    - Leading zeros allowed (`001` → integer 1)
    - No underscores in numbers (`1_000` is string)
 
-8. **String**: Anything else → string
+9. **String**: Anything else → string
    - Unquoted strings are trimmed
    - May contain any characters except those prohibited in Section 4.8
    - Empty unquoted string not possible (would be Object Start)
 
-### 8.3 Special Cases
+### 8.3 List Literals (v1.1)
+
+List literals provide ordered sequences of scalar values, distinct from numeric tensors.
+
+**Syntax**: `(elem1, elem2, ...)` or `()`
+
+**Key Differences from Tensors**:
+- **Tensors** (`[...]`): Numeric arrays only; used for AI/ML data
+- **List Literals** (`(...)`): Any scalar types; used for general sequences
+
+**Rules**:
+1. Empty list `()` is always valid
+2. Elements are separated by commas
+3. Each element is parsed using the existing scalar inference ladder
+4. Lists MAY contain heterogeneous types
+5. Nested lists are NOT supported (use multiple columns or references)
+6. Quoted elements preserve their string type
+
+**Examples**:
+```hedl
+# Homogeneous lists
+roles: (admin, editor, viewer)        # list of strings
+flags: (true, false, true)            # list of booleans
+counts: (1, 2, 3, 4, 5)               # list of integers
+
+# Heterogeneous lists
+mixed: (1, "two", ~, @ref1)           # int, string, null, reference
+
+# Empty list
+empty: ()                              # empty list
+
+# In matrix cells
+|e1, Alice, (admin, editor)           # roles column as list
+```
+
+**Inference in List Elements**:
+- `admin` → string "admin"
+- `true` → boolean true
+- `42` → integer 42
+- `3.14` → float 3.14
+- `~` → null
+- `@ref` → reference
+- `"quoted"` → string "quoted" (no inference)
+
+**Use Cases**:
+- Multi-value fields (roles, tags, categories)
+- Boolean flag arrays
+- Reference collections
+- Any ordered collection of scalars
+
+### 8.4 Special Cases
 
 * **Ditto**: `^` in Key-Value context is literal string `"^"` (doesn't trigger ditto behavior)
 * **Empty Value**: `key:` (no value) is Object Start, NOT Key-Value
@@ -1158,13 +1581,13 @@ Apply in strict order:
 * **Quoted Strings**: Always parsed as strings, no inference
 * **Mixed Quoting**: Not allowed; a value like `"hello` without closing quote is Syntax Error
 
-### 8.4 Examples
+### 8.5 Examples
 
 ```hedl
 # Key-Value examples
 null_val: ~                     # null
 tensor_val: [[1, 2], [3, 4]]   # tensor/array
-ref_val: @node1                 # Reference("node1")
+ref_val:@node1                 # Reference("node1")
 expr_val: $(x + 1)              # Expression("x + 1")
 alias_val: %active              # expands to "true", then becomes boolean true
 bool_true: true                 # boolean true
@@ -1192,28 +1615,29 @@ A matrix row line begins with `|`. The parser MUST extract the CSV content using
 
 **Normative Algorithm: `extract_csv_content(line)`**
 
-```python
-def extract_csv_content(line):
-    """
-    Extracts the CSV content from a matrix row line.
-    Precondition: line is known to contain '|'.
-    """
-    # 1. Find delimiter
-    pipe_idx = line.find('|')
-    if pipe_idx == -1:
-         raise SyntaxError("Matrix row missing '|'")
-         
-    # 2. Extract raw content after the pipe
-    raw_content = line[pipe_idx+1:]
-    
-    # 3. Strip comments using the standard strip_comment function (Section 4.5)
-    # This handles comments respecting quotes and expressions
-    comment_stripped = strip_comment(raw_content)
-    
-    # 4. Trim leading/trailing whitespace
-    csv_content = comment_stripped.strip()
-    
-    return csv_content
+```rust
+fn extract_csv_content(line: &str) -> Result<String, SyntaxError> {
+    /// Extracts the CSV content from a matrix row line.
+    /// Precondition: line is known to contain '|'.
+
+    // 1. Find delimiter
+    let pipe_idx = match line.find('|') {
+        Some(idx) => idx,
+        None => return Err(SyntaxError::new("Matrix row missing '|'")),
+    };
+
+    // 2. Extract raw content after the pipe
+    let raw_content = &line[pipe_idx+1..];
+
+    // 3. Strip comments using the standard strip_comment function (Section 4.5)
+    // This handles comments respecting quotes and expressions
+    let comment_stripped = strip_comment(raw_content);
+
+    // 4. Trim leading/trailing whitespace
+    let csv_content = comment_stripped.trim().to_string();
+
+    Ok(csv_content)
+}
 ```
 
 **Important**: This order implies:
@@ -1246,151 +1670,166 @@ Parse the CSV substring using a state machine with these rules:
 
 **Normative Algorithm: `parse_csv_row(csv_string)`**
 
-```python
-def parse_csv_row(csv_string):
-    """
-    Parse a CSV string into a list of (value, is_quoted) tuples.
-    Uses a state machine that respects quoted strings and expressions.
-    """
-    if not csv_string:
-        return []
+```rust
+fn parse_csv_row(csv_string: &str) -> Result<Vec<(String, bool)>, SyntaxError> {
+    /// Parse a CSV string into a list of (value, is_quoted) tuples.
+    /// Uses a state machine that respects quoted strings and expressions.
+    if csv_string.is_empty() {
+        return Ok(Vec::new());
+    }
 
-    # Check for trailing comma
-    if csv_string.rstrip().endswith(','):
-        raise SyntaxError("Trailing comma not allowed in matrix row")
+    // Check for trailing comma
+    if csv_string.trim_end().ends_with(',') {
+        return Err(SyntaxError::new("Trailing comma not allowed in matrix row"));
+    }
 
-    fields = []  # List of (value, is_quoted) tuples
-    current_field = []
-    current_is_quoted = False
-    state = "START_FIELD"
-    i = 0
-    expression_depth = 0
-    in_expr_quotes = False  # Track quotes inside expressions (must match scan_regions)
+    let mut fields = Vec::new();  // List of (value, is_quoted) tuples
+    let mut current_field = String::new();
+    let mut current_is_quoted = false;
+    let mut state = "START_FIELD";
+    let mut i = 0;
+    let mut expression_depth = 0;
+    let mut in_expr_quotes = false;  // Track quotes inside expressions (must match scan_regions)
 
-    while i < len(csv_string):
-        char = csv_string[i]
+    let chars: Vec<char> = csv_string.chars().collect();
 
-        if state == "START_FIELD":
-            current_is_quoted = False
-            if char.isspace():
-                i += 1
-                continue
-            elif char == '"':
-                current_is_quoted = True
-                state = "IN_QUOTED_FIELD"
-                i += 1
-            elif char == '$' and i + 1 < len(csv_string) and csv_string[i + 1] == '(':
-                # Start of expression
-                current_field.append('$(')
-                state = "IN_EXPRESSION"
-                expression_depth = 1
-                i += 2
-            else:
-                state = "IN_UNQUOTED_FIELD"
-                current_field.append(char)
-                i += 1
+    while i < chars.len() {
+        let char = chars[i];
 
-        elif state == "IN_UNQUOTED_FIELD":
-            if char == ',':
-                # End of field
-                field = ''.join(current_field).strip()
-                if '"' in field:
-                    raise SyntaxError(f"Quote character '\"' found in unquoted CSV field: '{field}'")
-                fields.append((field, False))
-                current_field = []
-                state = "START_FIELD"
-                i += 1
-            else:
-                current_field.append(char)
-                i += 1
+        if state == "START_FIELD" {
+            current_is_quoted = false;
+            if char.is_whitespace() {
+                i += 1;
+                continue;
+            } else if char == '"' {
+                current_is_quoted = true;
+                state = "IN_QUOTED_FIELD";
+                i += 1;
+            } else if char == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
+                // Start of expression
+                current_field.push_str("$(");
+                state = "IN_EXPRESSION";
+                expression_depth = 1;
+                i += 2;
+            } else {
+                state = "IN_UNQUOTED_FIELD";
+                current_field.push(char);
+                i += 1;
+            }
+        } else if state == "IN_UNQUOTED_FIELD" {
+            if char == ',' {
+                // End of field
+                let field = current_field.trim().to_string();
+                if field.contains('"') {
+                    return Err(SyntaxError::new(&format!("Quote character '\"' found in unquoted CSV field: '{}'", field)));
+                }
+                fields.push((field, false));
+                current_field = String::new();
+                state = "START_FIELD";
+                i += 1;
+            } else {
+                current_field.push(char);
+                i += 1;
+            }
+        } else if state == "IN_QUOTED_FIELD" {
+            if char == '"' {
+                if i + 1 < chars.len() && chars[i + 1] == '"' {
+                    // Escaped quote via "" - add single quote to field
+                    current_field.push('"');
+                    i += 2;
+                } else {
+                    // End of quoted field
+                    state = "AFTER_QUOTE";
+                    i += 1;
+                }
+            } else if char == '\\' && i + 1 < chars.len() {
+                // Escape sequence handling
+                let next_char = chars[i + 1];
+                if next_char == 'n' {
+                    current_field.push('\n');
+                    i += 2;
+                } else if next_char == 't' {
+                    current_field.push('\t');
+                    i += 2;
+                } else if next_char == 'r' {
+                    current_field.push('\r');
+                    i += 2;
+                } else if next_char == '\\' {
+                    current_field.push('\\');
+                    i += 2;
+                } else if next_char == '"' {
+                    current_field.push('"');
+                    i += 2;
+                } else {
+                    // Unknown escape - treat backslash literally
+                    current_field.push(char);
+                    i += 1;
+                }
+            } else {
+                current_field.push(char);
+                i += 1;
+            }
+        } else if state == "AFTER_QUOTE" {
+            if char.is_whitespace() {
+                i += 1;
+                continue;
+            } else if char == ',' {
+                fields.push((current_field.clone(), true));
+                current_field = String::new();
+                state = "START_FIELD";
+                i += 1;
+            } else {
+                return Err(SyntaxError::new(&format!("Expected comma after closing quote, got '{}'", char)));
+            }
+        } else if state == "IN_EXPRESSION" {
+            current_field.push(char);
+            // Handle quotes inside expressions (must match scan_regions behavior)
+            if char == '"' {
+                if in_expr_quotes {
+                    if i + 1 < chars.len() && chars[i + 1] == '"' {
+                        // Escaped quote inside expression
+                        current_field.push(chars[i + 1]);
+                        i += 2;
+                        continue;
+                    } else {
+                        in_expr_quotes = false;
+                    }
+                } else {
+                    in_expr_quotes = true;
+                }
+            } else if !in_expr_quotes {
+                if char == '(' {
+                    expression_depth += 1;
+                } else if char == ')' {
+                    expression_depth -= 1;
+                    if expression_depth == 0 {
+                        // End of expression
+                        state = "IN_UNQUOTED_FIELD";
+                        in_expr_quotes = false;  // Reset for safety
+                    }
+                }
+            }
+            i += 1;
+        }
+    }
 
-        elif state == "IN_QUOTED_FIELD":
-            if char == '"':
-                if i + 1 < len(csv_string) and csv_string[i + 1] == '"':
-                    # Escaped quote via "" - add single quote to field
-                    current_field.append('"')
-                    i += 2
-                else:
-                    # End of quoted field
-                    state = "AFTER_QUOTE"
-                    i += 1
-            elif char == '\\' and i + 1 < len(csv_string):
-                # Escape sequence handling
-                next_char = csv_string[i + 1]
-                if next_char == 'n':
-                    current_field.append('\n')
-                    i += 2
-                elif next_char == 't':
-                    current_field.append('\t')
-                    i += 2
-                elif next_char == 'r':
-                    current_field.append('\r')
-                    i += 2
-                elif next_char == '\\':
-                    current_field.append('\\')
-                    i += 2
-                elif next_char == '"':
-                    current_field.append('"')
-                    i += 2
-                else:
-                    # Unknown escape - treat backslash literally
-                    current_field.append(char)
-                    i += 1
-            else:
-                current_field.append(char)
-                i += 1
+    // Handle end of string
+    if state == "IN_QUOTED_FIELD" {
+        return Err(SyntaxError::new("Unclosed quoted string in CSV field"));
+    } else if state == "IN_EXPRESSION" {
+        return Err(SyntaxError::new("Unclosed expression in CSV field"));
+    } else if state == "AFTER_QUOTE" {
+        fields.push((current_field, true));
+    } else if !current_field.is_empty() {
+        let field = current_field.trim().to_string();
+        if field.contains('"') {
+            return Err(SyntaxError::new(&format!("Quote character '\"' found in unquoted CSV field: '{}'", field)));
+        }
+        fields.push((field, false));
+    }
 
-        elif state == "AFTER_QUOTE":
-            if char.isspace():
-                i += 1
-                continue
-            elif char == ',':
-                fields.append((''.join(current_field), True))
-                current_field = []
-                state = "START_FIELD"
-                i += 1
-            else:
-                raise SyntaxError(f"Expected comma after closing quote, got '{char}'")
-
-        elif state == "IN_EXPRESSION":
-            current_field.append(char)
-            # Handle quotes inside expressions (must match scan_regions behavior)
-            if char == '"':
-                if in_expr_quotes:
-                    if i + 1 < len(csv_string) and csv_string[i + 1] == '"':
-                        # Escaped quote inside expression
-                        current_field.append(csv_string[i + 1])
-                        i += 2
-                        continue
-                    else:
-                        in_expr_quotes = False
-                else:
-                    in_expr_quotes = True
-            elif not in_expr_quotes:
-                if char == '(':
-                    expression_depth += 1
-                elif char == ')':
-                    expression_depth -= 1
-                    if expression_depth == 0:
-                        # End of expression
-                        state = "IN_UNQUOTED_FIELD"
-                        in_expr_quotes = False  # Reset for safety
-            i += 1
-
-    # Handle end of string
-    if state == "IN_QUOTED_FIELD":
-        raise SyntaxError("Unclosed quoted string in CSV field")
-    elif state == "IN_EXPRESSION":
-        raise SyntaxError("Unclosed expression in CSV field")
-    elif state == "AFTER_QUOTE":
-        fields.append((''.join(current_field), True))
-    elif current_field:
-        field = ''.join(current_field).strip()
-        if '"' in field:
-            raise SyntaxError(f"Quote character '\"' found in unquoted CSV field: '{field}'")
-        fields.append((field, False))
-
-    return fields
+    Ok(fields)
+}
 ```
 
 **Returns**: A list of `(value, is_quoted)` tuples, where `value` is the string content and `is_quoted` is a boolean indicating if the field was enclosed in quotes.
@@ -1458,9 +1897,11 @@ For each CSV field (after unquoting if quoted):
 - After inference, value MUST be string and MUST match ID token pattern (Section 4.6)
 - If inference produces non-string: `SemanticError`
 
-### 9.4 Ditto Scoping Rules
+### 9.4 Ditto Scoping Rules (v1.2 only)
 
-The `^` operator copies from the **same column** of the **previous row** in the **same list frame**:
+> **v2.0 Breaking Change**: The ditto operator (`^`) is NOT allowed in v2.0 documents. Every cell must have an explicit value. Parsers MUST reject `^` in v2.0 documents with a `SemanticError`. This section documents v1.2 behavior for backward compatibility.
+
+The `^` operator copies from the **same column** of the **previous row** in the **same list frame** (v1.2 only):
 
 1. **Scope**: Current List Frame only
    - Doesn't copy from parent or child lists
@@ -1484,10 +1925,10 @@ The `^` operator copies from the **same column** of the **previous row** in the 
 
 **Example**:
 ```hedl
-data: @Item[id,name,count,price]
-  |i1,Apple,5,1.99
-  |i2,^,3,^      # name copies "Apple", price copies 1.99
-  |i3,Orange,^,2.49  # count copies 3 (integer)
+data:@Item[id,name,count,price]
+ |i1,Apple,5,1.99
+ |i2,^,3,^      # name copies "Apple", price copies 1.99
+ |i3,Orange,^,2.49  # count copies 3 (integer)
 ```
 
 **Ditto Chain Example**:
@@ -1512,19 +1953,21 @@ After parsing CSV cells:
 
 **Examples**:
 ```hedl
-%STRUCT: User: [id,name,email]
+%S:User:[id,name,email]
 ---
-users: @User
-  |u1,Alice               # ShapeError: Expected 3 columns, got 2
-  |u2,Bob,bob@ex.com,extra  # ShapeError: Expected 3 columns, got 4
-  |u3,Carol,carol@ex.com # OK
+users:@User
+ |u1,Alice               # ShapeError: Expected 3 columns, got 2
+ |u2,Bob,bob@ex.com,extra  # ShapeError: Expected 3 columns, got 4
+ |u3,Carol,carol@ex.com # OK
 ```
 
-### 9.6 Count Hints (Optional)
+### 9.6 Count Hints (v1.2 Only - DEPRECATED in v2.0)
+
+> **DEPRECATED**: Inline count hints (`|[N]`) are removed in v2.0. Use `%C:` header directives for counts and `@Type#N:` child blocks for structure. See Section 6.10 for v2.0 count directives.
 
 Count hints provide optional metadata about the number of direct children for parent rows in nested hierarchies. They are particularly useful for LLM consumption, as they help models understand data structure boundaries.
 
-**Syntax**:
+**Syntax (v1.2 only)**:
 - Parent rows with N children: `|[N] data` where N is a non-negative integer
 - Leaf rows (no children): `|data` (no count prefix)
 - The brackets `[N]` clearly separate the count from the data
@@ -1541,66 +1984,100 @@ Count hints provide optional metadata about the number of direct children for pa
 
 When processing a matrix row line, parsers MUST extract count hints before CSV parsing:
 
-```python
-def extract_count_hint(csv_content):
-    """
-    Extract count hint from CSV content.
-    Returns (count_hint, remaining_csv) where count_hint is int or None.
-    """
-    trimmed = csv_content.lstrip()
-    if not trimmed.startswith('['):
-        return (None, csv_content)
+```rust
+fn extract_count_hint(csv_content: &str) -> Result<(Option<usize>, String), SyntaxError> {
+    /// Extract count hint from CSV content.
+    /// Returns (count_hint, remaining_csv) where count_hint is int or None.
+    let trimmed = csv_content.trim_start();
+    if !trimmed.starts_with('[') {
+        return Ok((None, csv_content.to_string()));
+    }
 
-    # Find closing bracket
-    close_idx = trimmed.find(']')
-    if close_idx == -1:
-        raise SyntaxError("Unclosed count hint bracket")
+    // Find closing bracket
+    let close_idx = match trimmed.find(']') {
+        Some(idx) => idx,
+        None => return Err(SyntaxError::new("Unclosed count hint bracket")),
+    };
 
-    # Extract count value
-    count_str = trimmed[1:close_idx].strip()
-    if not count_str.isdigit():
-        raise SyntaxError(f"Invalid count hint: [{count_str}] must be non-negative integer")
+    // Extract count value
+    let count_str = trimmed[1..close_idx].trim();
+    if !count_str.chars().all(|c| c.is_ascii_digit()) {
+        return Err(SyntaxError::new(&format!("Invalid count hint: [{}] must be non-negative integer", count_str)));
+    }
 
-    count = int(count_str)
-    remaining = trimmed[close_idx+1:].lstrip()
+    let count = count_str.parse::<usize>()
+        .map_err(|_| SyntaxError::new("Invalid count hint value"))?;
+    let remaining = trimmed[close_idx+1..].trim_start().to_string();
 
-    return (count, remaining)
+    Ok((Some(count), remaining))
+}
 ```
 
-**Examples**:
+**Examples (v1.2 syntax)**:
 ```hedl
-%STRUCT: Organization: [id,name]
-%STRUCT: Department: [id,name]
-%STRUCT: Employee: [id,name]
-%NEST: Organization > Department
-%NEST: Department > Employee
+%V:1.2
+%S:Organization:[id,name]
+%S:Department:[id,name]
+%S:Employee:[id,name]
+%N:Organization>Department
+%N:Department>Employee
 ---
-organizations: @Organization
-  |[2] org1,TechCorp          # This org has 2 direct children (departments)
-    |[3] dept1,Engineering    # This dept has 3 direct children (employees)
-      |emp1,Alice             # Leaf node - no count hint
-      |emp2,Bob               # Leaf node
-      |emp3,Carol             # Leaf node
-    |[1] dept2,Sales          # This dept has 1 direct child
-      |emp4,David             # Leaf node
-  |[1] org2,DataCo            # This org has 1 direct child
-    |[0] dept3,Research       # This dept has 0 children (empty department)
+organizations:@Organization
+ |[2] org1,TechCorp          # This org has 2 direct children (departments)
+  |[3] dept1,Engineering    # This dept has 3 direct children (employees)
+   |emp1,Alice             # Leaf node - no count hint
+   |emp2,Bob               # Leaf node
+   |emp3,Carol             # Leaf node
+  |[1] dept2,Sales          # This dept has 1 direct child
+   |emp4,David             # Leaf node
+ |[1] org2,DataCo            # This org has 1 direct child
+  |[0] dept3,Research       # This dept has 0 children (empty department)
+```
+
+**v2.0 equivalent** (using child blocks and header counts):
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Organization:[id,name]
+%S:Department:[id,name]
+%S:Employee:[id,name]
+%N:Organization>Department
+%N:Department>Employee
+%C:Organization.total=2
+%C:Department.total=3
+%C:Employee.total=4
+---
+organizations:@Organization
+ |org1,TechCorp
+  @Department#2:
+  |dept1,Engineering
+   @Employee#3:
+   |emp1,Alice
+   |emp2,Bob
+   |emp3,Carol
+  |dept2,Sales
+   @Employee#1:|emp4,David
+ |org2,DataCo
+  @Department#1:
+  |dept3,Research
 ```
 
 **Validation** (Optional):
 
 Implementations MAY optionally validate that count hints match actual child counts:
 
-```python
-def validate_count_hint(node, count_hint):
-    """
-    Optional validation that count hint matches actual children.
-    """
-    if count_hint is not None:
-        actual_count = len(node.children)
-        if count_hint != actual_count:
-            # Warning or error at implementation discretion
-            warn(f"Count hint mismatch: expected {count_hint}, got {actual_count}")
+```rust
+fn validate_count_hint(node: &Node, count_hint: Option<usize>) {
+    /// Optional validation that count hint matches actual children.
+    if let Some(hint) = count_hint {
+        let actual_count = node.children.len();
+        if hint != actual_count {
+            // Warning or error at implementation discretion
+            warn(&format!("Count hint mismatch: expected {}, got {}", hint, actual_count));
+        }
+    }
+}
 ```
 
 **Use Cases**:
@@ -1612,6 +2089,154 @@ def validate_count_hint(node, count_hint):
 **Canonical Form**:
 
 Canonical formatters SHOULD include accurate count hints for parent rows in nested hierarchies. Count hints SHOULD be omitted for leaf rows (rows with no children).
+
+### 9.7 Inline Child Lists (v1.2)
+
+HEDL v1.2 introduces compact inline child list syntax for attaching child rows to parent rows without additional line breaks. This significantly reduces token count while maintaining structural clarity.
+
+**Syntax**:
+```
+|parent_row_data
+ @ChildType#N:|child1|child2|...|childN
+```
+
+Where:
+- Space indent (one level deeper than parent)
+- `@ChildType` references the child type schema
+- `#N` declares the count of inline children (REQUIRED for inline format)
+- `:` separates the declaration from the data
+- Children are separated by `|` on the same line
+- NO space after `|` in child data (use `|data` NOT `| data`)
+
+**Expanded Form (v1.1)**:
+```
+|parent_row_data
+ |child1
+ |child2
+  ...
+ |childN
+```
+
+**Inline Form (v1.2)**:
+```
+|parent_row_data
+ @ChildType#N:|child1|child2|...|childN
+```
+
+**Requirements**:
+1. Maximum 5 inline children allowed (MUST enforce). For more than 5 children, use expanded form.
+2. The `#N` count hint is REQUIRED for inline format (unlike optional for parent rows)
+3. The `#N` count MUST match the actual number of pipe-separated children
+4. `ChildType` MUST be defined via `%S` or `%STRUCT`
+5. `ChildType` MUST be declared as child of the parent type via `%N` or `%NEST`
+6. The inline children follow the same CSV parsing rules as regular matrix rows
+7. NO space after `|` delimiter in inline child data (correct: `|data`, incorrect: `| data`)
+8. Ditto (`^`) works within inline children (references previous child on same line)
+9. Multiple child types can each have their own inline declaration
+
+**Example**:
+```hedl
+%V:1.2
+%S:Product:[id,name,price]
+%S:Review:[id,rating,text]
+%N:Product>Review
+---
+products:@Product
+ |prod-001,Laptop,999.99
+    @Review#3:|rev-001,5,Great product|rev-002,4,Good value|rev-003,^,Recommended
+ |prod-002,Phone,599.99
+    @Review#2:|rev-004,5,Excellent|rev-005,3,Average
+```
+
+**Mixed Inline and Expanded**:
+
+You may combine inline and expanded forms for the same child type. When a parent has more than 5 children, you MUST use the expanded form:
+
+```hedl
+products:@Product
+ |prod-001,Laptop,999.99
+    @Review#2:|rev-001,5,Great|rev-002,4,Good
+ |prod-002,Phone,599.99
+    @Review#7:
+  |rev-003,5,Excellent
+  |rev-004,4,Very good
+  |rev-005,3,Okay
+  |rev-006,2,Needs improvement
+  |rev-007,5,Amazing
+  |rev-008,4,Nice
+  |rev-009,3,Decent
+```
+
+**Note**: When using expanded form after `@Type#N:`, the count hint `#N` is still REQUIRED, and child rows are indented one level deeper than the `@Type#N:` line.
+
+**Multiple Child Types**:
+
+```hedl
+products:@Product
+ |prod-001,Laptop,999.99
+    @Review#2:|rev-001,5,Great|rev-002,4,Good
+    @Inventory#2:|inv-001,warehouse-east,50|inv-002,warehouse-west,30
+```
+
+**Parsing Algorithm**:
+
+1. Detect inline child declaration: line starts with whitespace + `@TypeName#N:`
+2. Parse count N from `#N` (REQUIRED, not optional)
+3. Validate N <= 5 (if N > 5, raise SyntaxError: "Inline child lists limited to 5 entries")
+4. Split remaining content after `:` by `|` to get child rows
+5. Validate actual child count matches N (if mismatch, raise SyntaxError)
+6. Parse each child as a standard CSV row
+7. Attach children to most recent parent row
+
+**Indentation Rules**:
+
+Inline child lists follow strict indentation rules to maintain structural clarity:
+
+1. **List declaration** (e.g., `products:@Product`): Indent level 0 (top-level)
+2. **Parent rows** (e.g., `|prod-001,...`): Indent level 1 (1 space)
+3. **Inline child declarations** (e.g., `@Review#2:|...`): Indent level 2 (2 spaces, one level deeper than parent)
+4. **Expanded child rows** (when using `@Type#N:` without inline data): Indent level 2 (2 spaces, same as declaration)
+
+**Complete Example**:
+```hedl
+products:@Product                         # Level 0: List declaration
+ |prod-001,Laptop,999.99                   # Level 1: Parent row (1 space)
+  @Review#3:|r1,5,Great|r2,4,Good|r3,3,OK  # Level 2: Inline children (2 spaces)
+ |prod-002,Tablet,299.99                   # Level 1: Parent row (1 space)
+  @Review#7:                               # Level 2: Expanded declaration (2 spaces)
+  |r4,5,Amazing                            # Level 2: Child row (2 spaces)
+  |r5,4,Good                               # Level 2: Child row (2 spaces)
+  |r6,3,OK                                 # Level 2: Child row (2 spaces)
+  |r7,5,Love                               # Level 2: Child row (2 spaces)
+  |r8,4,Nice                               # Level 2: Child row (2 spaces)
+  |r9,3,Decent                             # Level 2: Child row (2 spaces)
+  |r10,2,Meh                               # Level 2: Child row (2 spaces)
+```
+
+**Use Cases**:
+- Reducing token count for LLM context windows
+- Compact serialization of sparse hierarchies
+- Streaming scenarios where row-by-row output is preferred
+
+**Design Guidelines**:
+
+When to use inline format (`@Type#N:|data|data|...`):
+- Small number of children (1-5 entries)
+- Simple, short field values
+- Prioritizing token efficiency
+- Data that benefits from visual compactness
+
+When to use expanded format (`@Type#N:` followed by `|` rows):
+- More than 5 children (REQUIRED)
+- Complex field values with many columns
+- Data that benefits from readability
+- When vertical alignment aids comprehension
+
+**Rationale for 5-Entry Limit**:
+- Maintains readability of inline format
+- Prevents excessively long lines (recommended max line length: 1MB, see Section 4.2)
+- Balances token efficiency with human comprehension
+- Simplifies parser implementation and error reporting
 
 ---
 
@@ -1664,13 +2289,13 @@ IDs are scoped within their type to prevent naming conflicts:
 
 **Collision Examples**:
 ```hedl
-%STRUCT: User: [id,name]
-%STRUCT: Product: [id,name]
+%S:User:[id,name]
+%S:Product:[id,name]
 ---
-users: @User
-  |admin,Alice
-products: @Product
-  |admin,Laptop  # OK - different type namespace
+users:@User
+ |admin,Alice
+products:@Product
+ |admin,Laptop  # OK - different type namespace
 ```
 
 ### 10.3 Reference Resolution
@@ -1688,13 +2313,13 @@ References (`@id`) create placeholders resolved in second pass:
 
 **Reference Examples**:
 ```hedl
-%STRUCT: Task: [id,name,depends_on]
+%S:Task:[id,name,depends_on]
 ---
-tasks: @Task
-  |t1,Design,~
-  |t2,Implement,@t1    # Forward reference - OK (same type)
-  |t3,Test,@t2
-  |t4,Deploy,@t99      # ReferenceError - t99 doesn't exist in Task namespace
+tasks:@Task
+ |t1,Design,~
+ |t2,Implement,@t1    # Forward reference - OK (same type)
+ |t3,Test,@t2
+ |t4,Deploy,@t99      # ReferenceError - t99 doesn't exist in Task namespace
 ```
 
 **Reference Cycles**: Allowed (no validation)
@@ -1717,23 +2342,23 @@ References in Key-Value context (outside matrix lists) follow these rules:
 
 **Examples**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,content]
+%V:2.0
+%S:User:[id,name]
+%S:Post:[id,content]
 ---
-users: @User
-  |alice,Alice
-posts: @Post
-  |p1,Hello
+users:@User
+ |alice,Alice
+posts:@Post
+ |p1,Hello
 config:
-  admin_ref: @User:alice    # Qualified - recommended
-  post_ref: @Post:p1        # Qualified - recommended
-  ambiguous: @alice         # Unqualified - searches all types, finds User:alice
+  admin_ref:@User:alice    # Qualified - recommended
+  post_ref:@Post:p1        # Qualified - recommended
+  ambiguous:@alice         # Unqualified - searches all types, finds User:alice
 ```
 
 ### 10.4 Child List Attachment
 
-When `%NEST: Parent > Child` is active:
+When `%N:Parent>Child` is active:
 
 **Semantics**:
 - Child rows attach to most recent parent row
@@ -1764,16 +2389,16 @@ Generators MUST indent child rows one level deeper than parent rows.
 
 **Example**:
 ```hedl
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,content]
-%NEST: User > Post
+%S:User:[id,name]
+%S:Post:[id,content]
+%N:User>Post
 ---
-users: @User
-  |u1,Alice
-    |p1,"Hello world"    # Attaches to u1
-    |p2,"Second post"    # Attaches to u1
-  |u2,Bob
-    |p3,"Hi there"       # Attaches to u2
+users:@User
+ |u1,Alice
+  |p1,"Hello world"    # Attaches to u1
+  |p2,"Second post"    # Attaches to u1
+ |u2,Bob
+  |p3,"Hi there"       # Attaches to u2
 ```
 
 ### 10.5 Node Structure and Representation
@@ -1802,15 +2427,15 @@ A matrix row produces a **Node** with the following structure:
 
 **Complete Node Example**:
 ```hedl
-%STRUCT: User: [id,name,age]
-%STRUCT: Post: [id,title]
-%NEST: User > Post
+%S:User:[id,name,age]
+%S:Post:[id,title]
+%N:User>Post
 ---
-users: @User
-  |u1,Alice,30
-    |p1,"First post"
-    |p2,"Second post"
-  |u2,Bob,25
+users:@User
+ |u1,Alice,30
+  |p1,"First post"
+  |p2,"Second post"
+ |u2,Bob,25
 ```
 
 Resulting structure:
@@ -1857,47 +2482,56 @@ Parser MUST perform in order:
 7. **Line Number Tracking**: Maintain 1-based line numbers for error reporting
 
 **Pseudocode**:
-```python
-def preprocess(input_data, max_size=1024*1024*1024):  # 1GB default
-    # Check size
-    if len(input_data) > max_size:
-        raise SecurityError(f"File too large: {len(input_data)} > {max_size}")
-    
-    # Validate and Decode UTF-8
-    try:
-        text = input_data.decode('utf-8')
-    except UnicodeDecodeError:
-        raise SyntaxError("Invalid UTF-8 encoding")
-    
-    # Skip BOM if present
-    if text.startswith('\ufeff'):
-        text = text[1:]
-    
-    # Check for control characters (allow LF, CR, TAB)
-    for i, ch in enumerate(text):
-        code = ord(ch)
-        # Allow: LF (0x0A), CR (0x0D), TAB (0x09)
-        if code < 0x20 and code not in (0x0A, 0x0D, 0x09):
-            raise SyntaxError(f"Control character U+{code:04X} at position {i}")
-    
-    # Note: Tab usage is restricted by specific parsers:
-    # - Indentation: Tabs PROHIBITED (Section 4.3)
-    # - Unquoted Strings: Tabs PROHIBITED (Section 4.8)
-    # - Quoted Strings: Tabs ALLOWED (Section 8.1.1)
-    
-    # Normalize line endings: CRLF -> LF, reject bare CR
-    if '\r' in text:
-        # Replace CRLF first
-        text = text.replace('\r\n', '\n')
-        # Now check for any remaining bare CR (not part of CRLF)
-        if '\r' in text:
-            # Find the line number where bare CR occurs
-            line_num = text[:text.index('\r')].count('\n') + 1
-            raise SyntaxError(f"Bare CR (U+000D) found at line {line_num}")
-    
-    # Split lines
-    lines = text.split('\n')
-    return lines
+```rust
+fn preprocess(input_data: &[u8], max_size: usize) -> Result<Vec<String>, SyntaxError> {
+    // Default max_size: 1GB
+    let max_size = if max_size == 0 { 1024 * 1024 * 1024 } else { max_size };
+
+    // Check size
+    if input_data.len() > max_size {
+        return Err(SecurityError::new(&format!("File too large: {} > {}", input_data.len(), max_size)));
+    }
+
+    // Validate and Decode UTF-8
+    let mut text = std::str::from_utf8(input_data)
+        .map_err(|_| SyntaxError::new("Invalid UTF-8 encoding"))?
+        .to_string();
+
+    // Skip BOM if present
+    if text.starts_with('\u{FEFF}') {
+        text = text[3..].to_string();
+    }
+
+    // Check for control characters (allow LF, CR, TAB)
+    for (i, ch) in text.chars().enumerate() {
+        let code = ch as u32;
+        // Allow: LF (0x0A), CR (0x0D), TAB (0x09)
+        if code < 0x20 && code != 0x0A && code != 0x0D && code != 0x09 {
+            return Err(SyntaxError::new(&format!("Control character U+{:04X} at position {}", code, i)));
+        }
+    }
+
+    // Note: Tab usage is restricted by specific parsers:
+    // - Indentation: Tabs PROHIBITED (Section 4.3)
+    // - Unquoted Strings: Tabs PROHIBITED (Section 4.8)
+    // - Quoted Strings: Tabs ALLOWED (Section 8.1.1)
+
+    // Normalize line endings: CRLF -> LF, reject bare CR
+    if text.contains('\r') {
+        // Replace CRLF first
+        text = text.replace("\r\n", "\n");
+        // Now check for any remaining bare CR (not part of CRLF)
+        if text.contains('\r') {
+            // Find the line number where bare CR occurs
+            let line_num = text[..text.find('\r').unwrap()].matches('\n').count() + 1;
+            return Err(SyntaxError::new(&format!("Bare CR (U+000D) found at line {}", line_num)));
+        }
+    }
+
+    // Split lines
+    let lines = text.split('\n').map(|s| s.to_string()).collect();
+    Ok(lines)
+}
 ```
 
 ### 11.2 Header Parsing
@@ -1922,73 +2556,103 @@ def preprocess(input_data, max_size=1024*1024*1024):  # 1GB default
 5. **Missing Separator**: → `SyntaxError`
 
 **Header Parsing Algorithm**:
-```python
-def parse_header(lines):
-    schemas = {}
-    aliases = {}
-    nests = {}
-    version_seen = False
-    first_directive = True
-    
-    for line_num, line in enumerate(lines, 1):
-        # Strip leading/trailing whitespace for separator check
-        stripped_line = line.rstrip('\n')
-        
-        # Check for separator with strict leading space rule
-        if stripped_line == '---' or stripped_line.startswith('--- '):
-            if not version_seen:
-                raise SyntaxError(f"Missing %VERSION directive in header before separator at line {line_num}")
-            # Valid separator found
-            return schemas, aliases, nests, line_num + 1
-            
-        # Check for malformed separator (leading spaces or extra hyphens)
-        if stripped_line.lstrip().startswith('---'):
-            if stripped_line.startswith(' '):
-                raise SyntaxError(f"Separator '---' must not have leading spaces at line {line_num}")
-            else:
-                # Something like '----' 
-                raise SyntaxError(f"Separator must be exactly '---', found '{stripped_line[:10]}...' at line {line_num}")
-        
-        if not line.strip() or line.strip().startswith('#'):
-            continue
-            
-        # Parse directive
-        if not line.startswith('%'):
-            raise SyntaxError(f"Expected directive at line {line_num}")
-            
-        # Split directive name and payload with flexible spacing
-        if ':' not in line:
-            raise SyntaxError(f"Invalid directive format at line {line_num}")
-            
-        name, payload = line.split(':', 1)
-        if not payload.startswith(' '):
-            raise SyntaxError(f"Directive ':' must be followed by at least one space at line {line_num}")
-        
-        # Enforce %VERSION as first directive
-        if first_directive:
-            if name != '%VERSION':
-                raise SyntaxError(f"%VERSION must be the first directive, found {name} at line {line_num}")
-            first_directive = False
-        
-        payload = payload.lstrip(' ')
-        
-        # Remove inline comment from payload
-        payload = strip_comment(payload)
-        
-        # Dispatch based on directive name
-        if name == '%VERSION':
-            parse_version(payload, line_num)
-            version_seen = True
-        elif name == '%STRUCT':
-            parse_struct(payload, schemas, line_num)
-        elif name == '%ALIAS':
-            parse_alias(payload, aliases, line_num)
-        elif name == '%NEST':
-            parse_nest(payload, nests, schemas, line_num)
-        else:
-            raise SyntaxError(f"Unknown directive {name} at line {line_num}")
-    
-    raise SyntaxError("Missing separator '---'")
+```rust
+fn parse_header(lines: &[String]) -> Result<(HashMap<String, Vec<String>>, HashMap<String, String>, HashMap<String, String>, usize), SyntaxError> {
+    let mut schemas = HashMap::new();
+    let mut aliases = HashMap::new();
+    let mut nests = HashMap::new();
+    let mut version_seen = false;
+    let mut first_directive = true;
+
+    for (line_num, line) in lines.iter().enumerate() {
+        let line_num = line_num + 1; // 1-based line numbers
+
+        // Strip leading/trailing whitespace for separator check
+        let stripped_line = line.trim_end_matches('\n');
+
+        // Check for separator with strict leading space rule
+        if stripped_line == "---" || stripped_line.starts_with("--- ") {
+            if !version_seen {
+                return Err(SyntaxError::new(&format!("Missing %VERSION directive in header before separator at line {}", line_num)));
+            }
+            // Valid separator found
+            return Ok((schemas, aliases, nests, line_num + 1));
+        }
+
+        // Check for malformed separator (leading spaces or extra hyphens)
+        if stripped_line.trim_start().starts_with("---") {
+            if stripped_line.starts_with(' ') {
+                return Err(SyntaxError::new(&format!("Separator '---' must not have leading spaces at line {}", line_num)));
+            } else {
+                // Something like '----'
+                let preview = if stripped_line.len() > 10 { &stripped_line[..10] } else { stripped_line };
+                return Err(SyntaxError::new(&format!("Separator must be exactly '---', found '{}...' at line {}", preview, line_num)));
+            }
+        }
+
+        if line.trim().is_empty() || line.trim().starts_with('#') {
+            continue;
+        }
+
+        // Parse directive
+        if !line.starts_with('%') {
+            return Err(SyntaxError::new(&format!("Expected directive at line {}", line_num)));
+        }
+
+        // Split directive name and payload with flexible spacing
+        if !line.contains(':') {
+            return Err(SyntaxError::new(&format!("Invalid directive format at line {}", line_num)));
+        }
+
+        let parts: Vec<&str> = line.splitn(2, ':').collect();
+        let name = parts[0];
+        let payload = parts[1];
+
+        if !payload.starts_with(' ') {
+            return Err(SyntaxError::new(&format!("Directive ':' must be followed by at least one space at line {}", line_num)));
+        }
+
+        // Enforce %VERSION as first directive
+        if first_directive {
+            if name != "%VERSION" {
+                return Err(SyntaxError::new(&format!("%VERSION must be the first directive, found {} at line {}", name, line_num)));
+            }
+            first_directive = false;
+        }
+
+        let payload = payload.trim_start_matches(' ');
+
+        // Remove inline comment from payload
+        let payload = strip_comment(payload);
+
+        // Dispatch based on directive name
+        if name == "%VERSION" {
+            parse_version(&payload, line_num)?;
+            version_seen = true;
+        } else if name == "%STRUCT" {
+            parse_struct(&payload, &mut schemas, line_num)?;
+        } else if name == "%ALIAS" {
+            parse_alias(&payload, &mut aliases, line_num)?;
+        } else if name == "%NEST" {
+            parse_nest(&payload, &mut nests, &schemas, line_num)?;
+        // v1.1 directives
+        } else if name == "%MODE" {
+            parse_mode(&payload, line_num)?;  // Sets strict or lenient mode
+        } else if name == "%ENUM" || name == "%DICT" || name == "%CONSTRAINT" {
+            return Err(SyntaxError("removed directive: %ENUM, %DICT, and %CONSTRAINT are not supported in v2.0", line_num));
+        } else if name == "%PROMPT" {
+            parse_prompt(&payload, &mut prompts, line_num)?;
+        } else if name.starts_with("%X-") {
+            // Experimental directive - accept with warning (v1.1)
+            warn(&format!("Unknown experimental directive '{}' at line {}", name, line_num));
+            store_experimental(name, &payload, line_num)?;
+        } else {
+            return Err(SyntaxError::new(&format!("Unknown directive {} at line {}", name, line_num)));
+        }
+    }
+
+    Err(SyntaxError::new("Missing separator '---'"))
+}
 ```
 
 ### 11.3 Context Stack Frames
@@ -2032,7 +2696,7 @@ Each frame contains:
 ```
 
 **Note on `listStartIndent`**:
-- For explicit lists (from `key: @TypeName`): `listStartIndent` is the indent level of the list start line
+- For explicit lists (from `key:@TypeName`): `listStartIndent` is the indent level of the list start line
 - For implicit lists (via `%NEST`): `listStartIndent` is synthetic = current indent level - 1
 - `rowIndent` is always `listStartIndent + 1`
 
@@ -2040,26 +2704,34 @@ Each frame contains:
 
 Before processing each Body line at indent level `I`:
 
-```python
-def pop_frames(stack, current_indent):
-    """Pop frames that are no longer relevant."""
-    while True:
-        top = stack[-1]
-        
-        if top.kind == "List":
-            # Pop list if we're leaving its row scope
-            if current_indent < top.rowIndent:
-                stack.pop()
-                continue
-                
-        elif top.kind == "Object":
-            # Pop object if we're returning to its level or shallower
-            if current_indent <= top.indent:
-                stack.pop()
-                continue
-                
-        # No more frames to pop
-        break
+```rust
+fn pop_frames(stack: &mut Vec<Frame>, current_indent: usize) {
+    /// Pop frames that are no longer relevant.
+    loop {
+        if stack.is_empty() {
+            break;
+        }
+
+        let top = &stack[stack.len() - 1];
+
+        if top.kind == FrameKind::List {
+            // Pop list if we're leaving its row scope
+            if current_indent < top.row_indent {
+                stack.pop();
+                continue;
+            }
+        } else if top.kind == FrameKind::Object {
+            // Pop object if we're returning to its level or shallower
+            if current_indent <= top.indent {
+                stack.pop();
+                continue;
+            }
+        }
+
+        // No more frames to pop
+        break;
+    }
+}
 ```
 
 **Rationale**: Objects close when we return to their level or shallower; lists close when we leave their row scope.
@@ -2083,7 +2755,7 @@ After popping, dispatch based on line content:
   2. Assign to `parent[key]`
 - **Error**: Wrong indent → `SyntaxError`
 
-#### Case 3: Matrix List Start (`key: @TypeName`)
+#### Case 3: Matrix List Start (`key:@TypeName`)
 - **Requirement**: Top is Root or Object, `I == top.indent + 1`
 - **Action**:
   1. Resolve schema (declared or inline)
@@ -2136,41 +2808,61 @@ After Body parsing:
    - If found → `SyntaxError` ("Truncated token at end of file")
 
 3. **Reference Resolution**: Resolve all recorded `@id` references within type namespaces
-   ```python
-   def resolve_references(node, type_registries, current_type=None, strict=True):
-       if isinstance(node, Reference):
-           # Determine target type and ID
-           if ':' in node.id:
-               target_type, target_id = node.id.split(':', 1)
-               # Strip optional @ if present in split (grammar handles this, but for safety)
-               if target_type.startswith('@'): target_type = target_type[1:]
-           else:
-               target_type = current_type
-               target_id = node.id
+   ```rust
+   fn resolve_references(node: &mut Node, type_registries: &HashMap<String, HashMap<String, Node>>, current_type: Option<&str>, strict: bool) -> Result<(), ReferenceError> {
+       match node {
+           Node::Reference(ref_node) => {
+               // Determine target type and ID
+               let (target_type, target_id) = if ref_node.id.contains(':') {
+                   let parts: Vec<&str> = ref_node.id.splitn(2, ':').collect();
+                   let mut target_type = parts[0].to_string();
+                   // Strip optional @ if present in split (grammar handles this, but for safety)
+                   if target_type.starts_with('@') {
+                       target_type = target_type[1..].to_string();
+                   }
+                   (Some(target_type), parts[1].to_string())
+               } else {
+                   (current_type.map(|s| s.to_string()), ref_node.id.clone())
+               };
 
-           # Resolve
-           if target_type and target_type in type_registries:
-               registry = type_registries[target_type]
-               if target_id in registry:
-                   return node  # Resolved
-               elif strict:
-                   raise ReferenceError(f"Unresolved reference @{target_id} in type {target_type}")
-               else:
-                   return None
-           elif strict:
-                raise ReferenceError(f"Cannot resolve reference to unknown type {target_type}")
-           return node
-           
-       elif isinstance(node, dict):
-           # If this dict represents a typed Node, update current_type
-           # (Assuming Node structure from Section 10.5 where properties are merged)
-           new_type = node.get("type", current_type)
-           return {k: resolve_references(v, type_registries, new_type, strict) for k, v in node.items()}
-           
-       elif isinstance(node, list):
-           return [resolve_references(item, type_registries, current_type, strict) for item in node]
-       else:
-           return node
+               // Resolve
+               if let Some(ref target_type_str) = target_type {
+                   if let Some(registry) = type_registries.get(target_type_str) {
+                       if registry.contains_key(&target_id) {
+                           return Ok(()); // Resolved
+                       } else if strict {
+                           return Err(ReferenceError::new(&format!("Unresolved reference @{} in type {}", target_id, target_type_str)));
+                       } else {
+                           *node = Node::Null;
+                           return Ok(());
+                       }
+                   } else if strict {
+                       return Err(ReferenceError::new(&format!("Cannot resolve reference to unknown type {}", target_type_str)));
+                   }
+               }
+               Ok(())
+           }
+           Node::Object(obj) => {
+               // If this dict represents a typed Node, update current_type
+               // (Assuming Node structure from Section 10.5 where properties are merged)
+               let new_type = obj.get("type")
+                   .and_then(|t| if let Node::String(s) = t { Some(s.as_str()) } else { None })
+                   .or(current_type);
+
+               for (_, v) in obj.iter_mut() {
+                   resolve_references(v, type_registries, new_type, strict)?;
+               }
+               Ok(())
+           }
+           Node::List(list) => {
+               for item in list.iter_mut() {
+                   resolve_references(item, type_registries, current_type, strict)?;
+               }
+               Ok(())
+           }
+           _ => Ok(()),
+       }
+   }
    ```
 
 4. **Validation**: Ensure no dangling references in strict mode
@@ -2178,96 +2870,138 @@ After Body parsing:
 
 ### 11.7 Complete Pseudo-Code with Truncation Detection
 
-```python
-class HEDLParser:
-    def __init__(self, strict=True, max_indent=50, max_nodes=10_000_000):
-        self.strict = strict
-        self.max_indent = max_indent
-        self.max_nodes = max_nodes
-        self.schemas = {}
-        self.aliases = {}
-        self.nests = {}
-        self.type_registries = {}  # type -> {id -> node}
-        self.references = []  # List of (type, id, path) tuples
-        self.node_count = 0
-        self.current_type = None  # Track current type for reference resolution
-        
-    def parse(self, text):
-        # Phase 1: Preprocessing
-        lines = self.preprocess(text)
-        
-        # Phase 2: Header parsing
-        try:
-            body_start = self.parse_header(lines)
-        except SyntaxError as e:
-            # Check if error is due to EOF before separator
-            if "Missing separator" in str(e):
-                raise SyntaxError("Truncated file: missing separator '---'")
-            raise
-        
-        # Phase 3: Body parsing
-        root = self.parse_body(lines[body_start:])
-        
-        # Phase 4: Post-processing
-        # Truncation validation is handled inside parse_body
-        self.resolve_references(root, self.type_registries)
-        
-        return root
-    
-    def parse_body(self, lines):
-        stack = [{"kind": "Root", "indent": -1, "object": {}}]
-        
-        for line_num, line in enumerate(lines, 1):
-            if self.is_blank(line) or self.is_comment(line):
-                continue
-            
-            stripped_line_content = line.strip()
-            if stripped_line_content == '---':
-                raise SyntaxError(f"Multiple separators '---' are not allowed. Found at line {line_num}.")
-                
-            indent = self.calculate_indent(line)
-            self.validate_indent(indent)
-            
-            # Scope closing
-            self.pop_frames(stack, indent)
-            
-            # Classify and parse line
-            line_content = line[indent*2:]  # Remove indentation
-            
-            if line_content.startswith('|'):
-                self.parse_matrix_row(stack, line_content, indent, line_num)
-            else:
-                self.parse_non_matrix_line(stack, line_content, indent, line_num)
-        
-        # Pop remaining frames except root
-        while len(stack) > 1:
-            frame = stack.pop()
-            if frame["kind"] == "Object":
-                raise SyntaxError(f"Unclosed object '{frame.get('parentKey', '?')}' at end of file")
-            elif frame["kind"] == "List":
-                raise SyntaxError(f"Unclosed list '{frame.get('typeName', '?')}' at end of file")
-        
-        # Check for unterminated tokens in last line
-        if lines and not self.is_blank(lines[-1]):
-            last_line = lines[-1].rstrip('\n')
-            if self.is_unterminated_token(last_line):
-                raise SyntaxError("Truncated token at end of file")
-            
-        return stack[0]["object"]
-    
-    def is_unterminated_token(self, line):
-        """Check if line ends with unterminated token using scan_regions."""
-        regions = scan_regions(line)
-        
-        # Check for unclosed quoted string or expression that extends to the end of the line
-        for start, end, _type in regions:
-            if end == len(line): # Region extends to end of line
-                if _type == "quote" and line[end-1] != '"':
-                    return True # Unclosed quote
-                if _type == "expression" and line[end-1] != ')':
-                    return True # Unclosed expression
-        
-        return False
+```rust
+struct HEDLParser {
+    strict: bool,
+    max_indent: usize,
+    max_nodes: usize,
+    schemas: HashMap<String, Vec<String>>,
+    aliases: HashMap<String, String>,
+    nests: HashMap<String, String>,
+    type_registries: HashMap<String, HashMap<String, Node>>,  // type -> {id -> node}
+    references: Vec<(String, String, String)>,  // List of (type, id, path) tuples
+    node_count: usize,
+    current_type: Option<String>,  // Track current type for reference resolution
+}
+
+impl HEDLParser {
+    fn new(strict: bool, max_indent: usize, max_nodes: usize) -> Self {
+        HEDLParser {
+            strict,
+            max_indent,
+            max_nodes,
+            schemas: HashMap::new(),
+            aliases: HashMap::new(),
+            nests: HashMap::new(),
+            type_registries: HashMap::new(),
+            references: Vec::new(),
+            node_count: 0,
+            current_type: None,
+        }
+    }
+
+    fn parse(&mut self, text: &str) -> Result<Node, HEDLError> {
+        // Phase 1: Preprocessing
+        let lines = self.preprocess(text)?;
+
+        // Phase 2: Header parsing
+        let body_start = match self.parse_header(&lines) {
+            Err(e) => {
+                // Check if error is due to EOF before separator
+                if e.message.contains("Missing separator") {
+                    return Err(SyntaxError::new("Truncated file: missing separator '---'"));
+                }
+                return Err(e);
+            }
+            Ok(start) => start,
+        };
+
+        // Phase 3: Body parsing
+        let root = self.parse_body(&lines[body_start..])?;
+
+        // Phase 4: Post-processing
+        // Truncation validation is handled inside parse_body
+        self.resolve_references(&root, &self.type_registries)?;
+
+        Ok(root)
+    }
+
+    fn parse_body(&mut self, lines: &[String]) -> Result<Node, HEDLError> {
+        let mut stack = vec![Frame {
+            kind: FrameKind::Root,
+            indent: -1,
+            object: HashMap::new(),
+        }];
+
+        for (line_num, line) in lines.iter().enumerate() {
+            let line_num = line_num + 1;
+
+            if self.is_blank(line) || self.is_comment(line) {
+                continue;
+            }
+
+            let stripped_line_content = line.trim();
+            if stripped_line_content == "---" {
+                return Err(SyntaxError::new(&format!("Multiple separators '---' are not allowed. Found at line {}.", line_num)));
+            }
+
+            let indent = self.calculate_indent(line)?;
+            self.validate_indent(indent)?;
+
+            // Scope closing
+            self.pop_frames(&mut stack, indent);
+
+            // Classify and parse line
+            let line_content = &line[indent * 2..];  // Remove indentation
+
+            if line_content.starts_with('|') {
+                self.parse_matrix_row(&mut stack, line_content, indent, line_num)?;
+            } else {
+                self.parse_non_matrix_line(&mut stack, line_content, indent, line_num)?;
+            }
+        }
+
+        // Pop remaining frames except root
+        while stack.len() > 1 {
+            let frame = stack.pop().unwrap();
+            if frame.kind == FrameKind::Object {
+                return Err(SyntaxError::new(&format!("Unclosed object '{}' at end of file", frame.parent_key.unwrap_or("?".to_string()))));
+            } else if frame.kind == FrameKind::List {
+                return Err(SyntaxError::new(&format!("Unclosed list '{}' at end of file", frame.type_name.unwrap_or("?".to_string()))));
+            }
+        }
+
+        // Check for unterminated tokens in last line
+        if !lines.is_empty() && !self.is_blank(&lines[lines.len() - 1]) {
+            let last_line = lines[lines.len() - 1].trim_end_matches('\n');
+            if self.is_unterminated_token(last_line) {
+                return Err(SyntaxError::new("Truncated token at end of file"));
+            }
+        }
+
+        Ok(stack[0].object.clone())
+    }
+
+    fn is_unterminated_token(&self, line: &str) -> bool {
+        /// Check if line ends with unterminated token using scan_regions.
+        let regions = scan_regions(line);
+
+        // Check for unclosed quoted string or expression that extends to the end of the line
+        for (start, end, _type) in regions {
+            if end == line.len() { // Region extends to end of line
+                let chars: Vec<char> = line.chars().collect();
+                if _type == "quote" && chars[end - 1] != '"' {
+                    return true; // Unclosed quote
+                }
+                if _type == "expression" && chars[end - 1] != ')' {
+                    return true; // Unclosed expression
+                }
+            }
+        }
+
+        false
+    }
+}
 ```
 
 ---
@@ -2276,18 +3010,18 @@ class HEDLParser:
 
 ### 12.1 Error Categories
 
-| Error | When Raised | Recoverable? | Example |
+ |Error | When Raised | Recoverable? | Example |
 |-------|-------------|--------------|---------|
-| `SyntaxError` | Lexical or structural violation | No | Odd indentation, tab character, unclosed structure |
-| `VersionError` | Unsupported version | No | `%VERSION: 2.0` with 1.0 parser |
-| `SchemaError` | Schema violation or mismatch | No | Duplicate struct, nest to undefined type |
-| `AliasError` | Duplicate or invalid alias | No | `%ALIAS: %key: "val"` (duplicate) |
-| `ShapeError` | Wrong number of cells in row | No | Expected 3 columns, got 2 |
-| `SemanticError` | Logical error | No | Ditto in ID column, null in ID column |
-| `OrphanRowError` | Child row without %NEST | No | Indented row with no nest rule |
-| `CollisionError` | Duplicate ID within type | No | Same ID in same type |
-| `ReferenceError` | Unresolved reference (strict mode) | No | `@missing` with no definition |
-| `SecurityError` | Security limit exceeded | No | File too large, nesting too deep |
+ |`SyntaxError` | Lexical or structural violation | No | Odd indentation, tab character, unclosed structure |
+ |`VersionError` | Unsupported version | No | `%V:2.0` with 1.0 parser |
+ |`SchemaError` | Schema violation or mismatch | No | Duplicate struct, nest to undefined type |
+ |`AliasError` | Duplicate or invalid alias | No | `%A:%key: "val"` (duplicate) |
+ |`ShapeError` | Wrong number of cells in row | No | Expected 3 columns, got 2 |
+ |`SemanticError` | Logical error | No | Ditto in ID column, null in ID column |
+ |`OrphanRowError` | Child row without %NEST | No | Indented row with no nest rule |
+ |`CollisionError` | Duplicate ID within type | No | Same ID in same type |
+ |`ReferenceError` | Unresolved reference (strict mode) | No | `@missing` with no definition |
+ |`SecurityError` | Security limit exceeded | No | File too large, nesting too deep |
 
 ### 12.2 Error Details and Messages
 
@@ -2314,6 +3048,7 @@ class HEDLParser:
 **CollisionError Example**:
 - `Duplicate ID 'user1' in type 'User' at line Y, previously defined at line X`
 
+
 ### 12.3 Recovery Guidelines
 
 Parsers SHOULD:
@@ -2329,69 +3064,81 @@ Parsers MUST NOT:
 4. Implement "lenient" mode for syntax errors (only for reference resolution)
 
 **Error Recovery Example**:
-```python
-try:
-    result = parser.parse(text)
-except HEDLError as e:
-    print(f"Error at line {e.line}: {e.message}")
-    if e.context:
-        print(f"Context: {e.context}")
-    raise
+```rust
+match parser.parse(&text) {
+    Ok(result) => result,
+    Err(e) => {
+        if let Some(line) = e.line {
+            eprintln!("Error at line {}: {}", line, e.message);
+        } else {
+            eprintln!("Error: {}", e.message);
+        }
+        if let Some(context) = e.context {
+            eprintln!("Context: {}", context);
+        }
+        return Err(e);
+    }
+}
 ```
 
 ### 12.4 Error Class Definition
 
-```python
-class HEDLError(Exception):
-    """Base class for all HEDL errors."""
-    def __init__(self, message, line=None, column=None, context=None):
-        self.message = message
-        self.line = line
-        self.column = column
-        self.context = context
-        super().__init__(self.format_message())
-        
-    def format_message(self):
-        parts = []
-        if self.line is not None:
-            parts.append(f"line {self.line}")
-        if self.column is not None:
-            parts.append(f"column {self.column}")
-        if parts:
-            location = " at " + ":".join(parts)
-        else:
-            location = ""
-        return f"{self.__class__.__name__}{location}: {self.message}"
+```rust
+struct HEDLError {
+    /// Base class for all HEDL errors.
+    message: String,
+    line: Option<usize>,
+    column: Option<usize>,
+    context: Option<String>,
+}
 
-class SyntaxError(HEDLError):
-    pass
+impl HEDLError {
+    fn new(message: &str, line: Option<usize>, column: Option<usize>, context: Option<String>) -> Self {
+        HEDLError {
+            message: message.to_string(),
+            line,
+            column,
+            context,
+        }
+    }
 
-class VersionError(HEDLError):
-    pass
+    fn format_message(&self, error_type: &str) -> String {
+        let mut parts = Vec::new();
+        if let Some(line) = self.line {
+            parts.push(format!("line {}", line));
+        }
+        if let Some(column) = self.column {
+            parts.push(format!("column {}", column));
+        }
+        let location = if !parts.is_empty() {
+            format!(" at {}", parts.join(":"))
+        } else {
+            String::new()
+        };
+        format!("{}{}: {}", error_type, location, self.message)
+    }
+}
 
-class SchemaError(HEDLError):
-    pass
+struct SyntaxError(HEDLError);
 
-class AliasError(HEDLError):
-    pass
+struct VersionError(HEDLError);
 
-class ShapeError(HEDLError):
-    pass
+struct SchemaError(HEDLError);
 
-class SemanticError(HEDLError):
-    pass
+struct AliasError(HEDLError);
 
-class OrphanRowError(HEDLError):
-    pass
+struct ShapeError(HEDLError);
 
-class CollisionError(HEDLError):
-    pass
+struct SemanticError(HEDLError);
 
-class ReferenceError(HEDLError):
-    pass
+struct OrphanRowError(HEDLError);
 
-class SecurityError(HEDLError):
-    pass
+struct CollisionError(HEDLError);
+
+struct ReferenceError(HEDLError);
+
+struct SecurityError(HEDLError);
+
 ```
 
 ---
@@ -2405,26 +3152,26 @@ To ensure stable hashing, diffing, and deterministic output:
 1. **Line Endings**: `\n` only
 2. **No Trailing Whitespace**: Trim end of every line
 3. **Separator**: Exactly `---\n`
-4. **Indentation**: Exactly 2 spaces per level, no tabs
+4. **Indentation**: Exactly 1 space per level (v2.0), no tabs
 5. **No BOM**: Do not include UTF-8 BOM
 
 ### 13.2 Header Directive Order
 
 Generate directives in this order:
 
-1. `%VERSION: 1.0`
+1. `%V:2.0`
 2. `%ALIAS`: Sorted by key (ASCII ascending)
 3. `%STRUCT`: Sorted by TypeName (ASCII)
 4. `%NEST`: Sorted by ParentType then ChildType (ASCII)
 
 **Example**:
 ```hedl
-%VERSION: 1.0
-%ALIAS: %active: "true"
-%ALIAS: %inactive: "false"
-%STRUCT: Post: [id,content]
-%STRUCT: User: [id,name]
-%NEST: User > Post
+%V:2.0
+%A:%active: "true"
+%A:%inactive: "false"
+%S:Post:[id,content]
+%S:User:[id,name]
+%N:User>Post
 ---
 ```
 
@@ -2477,21 +3224,27 @@ Line 2
 
 **Matrix Row Comments**: Canonical output MUST omit all comments. Pretty-printers MAY preserve comments in human-oriented output.
 
-### 13.4 Ditto Optimization
+### 13.4 Ditto Optimization (v1.2 only)
 
-Use `^` when value equals previous row same column in same list.
+> **v2.0 Breaking Change**: Ditto optimization is NOT available in v2.0. All values must be written explicitly. This section applies only to v1.2 documents.
+
+Use `^` when value equals previous row same column in same list (v1.2 only).
 
 **Rules**:
 1. Only in matrix cells, not Key-Value
 2. Not in ID column
 3. Not in first row
 4. Compare values deeply (including type)
+5. **Not allowed in v2.0 documents**
 
-**Example**:
+**Example (v1.2 only)**:
 ```hedl
+%V:1.2
+---
+data:@Item
 |a,Apple,1.99
-|b,^,0.99    # Apple copied
-|c,Orange,^  # 0.99 copied
+|b,^,0.99    # Apple copied (v1.2 only)
+|c,Orange,^  # 0.99 copied (v1.2 only)
 ```
 
 ### 13.5 Object Key Sorting
@@ -2520,86 +3273,141 @@ Always valid ID token (no quoting needed).
 
 Matrix lists in the parsed output MUST include metadata for canonicalization:
 
-**Normative Requirement**: 
+**Normative Requirement**:
 - The parsed representation of a matrix list MUST include `type_name` and `schema` properties
 - These properties MAY be implemented as metadata attributes, wrapper objects, or separate data structures
 - Generators MUST have access to this metadata for round-trip canonicalization
 
 **Example Implementation**:
-```python
-class MatrixList:
-    def __init__(self, type_name, schema):
-        self.type_name = type_name
-        self.schema = schema
-        self.rows = []  # List of dicts mapping column->value
-        
-    # Allow list-like access
-    def __len__(self):
-        return len(self.rows)
-    
-    def __getitem__(self, idx):
-        return self.rows[idx]
-    
-    def append(self, row):
-        self.rows.append(row)
+```rust
+struct MatrixList {
+    type_name: String,
+    schema: Vec<String>,
+    rows: Vec<HashMap<String, Value>>,  // List of dicts mapping column->value
+}
+
+impl MatrixList {
+    fn new(type_name: String, schema: Vec<String>) -> Self {
+        MatrixList {
+            type_name,
+            schema,
+            rows: Vec::new(),
+        }
+    }
+
+    // Allow list-like access
+    fn len(&self) -> usize {
+        self.rows.len()
+    }
+
+    fn get(&self, idx: usize) -> Option<&HashMap<String, Value>> {
+        self.rows.get(idx)
+    }
+
+    fn append(&mut self, row: HashMap<String, Value>) {
+        self.rows.push(row);
+    }
+}
 ```
 
-### 13.8 Complete Canonicalization Algorithm (Informative)
+### 13.8 Canonicalization of v1.1 Features
+
+**List Literals**:
+- Canonical form: `(elem1, elem2, ...)` with single space after commas
+- Empty list: `()`
+- Elements follow standard scalar canonicalization
+
+
+**%MODE Directive**:
+- If mode is `strict` (default), MAY be omitted in canonical output
+- If mode is `lenient`, MUST be included
+
+**%PROMPT Directives**:
+- Multiple prompts MUST be preserved in original order
+- Content is preserved exactly (no normalization)
+
+**Header Directive Order**:
+1. `%V:2.0`
+2. `%NULL`: Null symbol declaration
+3. `%QUOTE`: Quote character declaration
+4. `%MODE`: if lenient (omit if strict)
+5. `%ALIAS`: Sorted by key (ASCII ascending)
+6. `%STRUCT`: Sorted by TypeName (ASCII)
+7. `%NEST`: Sorted by ParentType then ChildType (ASCII)
+8. `%COUNT`: Sorted by TypeName (ASCII)
+9. `%PROMPT`: In original order
+10. `%X-*`: Experimental directives preserved in original order
+
+### 13.9 Complete Canonicalization Algorithm (Informative)
 
 **Note**: This section is non-normative and provided for illustration only. Implementations MUST adhere to the normative requirements in Sections 13.1-13.7 but are NOT required to follow this specific algorithm.
 
-```python
-def canonicalize(data, indent=0):
-    """Convert Python data structure to canonical HEDL. (Informative example)"""
-    if isinstance(data, dict):
-        # Sort keys
-        items = sorted(data.items(), key=lambda x: x[0])
-        
-        lines = []
-        for key, value in items:
-            if isinstance(value, MatrixList):
-                # Matrix list with metadata
-                lines.append(canonicalize_matrix_list(key, value, indent))
-            elif isinstance(value, dict):
-                # Object
-                lines.append(' ' * indent + f"{key}:")
-                lines.extend(canonicalize(value, indent + 1))
-            else:
-                # Scalar
-                lines.append(' ' * indent + f"{key}: {canonicalize_value(value)}")
-        return lines
-    else:
-        return []
+```rust
+fn canonicalize(data: &Value, indent: usize) -> Vec<String> {
+    /// Convert data structure to canonical HEDL. (Informative example)
+    if let Value::Object(map) = data {
+        // Sort keys
+        let mut items: Vec<_> = map.iter().collect();
+        items.sort_by_key(|(k, _)| *k);
 
-def canonicalize_matrix_list(key, matrix_list, indent):
-    """Canonicalize a matrix list."""
-    type_name = matrix_list.type_name
-    schema = matrix_list.schema
-    
-    lines = []
-    # Use inline schema for canonical form
-    lines.append(' ' * indent + f"{key}: @{type_name}[{', '.join(schema)}]")
-    
-    # Output rows with ditto optimization
-    last_values = None
-    for row in matrix_list.rows:
-        # row is dict mapping column name to value
-        row_values = [row[col] for col in schema]
-        canonical_row = canonicalize_matrix_row(row_values, last_values)
-        lines.append(' ' * (indent + 1) + canonical_row)
-        last_values = row_values
-    
-    return '\n'.join(lines)
+        let mut lines = Vec::new();
+        for (key, value) in items {
+            if let Value::MatrixList(matrix_list) = value {
+                // Matrix list with metadata
+                lines.push(canonicalize_matrix_list(key, matrix_list, indent));
+            } else if let Value::Object(_) = value {
+                // Object
+                lines.push(format!("{}{}: ", " ".repeat(indent), key));
+                lines.extend(canonicalize(value, indent + 1));
+            } else {
+                // Scalar
+                lines.push(format!("{}{}: {}", " ".repeat(indent), key, canonicalize_value(value)));
+            }
+        }
+        lines
+    } else {
+        Vec::new()
+    }
+}
 
-def canonicalize_matrix_row(values, last_values):
-    """Canonicalize a single matrix row with ditto optimization."""
-    cells = []
-    for i, value in enumerate(values):
-        if last_values is not None and value == last_values[i]:
-            cells.append('^')
-        else:
-            cells.append(canonicalize_value(value, in_matrix=True))
-    return '| ' + ', '.join(cells)
+fn canonicalize_matrix_list(key: &str, matrix_list: &MatrixList, indent: usize) -> String {
+    /// Canonicalize a matrix list.
+    let type_name = &matrix_list.type_name;
+    let schema = &matrix_list.schema;
+
+    let mut lines = Vec::new();
+    // Use inline schema for canonical form
+    lines.push(format!("{}{}:@{}[{}]", " ".repeat(indent), key, type_name, schema.join(", ")));
+
+    // Output rows with ditto optimization
+    let mut last_values: Option<Vec<Value>> = None;
+    for row in &matrix_list.rows {
+        // row is dict mapping column name to value
+        let row_values: Vec<Value> = schema.iter().map(|col| row[col].clone()).collect();
+        let canonical_row = canonicalize_matrix_row(&row_values, last_values.as_ref());
+        lines.push(format!("{}  {}", " ".repeat(indent), canonical_row));
+        last_values = Some(row_values);
+    }
+
+    lines.join("\n")
+}
+
+fn canonicalize_matrix_row(values: &[Value], last_values: Option<&Vec<Value>>) -> String {
+    /// Canonicalize a single matrix row with ditto optimization.
+    let mut cells = Vec::new();
+    for (i, value) in values.iter().enumerate() {
+        if let Some(last) = last_values {
+            if value == &last[i] {
+                cells.push("^".to_string());
+            } else {
+                cells.push(canonicalize_value(value));
+            }
+        } else {
+            cells.push(canonicalize_value(value));
+        }
+    }
+    format!("| {}", cells.join(", "))
+}
 ```
 
 ---
@@ -2621,28 +3429,50 @@ Parsers SHOULD enforce:
 9. **Time Limits**: Maximum parsing time
 
 **Implementation Guidance**:
-```python
-class SafeHEDLParser(HEDLParser):
-    def __init__(self, max_indent=50, max_line_length=1024*1024, max_nodes=10_000_000, max_file_size=1024*1024*1024):
-        super().__init__()
-        self.max_indent = max_indent
-        self.max_line_length = max_line_length
-        self.max_nodes = max_nodes
-        self.max_file_size = max_file_size
-        self.node_count = 0
-        
-    def validate_line(self, line):
-        if len(line) > self.max_line_length:
-            raise SecurityError(f"Line too long: {len(line)} > {self.max_line_length}")
-    
-    def validate_indent(self, indent):
-        if indent > self.max_indent:
-            raise SecurityError(f"Indent too deep: {indent} > {self.max_indent}")
-        
-    def register_node(self, node_id, type_name):
-        self.node_count += 1
-        if self.node_count > self.max_nodes:
-            raise SecurityError(f"Too many nodes: {self.node_count} > {self.max_nodes}")
+```rust
+struct SafeHEDLParser {
+    parser: HEDLParser,
+    max_indent: usize,
+    max_line_length: usize,
+    max_nodes: usize,
+    max_file_size: usize,
+    node_count: usize,
+}
+
+impl SafeHEDLParser {
+    fn new(max_indent: usize, max_line_length: usize, max_nodes: usize, max_file_size: usize) -> Self {
+        SafeHEDLParser {
+            parser: HEDLParser::new(true, max_indent, max_nodes),
+            max_indent,
+            max_line_length,
+            max_nodes,
+            max_file_size,
+            node_count: 0,
+        }
+    }
+
+    fn validate_line(&self, line: &str) -> Result<(), SecurityError> {
+        if line.len() > self.max_line_length {
+            return Err(SecurityError::new(&format!("Line too long: {} > {}", line.len(), self.max_line_length)));
+        }
+        Ok(())
+    }
+
+    fn validate_indent(&self, indent: usize) -> Result<(), SecurityError> {
+        if indent > self.max_indent {
+            return Err(SecurityError::new(&format!("Indent too deep: {} > {}", indent, self.max_indent)));
+        }
+        Ok(())
+    }
+
+    fn register_node(&mut self, node_id: &str, type_name: &str) -> Result<(), SecurityError> {
+        self.node_count += 1;
+        if self.node_count > self.max_nodes {
+            return Err(SecurityError::new(&format!("Too many nodes: {} > {}", self.node_count, self.max_nodes)));
+        }
+        Ok(())
+    }
+}
 ```
 
 ### 14.2 Injection Prevention
@@ -2696,28 +3526,35 @@ Parsers MUST detect and reject truncated files:
 5. **Bare CR**: If file contains CR without LF → SyntaxError
 
 **Truncation Detection Algorithm**:
-```python
-def detect_truncation(lines):
-    """Check for truncation indicators using scan_regions."""
-    if not lines:
-        return False
-    
-    last_line = lines[-1].rstrip('\n')
-    
-    # Check for partial separator
-    if last_line.startswith('-') and last_line != '---':
-        return True
-        
-    # Check for unterminated tokens using normative scan_regions
-    regions = scan_regions(last_line)
-    for start, end, _type in regions:
-        if end == len(last_line):
-            if _type == "quote" and last_line[end-1] != '"':
-                return True
-            if _type == "expression" and last_line[end-1] != ')':
-                return True
-    
-    return False
+```rust
+fn detect_truncation(lines: &[String]) -> bool {
+    /// Check for truncation indicators using scan_regions.
+    if lines.is_empty() {
+        return false;
+    }
+
+    let last_line = lines.last().unwrap().trim_end_matches('\n');
+
+    // Check for partial separator
+    if last_line.starts_with('-') && last_line != "---" {
+        return true;
+    }
+
+    // Check for unterminated tokens using normative scan_regions
+    let regions = scan_regions(last_line);
+    let bytes = last_line.as_bytes();
+    for region in &regions {
+        if region.end == bytes.len() {
+            match region.region_type {
+                RegionType::Quote if bytes[region.end - 1] != b'"' => return true,
+                RegionType::Expression if bytes[region.end - 1] != b')' => return true,
+                _ => {}
+            }
+        }
+    }
+
+    false
+}
 ```
 
 ### 14.6 Implementation Security Checklist
@@ -2782,7 +3619,7 @@ Content-Type: application/hedl; version=1.0; charset=utf-8
 ### 16.1 Simple Mode (No Schemas)
 
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
 config:
   database:
@@ -2792,21 +3629,21 @@ config:
     level: info
     file: "/var/log/app.log"
 # Lists require inline schema in Simple Mode (first column is always ID)
-users: @User[id,name,email,active]
-  |alice,Alice,alice@example.com,true
-  |bob,Bob,bob@example.com,false
+users:@User[id,name,email,active]
+ |alice,Alice,alice@example.com,true
+ |bob,Bob,bob@example.com,false
 ```
 
 ### 16.2 Basic Typed List
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id,name,email,active]
+%V:2.0
+%S:User:[id,name,email,active]
 ---
-users: @User
-  |u1,"Alice, Admin",alice@example.com,true
-  |u2,bob,bob@example.com,false
-  |u3,carol,carol@example.com,^
+users:@User
+ |u1,"Alice, Admin",alice@example.com,true
+ |u2,bob,bob@example.com,false
+ |u3,carol,carol@example.com,^
 ```
 
 **Parsed as**:
@@ -2823,17 +3660,17 @@ users: @User
 ### 16.3 Nested Hierarchy
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: Project: [id,name]
-%STRUCT: Task: [id,description,status]
-%NEST: Project > Task
+%V:2.0
+%S:Project:[id,name]
+%S:Task:[id,description,status]
+%N:Project>Task
 ---
-projects: @Project
-  |p1,Website Redesign
-    |t1,Design mockups,pending
-    |t2,Implement frontend,in_progress
-  |p2,API Migration
-    |t3,Update endpoints,done
+projects:@Project
+ |p1,Website Redesign
+  |t1,Design mockups,pending
+  |t2,Implement frontend,in_progress
+ |p2,API Migration
+  |t3,Update endpoints,done
 ```
 
 **Parsed as**:
@@ -2866,15 +3703,15 @@ projects: @Project
 ### 16.4 References and Aliases
 
 ```hedl
-%VERSION: 1.0
-%ALIAS: %pending: "pending"
-%ALIAS: %done: "done"
-%STRUCT: Task: [id,description,status,depends_on]
+%V:2.0
+%A:%pending: "pending"
+%A:%done: "done"
+%S:Task:[id,description,status,depends_on]
 ---
-tasks: @Task
-  |t1,Design,%pending,~
-  |t2,Implement,%pending,@t1
-  |t3,Test,%done,@t2
+tasks:@Task
+ |t1,Design,%pending,~
+ |t2,Implement,%pending,@t1
+ |t3,Test,%done,@t2
 ```
 
 **Parsed as**:
@@ -2891,18 +3728,18 @@ tasks: @Task
 ### 16.5 Tensor Literals and Mixed Structure
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: Measurement: [id,timestamp,values]
+%V:2.0
+%S:Measurement:[id,timestamp,values]
 ---
 experiment:
   name: "Temperature Test"
   metadata:
     sensor_count: 3
     duration: 3600
-  measurements: @Measurement
-    |m1,1625097600,[23.5,24.1,22.9]
-    |m2,1625097660,[23.7,24.0,23.1]
-    |m3,^,[23.6,24.0,23.0]
+  measurements:@Measurement
+  |m1,1625097600,[23.5,24.1,22.9]
+  |m2,1625097660,[23.7,24.0,23.1]
+  |m3,^,[23.6,24.0,23.0]
 ```
 
 **Note**: Ditto (`^`) works at the cell level, not inside tensor literals. In row m3, `^` copies the entire timestamp value `1625097660` from row m2. Tensor literals must contain only numbers.
@@ -2910,17 +3747,125 @@ experiment:
 ### 16.6 Type-Scoped IDs Example
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Role: [id,name]
+%V:2.0
+%S:User:[id,name]
+%S:Role:[id,name]
 ---
-users: @User
-  |admin,Alice
-  |user1,Bob
-roles: @Role
-  |admin,Administrator  # OK - different type namespace
-  |user,Regular User
+users:@User
+ |admin,Alice
+ |user1,Bob
+roles:@Role
+ |admin,Administrator  # OK - different type namespace
+ |user,Regular User
 ```
+
+### 16.7 Comprehensive Features Example
+
+This example demonstrates v2.0 features working together.
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%MODE: strict
+%A: dept: "Engineering"
+%S:Employee:[id, name, department, salary, active]
+%C:Employee:100
+%PROMPT: "Reference employees by ID. Do not invent data."
+---
+employees:@Employee
+ |e1, Alice, Engineering, 95000, true
+ |e2, Bob, Engineering, 65000, true
+ |e3, Carol, Marketing, 72000, false
+```
+
+**Parsed Structure**:
+```json
+{
+  "employees": [
+    {"id": "e1", "name": "Alice", "department": "Engineering", "salary": 95000, "active": true},
+    {"id": "e2", "name": "Bob", "department": "Engineering", "salary": 65000, "active": true},
+    {"id": "e3", "name": "Carol", "department": "Marketing", "salary": 72000, "active": false}
+  ],
+  "_metadata": {
+    "prompts": ["Reference employees by ID. Do not invent data."]
+  }
+}
+```
+
+**Features Demonstrated**:
+1. **%V:2.0**: Required version directive in compact form
+2. **%NULL:~**: Required null symbol declaration
+3. **%QUOTE:"**: Required quote character declaration
+4. **%MODE: strict**: Explicit mode setting
+5. **%A (alias)**: Global constant for reuse
+6. **%S (struct)**: Compact schema definition
+7. **%C (count)**: Capacity hint for implementations
+8. **%PROMPT**: Metadata stored for LLM consumption
+
+### 16.8 Lenient Mode Example
+
+This example shows how lenient mode handles unknown values gracefully.
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%MODE: lenient
+%S:Employee:[id, name, status, salary]
+---
+employees:@Employee
+ |e1, Alice, active, 50000
+ |e2, Bob, active, 75000
+ |e3, Carol, inactive, 0
+```
+
+### 16.9 Compact v1.2 Example
+
+This example demonstrates v1.2 compact syntax with inline child lists.
+
+```hedl
+%V:1.2
+%NULL:~
+%QUOTE:"
+%S:Product:[id,sku,name,category,price]
+%S:Review:[id,rating,text,verified]
+%S:Inventory:[id,warehouse,qty]
+%C:Product.total=3
+%C:Product.category:electronics=2,home=1
+%C:Review.total=6
+%C:Inventory.total=6
+%N:Product>Review
+%N:Product>Inventory
+---
+products:@Product
+ |prod-001,SKU-001,Laptop,electronics,999.99
+    @Review#2:|rev-001,5,Great product,true|rev-002,4,Good value,^
+    @Inventory#2:|inv-001,east,50|inv-002,west,30
+ |prod-002,SKU-002,Monitor,^,299.99
+    @Review#3:|rev-003,5,Crystal clear,true|rev-004,^,Excellent,^|rev-005,3,Average,false
+    @Inventory#2:|inv-003,east,100|inv-004,west,^
+ |prod-003,SKU-003,Smart Speaker,home,79.99
+    @Review#1:|rev-006,4,Good sound,true
+    @Inventory#2:|inv-005,east,200|inv-006,west,150
+```
+
+**Demonstrates**:
+1. **%V**: Compact version directive
+2. **%NULL**: Explicit null symbol declaration
+3. **%QUOTE**: Explicit quote character declaration
+4. **%S**: Compact schema definitions
+5. **%C**: Count statistics for validation hints
+6. **%N**: Compact nesting relationships
+7. **Inline children**: `@Type#N:|row1|row2|...` syntax (max 5 entries per inline list)
+8. **Ditto in inline**: `^` works within inline children
+9. **No spaces after pipes**: Inline format uses `|data` not `| data`
+10. **Proper indentation**: Child declarations indented one level deeper than parent rows
+
+**Token Savings vs v1.1**:
+- ~15% reduction in header tokens
+- ~30% reduction in body tokens with inline children
+- Overall ~25% token savings for hierarchical data
 
 ---
 
@@ -2933,9 +3878,18 @@ roles: @Role
 - **Major version**: Breaking changes
 - **Minor version**: Backward-compatible additions
 
+**Current Version**: 2.0
+
+**Version History**:
+- **v1.0**: Initial release with core features
+- **v1.1**: Added %MODE, %PROMPT, list literals (note: %ENUM, %DICT, %CONSTRAINT were proposed but removed in v2.0)
+- **v1.2**: Compact directive syntax (%V, %S, %N, %C), inline child lists (max 5 entries), %NULL, %QUOTE
+- **v2.0**: Required headers (%V:2.0, %NULL:~, %QUOTE:"), 1-space indentation, no ditto operator
+
 **Backward Compatibility**:
+- v1.2 parser MUST parse v1.0 and v1.1 files (verbose syntax supported)
 - v1.1 parser MUST parse v1.0 files
-- v1.0 parser MAY parse v1.1 files (if new features ignored)
+- v1.1 parser CANNOT parse v1.2 compact syntax (will reject)
 - v2.0 parser MAY parse v1.x files (with compatibility mode)
 
 ### 17.2 Extension Points
@@ -2961,7 +3915,44 @@ When designing extensions:
 %X-MAXROWS: User: 1000  # Experimental limit
 ```
 
-### 17.4 Version Negotiation
+### 17.4 Forward Compatibility: Experimental Directives (v1.1)
+
+Directives starting with `%X-` are designated as **EXPERIMENTAL** and enable forward compatibility.
+
+**Parser Behavior for `%X-*` Directives**:
+1. Parsers MUST accept any directive starting with `%X-` without raising a hard error
+2. Parsers MUST emit a WARNING when encountering an unknown `%X-*` directive
+3. Parsers SHOULD store the directive's content as opaque metadata
+4. The stored metadata SHOULD include:
+   - The full directive name (e.g., `X-MAXROWS`)
+   - The payload string (unparsed)
+   - The line number
+5. Unknown `%X-*` directives MUST NOT affect parsing semantics
+
+**Standard (Non-Experimental) Directives**:
+- Unknown directives NOT starting with `%X-` remain hard errors
+- This preserves strict validation while enabling experimentation
+
+**Examples**:
+```hedl
+%V:2.0
+%X-MAXROWS: User: 1000    # Experimental - accepted with warning
+%X-CUSTOM: some payload   # Experimental - accepted with warning
+%UNKNOWN: foo             # ERROR: Unknown directive (not experimental)
+---
+```
+
+**Rationale**: This mechanism allows:
+- Implementers to experiment with new features
+- Documents to include hints for future parser versions
+- Graceful degradation when older parsers encounter newer features
+
+**Warning Message Format** (RECOMMENDED):
+```
+Warning at line N: Unknown experimental directive '%X-NAME' ignored
+```
+
+### 17.5 Version Negotiation
 
 Parsers SHOULD:
 1. Read `%VERSION` directive first
@@ -2980,7 +3971,7 @@ All implementations MUST:
 2. Reject invalid documents with appropriate errors
 3. Support UTF-8 encoding
 4. Handle LF and CRLF line endings, reject bare CR
-5. Validate indentation (2 spaces, no tabs for indentation)
+5. Validate indentation (1 space per level in v2.0, no tabs for indentation)
 6. Enforce ID column constraints
 7. Detect duplicate IDs within types
 8. Resolve references within type namespaces (or error in strict mode)
@@ -3035,12 +4026,12 @@ To claim HEDL 1.0 compliance, implementations MUST:
 
 Implementations MUST pass these test vectors:
 
-1. **Minimal Document**: `%VERSION: 1.0\n---\n`
-2. **Simple Object**: `%VERSION: 1.0\n---\na: 1\nb: 2`
-3. **Nested Object**: `%VERSION: 1.0\n---\na:\n  b: 1`
-4. **Matrix List**: `%VERSION: 1.0\n%STRUCT: T: [id,v]\n---\nd: @T\n  |x,1`
-5. **References**: `%VERSION: 1.0\n%STRUCT: T: [id,ref]\n---\nd: @T\n  |a,~\n  |b,@a`
-6. **Type-Scoped IDs**: `%VERSION: 1.0\n%STRUCT: A: [id,v]\n%STRUCT: B: [id,v]\n---\na: @A\n  |x,1\nb: @B\n  |x,2` (should NOT error)
+1. **Minimal Document**: `%V:2.0\n---\n`
+2. **Simple Object**: `%V:2.0\n---\na: 1\nb: 2`
+3. **Nested Object**: `%V:2.0\n---\na:\n  b: 1`
+4. **Matrix List**: `%V:2.0\n%S:T:[id,v]\n---\nd:@T\n  |x,1`
+5. **References**: `%V:2.0\n%S:T:[id,ref]\n---\nd:@T\n  |a,~\n  |b,@a`
+6. **Type-Scoped IDs**: `%V:2.0\n%S:A:[id,v]\n%S:B:[id,v]\n---\na:@A\n  |x,1\nb:@B\n  |x,2` (should NOT error)
 
 ### 19.2 Round-trip Requirements
 
@@ -3065,7 +4056,7 @@ For systems exchanging HEDL:
 
 Always include version header:
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
 ```
 
@@ -3080,149 +4071,199 @@ For forward compatibility:
 
 ### A.1 Recommended Pseudo-Code Structure
 
-```python
-class HEDLParser:
-    def __init__(self, strict=True, max_indent=50):
-        self.strict = strict
-        self.max_indent = max_indent
-        self.registries = {}
-        self.type_registries = {}
-        self.references = []
-        
-    def parse(self, input_text):
-        # Phase 1: Preprocessing
-        lines = self.normalize_lines(input_text)
-        
-        # Phase 2: Header parsing
-        header_lines, body_lines = self.split_sections(lines)
-        self.parse_header(header_lines)
-        
-        # Phase 3: Body parsing
-        root = self.parse_body(body_lines)
-        
-        # Phase 4: Reference resolution
-        self.resolve_references()
-        
-        return root
-    
-    def parse_body(self, lines):
-        stack = [RootFrame()]
-        for line_num, line in enumerate(lines, 1):
-            if self.is_blank(line) or self.is_comment(line):
-                continue
-                
-            indent = self.calculate_indent(line)
-            self.validate_indent(indent)
-            
-            # Scope closing
-            self.pop_frames(stack, indent)
-            
-            # Parse based on current top frame
-            self.parse_line(stack, line, indent)
+```rust
+struct HEDLParser {
+    strict: bool,
+    max_indent: usize,
+    registries: HashMap<String, Value>,
+    type_registries: HashMap<String, HashMap<String, Node>>,
+    references: Vec<Reference>,
+}
+
+impl HEDLParser {
+    fn new(strict: bool, max_indent: usize) -> Self {
+        HEDLParser {
+            strict,
+            max_indent,
+            registries: HashMap::new(),
+            type_registries: HashMap::new(),
+            references: Vec::new(),
+        }
+    }
+
+    fn parse(&mut self, input_text: &str) -> Result<Node, HEDLError> {
+        // Phase 1: Preprocessing
+        let lines = self.normalize_lines(input_text)?;
+
+        // Phase 2: Header parsing
+        let (header_lines, body_lines) = self.split_sections(&lines)?;
+        self.parse_header(&header_lines)?;
+
+        // Phase 3: Body parsing
+        let root = self.parse_body(&body_lines)?;
+
+        // Phase 4: Reference resolution
+        self.resolve_references()?;
+
+        Ok(root)
+    }
+
+    fn parse_body(&mut self, lines: &[String]) -> Result<Node, HEDLError> {
+        let mut stack = vec![RootFrame::new()];
+        for (line_num, line) in lines.iter().enumerate() {
+            let line_num = line_num + 1;
+            if self.is_blank(line) || self.is_comment(line) {
+                continue;
+            }
+
+            let indent = self.calculate_indent(line)?;
+            self.validate_indent(indent)?;
+
+            // Scope closing
+            self.pop_frames(&mut stack, indent);
+
+            // Parse based on current top frame
+            self.parse_line(&mut stack, line, indent)?;
+        }
+        Ok(stack[0].object.clone())
+    }
+}
 ```
 
 ### A.2 Handling ID Column Validation
 
-```python
-def parse_matrix_cell(self, cell_data, column_index, schema, last_row_values):
-    """Parse a single matrix cell with special handling for ID column."""
-    value_str, is_quoted = cell_data
-    
-    # Special handling for ID column (first column)
-    if column_index == 0:
-        if not is_quoted:
-            if value_str == '^':
-                raise SemanticError("Ditto not permitted in ID column")
-            if value_str == '~':
-                raise SemanticError("Null not permitted in ID column")
-    
-    # Apply normal inference ladder
-    if is_quoted:
-        value = value_str
-    else:
-        value = self.infer_value(value_str, last_row_values)
-    
-    # Validate ID column
-    if column_index == 0:
-        if not isinstance(value, str):
-            raise SemanticError(f"ID must be string, got {type(value).__name__}")
-        
-        # Validate ID token pattern (lowercase or underscore start)
-        import re
-        id_pattern = re.compile(r'^[a-z_][a-z0-9_\-]*$')
-        if not id_pattern.match(value):
-            raise SemanticError(f"Invalid ID format: {value}")
-    
-    return value
+```rust
+fn parse_matrix_cell(&self, cell_data: (&str, bool), column_index: usize, schema: &[String], last_row_values: Option<&[Value]>) -> Result<Value, SemanticError> {
+    /// Parse a single matrix cell with special handling for ID column.
+    let (value_str, is_quoted) = cell_data;
+
+    // Special handling for ID column (first column)
+    if column_index == 0 {
+        if !is_quoted {
+            if value_str == "^" {
+                return Err(SemanticError::new("Ditto not permitted in ID column"));
+            }
+            if value_str == "~" {
+                return Err(SemanticError::new("Null not permitted in ID column"));
+            }
+        }
+    }
+
+    // Apply normal inference ladder
+    let value = if is_quoted {
+        Value::String(value_str.to_string())
+    } else {
+        self.infer_value(value_str, last_row_values)?
+    };
+
+    // Validate ID column
+    if column_index == 0 {
+        if let Value::String(id) = &value {
+            // Validate ID token pattern (lowercase or underscore start)
+            let id_pattern = Regex::new(r"^[a-z_][a-z0-9_\-]*$").unwrap();
+            if !id_pattern.is_match(id) {
+                return Err(SemanticError::new(&format!("Invalid ID format: {}", id)));
+            }
+        } else {
+            return Err(SemanticError::new(&format!("ID must be string, got {}", value.type_name())));
+        }
+    }
+
+    Ok(value)
+}
 ```
 
 ### A.3 Matrix Row Comment Stripping
 
-```python
-def strip_matrix_row_comment(self, line):
-    """Strip comment from matrix row line, preserving CSV-style quoted fields."""
-    in_quotes = False
-    i = 0
-    result = []
-    
-    while i < len(line):
-        ch = line[i]
-        
-        if not in_quotes and ch == '#':
-            # Found comment start outside quotes
-            break
-            
-        if ch == '"':
-            # Check for escaped quote ""
-            if i + 1 < len(line) and line[i + 1] == '"':
-                result.append('""')
-                i += 2
-                continue
-            else:
-                in_quotes = not in_quotes
-                result.append('"')
-        else:
-            result.append(ch)
-            
-        i += 1
-    
-    return ''.join(result).rstrip()
+```rust
+fn strip_matrix_row_comment(&self, line: &str) -> String {
+    /// Strip comment from matrix row line, preserving CSV-style quoted fields.
+    let mut in_quotes = false;
+    let mut i = 0;
+    let mut result = String::new();
+    let chars: Vec<char> = line.chars().collect();
+
+    while i < chars.len() {
+        let ch = chars[i];
+
+        if !in_quotes && ch == '#' {
+            // Found comment start outside quotes
+            break;
+        }
+
+        if ch == '"' {
+            // Check for escaped quote ""
+            if i + 1 < chars.len() && chars[i + 1] == '"' {
+                result.push_str("\"\"");
+                i += 2;
+                continue;
+            } else {
+                in_quotes = !in_quotes;
+                result.push('"');
+            }
+        } else {
+            result.push(ch);
+        }
+
+        i += 1;
+    }
+
+    result.trim_end().to_string()
+}
 ```
 
 ### A.4 Streaming Parser Architecture
 
 For large files, implement streaming:
 
-```python
-class StreamingHEDLParser:
-    def __init__(self):
-        self.state = 'HEADER'
-        self.stack = []
-        self.registries = {}
-        
-    def feed(self, line):
-        """Process a single line."""
-        if self.state == 'HEADER':
-            if line.strip() == '---':
-                self.state = 'BODY'
-            else:
-                self.parse_header_line(line)
-        else:
-            self.parse_body_line(line)
-    
-    def parse_body_line(self, line):
-        # Similar to parse_body but stateful
-        indent = self.calculate_indent(line)
-        self.pop_frames(indent)
-        
-        if line.lstrip().startswith('|'):
-            self.parse_matrix_row(line, indent)
-        else:
-            self.parse_object_line(line, indent)
-    
-    def get_result(self):
-        """Get parsed result after all lines processed."""
-        return self.stack[0].object
+```rust
+struct StreamingHEDLParser {
+    state: String,
+    stack: Vec<Frame>,
+    registries: HashMap<String, Value>,
+}
+
+impl StreamingHEDLParser {
+    fn new() -> Self {
+        StreamingHEDLParser {
+            state: "HEADER".to_string(),
+            stack: Vec::new(),
+            registries: HashMap::new(),
+        }
+    }
+
+    fn feed(&mut self, line: &str) -> Result<(), HEDLError> {
+        /// Process a single line.
+        if self.state == "HEADER" {
+            if line.trim() == "---" {
+                self.state = "BODY".to_string();
+            } else {
+                self.parse_header_line(line)?;
+            }
+        } else {
+            self.parse_body_line(line)?;
+        }
+        Ok(())
+    }
+
+    fn parse_body_line(&mut self, line: &str) -> Result<(), HEDLError> {
+        // Similar to parse_body but stateful
+        let indent = self.calculate_indent(line)?;
+        self.pop_frames(indent);
+
+        if line.trim_start().starts_with('|') {
+            self.parse_matrix_row(line, indent)?;
+        } else {
+            self.parse_object_line(line, indent)?;
+        }
+        Ok(())
+    }
+
+    fn get_result(&self) -> Node {
+        /// Get parsed result after all lines processed.
+        self.stack[0].object.clone()
+    }
+}
 ```
 
 ---
@@ -3245,7 +4286,7 @@ Implementations MUST pass these minimal tests:
 8. **Unknown Type**: `@UnknownType` without inline schema → Schema Error
 9. **Schema Mismatch**: Inline schema differs from %STRUCT → Schema Error
 10. **Duplicate Struct**: Same TypeName with different columns → Schema Error
-11. **Nest to undefined**: `%NEST: A > B` where B undefined → Schema Error
+11. **Nest to undefined**: `%N:A>B` where B undefined → Schema Error
 
 ### B.3 Data Validation
 12. **Shape Mismatch**: Wrong cell count in matrix row → Shape Error
@@ -3277,11 +4318,11 @@ Implementations MUST pass these minimal tests:
 34. **@ and $ in strings**: `alice@example.com` → string, not reference
 
 ### B.6 Edge Cases and Truncation Detection
-35. **Only Header + Separator**: `%VERSION: 1.0\n---\n` → Success (empty root object)
+35. **Only Header + Separator**: `%V:2.0\n---\n` → Success (empty root object)
 36. **Maximum Nesting**: 50 levels deep → Success (or configured limit)
 37. **Empty Matrix**: List with no rows → Success (empty list)
 38. **Object Start with Comment**: `key: # comment` → Object Start (comment stripped)
-39. **Empty Alias**: `%ALIAS: %empty: ""` → Success, expands to empty string
+39. **Empty Alias**: `%A:%empty: ""` → Success, expands to empty string
 40. **Whitespace Preservation**: `key: "  spaces  "` → preserves spaces
 41. **Boolean Case**: `True` → string "True", not boolean
 42. **Expression with parens**: `$((a + b))` → Expression("(a + b)")
@@ -3295,22 +4336,22 @@ Implementations MUST pass these minimal tests:
 
 ```hedl
 # conformance.hedl
-%VERSION: 1.0
-%ALIAS: %true: "true"
-%STRUCT: Test: [id,value,ref]
-%STRUCT: Child: [id,data]
-%NEST: Test > Child
+%V:2.0
+%A:%true: "true"
+%S:Test:[id,value,ref]
+%S:Child:[id,data]
+%N:Test>Child
 ---
-tests: @Test
-  |t1,"simple",~
-    |c1,child
-  |t2,42,@t1
-    |c2,child
-  |t3,%true,@t2
-  |t4,^,^
-tensor_test: @TensorTest[id,data]
-  |t5,[1,2,3]
-  |t6,[[1,2],[3,4]]
+tests:@Test
+ |t1,"simple",~
+  |c1,child
+ |t2,42,@t1
+  |c2,child
+ |t3,%true,@t2
+ |t4,^,^
+tensor_test:@TensorTest[id,data]
+ |t5,[1,2,3]
+ |t6,[[1,2],[3,4]]
 ```
 
 Expected result includes:
@@ -3341,7 +4382,7 @@ Expected result includes:
 
 **HEDL Equivalent (Simple Mode)**:
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
 # In simple mode without schemas, use Maps/Objects for hierarchy
 users:
@@ -3354,14 +4395,14 @@ users:
 
 **HEDL Equivalent (Complex Mode)**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,text]
-%NEST: User > Post
+%V:2.0
+%S:User:[id,name]
+%S:Post:[id,text]
+%N:User>Post
 ---
-users: @User
-  |u1,Alice
-    |p1,Hello
+users:@User
+ |u1,Alice
+  |p1,Hello
 ```
 
 **Conversion Rules**:
@@ -3387,29 +4428,29 @@ config:
 
 **HEDL Equivalent (Simple Mode)**:
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
 config:
   database:
     host: localhost
     port: 5432
-  servers: @Server[name,ip]
-    |web1,192.168.1.1
-    |web2,192.168.1.2
+  servers:@Server[name,ip]
+  |web1,192.168.1.1
+  |web2,192.168.1.2
 ```
 
 **HEDL Equivalent (Complex Mode)**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: Server: [name,ip]
+%V:2.0
+%S:Server:[name,ip]
 ---
 config:
   database:
     host: localhost
     port: 5432
-  servers: @Server
-    |web1,192.168.1.1
-    |web2,192.168.1.2
+  servers:@Server
+  |web1,192.168.1.1
+  |web2,192.168.1.2
 ```
 
 **Conversion Rules**:
@@ -3430,17 +4471,17 @@ u2,Bob,p3,Hi
 
 **HEDL Equivalent**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id,name]
-%STRUCT: Post: [id,text,author_id]
+%V:2.0
+%S:User:[id,name]
+%S:Post:[id,text,author_id]
 ---
-users: @User
-  |u1,Alice
-  |bob,Bob  # Note: ID must start with lowercase
-posts: @Post
-  |p1,Hello,@u1
-  |p2,World,@u1
-  |p3,Hi,@bob
+users:@User
+ |u1,Alice
+ |bob,Bob  # Note: ID must start with lowercase
+posts:@Post
+ |p1,Hello,@u1
+ |p2,World,@u1
+ |p3,Hi,@bob
 ```
 
 **Conversion Rules**:
@@ -3449,13 +4490,74 @@ posts: @Post
 3. Repeated data → separate tables with references
 4. Hierarchical data → use %NEST
 
-### C.4 Migration Tools
+### C.4 From v1.1 to v1.2
+
+HEDL v1.2 introduces compact directive syntax and inline child lists. Migration is straightforward:
+
+**Directive Name Changes**:
+
+ |v1.1 | v1.2 | Notes |
+|------|------|-------|
+ |`%V:2.0` | `%V:1.2` | No space after colon |
+ |`%S:Type:[cols]` | `%S:Type:[cols]` | No spaces |
+ |`%N:Parent>Child` | `%N:Parent>Child` | No spaces around `>` |
+
+**New v1.2 Directives**:
+- `%NULL:~` declares the null symbol (default `~`)
+- `%QUOTE:"` declares the quote character (default `"`)
+- `%C:Type.field=value` declares count statistics
+
+**Child Row Syntax**:
+
+v1.1 expanded form:
+```hedl
+%V:2.0
+%S:Product:[id, name]
+%S:Review:[id, rating]
+%N:Product>Review
+---
+products:@Product
+ |prod-001, Laptop
+  |rev-001, 5
+  |rev-002, 4
+```
+
+v1.2 inline form (max 5 children per inline list):
+```hedl
+%V:1.2
+%S:Product:[id,name]
+%S:Review:[id,rating]
+%N:Product>Review
+---
+products:@Product
+ |prod-001,Laptop
+    @Review#2:|rev-001,5|rev-002,4
+```
+
+Note: Inline format is limited to 5 children. For more than 5, use expanded form with `@Type#N:` followed by `|` rows on separate lines.
+
+**Migration Script Example**:
+```bash
+# Convert v1.1 directives to v1.2
+sed -i 's/%VERSION: /%V:/g' file.hedl
+sed -i 's/%STRUCT: /%S:/g' file.hedl
+sed -i 's/%NEST: /%N:/g' file.hedl
+sed -i 's/: \[/:[/g' file.hedl
+sed -i 's/, /,/g' file.hedl
+```
+
+**Backward Compatibility**:
+- v1.2 parsers MUST accept v1.1 verbose syntax
+- v1.1 parsers will reject v1.2 compact syntax
+
+### C.5 Migration Tools
 
 Implementations SHOULD provide:
 1. JSON → HEDL converter
 2. HEDL → JSON converter (for compatibility)
 3. Schema inference from JSON/CSV
 4. ID generation for data without IDs
+5. v1.1 → v1.2 format converter
 
 ---
 
@@ -3477,20 +4579,29 @@ Implementations SHOULD provide:
 4. **Streaming**: Don't keep entire document in memory
 
 **Example Optimized Parser**:
-```python
-class OptimizedHEDLParser:
-    def parse_line_fast(self, line):
-        # Fast path for common cases
-        if line.startswith('  '):  # Common indent
-            indent = len(line) - len(line.lstrip(' '))
-            if indent & 1:  # Check odd (bitwise AND)
-                raise SyntaxError("Odd indentation")
-            indent_level = indent >> 1  # Divide by 2
-            
-            content = line[indent:]
-            if content.startswith('|'):
-                return self.parse_matrix_row_fast(content, indent_level)
-            # ... other cases
+```rust
+struct OptimizedHEDLParser;
+
+impl OptimizedHEDLParser {
+    fn parse_line_fast(&self, line: &str) -> Result<ParsedLine, SyntaxError> {
+        // Fast path for common cases
+        if line.starts_with("  ") {  // Common indent
+            let indent = line.len() - line.trim_start_matches(' ').len();
+            if indent & 1 != 0 {  // Check odd (bitwise AND)
+                return Err(SyntaxError::new("Odd indentation"));
+            }
+            let indent_level = indent >> 1;  // Divide by 2
+
+            let content = &line[indent..];
+            if content.starts_with('|') {
+                return self.parse_matrix_row_fast(content, indent_level);
+            }
+            // ... other cases
+        }
+        // ... fallback to slow path
+        Ok(ParsedLine::default())
+    }
+}
 ```
 
 ### D.2 Generator Optimization
@@ -3502,16 +4613,23 @@ class OptimizedHEDLParser:
 4. **Buffer reuse**: For string building
 
 **Memory Efficient Generation**:
-```python
-def generate_canonical(data, output):
-    """Stream canonical HEDL to output."""
-    if isinstance(data, dict):
-        for key in sorted(data.keys()):
-            value = data[key]
-            if isinstance(value, MatrixList):
-                generate_matrix_list(key, value, output)
-            else:
-                generate_scalar(key, value, output)
+```rust
+fn generate_canonical(data: &Value, output: &mut impl Write) -> Result<(), std::io::Error> {
+    /// Stream canonical HEDL to output.
+    if let Value::Object(map) = data {
+        let mut keys: Vec<_> = map.keys().collect();
+        keys.sort();
+        for key in keys {
+            let value = &map[key];
+            if let Value::MatrixList(matrix_list) = value {
+                generate_matrix_list(key, matrix_list, output)?;
+            } else {
+                generate_scalar(key, value, output)?;
+            }
+        }
+    }
+    Ok(())
+}
 ```
 
 ### D.3 Large File Handling
@@ -3522,14 +4640,20 @@ def generate_canonical(data, output):
 - Don't build full tree in memory
 
 **Example**:
-```python
-def parse_stream(fileobj):
-    """Parse HEDL file as stream of events."""
-    parser = StreamingHEDLParser()
-    for line in fileobj:
-        parser.feed(line)
-        for event in parser.get_events():
-            yield event
+```rust
+fn parse_stream<R: BufRead>(fileobj: R) -> impl Iterator<Item = Result<Event, HEDLError>> {
+    /// Parse HEDL file as stream of events.
+    let mut parser = StreamingHEDLParser::new();
+    fileobj.lines().flat_map(move |line_result| {
+        match line_result {
+            Ok(line) => {
+                parser.feed(&line).ok();
+                parser.get_events()
+            }
+            Err(e) => vec![Err(HEDLError::from(e))],
+        }
+    })
+}
 ```
 
 **Memory Mapped Files**:
@@ -3546,15 +4670,16 @@ Implementations SHOULD include benchmarks for:
 4. **Large files**: Streaming performance
 
 **Example Benchmark**:
-```python
-def benchmark_parser():
-    # Parse 1000-node document
-    start = time.time()
-    result = parser.parse(large_document)
-    elapsed = time.time() - start
-    
-    print(f"Parsed {len(result)} nodes in {elapsed:.3f}s")
-    print(f"Rate: {len(result)/elapsed:.0f} nodes/sec")
+```rust
+fn benchmark_parser() {
+    // Parse 1000-node document
+    let start = Instant::now();
+    let result = parser.parse(&large_document).unwrap();
+    let elapsed = start.elapsed();
+
+    println!("Parsed {} nodes in {:.3}s", result.len(), elapsed.as_secs_f64());
+    println!("Rate: {:.0} nodes/sec", result.len() as f64 / elapsed.as_secs_f64());
+}
 ```
 
 ### D.5 Performance Targets
@@ -3575,34 +4700,76 @@ For typical implementations:
 Document        ::= Header Separator Body
 Header          ::= Directive*
 Directive       ::= VersionDirective | StructDirective | NestDirective | AliasDirective
+                  | ModeDirective | PromptDirective | ExperimentalDirective
+                  | NullDirective | QuoteDirective | CountDirective
 Separator       ::= '---' Newline
 
+# Core directives (v1.0/v1.1 verbose form)
 VersionDirective ::= '%VERSION:' WS+ Version Newline
+                   | '%V:' Version Newline  # Compact form (v1.2)
 Version         ::= Digit+ '.' Digit+
 StructDirective ::= '%STRUCT:' WS+ TypeName ':' WS+ ColumnList Newline
+                  | '%S:' TypeName ':' ColumnListCompact Newline  # Compact form (v1.2)
 NestDirective   ::= '%NEST:' WS+ TypeName WS+ '>' WS+ TypeName Newline
-AliasDirective  ::= '%ALIAS:' WS+ AliasKey ':' WS+ QuotedString Newline
+                  | '%N:' TypeName '>' TypeName Newline  # Compact form (v1.2)
+AliasDirective  ::= '%A:' WS+ AliasKey ':' WS+ QuotedString Newline
 
-ColumnList      ::= '[' Column (',' Column)* ']'
+# New directives (v1.1)
+ModeDirective   ::= '%MODE:' WS+ ('strict' | 'lenient') Newline
+PromptDirective ::= '%PROMPT:' WS+ QuotedString Newline
+ExperimentalDirective ::= '%X-' [A-Z][A-Z0-9_]* ':' WS+ .* Newline  # Any payload
+
+# New directives (v1.2)
+NullDirective   ::= '%NULL:' Char Newline  # Null symbol declaration
+QuoteDirective  ::= '%QUOTE:' Char Newline  # Quote character declaration
+CountDirective  ::= '%C:' TypeName '.' KeyToken '=' CountValue Newline
+                  | '%C:' TypeName '.' KeyToken ':' CountDistribution Newline
+CountValue      ::= Digit+
+CountDistribution ::= KeyToken '=' Digit+ (',' KeyToken '=' Digit+)*
+
+# Support productions for v1.1 directives
+EnumScope       ::= TypeName '.' KeyToken | KeyToken  # Scoped or global
+CodeMap         ::= '{' CodeMapping (',' CodeMapping)* '}'
+CodeMapping     ::= KeyToken ':' QuotedString
+Predicate       ::= RangePred | RegexPred | RefPred | EnumPred
+                  | ListPred | LenPred | 'bool' | 'number'
+RangePred       ::= 'range(' Number ',' (Number | 'inf') ')'
+RegexPred       ::= 'regex(' QuotedString ')'
+RefPred         ::= 'ref(' TypeName ')'
+EnumPred        ::= 'enum(' EnumScope ')'
+ListPred        ::= 'list(' Predicate ')'
+LenPred         ::= 'len(' Digit+ ',' (Digit+ | 'inf') ')'
+
+ColumnList      ::= '[' Column (',' WS* Column)* ']'  # Verbose with optional spaces
+ColumnListCompact ::= '[' Column (',' Column)* ']'  # Compact without spaces
 Column          ::= KeyToken
 
 Body            ::= (Object | KeyValue | MatrixList)*
 Object          ::= Indent KeyToken ':' Newline (Object | KeyValue | MatrixList)*
 KeyValue        ::= Indent KeyToken ':' WS+ Value Newline
               | Indent KeyToken ':' WS+ BlockString
-MatrixList      ::= Indent KeyToken ':' WS+ '@' TypeName ColumnList? Newline MatrixRow*
-MatrixRow       ::= Indent '|' CountHint? CSVRow Newline
+MatrixList      ::= Indent KeyToken ':' WS* '@' TypeName ColumnList? Newline MatrixRow*
+                  | Indent KeyToken ':' '@' TypeName Newline MatrixRow*  # Compact (v1.2)
+MatrixRow       ::= Indent '|' CountHint? CSVRow Newline InlineChildList*
 CountHint       ::= '[' Digit+ ']' WS*  # Optional count of direct children
 
-Value           ::= Null | Tensor | Reference | Expression | AliasRef | Boolean | Number | String | QuotedString
+# Inline child list syntax (v1.2)
+InlineChildList ::= Indent '@' TypeName '#' Digit+ ':' InlineChildRows Newline  # Inline form (max 5 children)
+                  | Indent '@' TypeName '#' Digit+ ':' Newline MatrixRow+       # Expanded form (>5 children)
+InlineChildRows ::= '|' CSVRow ('|' CSVRow)*                                   # Pipe-separated on same line
+
+Value           ::= Null | Tensor | ListLiteral | Reference | Expression
+                  | AliasRef | Boolean | Number | String | QuotedString
 Null            ::= '~'
 Tensor          ::= '[' (Number | Tensor) (',' (Number | Tensor))* ']'
+ListLiteral     ::= '(' ')' | '(' ScalarValue (',' ScalarValue)* ')'  # v1.1
+ScalarValue     ::= Null | Reference | Expression | AliasRef | Boolean | Number | String | QuotedString
 Reference       ::= '@' (TypeName ':')? IDToken
 Expression      ::= '$(' BalancedText ')'
 AliasRef        ::= '%' KeyToken
 Boolean         ::= 'true' | 'false'
 Number          ::= '-'? Digit+ ('.' Digit+)?
-String          ::= [^:#@$%~[\s][^:#@$\s]*  # Simplified - not starting with special chars
+String          ::= [^:#@$%~[()\s][^:#@$()\s]*  # Simplified - not starting with special chars
 QuotedString    ::= '"' (Char | '""')* '"'   # No escape sequences in key-value context
 BlockString     ::= '"""' Newline BlockContent '"""'
 BlockContent    ::= (Char | Newline)*        # Raw content, no escape processing
@@ -3615,12 +4782,12 @@ UnquotedCSVField ::= [^,#\n\r]*  # Cannot contain comma, hash, newline, CR
 # Escape sequences (only valid in quoted CSV fields)
 EscapeSeq       ::= '\n' | '\t' | '\r' | '\\' | '\"'
 
-Indent          ::= Space Space*  # Multiple of 2 spaces
+Indent          ::= Space*  # 1 space per indent level (v2.0)
 
 # Tokens
 TypeName        ::= [A-Z][A-Za-z0-9]*
 KeyToken        ::= [a-z_][a-z0-9_]*
-IDToken         ::= [a-z_][a-z0-9_\-]*  # ASCII-only in v1.0
+IDToken         ::= [a-z_][a-z0-9_\-]*  # ASCII-only in v1.0/v1.1
 AliasKey        ::= '%' KeyToken
 
 # Character classes
@@ -3635,11 +4802,13 @@ WS              ::= Space
 
 1. **Comments**: Not part of grammar; stripped before parsing
 2. **Whitespace**: Significant only as indentation; otherwise ignored
-3. **Line continuations**: Not supported in v1.0
+3. **Line continuations**: Not supported in v1.0/v1.1
 4. **Unicode**: Structural tokens are strictly ASCII-only. Data values (strings, comments, tensor numbers) allow Unicode.
 5. **BalancedText**: Defined by balanced-parentheses algorithm in Section 4.6.6
 6. **Block Strings**: Triple-quoted strings (`"""`) for multiline key-value content. No escape processing; all content is literal. See Section 8.1.2.
 7. **Escape Sequences**: Only processed in quoted CSV fields (matrix cells). Key-value strings treat backslash literally. See Section 9.2.
+8. **List Literals** (v1.1): Parenthesized sequences `(elem, ...)` distinct from tensor brackets `[...]`. See Section 4.6.9.
+9. **Experimental Directives** (v1.1): `%X-*` directives are accepted with warning; payload is opaque. See Section 17.4.
 8. **Count Hints**: Optional metadata in matrix rows indicating number of direct children. Format: `[N]` where N is a non-negative integer. See Section 9.6.
 
 ### E.3 Grammar Validation
@@ -3654,35 +4823,74 @@ This grammar is:
 
 Example recursive descent parser skeleton:
 
-```python
-class GrammarParser:
-    def parse_document(self):
-        self.parse_header()
-        self.expect('---')
+```rust
+struct GrammarParser {
+    tokens: Vec<Token>,
+    position: usize,
+}
+
+impl GrammarParser {
+    fn parse_document(&mut self) -> Result<Node, HEDLError> {
+        self.parse_header()?;
+        self.expect("---")?;
         self.parse_body()
-    
-    def parse_header(self):
-        while not self.peek() == '---':
-            if self.peek().startswith('%VERSION'):
-                self.parse_version()
-            elif self.peek().startswith('%STRUCT'):
-                self.parse_struct()
-            # ... other directives
-    
-    def parse_body(self):
-        while not self.eof():
-            indent = self.parse_indent()
-            if self.peek().endswith(':'):
-                key = self.parse_key()
-                self.expect(':')
-                if self.peek().startswith('@'):
-                    self.parse_matrix_list(key, indent)
-                elif self.peek().isspace():  # Next line has content
-                    self.parse_key_value(key, indent)
-                else:  # Object start
-                    self.parse_object(key, indent)
-            elif self.peek().startswith('|'):
-                self.parse_matrix_row(indent)
+    }
+
+    fn parse_header(&mut self) -> Result<(), HEDLError> {
+        while self.peek() != Some("---") {
+            if let Some(token) = self.peek() {
+                if token.starts_with("%VERSION") {
+                    self.parse_version()?;
+                } else if token.starts_with("%STRUCT") {
+                    self.parse_struct()?;
+                }
+                // ... other directives
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_body(&mut self) -> Result<Node, HEDLError> {
+        while !self.eof() {
+            let indent = self.parse_indent()?;
+            if let Some(token) = self.peek() {
+                if token.ends_with(':') {
+                    let key = self.parse_key()?;
+                    self.expect(":")?;
+                    if let Some(next) = self.peek() {
+                        if next.starts_with('@') {
+                            self.parse_matrix_list(&key, indent)?;
+                        } else if next.trim().is_empty() {  // Next line has content
+                            self.parse_key_value(&key, indent)?;
+                        } else {  // Object start
+                            self.parse_object(&key, indent)?;
+                        }
+                    }
+                } else if token.starts_with('|') {
+                    self.parse_matrix_row(indent)?;
+                }
+            }
+        }
+        Ok(Node::default())
+    }
+
+    fn peek(&self) -> Option<&str> {
+        self.tokens.get(self.position).map(|t| t.as_str())
+    }
+
+    fn eof(&self) -> bool {
+        self.position >= self.tokens.len()
+    }
+
+    fn expect(&mut self, expected: &str) -> Result<(), HEDLError> {
+        if self.peek() == Some(expected) {
+            self.position += 1;
+            Ok(())
+        } else {
+            Err(SyntaxError::new(&format!("Expected '{}', got '{:?}'", expected, self.peek())))
+        }
+    }
+}
 ```
 
 ---
@@ -3697,7 +4905,7 @@ class GrammarParser:
 - Simpler reference resolution within same type
 - **Cross-type references** via qualified syntax (`@Type:id`)
 
-### F.2 Why ASCII-only IDs in v1.0.0?
+### F.2 Why ASCII-only IDs in v1.0/v1.1?
 
 **Answer**: ASCII-only ensures:
 - Consistent reference resolution across platforms
@@ -3710,7 +4918,7 @@ class GrammarParser:
 **Answer**: Simplicity and performance. Fixed schemas enable:
 - Faster parsing (no per-row column count checks)
 - Clearer data shape
-- Better compression via ditto
+- Simpler tooling and validation
 - Simpler tooling
 
 Workaround: Use `~` (null) for optional values.
@@ -3744,7 +4952,7 @@ Workaround: Use `\n` in string and parse post-hoc.
 
 **Answer**: Yes! HEDL supports **simple mode** for key-value and nested object data:
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
 config:
   host: localhost
@@ -3756,11 +4964,11 @@ admin:
 
 For lists, you can use inline schemas without `%STRUCT` directives:
 ```hedl
-%VERSION: 1.0
+%V:2.0
 ---
-users: @User[id,name,email]
-  |alice,Alice,alice@example.com
-  |bob,Bob,bob@example.com
+users:@User[id,name,email]
+ |alice,Alice,alice@example.com
+ |bob,Bob,bob@example.com
 ```
 
 Add `%STRUCT` directives when you need to reference schemas multiple times or use `%NEST`.
@@ -3855,64 +5063,62 @@ Contributions welcome:
 
 ### H.1 HEDL vs Other Formats
 
-| Feature | HEDL | TOON | JSON | YAML | CSV | Protobuf |
+ |Feature | HEDL | TOON | JSON | YAML | CSV | Protobuf |
 |---------|------|------|------|------|-----|----------|
-| Human Readable | ✓ Yes | ✓ Yes | ✓ Yes | ✓ Yes | ○ Limited | ✗ No |
-| Token Efficient | ★ Excellent | ★ Excellent | ✗ Poor | ○ Fair | ○ Good | N/A (binary) |
-| LLM Accuracy | ★ 63-71% (near-JSON) | 61-71% | 68-73% (baseline) | 68-73% | 27-31% | N/A |
-| Graph Support | ★ Native | ✗ No | ○ Manual | ○ Manual | ✗ No | ✗ No |
-| Schema Support | ★ Built-in | ○ Inline | ○ External | ○ External | ○ Header | ★ Required |
-| Streaming | ✓ Yes | ✓ Yes | ✓ Yes | ○ Limited | ✓ Yes | ✓ Yes |
-| Ditto Markers | ★ Native (`^`) | ✗ No | ✗ No | ✗ No | ✗ No | ✗ No |
-| References | ★ `@id` syntax | ✗ No | ✗ Manual | ✗ Manual | ✗ No | ✗ No |
+ |Human Readable | ✓ Yes | ✓ Yes | ✓ Yes | ✓ Yes | ○ Limited | ✗ No |
+ |Token Efficient | ★ Excellent | ★ Excellent | ✗ Poor | ○ Fair | ○ Good | N/A (binary) |
+ |LLM Accuracy | ★ 63-71% (near-JSON) | 61-71% | 68-73% (baseline) | 68-73% | 27-31% | N/A |
+ |Graph Support | ★ Native | ✗ No | ○ Manual | ○ Manual | ✗ No | ✗ No |
+ |Schema Support | ★ Built-in | ○ Inline | ○ External | ○ External | ○ Header | ★ Required |
+ |Streaming | ✓ Yes | ✓ Yes | ✓ Yes | ○ Limited | ✓ Yes | ✓ Yes |
+ |Ditto Markers | ★ Native (`^`) | ✗ No | ✗ No | ✗ No | ✗ No | ✗ No |
+ |References | ★ `@id` syntax | ✗ No | ✗ Manual | ✗ Manual | ✗ No | ✗ No |
 
 ### H.2 HEDL's Unique Features
 
 HEDL provides features that other token-efficient formats (like TOON) lack. These features cover the majority of real-world use cases.
 
-**HEDL Advantages** (benchmarked with GPT-4 tokenizer):
+**HEDL Advantages** (benchmarked with cl100k_base tokenizer):
 
-| Comparison | HEDL |
+ |Comparison | HEDL |
 |------------|------|
-| vs JSON | **47-74% token savings** |
-| Graph references | `@id` syntax saves **51.5%** vs duplicating entities |
-| Repeated values | Ditto markers (`^`) eliminate redundancy |
-| Schema reuse | `%STRUCT` definitions shared across files |
+ |vs JSON | **56% token savings** |
+ |Graph references | `@id` syntax saves **51.5%** vs duplicating entities |
+ |Schema reuse | `%STRUCT` definitions shared across files |
 
-Some tabular-only formats (like TOON) are ~8% more efficient on pure flat data without relationships, but lack the features above.
+Some tabular-only formats (like TOON) are marginally more efficient on pure flat data without relationships, but lack the features above.
 
-**LLM Accuracy**: HEDL achieves 62.7-71.2% accuracy across providers (within 1.7-5.1pp of JSON, matching or beating TOON). Tested on 59 questions across 13 datasets with DeepSeek, OpenAI, and Mistral. Accuracy is determined by data structure, not syntax.
+**LLM Accuracy**: HEDL achieves 80.4% accuracy across providers (+10.3pp vs JSON, +12.2pp vs TOON). Tested on 571 questions across 7 datasets with DeepSeek, Mistral, and NVIDIA GLM-4.7.
 
 **Feature Comparison**:
 
-| Aspect | HEDL | Tabular-Only Formats |
+ |Aspect | HEDL | Tabular-Only Formats |
 |--------|------|----------------------|
-| Data Model | Extended (graph semantics) | Tree-based |
-| References | `@id` native syntax (**51% savings**) | Not supported |
-| Ditto Markers | `^` for repetition | Not supported |
-| Global Aliases | `%ALIAS` directive | Not supported |
-| Schema Declaration | `@Type[...]` inline or `%STRUCT` | Inline only |
-| Array Length | Implicit (auto-counted) | Often required |
+ |Data Model | Extended (graph semantics) | Tree-based |
+ |References | `@id` native syntax (**51% savings**) | Not supported |
+ |Global Aliases | `%ALIAS` directive | Not supported |
+ |Schema Declaration | `@Type[...]` inline or `%STRUCT` | Inline only |
+ |Array Length | Implicit (auto-counted) | Often required |
 
 **HEDL is the right choice for**:
 - Graph relationships (`@author` references save 51% tokens)
-- Repeated adjacent values (ditto markers `^`)
 - Reusable schemas across files (`%STRUCT` definitions)
 - No manual array length counting needed
 - Most real-world datasets with references and repetition
 
 ### H.3 HEDL vs JSON
 
-**Token Savings**: HEDL typically achieves ~50% token reduction compared to JSON.
+**Token Savings**: HEDL typically achieves ~56% token reduction compared to JSON.
 
-| Dataset Type | HEDL vs JSON Savings |
+ |Dataset Type | HEDL vs JSON Savings |
 |--------------|---------------------|
-| Flat lists (users, events) | 47-52% |
-| Nested hierarchies (org charts) | 66-74% |
-| Cross-references (knowledge graphs) | 53% |
-| Time-series (metrics) | 53-60% |
+ |Average across datasets | 56% |
+ |Flat lists (users, events) | 50-55% |
+ |Nested hierarchies (org charts) | 60-70% |
+ |Cross-references (knowledge graphs) | 55-60% |
+ |Time-series (metrics) | 53-60% |
 
-**LLM Accuracy**: 62.7-71.2% across providers (within 1.7-5.1pp of JSON) when using proper schema field ordering (positions 1-4 for frequently queried fields). Tested on 59 questions across 13 datasets with DeepSeek, OpenAI, and Mistral.
+**LLM Accuracy**: 80.4% average across providers (+10.3pp vs JSON, +12.2pp vs TOON). Tested on 571 questions across 7 datasets with DeepSeek, Mistral, and NVIDIA GLM-4.7.
 
 ### H.4 Choosing the Right Format
 
@@ -3935,4 +5141,4 @@ Some tabular-only formats (like TOON) are ~8% more efficient on pure flat data w
 
 ---
 
-**End of HEDL Specification v1.0.0**
+**End of HEDL Specification v2.0**
