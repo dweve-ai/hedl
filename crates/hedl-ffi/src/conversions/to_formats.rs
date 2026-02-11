@@ -246,7 +246,8 @@ pub unsafe extern "C" fn hedl_to_yaml(
 
     clear_error();
 
-    if !is_valid_document_ptr(doc) || out_str.is_null() {
+    // Validate basic pointer arguments before any dereference.
+    if doc.is_null() || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
         audit_call_failure(
@@ -258,8 +259,22 @@ pub unsafe extern "C" fn hedl_to_yaml(
         return HEDL_ERR_NULL_PTR;
     }
 
-    // SAFETY: We validated the pointer is non-null and not poisoned.
-    // The document was allocated by Box::into_raw in hedl_parse.
+    // Ensure the document pointer refers to a valid, non-poisoned HEDL document
+    // before we dereference it.
+    if !is_valid_document_ptr(doc) {
+        let duration = start.elapsed();
+        set_error("Invalid document handle");
+        audit_call_failure(
+            "hedl_to_yaml",
+            HEDL_ERR_NULL_PTR,
+            "Invalid document handle",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    // SAFETY: We validated the pointer is non-null and not poisoned via
+    // is_valid_document_ptr. The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
     let config = hedl_yaml::ToYamlConfig {
         include_metadata: include_metadata != 0,
