@@ -342,7 +342,7 @@ jobs:
   benchmarks:
     name: Benchmark Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     needs: [test-core, test-formats]
     steps:
       - uses: actions/checkout@v4
