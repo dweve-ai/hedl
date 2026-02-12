@@ -44,19 +44,26 @@ data:@Data
         input.push_str(&format!(" | row{i}, value{i}\n"));
     }
 
-    let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
+    let result = StreamingParser::with_config(Cursor::new(input), config);
 
-    // Attempt to consume all events - should timeout
-    let mut found_timeout = false;
-    for result in parser {
-        if let Err(StreamError::Timeout { elapsed, limit }) = result {
-            found_timeout = true;
+    // Should timeout either during construction or iteration
+    match result {
+        Err(StreamError::Timeout { elapsed, limit }) => {
             assert!(elapsed >= limit);
-            break;
         }
+        Ok(parser) => {
+            let mut found_timeout = false;
+            for result in parser {
+                if let Err(StreamError::Timeout { elapsed, limit }) = result {
+                    found_timeout = true;
+                    assert!(elapsed >= limit);
+                    break;
+                }
+            }
+            assert!(found_timeout, "Expected timeout error");
+        }
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
-
-    assert!(found_timeout, "Expected timeout error");
 }
 
 #[test]
@@ -290,20 +297,36 @@ data:@Data
         input.push_str(&format!(" | row{i}\n"));
     }
 
-    let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
+    let result = StreamingParser::with_config(Cursor::new(input), config);
 
-    for result in parser {
-        if let Err(StreamError::Timeout { elapsed, limit }) = result {
+    // Should timeout either during construction or iteration
+    let mut checked = false;
+    match result {
+        Err(StreamError::Timeout { elapsed, limit }) => {
             assert_eq!(limit, timeout_limit);
             assert!(elapsed >= limit);
-
-            // Check error message format
             let error_msg = format!("{}", StreamError::Timeout { elapsed, limit });
             assert!(error_msg.contains("timeout"));
             assert!(error_msg.contains(&format!("{limit:?}")));
-            break;
+            checked = true;
         }
+        Ok(parser) => {
+            for result in parser {
+                if let Err(StreamError::Timeout { elapsed, limit }) = result {
+                    assert_eq!(limit, timeout_limit);
+                    assert!(elapsed >= limit);
+                    let error_msg = format!("{}", StreamError::Timeout { elapsed, limit });
+                    assert!(error_msg.contains("timeout"));
+                    assert!(error_msg.contains(&format!("{limit:?}")));
+                    checked = true;
+                    break;
+                }
+            }
+        }
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
+
+    assert!(checked, "Expected timeout with duration info");
 }
 
 // ==================== Stress Tests with Timeout ====================
@@ -409,18 +432,25 @@ data:@Data
         input.push_str(&format!(" | row{i}, value{i}\n"));
     }
 
-    let parser = StreamingParser::with_config(Cursor::new(input), config).unwrap();
+    let result = StreamingParser::with_config(Cursor::new(input), config);
 
-    // Should eventually timeout
-    let mut found_timeout = false;
-    for result in parser {
-        if matches!(result, Err(StreamError::Timeout { .. })) {
-            found_timeout = true;
-            break;
+    // Should timeout either during construction or iteration
+    let timed_out = match result {
+        Err(StreamError::Timeout { .. }) => true,
+        Ok(parser) => {
+            let mut found = false;
+            for result in parser {
+                if matches!(result, Err(StreamError::Timeout { .. })) {
+                    found = true;
+                    break;
+                }
+            }
+            found
         }
-    }
+        Err(e) => panic!("Unexpected error: {e:?}"),
+    };
 
-    assert!(found_timeout, "Expected timeout");
+    assert!(timed_out, "Expected timeout");
 }
 
 // ==================== Performance Characteristic Tests ====================
