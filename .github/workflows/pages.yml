@@ -50,7 +50,7 @@ jobs:
           wasm-pack build crates/hedl-wasm \
             --target web \
             --out-dir playground/pkg \
-            --features all-formats
+            --features json,yaml,xml,csv
 
       - name: Prepare playground directory
         run: |

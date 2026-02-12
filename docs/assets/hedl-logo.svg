@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e94560"/>
+      <stop offset="100%" style="stop-color:#ff6b6b"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="200" height="200" rx="32" fill="url(#bg)"/>
+  <!-- Hierarchy lines (representing the tree structure) -->
+  <g stroke="#e94560" stroke-width="2.5" stroke-linecap="round" opacity="0.4">
+    <line x1="50" y1="60" x2="50" y2="150"/>
+    <line x1="50" y1="90" x2="80" y2="90"/>
+    <line x1="50" y1="120" x2="80" y2="120"/>
+    <line x1="50" y1="150" x2="80" y2="150"/>
+  </g>
+  <!-- Data nodes -->
+  <g fill="url(#accent)">
+    <rect x="80" y="80" width="70" height="20" rx="4"/>
+    <rect x="80" y="110" width="50" height="20" rx="4"/>
+    <rect x="80" y="140" width="60" height="20" rx="4"/>
+  </g>
+  <!-- HEDL text -->
+  <text x="100" y="48" font-family="monospace, Consolas, 'Courier New'" font-size="32" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="4">HEDL</text>
+  <!-- Pipe symbol (matrix operator) -->
+  <text x="42" y="95" font-family="monospace" font-size="16" fill="#e94560" text-anchor="middle">|</text>
+  <text x="42" y="125" font-family="monospace" font-size="16" fill="#e94560" text-anchor="middle">|</text>
+  <text x="42" y="155" font-family="monospace" font-size="16" fill="#e94560" text-anchor="middle">|</text>
+  <!-- Tagline -->
+  <text x="100" y="185" font-family="sans-serif, Arial" font-size="10" fill="#8a8a9a" text-anchor="middle">Hierarchical Entity Data Language</text>
+</svg>
