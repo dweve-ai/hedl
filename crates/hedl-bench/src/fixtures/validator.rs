@@ -43,10 +43,10 @@ pub fn validate_fixture(content: &str) -> Result<()> {
         ));
     }
 
-    // Must contain version header
-    if !content.contains("%VERSION:") {
+    // Must contain version header (verbose %VERSION: or compact %V:)
+    if !content.contains("%VERSION:") && !content.contains("%V:") {
         return Err(crate::BenchError::ValidationError(
-            "Fixture missing %VERSION header".to_string(),
+            "Fixture missing version header (%VERSION: or %V:)".to_string(),
         ));
     }
 

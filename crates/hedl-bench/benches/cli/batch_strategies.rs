@@ -21,7 +21,7 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::hint::black_box;
-use hedl_cli::batch::{BatchConfig, BatchOperation, BatchProcessor};
+use hedl_cli::batch::{BatchConfig, BatchOperation, BatchExecutor};
 use hedl_cli::error::CliError;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -62,7 +62,7 @@ fn bench_serial_processing(c: &mut Criterion) {
         let (_temp_dir, paths) = create_test_files(size);
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
-            let processor = BatchProcessor::new(BatchConfig {
+            let processor = BatchExecutor::new(BatchConfig {
                 parallel_threshold: usize::MAX, // Force serial
                 ..Default::default()
             });
@@ -85,7 +85,7 @@ fn bench_parallel_processing(c: &mut Criterion) {
         let (_temp_dir, paths) = create_test_files(size);
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
-            let processor = BatchProcessor::new(BatchConfig {
+            let processor = BatchExecutor::new(BatchConfig {
                 parallel_threshold: 1, // Force parallel
                 ..Default::default()
             });
@@ -112,7 +112,7 @@ fn bench_strategy_comparison(c: &mut Criterion) {
             BenchmarkId::new("serial", size),
             &size,
             |b, _| {
-                let processor = BatchProcessor::new(BatchConfig {
+                let processor = BatchExecutor::new(BatchConfig {
                     parallel_threshold: usize::MAX,
                     ..Default::default()
                 });
@@ -130,7 +130,7 @@ fn bench_strategy_comparison(c: &mut Criterion) {
             BenchmarkId::new("parallel", size),
             &size,
             |b, _| {
-                let processor = BatchProcessor::new(BatchConfig {
+                let processor = BatchExecutor::new(BatchConfig {
                     parallel_threshold: 1,
                     ..Default::default()
                 });
@@ -148,7 +148,7 @@ fn bench_strategy_comparison(c: &mut Criterion) {
             BenchmarkId::new("auto", size),
             &size,
             |b, _| {
-                let processor = BatchProcessor::new(BatchConfig::default());
+                let processor = BatchExecutor::new(BatchConfig::default());
 
                 b.iter(|| {
                     processor
@@ -173,7 +173,7 @@ fn bench_threshold_optimization(c: &mut Criterion) {
             BenchmarkId::from_parameter(threshold),
             &threshold,
             |b, &threshold| {
-                let processor = BatchProcessor::new(BatchConfig {
+                let processor = BatchExecutor::new(BatchConfig {
                     parallel_threshold: threshold,
                     ..Default::default()
                 });

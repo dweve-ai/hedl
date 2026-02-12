@@ -29,9 +29,8 @@
 //! - Value conversion roundtrips
 
 // Allow single_match for proptest tuple destructuring patterns
-#![allow(clippy::single_match)]
 
-use hedl_core::{Document, Item, MatrixList, Node, Reference, Value};
+use hedl_core::{Document, Item, MatrixList, Node, Value};
 use hedl_neo4j::{
     cypher::{
         escape_identifier, escape_label, escape_relationship_type, escape_string,
@@ -504,106 +503,6 @@ fn arb_type_name() -> impl Strategy<Value = String> {
     prop::string::string_regex("[A-Z][a-zA-Z0-9]{0,15}").unwrap()
 }
 
-/// Generate arbitrary HEDL values (non-reference, non-tensor for simplicity)
-#[allow(dead_code)]
-fn arb_hedl_value() -> impl Strategy<Value = Value> {
-    prop_oneof![
-        any::<i64>().prop_map(Value::Int),
-        any::<f64>()
-            .prop_filter("finite", |f| f.is_finite())
-            .prop_map(Value::Float),
-        any::<bool>().prop_map(Value::Bool),
-        "[a-zA-Z0-9 ]{0,50}".prop_map(|s: String| Value::String(s.into())),
-        Just(Value::Null),
-    ]
-}
-
-/// Generate arbitrary HEDL node
-#[allow(dead_code)]
-fn arb_hedl_node(type_name: String, num_fields: usize) -> impl Strategy<Value = Node> {
-    (
-        arb_identifier(),
-        prop::collection::vec(arb_hedl_value(), num_fields),
-    )
-        .prop_map(move |(id, mut fields)| {
-            // First field is always the ID
-            fields.insert(0, Value::String(id.clone().into()));
-            Node {
-                type_name: type_name.clone(),
-                id,
-                fields: SmallVec::from_vec(fields),
-                children: None,
-                child_count: 0,
-            }
-        })
-}
-
-/// Generate arbitrary HEDL node with references
-#[allow(dead_code)]
-fn arb_hedl_node_with_refs(
-    type_name: String,
-    target_ids: Vec<String>,
-) -> impl Strategy<Value = Node> {
-    let _num_fields = 2; // ID + 1 reference field
-    (arb_identifier(), arb_type_name()).prop_map(move |(id, ref_type)| {
-        let target_id = target_ids
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "target".to_string());
-        Node {
-            type_name: type_name.clone(),
-            id: id.clone(),
-            fields: SmallVec::from_vec(vec![
-                Value::String(id.into()),
-                Value::Reference(Reference {
-                    type_name: Some(ref_type.into()),
-                    id: target_id.into(),
-                }),
-            ]),
-            children: None,
-            child_count: 0,
-        }
-    })
-}
-
-/// Generate arbitrary HEDL node with NEST children
-#[allow(dead_code)]
-fn arb_hedl_node_with_nest(type_name: String, child_type: String) -> impl Strategy<Value = Node> {
-    (
-        arb_identifier(),
-        prop::collection::vec(arb_identifier(), 1..3),
-    )
-        .prop_map(move |(id, child_ids)| {
-            let mut children = BTreeMap::new();
-            let child_nodes: Vec<Node> = child_ids
-                .into_iter()
-                .map(|child_id| Node {
-                    type_name: child_type.clone(),
-                    id: child_id.clone(),
-                    fields: SmallVec::from_vec(vec![
-                        Value::String(child_id.into()),
-                        Value::String("test".to_string().into()),
-                    ]),
-                    children: None,
-                    child_count: 0,
-                })
-                .collect();
-            let child_count = child_nodes.len();
-            children.insert("children".to_string(), child_nodes);
-
-            Node {
-                type_name: type_name.clone(),
-                id: id.clone(),
-                fields: SmallVec::from_vec(vec![
-                    Value::String(id.into()),
-                    Value::String("parent".to_string().into()),
-                ]),
-                children: Some(Box::new(children)),
-                child_count: child_count as u16,
-            }
-        })
-}
-
 /// Generate arbitrary HEDL Document
 fn arb_document() -> impl Strategy<Value = Document> {
     (
@@ -638,7 +537,7 @@ fn arb_document() -> impl Strategy<Value = Document> {
             );
 
             Document {
-                version: (1, 0),
+                version: (2, 0),
                 schema_versions: BTreeMap::new(),
                 aliases: BTreeMap::new(),
                 structs: BTreeMap::new(),
@@ -707,10 +606,10 @@ fn arb_document_with_nest() -> impl Strategy<Value = Document> {
             structs.insert(child_type.clone(), child_schema.clone());
 
             let mut nests = BTreeMap::new();
-            nests.insert(parent_type.clone(), child_type.clone());
+            nests.insert(parent_type.clone(), vec![child_type.clone()]);
 
             Document {
-                version: (1, 0),
+                version: (2, 0),
                 schema_versions: BTreeMap::new(),
                 aliases: BTreeMap::new(),
                 structs,
@@ -811,12 +710,12 @@ proptest! {
                 }),
             );
             Document {
-                version: (1, 0),
+                version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
                 structs: BTreeMap::new(),
                 nests: BTreeMap::new(),
-                root,
+        root,
             }
         };
 
@@ -1094,7 +993,7 @@ proptest! {
     #[test]
     fn prop_empty_document_minimal_output(_x in Just(())) {
         let doc = Document {
-            version: (1, 0),
+            version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
             structs: BTreeMap::new(),
@@ -1246,8 +1145,7 @@ proptest! {
         let result1 = from_records_iter(records.clone().into_iter(), &config1);
         let result2 = from_records_iter(records.into_iter(), &config2);
 
-        match (result1, result2) {
-            (Ok(doc1), Ok(doc2)) => {
+        if let (Ok(doc1), Ok(doc2)) = (result1, result2) {
                 // All should produce same number of root keys
                 prop_assert_eq!(doc1.root.len(), doc2.root.len());
 
@@ -1261,8 +1159,6 @@ proptest! {
                         prop_assert_eq!(l1.rows.len(), l2.rows.len());
                     }
                 }
-            }
-            _ => {}, // If any fail, they should all fail (or succeed)
         }
     }
 

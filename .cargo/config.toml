@@ -1,0 +1,15 @@
+# =============================================================================
+# HEDL - Hierarchical Entity Data Language - .cargo/config.toml
+# Open Source (Apache 2.0) Cargo Configuration
+#
+# Copyright (c) Dweve B.V.
+# IP holder: Dweve IP B.V.
+# =============================================================================
+
+# WASM target configuration
+# Disable reference-types feature to ensure compatibility with wasm-bindgen.
+# Rust 1.82+ enables reference-types by default for wasm32, but wasm-bindgen
+# requires the __wbindgen_externref_table_dealloc function which isn't
+# generated correctly with this feature enabled.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=-reference-types"]

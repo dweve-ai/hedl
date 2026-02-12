@@ -1,6 +1,6 @@
 # hedl-bench
 
-**Comprehensive benchmark suite for HEDL—measure parsing performance, conversion overhead, and regression detection across all crates.**
+**Comprehensive benchmark suite for HEDL -measure parsing performance, conversion overhead, and regression detection across all crates.**
 
 Performance regressions slip into production. Optimization claims need quantitative validation. Comparing HEDL to alternatives requires rigorous measurement. Benchmarking shouldn't require custom harnesses for each test case. Tracking performance over time reveals degradation trends before they impact users.
 
@@ -67,12 +67,10 @@ cargo bench -p hedl-bench -- canon
 
 **Benchmarks**:
 - `canon_basic` - Simple document canonicalization
-- `canon_ditto` - Ditto optimization with repeated values
 - `canon_sorted` - Sorted keys with alphabetic ordering
 - `canon_large` - 10K entity canonicalization
 
 **Configurations Tested**:
-- `use_ditto: true` vs `false`
 - `sort_keys: true` vs `false`
 - `inline_schemas: true` vs `false`
 
@@ -448,11 +446,11 @@ cargo bench -p hedl-bench -- --thorough
 
 ## Dependencies
 
-- `hedl-core` 1.2 - Core implementation
+- `hedl-core` 2.0 - Core implementation
 - All format crates (json, yaml, xml, csv, parquet, toon, neo4j)
-- `hedl-stream` 1.2 - Streaming parser
-- `hedl-lint` 1.2 - Linting
-- `hedl-c14n` 1.2 - Canonicalization
+- `hedl-stream` 2.0 - Streaming parser
+- `hedl-lint` 2.0 - Linting
+- `hedl-c14n` 2.0 - Canonicalization
 - `criterion` 0.5 - Benchmarking framework
 - `tiktoken-rs` 0.6 - Token counting
 

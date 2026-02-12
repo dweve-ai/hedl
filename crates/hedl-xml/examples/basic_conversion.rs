@@ -25,7 +25,7 @@ use std::collections::BTreeMap;
 
 fn main() {
     // Create a HEDL document programmatically
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Add some scalar values
     doc.root.insert(

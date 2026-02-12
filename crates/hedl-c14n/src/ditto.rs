@@ -15,11 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Ditto operator optimization.
+//! Ditto operator optimization (v1.x only, removed in v2.0).
 //!
 //! The ditto operator (`^`) is a space-saving optimization for matrix lists
 //! where consecutive rows often have repeated values. Instead of writing the
-//! full value again, we use `^` to indicate "same as above".
+//! full value again, `^` indicates "same as above".
+//!
+//! **Note:** The ditto operator is only supported in HEDL v1.x documents.
+//! It is forbidden in v2.0+ and the canonical writer will not emit it for v2.0 output.
 //!
 //! # Rules
 //!

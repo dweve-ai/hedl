@@ -14,8 +14,10 @@
 
 int main(void) {
     const char* hedl_input =
-        "%VERSION: 1.0\n"
-        "%ALIAS: prod = production\n"
+        "%V:2.0\n"
+        "%NULL:~\n"
+        "%QUOTE:\"\n"
+        "%A:prod=production\n"
         "---\n"
         "environment: @prod\n"
         "port: 8080\n"

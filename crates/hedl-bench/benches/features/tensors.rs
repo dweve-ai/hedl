@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Tensor operations benchmarks.
 //!
 //! Measures HEDL tensor parsing and manipulation performance for multi-dimensional data.
@@ -218,12 +216,14 @@ fn bench_tensor_parsing_1d(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = TensorResult::default();
-        result.dataset = format!("1d_{size}");
-        result.dimensions = vec![size];
-        result.total_elements = size;
-        result.input_size_bytes = hedl.len();
-        result.bytes_per_element = hedl.len() as f64 / size as f64;
+        let mut result = TensorResult {
+            dataset: format!("1d_{size}"),
+            dimensions: vec![size],
+            total_elements: size,
+            input_size_bytes: hedl.len(),
+            bytes_per_element: hedl.len() as f64 / size as f64,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -288,12 +288,14 @@ fn bench_tensor_parsing_2d(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = TensorResult::default();
-        result.dataset = format!("2d_{rows}x{cols}");
-        result.dimensions = vec![rows, cols];
-        result.total_elements = size;
-        result.input_size_bytes = hedl.len();
-        result.bytes_per_element = hedl.len() as f64 / size as f64;
+        let mut result = TensorResult {
+            dataset: format!("2d_{rows}x{cols}"),
+            dimensions: vec![rows, cols],
+            total_elements: size,
+            input_size_bytes: hedl.len(),
+            bytes_per_element: hedl.len() as f64 / size as f64,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -352,12 +354,14 @@ fn bench_tensor_parsing_3d(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = TensorResult::default();
-        result.dataset = format!("3d_{depth}x{rows}x{cols}");
-        result.dimensions = vec![depth, rows, cols];
-        result.total_elements = size;
-        result.input_size_bytes = hedl.len();
-        result.bytes_per_element = hedl.len() as f64 / size as f64;
+        let mut result = TensorResult {
+            dataset: format!("3d_{depth}x{rows}x{cols}"),
+            dimensions: vec![depth, rows, cols],
+            total_elements: size,
+            input_size_bytes: hedl.len(),
+            bytes_per_element: hedl.len() as f64 / size as f64,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -408,11 +412,13 @@ fn bench_tensor_analytics_parsing(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = TensorResult::default();
-        result.dataset = format!("analytics_{size}");
-        result.dimensions = vec![size];
-        result.total_elements = size;
-        result.input_size_bytes = hedl.len();
+        let mut result = TensorResult {
+            dataset: format!("analytics_{size}"),
+            dimensions: vec![size],
+            total_elements: size,
+            input_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -461,11 +467,13 @@ fn bench_shape_transformations(c: &mut Criterion) {
         );
 
         // Collect result
-        let mut result = TensorResult::default();
-        result.dataset = format!("reshape_{from_shape}x10");
-        result.dimensions = vec![from_shape, 10];
-        result.total_elements = total;
-        result.input_size_bytes = hedl.len();
+        let mut result = TensorResult {
+            dataset: format!("reshape_{from_shape}x10"),
+            dimensions: vec![from_shape, 10],
+            total_elements: total,
+            input_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {

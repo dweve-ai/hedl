@@ -20,8 +20,6 @@
 //! These tests verify that the LSP document cache prevents unbounded memory
 //! growth through LRU eviction, especially under heavy load with many documents.
 
-#![allow(deprecated)] // Tests use deprecated with_max_cache_size API for compatibility
-
 use hedl_lsp::HedlLanguageServer;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, LspService};
@@ -45,7 +43,7 @@ async fn test_no_unbounded_memory_growth_1000_documents() {
                 language_id: "hedl".to_string(),
                 version: 1,
                 text: format!(
-                    "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | user{i}, User {i}\n"
+                    "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |user{i}, User {i}\n"
                 ),
             },
         };
@@ -76,7 +74,7 @@ async fn test_no_unbounded_memory_growth_1000_documents() {
 async fn test_memory_bounded_with_small_cache() {
     // Create server with small cache (10 documents)
     let (service, _socket) =
-        LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 10));
+        LspService::new(|client| HedlLanguageServer::with_config(client, 10, 500 * 1024 * 1024));
     let server = service.inner();
 
     // Open 100 documents
@@ -87,7 +85,7 @@ async fn test_memory_bounded_with_small_cache() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params).await;
@@ -104,7 +102,7 @@ async fn test_memory_bounded_with_small_cache() {
 #[tokio::test]
 async fn test_evicted_documents_reopen_correctly() {
     let (service, _socket) =
-        LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 5));
+        LspService::new(|client| HedlLanguageServer::with_config(client, 5, 500 * 1024 * 1024));
     let server = service.inner();
 
     // Open 5 documents
@@ -115,7 +113,7 @@ async fn test_evicted_documents_reopen_correctly() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: format!("%VERSION: 1.0\n---\nvalue: {i}\n"),
+                text: format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: {i}\n"),
             },
         };
         server.did_open(params).await;
@@ -128,7 +126,7 @@ async fn test_evicted_documents_reopen_correctly() {
             uri: uri5,
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n---\nvalue: 5\n".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: 5\n".to_string(),
         },
     };
     server.did_open(params5).await;
@@ -143,7 +141,7 @@ async fn test_evicted_documents_reopen_correctly() {
             uri: uri0.clone(),
             language_id: "hedl".to_string(),
             version: 2,
-            text: "%VERSION: 1.0\n---\nvalue: 0 (reopened)\n".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nvalue: 0 (reopened)\n".to_string(),
         },
     };
     server.did_open(params0_reopened).await;
@@ -161,7 +159,7 @@ async fn test_evicted_documents_reopen_correctly() {
 #[tokio::test]
 async fn test_cache_statistics_accuracy() {
     let (service, _socket) =
-        LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 100));
+        LspService::new(|client| HedlLanguageServer::with_config(client, 100, 500 * 1024 * 1024));
     let server = service.inner();
 
     let uri = Url::parse("file:///stats_test.hedl").unwrap();
@@ -172,7 +170,7 @@ async fn test_cache_statistics_accuracy() {
             uri: uri.clone(),
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
         },
     };
     server.did_open(params).await;
@@ -191,7 +189,7 @@ async fn test_cache_statistics_accuracy() {
             content_changes: vec![TextDocumentContentChangeEvent {
                 range: None,
                 range_length: None,
-                text: format!("%VERSION: 1.0\n---\nversion: {v}\n"),
+                text: format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nversion: {v}\n"),
             }],
         };
         server.did_change(change_params).await;
@@ -225,7 +223,7 @@ async fn test_cache_statistics_accuracy() {
 #[tokio::test]
 async fn test_lru_eviction_performance() {
     let (service, _socket) =
-        LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 1000));
+        LspService::new(|client| HedlLanguageServer::with_config(client, 1000, 500 * 1024 * 1024));
     let server = service.inner();
 
     // Fill cache
@@ -236,7 +234,7 @@ async fn test_lru_eviction_performance() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params).await;
@@ -251,7 +249,7 @@ async fn test_lru_eviction_performance() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params).await;
@@ -279,7 +277,7 @@ async fn test_lru_eviction_performance() {
 #[tokio::test]
 async fn test_runtime_cache_size_change() {
     let (service, _socket) =
-        LspService::new(|client| HedlLanguageServer::with_max_cache_size(client, 50));
+        LspService::new(|client| HedlLanguageServer::with_config(client, 50, 500 * 1024 * 1024));
     let server = service.inner();
 
     assert_eq!(server.max_cache_size(), 50);
@@ -292,7 +290,7 @@ async fn test_runtime_cache_size_change() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params).await;
@@ -318,7 +316,7 @@ async fn test_runtime_cache_size_change() {
                 uri,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params).await;
@@ -338,7 +336,7 @@ async fn test_runtime_cache_size_change() {
             uri: uri100,
             language_id: "hedl".to_string(),
             version: 1,
-            text: "%VERSION: 1.0\n---\n".to_string(),
+            text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
         },
     };
     server.did_open(params100).await;

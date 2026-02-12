@@ -80,12 +80,12 @@ Context-aware code completion.
 
 **a) Entity Types**
 ```hedl
-users: @U|  # Suggests: User, Post, Comment
+users:@U|  # Suggests: User, Post, Comment
 ```
 
 **b) Entity IDs**
 ```hedl
-author: @User:|  # Suggests: alice, bob, charlie
+author:@User:|  # Suggests: alice, bob, charlie
 ```
 
 **c) Directives**
@@ -95,12 +95,12 @@ author: @User:|  # Suggests: alice, bob, charlie
 
 **d) Field Names**
 ```hedl
-%STRUCT: User: [id, |  # Suggests common field names
+%S:User:[id,|  # Suggests common field names
 ```
 
 **e) Values**
 ```hedl
-active: |  # Suggests: true, false, null
+active: |  # Suggests: true,false, null
 ```
 
 ---
@@ -111,7 +111,7 @@ Display information when hovering over symbols.
 
 **Entity Type Hover**:
 ```hedl
-users: @User
+users:@User
        ^^^^
 ```
 Shows:
@@ -123,7 +123,7 @@ Instances: 3
 
 **Entity ID Hover**:
 ```hedl
-author: @User:alice
+author:@User:alice
               ^^^^^
 ```
 Shows:
@@ -154,13 +154,13 @@ Navigate to entity and type definitions.
 
 **From Reference**:
 ```hedl
-author: @User:alice
+author:@User:alice
               ^^^^^ → Jump to line 15 where alice is defined
 ```
 
 **From Type**:
 ```hedl
-users: @User
+users:@User
         ^^^^ → Jump to %STRUCT: User definition
 ```
 
@@ -172,22 +172,24 @@ Find all usages of entities and types.
 
 **Find Entity References**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, author]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,author]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice,Alice
 
-posts: @Post
-  | post1, @User:alice
+posts:@Post
+ |post1,@User:alice
 ```
 
 **Results**:
 ```
 Found 2 references to User:
-  Line 3: users: @User
-  Line 8: | post1, @User:alice
+  Line 3: users:@User
+  Line 8: |post1,@User:alice
 ```
 
 ---
@@ -197,15 +199,17 @@ Found 2 references to User:
 Hierarchical outline view.
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%S:Post:[id,title]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-posts: @Post
-  | post1, Hello
+users:@User
+ |alice,Alice
+ |bob,Bob
+posts:@Post
+ |post1,Hello
 ```
 
 **Symbol Tree**:
@@ -255,7 +259,7 @@ Type-aware syntax highlighting token types advertised by the server.
 - Variable: Entity IDs
 - String: String literals
 - Number: Numeric literals
-- Operator: `@`, `^`, `$`
+- Operator: `@`, `$`
 - Comment: `# comment`
 
 ---
@@ -266,8 +270,10 @@ Format HEDL to canonical form.
 
 **Before**:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
 z: 3
 a: 1
@@ -275,8 +281,10 @@ a: 1
 
 **After** (Format Document):
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
 a: 1
 z: 3
@@ -290,11 +298,11 @@ z: 3
 
 The server starts with these default values:
 
-| Setting | Default Value | Description |
+ |Setting |Default Value |Description |
 |---------|---------------|-------------|
-| Max Documents | 1000 | Maximum documents cached |
-| Max Document Size | 500 MB | Maximum size per document |
-| Debounce | 200ms | Delay before reprocessing |
+ |Max Documents |1000 |Maximum documents cached |
+ |Max Document Size |500 MB |Maximum size per document |
+ |Debounce |200ms |Delay before reprocessing |
 
 > **Note**: Runtime JSON configuration is not supported. Use the programmatic API below to customize settings.
 
@@ -611,7 +619,7 @@ Parse errors use the `HedlErrorKind` variant names as strings:
 | `Schema` | Struct definition or usage error | Error |
 | `Alias` | Duplicate or invalid alias | Error |
 | `Shape` | Wrong number of cells in row | Error |
-| `Semantic` | Logical error (ditto in ID, etc.) | Error |
+| `Semantic` | Logical error (null in ID, etc.) | Error |
 | `OrphanRow` | Child row without NEST rule | Error |
 | `Collision` | Duplicate ID within type | Error |
 | `Reference` | Unresolved or invalid reference | Error |
@@ -621,12 +629,12 @@ Parse errors use the `HedlErrorKind` variant names as strings:
 
 Lint diagnostics use rule IDs:
 
-| Code | Message | Severity |
+ |Code |Message |Severity |
 |------|---------|----------|
-| `id-naming` | Short or numeric-only IDs | Hint |
-| `unused-schema` | Schema defined but never used | Warning |
-| `empty-list` | Matrix list is empty | Hint |
-| `unqualified-kv-ref` | Unqualified reference in Key-Value context | Warning |
+ |`id-naming` |Short or numeric-only IDs |Hint |
+ |`unused-schema` |Schema defined but never used |Warning |
+ |`empty-list` |Matrix list is empty |Hint |
+ |`unqualified-kv-ref` |Unqualified reference in Key-Value context |Warning |
 
 ---
 

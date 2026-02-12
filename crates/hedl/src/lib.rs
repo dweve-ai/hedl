@@ -27,12 +27,14 @@
 //! use hedl::{parse, canonicalize, to_json};
 //!
 //! let hedl_doc = r#"
-//! %VERSION: 1.0
-//! %STRUCT: User: [id,name,email]
+//! %V:2.0
+//! %NULL:~
+//! %QUOTE:"
+//! %S:User:[id,name,email]
 //! ---
 //! users: @User
-//!   | alice, Alice, alice@example.com
-//!   | bob, Bob, bob@example.com
+//!  |alice, Alice, alice@example.com
+//!  |bob, Bob, bob@example.com
 //! "#;
 //!
 //! // Parse the document
@@ -49,7 +51,6 @@
 //!
 //! - **Type-scoped IDs**: IDs are unique within their type namespace
 //! - **Matrix lists**: CSV-like tables for homogeneous collections
-//! - **Ditto operator**: `^` copies values from previous row
 //! - **References**: `@id` or `@Type:id` for graph relationships
 //! - **Tensor literals**: `[1, 2, 3]` for numerical arrays
 //! - **Expressions**: `$(...)` for deferred computation
@@ -100,47 +101,41 @@ pub use hedl_core::{
 mod error_ext;
 pub use error_ext::HedlResultExt;
 
-// Re-export lexer utilities
+/// Lexical analysis utilities.
 pub mod lex {
-    //! Lexical analysis utilities
     pub use hedl_core::lex::{
         is_valid_id_token, is_valid_key_token, is_valid_type_name, parse_reference, scan_regions,
         strip_comment, validate_indent, IndentInfo, LexError, Reference, Region,
     };
 }
 
-// Re-export CSV utilities
+/// CSV field parsing.
 pub mod csv {
-    //! CSV field parsing
     pub use hedl_core::lex::{parse_csv_row, CsvField};
 }
 
-// Re-export tensor utilities
+/// Tensor literal parsing.
 pub mod tensor {
-    //! Tensor literal parsing
     pub use hedl_core::lex::{parse_tensor, Tensor};
 }
 
-// Re-export canonicalization
+/// Canonicalization utilities.
 pub mod c14n {
-    //! Canonicalization utilities
     pub use hedl_c14n::{
         canonicalize, canonicalize_with_config, CanonicalConfig, CanonicalWriter, QuotingStrategy,
     };
 }
 
-// Re-export JSON conversion
+/// JSON conversion utilities.
 pub mod json {
-    //! JSON conversion utilities
     pub use hedl_json::{
         from_json, from_json_value, hedl_to_json, json_to_hedl, to_json, to_json_value,
         FromJsonConfig, ToJsonConfig,
     };
 }
 
-// Re-export linting
+/// Linting utilities.
 pub mod lint {
-    //! Linting utilities
     pub use hedl_lint::{
         lint, lint_with_config, Diagnostic, DiagnosticKind, LintConfig, LintRule, LintRunner,
         RuleConfig, Severity,
@@ -229,7 +224,7 @@ pub mod toon {
 ///
 /// # Performance
 ///
-/// This is a hot path function with #[inline] hint for 5-10% improvement
+/// This is a hot path function with `#[inline]` hint for 5-10% improvement
 /// in small document parsing scenarios.
 ///
 /// # Examples
@@ -237,6 +232,7 @@ pub mod toon {
 /// ```rust
 /// use hedl::parse;
 ///
+/// // Parsing v1.0 input preserves the version
 /// let doc = parse("%VERSION: 1.0\n---\nkey: value").unwrap();
 /// assert_eq!(doc.version, (1, 0));
 /// ```
@@ -263,7 +259,7 @@ pub fn parse_lenient(input: &str) -> Result<Document, HedlError> {
 ///
 /// # Performance
 ///
-/// This is a hot path function with #[inline] hint for 5-10% improvement
+/// This is a hot path function with `#[inline]` hint for 5-10% improvement
 /// in serialization benchmarks.
 ///
 /// # Examples
@@ -285,7 +281,7 @@ pub fn canonicalize(doc: &Document) -> Result<String, HedlError> {
 ///
 /// # Performance
 ///
-/// This is a hot path function with #[inline] hint for 5-10% improvement
+/// This is a hot path function with `#[inline]` hint for 5-10% improvement
 /// in format conversion benchmarks.
 ///
 /// # Examples
@@ -347,7 +343,7 @@ pub fn validate(input: &str) -> Result<(), HedlError> {
 }
 
 /// HEDL format version supported by this library.
-pub const SUPPORTED_VERSION: (u32, u32) = (1, 0);
+pub const SUPPORTED_VERSION: (u32, u32) = (2, 0);
 
 /// Library version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -358,12 +354,14 @@ mod tests {
 
     #[test]
     fn test_parse_minimal() {
+        // Parsing v1.0 input should preserve the version
         let doc = parse("%VERSION: 1.0\n---\n").unwrap();
         assert_eq!(doc.version, (1, 0));
     }
 
     #[test]
     fn test_parse_key_value() {
+        // Parsing v1.0 input should preserve the version
         let doc = parse("%VERSION: 1.0\n---\nkey: value\nnum: 42").unwrap();
         assert_eq!(doc.version, (1, 0));
     }
@@ -374,9 +372,9 @@ mod tests {
 %VERSION: 1.0
 %STRUCT: User: [id,name]
 ---
-users: @User
-  |alice,Alice
-  |bob,Bob
+users:@User
+ |alice,Alice
+ |bob,Bob
 ";
         let doc = parse(input).unwrap();
         assert!(doc.structs.contains_key("User"));

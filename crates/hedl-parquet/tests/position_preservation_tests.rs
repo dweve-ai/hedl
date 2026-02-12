@@ -33,7 +33,7 @@ use hedl_parquet::{from_parquet_bytes, to_parquet_bytes};
 /// through sequential processing without any explicit position column.
 #[test]
 fn test_position_preservation_simple_ordered() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
 
     // Add rows in specific order
@@ -79,7 +79,7 @@ fn test_position_preservation_simple_ordered() {
 /// Test position preservation with 100 rows to verify no reordering at scale.
 #[test]
 fn test_position_preservation_large_dataset() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Row", vec!["id".to_string(), "seq".to_string()]);
 
     // Add 100 rows with sequential IDs
@@ -124,7 +124,7 @@ fn test_position_preservation_large_dataset() {
 /// but preserves the exact insertion order.
 #[test]
 fn test_position_preservation_reverse_sorted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "priority".to_string()]);
 
     // Add rows in descending priority order (not alphabetically by ID)
@@ -176,7 +176,7 @@ fn test_position_preservation_reverse_sorted() {
 /// proving that no stable sort or other reordering occurs.
 #[test]
 fn test_position_preservation_identical_values() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Record", vec!["id".to_string(), "status".to_string()]);
 
     // Add rows with identical status values
@@ -229,7 +229,7 @@ fn test_position_preservation_identical_values() {
 /// its values are correctly preserved during round-trip conversion.
 #[test]
 fn test_explicit_position_column_preservation() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Task",
         vec![
@@ -296,7 +296,7 @@ fn test_explicit_position_column_preservation() {
 /// don't match the row index (e.g., after reordering or filtering).
 #[test]
 fn test_explicit_position_non_sequential() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Item",
         vec![
@@ -363,7 +363,7 @@ fn test_explicit_position_non_sequential() {
 /// of values in different columns.
 #[test]
 fn test_position_preservation_mixed_types() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Data",
         vec![
@@ -441,7 +441,7 @@ fn test_position_preservation_mixed_types() {
 /// in the sequence.
 #[test]
 fn test_position_preservation_with_nulls() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Record",
         vec!["id".to_string(), "value1".to_string(), "value2".to_string()],
@@ -518,7 +518,7 @@ fn test_position_preservation_with_nulls() {
 /// Test position preservation with single row.
 #[test]
 fn test_position_preservation_single_row() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "value".to_string()]);
 
     list.add_row(Node::new(
@@ -549,7 +549,7 @@ fn test_position_preservation_single_row() {
 /// even with large datasets that may involve multiple record batches.
 #[test]
 fn test_position_preservation_stress_1000_rows() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Entry", vec!["id".to_string(), "index".to_string()]);
 
     // Add 1000 rows
@@ -602,7 +602,7 @@ fn test_position_preservation_stress_1000_rows() {
 /// Test that position is preserved when rows have unicode IDs.
 #[test]
 fn test_position_preservation_unicode_ids() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "name".to_string()]);
 
     let items = vec![

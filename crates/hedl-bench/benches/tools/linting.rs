@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Linting performance benchmarks for HEDL.
 //!
 //! Measures lint rule execution performance across different rule types and dataset sizes.
@@ -25,7 +23,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Through
 use hedl_bench::{
     generate_blog, generate_deep_hierarchy, generate_ditto_heavy, generate_graph,
     generate_reference_heavy, generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig,
-    Insight, PerfResult, TableCell,
+    Insight, TableCell,
 };
 use hedl_core::Document;
 use hedl_lint::{lint, lint_with_config, LintConfig, LintRunner, Severity};
@@ -77,13 +75,6 @@ fn init_report() {
     });
     LINT_RESULTS.with(|r| {
         r.borrow_mut().clear();
-    });
-}
-
-#[allow(dead_code)] // Used for future incremental data collection
-fn add_lint_result(result: LintResult) {
-    LINT_RESULTS.with(|r| {
-        r.borrow_mut().push(result);
     });
 }
 
@@ -281,8 +272,10 @@ fn collect_lint_results() -> Vec<LintResult> {
             Severity::Error => "error",
         };
 
-        let mut config = LintConfig::default();
-        config.min_severity = severity;
+        let config = LintConfig {
+            min_severity: severity,
+            ..Default::default()
+        };
 
         let mut latencies = Vec::with_capacity(iterations);
         for _ in 0..iterations {
@@ -304,26 +297,6 @@ fn collect_lint_results() -> Vec<LintResult> {
     }
 
     results
-}
-
-#[allow(dead_code)] // Reserved for future benchmark-time data collection
-fn add_perf_result(name: &str, time_ns: u64, iterations: u64, throughput_bytes: Option<u64>) {
-    REPORT.with(|r| {
-        if let Some(ref mut report) = *r.borrow_mut() {
-            let throughput_mbs = throughput_bytes.map(|bytes| {
-                let bytes_per_sec = (bytes as f64 * 1e9) / time_ns as f64;
-                bytes_per_sec / 1_000_000.0
-            });
-            report.add_perf(PerfResult {
-                name: name.to_string(),
-                iterations,
-                total_time_ns: time_ns,
-                throughput_bytes,
-                avg_time_ns: Some(time_ns / iterations),
-                throughput_mbs,
-            });
-        }
-    });
 }
 
 fn export_reports() {
@@ -1264,8 +1237,10 @@ fn bench_severity_filtering(c: &mut Criterion) {
             Severity::Error => "error",
         };
 
-        let mut config = LintConfig::default();
-        config.min_severity = severity;
+        let config = LintConfig {
+            min_severity: severity,
+            ..Default::default()
+        };
 
         group.bench_with_input(
             BenchmarkId::from_parameter(severity_name),
@@ -1315,8 +1290,10 @@ fn bench_diagnostic_limits(c: &mut Criterion) {
 
     // Test with different diagnostic limits
     for limit in [100, 1000, 10000] {
-        let mut config = LintConfig::default();
-        config.max_diagnostics = limit;
+        let config = LintConfig {
+            max_diagnostics: limit,
+            ..Default::default()
+        };
 
         group.bench_with_input(
             BenchmarkId::from_parameter(format!("limit_{limit}")),

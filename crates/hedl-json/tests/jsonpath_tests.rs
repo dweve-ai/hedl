@@ -52,9 +52,9 @@ fn parse_hedl(input: &str) -> hedl_core::Document {
             }
             (header_lines.join("\n"), body_lines.join("\n"))
         };
-        format!("%VERSION: 1.0\n{header}\n---\n{body}")
+        format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n{header}\n---\n{body}")
     } else {
-        format!("%VERSION: 1.0\n---\n{input}")
+        format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{input}")
     };
     parse(hedl.as_bytes()).unwrap()
 }
@@ -85,11 +85,11 @@ email: "alice@example.com"
 fn test_nested_object_query() {
     let hedl = r#"
 user:
-  profile:
-    name: "Bob"
-    age: 25
-  settings:
-    theme: "dark"
+ profile:
+  name: "Bob"
+  age: 25
+ settings:
+  theme: "dark"
 "#;
 
     let doc = parse_hedl(hedl);
@@ -131,12 +131,12 @@ d: 4
 fn test_recursive_descent_query() {
     let hedl = r#"
 level1:
-  level2:
-    name: "Alice"
-  other:
-    name: "Bob"
+ level2:
+  name: "Alice"
+ other:
+  name: "Bob"
 top:
-  name: "Charlie"
+ name: "Charlie"
 "#;
 
     let doc = parse_hedl(hedl);
@@ -372,11 +372,11 @@ field_with_number2: "value2"
 fn test_deep_nesting() {
     let hedl = r#"
 level1:
-  level2:
-    level3:
-      level4:
-        level5:
-          value: "deep"
+ level2:
+  level3:
+   level4:
+    level5:
+     value: "deep"
 "#;
 
     let doc = parse_hedl(hedl);
@@ -391,11 +391,11 @@ level1:
 fn test_multiple_paths() {
     let hedl = r#"
 user:
-  name: "Alice"
-  email: "alice@example.com"
+ name: "Alice"
+ email: "alice@example.com"
 admin:
-  name: "Bob"
-  email: "bob@example.com"
+ name: "Bob"
+ email: "bob@example.com"
 "#;
 
     let doc = parse_hedl(hedl);
@@ -517,13 +517,13 @@ fn test_deeply_nested_query() {
     // Create a deeply nested structure with proper indentation
     let hedl = r#"
 root:
-  l0:
-    l1:
-      l2:
-        l3:
-          l4:
-            l5:
-              value: "deep"
+ l0:
+  l1:
+   l2:
+    l3:
+     l4:
+      l5:
+       value: "deep"
 "#;
 
     let doc = parse_hedl(hedl);
@@ -540,15 +540,15 @@ root:
 fn test_extract_user_emails() {
     let hedl = r#"
 users:
-  alice:
-    email: "alice@example.com"
-    active: true
-  bob:
-    email: "bob@example.com"
-    active: false
-  charlie:
-    email: "charlie@example.com"
-    active: true
+ alice:
+  email: "alice@example.com"
+  active: true
+ bob:
+  email: "bob@example.com"
+  active: false
+ charlie:
+  email: "charlie@example.com"
+  active: true
 "#;
 
     let doc = parse_hedl(hedl);
@@ -568,14 +568,14 @@ users:
 fn test_configuration_extraction() {
     let hedl = r#"
 database:
-  host: "localhost"
-  port: 5432
-  credentials:
-    username: "admin"
-    password: "secret"
+ host: "localhost"
+ port: 5432
+ credentials:
+  username: "admin"
+  password: "secret"
 cache:
-  enabled: true
-  ttl: 300
+ enabled: true
+ ttl: 300
 "#;
 
     let doc = parse_hedl(hedl);

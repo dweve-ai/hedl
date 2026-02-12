@@ -31,7 +31,7 @@
 //! - **Document Symbols**: Hierarchical outline view with entities and schemas
 //! - **Workspace Symbols**: Search symbols across all open documents
 //! - **Semantic Highlighting**: Type-aware syntax highlighting for better readability
-//! - **Document Formatting**: Canonical HEDL formatting with ditto optimization
+//! - **Document Formatting**: Canonical HEDL formatting
 //!
 //! # Performance
 //!
@@ -124,25 +124,40 @@
 //! - [`hover`]: Hover information provider with type and entity details
 //! - [`reference_index`]: O(1) reference index for fast definition and reference lookups
 //! - [`symbols`]: Document and workspace symbol providers
-//! - [`utils`]: Safe string handling utilities for UTF-8 safety
+//! - [`utf_encoding`]: Safe UTF-8/UTF-16 encoding conversion utilities for LSP
+//! - [`diagnostics`]: LSP-specific diagnostics for inline child lists and other features
+//! - [`code_actions`]: Quick fixes and refactoring actions
 
 #![cfg_attr(not(test), warn(missing_docs))]
+/// Document analysis for HEDL files.
 pub mod analysis;
 mod backend;
+/// Code actions for HEDL LSP.
+pub mod code_actions;
+/// Autocompletion for HEDL files.
 pub mod completion;
+/// LSP constants and magic number definitions.
 pub mod constants;
+/// LSP-specific diagnostics for HEDL files.
+pub mod diagnostics;
+/// Document management with caching and LRU eviction.
 pub mod document_manager;
+/// Hover information for HEDL files.
 pub mod hover;
+/// Reference index for fast definition and reference lookups.
 pub mod reference_index;
+/// Rename refactoring for HEDL symbols.
 pub mod rename;
+/// Document symbols for HEDL files.
 pub mod symbols;
-pub mod utils;
+/// Safe string handling utilities for LSP encoding operations.
+pub mod utf_encoding;
 
 #[cfg(test)]
 mod tests;
 
 pub use backend::HedlLanguageServer;
-pub use document_manager::{CacheStatistics, DocumentManager};
+pub use document_manager::{CacheStatistics, DocumentCache};
 
 /// LSP server version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

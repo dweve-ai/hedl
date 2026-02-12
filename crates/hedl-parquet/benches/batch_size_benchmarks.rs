@@ -23,7 +23,7 @@ fn generate_test_document(
     num_columns: usize,
     column_type: ColumnType,
 ) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Build schema
     let mut schema = vec!["id".to_string()];
@@ -41,7 +41,6 @@ fn generate_test_document(
         for col_idx in 1..num_columns {
             let value = match column_type {
                 ColumnType::Integer => Value::Int((row_idx * 1000 + col_idx) as i64),
-                ColumnType::Float => Value::Float((row_idx as f64) + (col_idx as f64) / 1000.0),
                 ColumnType::String => Value::String(format!("value_{row_idx}_{col_idx}").into()),
                 ColumnType::Mixed => {
                     if col_idx % 3 == 0 {
@@ -68,8 +67,6 @@ fn generate_test_document(
 #[derive(Debug, Clone, Copy)]
 enum ColumnType {
     Integer,
-    #[allow(dead_code)]
-    Float,
     String,
     Mixed,
 }

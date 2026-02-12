@@ -12,62 +12,65 @@ HEDL is designed for high-performance data processing with multiple optimization
 
 ## Performance Metrics
 
-Based on benchmark suite (`cargo bench --bench parsing`, 2025-01-19):
+Based on latest benchmark suite (2026-02-02, release build):
 
-**Parsing (release build):**
+**Parsing Performance (p50 latency):**
 
-| Document Size | Latency | Throughput |
-|---------------|---------|------------|
-| 10 keys flat | ~20 µs | ~42 MiB/s |
-| 50 keys flat | ~115 µs | ~34 MiB/s |
-| 100 keys flat | ~229 µs | ~34 MiB/s |
-| 500 keys flat | ~1.12 ms | ~35 MiB/s |
-| Nested (5 parents, 2 children) | ~41 µs | ~49 MiB/s |
+| Benchmark | Latency | Throughput |
+|-----------|---------|-----------|
+| Tiny document | 37.1 µs | ~270 MB/s |
+| Small document | 396 µs | ~25 MB/s |
+| Medium document | 12.1 ms | ~0.83 MB/s |
+| Large document | 135 ms | ~0.07 MB/s |
 
-**JSON Conversion (release build, from `target/criterion/`):**
+**Canonicalization Performance (p50 latency):**
 
-| Direction | Document | Latency |
-|-----------|----------|---------|
-| HEDL→JSON | users/10 | ~3.4 µs |
-| HEDL→JSON | users/100 | ~54 µs |
-| HEDL→JSON | users/1000 | ~576 µs |
-| HEDL→JSON | products/1000 | ~645 µs |
-| JSON→HEDL | users/10 | ~8.9 µs |
-| JSON→HEDL | users/100 | ~84 µs |
-| JSON→HEDL | users/1000 | ~851 µs |
-| JSON→HEDL | products/1000 | ~819 µs |
-| Roundtrip | blog/100 | ~105 µs |
+| Size | Latency |
+|------|---------|
+| Tiny | 83.5 µs |
+| Small | 129 µs |
+| Medium | 670 µs |
 
-**FFI Performance (1000 items):**
+**Validation Performance (p50 latency):**
 
-| Method | Latency | Overhead |
-|--------|---------|----------|
-| Native Rust | ~602 µs | baseline |
-| FFI (C ABI) | ~587 µs | ~2.5% faster* |
+| Size | Latency |
+|------|---------|
+| Tiny | 19.3 µs |
+| Small | 23.7 µs |
+| Medium | 74.8 µs |
 
-*FFI can be faster due to different allocation patterns
+**Linting Performance (p50 latency):**
 
-**Streaming (array_streamer):**
+| Size | Latency |
+|------|---------|
+| Tiny | 15.6 µs |
+| Small | 16.1 µs |
+| Medium | 23.6 µs |
 
-| Items | Latency | Per-item |
-|-------|---------|----------|
-| 1,000 | ~523 µs | ~523 ns |
-| 10,000 | ~5.28 ms | ~528 ns |
+**JSON Conversion Performance (p50 latency):**
 
-**Canonicalization:**
+| Direction | Size | Latency |
+|-----------|------|---------|
+| HEDL→JSON | Tiny | 10.0 µs |
+| HEDL→JSON | Small | 115 µs |
+| HEDL→JSON | Medium | 1.10 ms |
+| JSON→HEDL | Tiny | 10.0 µs |
+| JSON→HEDL | Small | 115 µs |
+| JSON→HEDL | Medium | 1.10 ms |
 
-| Algorithm | Latency |
-|-----------|---------|
-| JSON RFC 8785 | ~664 ns |
+**Full Pipeline Performance (p50 latency):**
 
-**Cross-format Comparison:**
+| Size | Latency |
+|------|---------|
+| Tiny | 558 µs |
+| Small | 1.04 ms |
+| Medium | 10.6 ms |
 
-| Operation | Latency |
-|-----------|---------|
-| JSON parse via HEDL | ~369 µs |
-| serde_json parse (direct) | ~180 µs |
+**Percentile Performance Distribution:**
 
-Run `cargo bench -p hedl-bench` for full benchmark suite.
+All benchmarks track p50, p95, and p99 latencies. See `crates/hedl-bench/baselines/current.json` for complete percentile data.
+
+Run `cargo bench -p hedl-bench` for full benchmark suite and detailed results.
 
 ## Optimization Layers
 
@@ -476,7 +479,7 @@ cargo flamegraph --bench parsing
 
 Based on criterion benchmarks (2025-01-19, release build):
 
-| Operation | Target | Measured |
+| Operation |Target |Measured |
 |-----------|--------|----------|
 | Parse 10 keys flat | <50 µs | ~20 µs |
 | Parse 100 keys flat | <500 µs | ~229 µs |

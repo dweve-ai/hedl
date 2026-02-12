@@ -1,9 +1,12 @@
 # FFI Integration Tutorial
 
-This tutorial demonstrates how to use HEDL from C and C++ via the Foreign Function Interface (FFI).
+Your C++ codebase has millions of lines. Rewriting it in Rust isn't happening, but you still want HEDL's token efficiency for your LLM pipelines. Or maybe you're building embedded systems firmware in C, and JSON parsing is eating your memory budget.
 
-## Prerequisites
+The FFI bindings give you HEDL's full parsing and conversion capabilities from any language that can call C functions. That means C, C++, Python via ctypes, Go via cgo, and dozens of others. Same performance as native Rust, with a clean C API that plays nice with existing build systems.
 
+This tutorial walks you through setting up the FFI library, parsing your first document, and handling errors properly. By the end, you'll have production-ready HEDL integration in your C or C++ project.
+
+**What you need:**
 - C11 or C++17 compiler (GCC, Clang, MSVC)
 - HEDL shared library (`.so` on Linux, `.dylib` on macOS, `.dll` on Windows)
 - CMake or Make for building
@@ -16,19 +19,19 @@ Download the latest release from GitHub:
 
 ```bash
 # Linux
-wget https://github.com/dweve/hedl/releases/download/v1.2.0/libhedl.so
+wget https://github.com/dweve-ai/hedl/releases/download/v2.0.0/libhedl.so
 
 # macOS
-wget https://github.com/dweve/hedl/releases/download/v1.2.0/libhedl.dylib
+wget https://github.com/dweve-ai/hedl/releases/download/v2.0.0/libhedl.dylib
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://github.com/dweve/hedl/releases/download/v1.2.0/hedl.dll -OutFile hedl.dll
+Invoke-WebRequest -Uri https://github.com/dweve-ai/hedl/releases/download/v2.0.0/hedl.dll -OutFile hedl.dll
 ```
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/dweve/hedl.git
+git clone https://github.com/dweve-ai/hedl.git
 cd hedl
 cargo build --release -p hedl-ffi
 
@@ -89,12 +92,12 @@ set_target_properties(hedl_example PROPERTIES
 
 int main() {
     const char* hedl_input =
-        "%VERSION: 1.0\n"
-        "%STRUCT: User: [id, name, email]\n"
+        "%V:2.0\n"
+        "%S:User:[id,name,email]\n"
         "---\n"
-        "users: @User\n"
-        "  | alice, Alice Smith, alice@example.com\n"
-        "  | bob, Bob Jones, bob@example.com\n";
+        "users:@User\n"
+        " |alice,Alice Smith, alice@example.com\n"
+        " |bob,Bob Jones, bob@example.com\n";
 
     HedlDocument* doc = NULL;
     int code = hedl_parse(hedl_input, -1, 0, &doc);
@@ -131,7 +134,7 @@ make
 
 int main() {
     const char* hedl_input =
-        "%VERSION: 1.0\n"
+        "%V:2.0\n"
         "---\n"
         "name: Alice\n"
         "age: 30\n"
@@ -254,10 +257,10 @@ void* worker_thread(void* arg) {
 int main() {
     pthread_t threads[4];
     const char* inputs[4] = {
-        "%VERSION: 1.0\n---\nkey1: value1",
-        "%VERSION: 1.0\n---\nkey2: value2",
-        "%VERSION: 1.0\n---\nkey3: value3",
-        "%VERSION: 1.0\n---\nkey4: value4",
+        "%V:2.0\n---\nkey1: value1",
+        "%V:2.0\n---\nkey2: value2",
+        "%V:2.0\n---\nkey3: value3",
+        "%V:2.0\n---\nkey4: value4",
     };
 
     // Launch threads
@@ -339,7 +342,7 @@ struct HedlStringDeleter {
 using HedlStringPtr = std::unique_ptr<char, HedlStringDeleter>;
 
 int main() {
-    const char* input = "%VERSION: 1.0\n---\nkey: value";
+    const char* input = "%V:2.0\n---\nkey: value";
 
     // Parse with automatic cleanup
     HedlDocument* raw_doc = nullptr;
@@ -528,4 +531,4 @@ void read_documents(const char** paths, size_t count) {
 
 - **[C/C++ SDK](../sdk/c-cpp.md)** - SDK documentation
 - **[Examples](../examples.md)** - More code examples
-- **[GitHub](https://github.com/dweve/hedl)** - Source code and issues
+- **[GitHub](https://github.com/dweve-ai/hedl)** - Source code and issues

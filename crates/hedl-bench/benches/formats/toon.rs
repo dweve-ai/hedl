@@ -34,7 +34,7 @@
 //! - Ecosystem integration
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hedl_bench::helpers::measure_throughput_ns;
+use hedl_bench::benchmark_utilities::measure_throughput_ns;
 use hedl_bench::{
     count_tokens, generate_blog, generate_deep_hierarchy, generate_orders, generate_products,
     generate_users, sizes, BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult,
@@ -459,7 +459,7 @@ fn bench_toon_roundtrip(c: &mut Criterion) {
 /// Generate HEDL document with large tabular data for serialization stress test
 fn generate_large_tabular_doc(rows: usize, cols: usize) -> hedl_core::Document {
     use hedl_core::{Document, Item, MatrixList, Node, Value};
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create schema
     let schema: Vec<String> = (0..cols).map(|i| format!("col_{i}")).collect();
@@ -490,7 +490,7 @@ fn generate_large_tabular_doc(rows: usize, cols: usize) -> hedl_core::Document {
 /// Generate HEDL document with many primitive values
 fn generate_mixed_primitives_doc(count: usize) -> hedl_core::Document {
     use hedl_core::{Document, Item, Value};
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     for i in 0..count {
         let value = match i % 6 {
@@ -510,7 +510,7 @@ fn generate_mixed_primitives_doc(count: usize) -> hedl_core::Document {
 /// Generate HEDL document with strings requiring escaping
 fn generate_escaped_strings_doc(count: usize) -> hedl_core::Document {
     use hedl_core::{Document, Item, Value};
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     for i in 0..count {
         let value = match i % 4 {
@@ -621,7 +621,7 @@ fn bench_toon_serialization_floats(c: &mut Criterion) {
     for &count in &[100, 500, 1000, 5000] {
         use hedl_core::{Document, Item, MatrixList, Node, Value};
 
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("Floats", vec!["id".to_string(), "value".to_string()]);
 
         for i in 0..count {
@@ -669,7 +669,7 @@ fn bench_toon_serialization_integers(c: &mut Criterion) {
     for &count in &[100, 500, 1000, 5000] {
         use hedl_core::{Document, Item, MatrixList, Node, Value};
 
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         let mut list = MatrixList::new("Ints", vec!["id".to_string(), "value".to_string()]);
 
         for i in 0..count {
@@ -711,7 +711,24 @@ fn bench_toon_serialization_integers(c: &mut Criterion) {
 
 fn bench_export(c: &mut Criterion) {
     let mut group = c.benchmark_group("export");
-    group.bench_function("finalize", |b| b.iter(|| 1 + 1));
+
+    // Benchmark report serialization - measures actual TOON report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "toon_conversion".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(4096),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = std::hint::black_box(&sample_report).to_json().unwrap();
+            std::hint::black_box(json)
+        })
+    });
+
     group.finish();
 
     // Collect all comprehensive metrics

@@ -60,7 +60,7 @@ impl Document {
 ```rust
 use hedl::parse;
 
-let doc = parse("%VERSION: 1.0\n---\nkey: value")?;
+let doc = parse("%V:2.0\n---\nkey: value")?;
 assert_eq!(doc.version, (1, 0));
 assert!(doc.root.contains_key("key"));
 
@@ -623,7 +623,7 @@ pub enum HedlErrorKind {
     Schema,      // Schema violation or mismatch
     Alias,       // Duplicate or invalid alias
     Shape,       // Wrong number of cells in row
-    Semantic,    // Logical error (ditto in ID, etc.)
+    Semantic,    // Logical error (null in ID, etc.)
     OrphanRow,   // Child row without NEST rule
     Collision,   // Duplicate ID within type
     Reference,   // Unresolved reference in strict mode

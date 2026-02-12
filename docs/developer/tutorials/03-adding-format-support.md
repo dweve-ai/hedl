@@ -34,7 +34,7 @@ We'll create `hedl-csv` with:
 use hedl_csv::{to_csv, from_csv};
 use hedl_core::parse;
 
-let hedl = parse(b"%VERSION: 1.0\n---\nusers:\n  alice:\n    email: alice@example.com\n  bob:\n    email: bob@example.com")?;
+let hedl = parse(b"%V:2.0\n---\nusers:\n  alice:\n    email: alice@example.com\n  bob:\n    email: bob@example.com")?;
 let csv = to_csv(&hedl)?;
 // name,email
 // alice,alice@example.com
@@ -188,7 +188,7 @@ use crate::error::{Result, MsgPackError};
 /// use hedl_core::parse;
 /// use hedl_msgpack::to_msgpack;
 ///
-/// let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+/// let doc = parse(b"%V:2.0\n---\nname: Alice\nage: 30").unwrap();
 /// let bytes = to_msgpack(&doc).unwrap();
 /// assert!(!bytes.is_empty());
 /// ```
@@ -263,14 +263,14 @@ mod tests {
 
     #[test]
     fn test_simple_conversion() {
-        let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+        let doc = parse(b"%V:2.0\n---\nname: Alice\nage: 30").unwrap();
         let bytes = to_msgpack(&doc).unwrap();
         assert!(!bytes.is_empty());
     }
 
     #[test]
     fn test_nested_objects() {
-        let doc = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  port: 8080").unwrap();
+        let doc = parse(b"%V:2.0\n---\nserver:\n  host: localhost\n  port: 8080").unwrap();
         let bytes = to_msgpack(&doc).unwrap();
         assert!(!bytes.is_empty());
     }
@@ -294,7 +294,7 @@ use crate::error::{Result, MsgPackError};
 /// use hedl_msgpack::{to_msgpack, from_msgpack};
 /// use hedl_core::parse;
 ///
-/// let doc = parse(b"%VERSION: 1.0\n---\nname: Alice").unwrap();
+/// let doc = parse(b"%V:2.0\n---\nname: Alice").unwrap();
 /// let bytes = to_msgpack(&doc).unwrap();
 /// let back = from_msgpack(&bytes).unwrap();
 /// // back contains the same data as doc
@@ -385,7 +385,7 @@ Create `crates/hedl-msgpack/src/lib.rs`:
 //! use hedl_msgpack::{to_msgpack, from_msgpack};
 //!
 //! // HEDL to MessagePack
-//! let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
+//! let doc = parse(b"%V:2.0\n---\nname: Alice\nage: 30").unwrap();
 //! let bytes = to_msgpack(&doc).unwrap();
 //!
 //! // MessagePack to HEDL
@@ -411,7 +411,7 @@ use hedl_msgpack::{to_msgpack, from_msgpack};
 
 #[test]
 fn test_round_trip_simple() {
-    let hedl = b"%VERSION: 1.0\n---\nname: Alice\nage: 30\nactive: true";
+    let hedl = b"%V:2.0\n---\nname: Alice\nage: 30\nactive: true";
     let doc = parse(hedl).unwrap();
     let bytes = to_msgpack(&doc).unwrap();
     let back = from_msgpack(&bytes).unwrap();
@@ -424,7 +424,7 @@ fn test_round_trip_simple() {
 
 #[test]
 fn test_nested_structures() {
-    let hedl = b"%VERSION: 1.0\n---\ndatabase:\n  host: localhost\n  port: 5432\n  credentials:\n    user: admin\n    password: secret\n";
+    let hedl = b"%V:2.0\n---\ndatabase:\n  host: localhost\n  port: 5432\n  credentials:\n    user: admin\n    password: secret\n";
     let doc = parse(hedl).unwrap();
     let bytes = to_msgpack(&doc).unwrap();
 
@@ -435,7 +435,7 @@ fn test_nested_structures() {
 
 #[test]
 fn test_types() {
-    let hedl = b"%VERSION: 1.0\n---\nstring: hello\nint: 42\nbool: true\n";
+    let hedl = b"%V:2.0\n---\nstring: hello\nint: 42\nbool: true\n";
     let doc = parse(hedl).unwrap();
     let bytes = to_msgpack(&doc).unwrap();
 
@@ -486,7 +486,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== HEDL-MessagePack Conversion Example ===\n");
 
     // Example configuration in HEDL
-    let hedl = r#"%VERSION: 1.0
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 server:
   host: localhost
@@ -535,8 +537,8 @@ use hedl_msgpack::{to_msgpack, from_msgpack};
 fn benchmark_msgpack(c: &mut Criterion) {
     let mut group = c.benchmark_group("msgpack_conversion");
 
-    let small = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30").unwrap();
-    let medium = parse(b"%VERSION: 1.0\n---\nserver:\n  host: localhost\n  database:\n    url: postgres://localhost".as_bytes()).unwrap();
+    let small = parse(b"%V:2.0\n---\nname: Alice\nage: 30").unwrap();
+    let medium = parse(b"%V:2.0\n---\nserver:\n  host: localhost\n  database:\n    url: postgres://localhost".as_bytes()).unwrap();
 
     group.bench_with_input(BenchmarkId::new("to_msgpack", "small"), &small, |b, doc| {
         b.iter(|| to_msgpack(black_box(doc)))

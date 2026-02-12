@@ -1,23 +1,23 @@
 # hedl-yaml
 
-**HEDL's bridge to the YAML ecosystem—bidirectional conversion with metadata awareness.**
+**HEDL's bridge to the YAML ecosystem -bidirectional conversion with metadata awareness.**
 
 YAML dominates DevOps configuration: Kubernetes manifests, GitHub Actions workflows, Ansible playbooks, Docker Compose files. Your infrastructure runs on it. Your CI/CD pipelines depend on it. But YAML lacks schemas, types, and structure enforcement.
 
 `hedl-yaml` integrates HEDL with the YAML ecosystem. Convert YAML configuration to HEDL documents for structured editing, validation, and analysis. Export HEDL back to YAML when you need compatibility with existing tools. Work with HEDL's typed matrices and entity references, then seamlessly deploy as YAML.
 
-Part of the **HEDL format family** alongside `hedl-json`, `hedl-xml`, `hedl-csv`, and `hedl-parquet`—bringing HEDL's efficiency and structure to every ecosystem you work in.
+Part of the **HEDL format family** alongside `hedl-json`, `hedl-xml`, `hedl-csv`, and `hedl-parquet` -bringing HEDL's efficiency and structure to every ecosystem you work in.
 
 ## Critical: Metadata Loss in YAML Round-Trips
 
 YAML is a data serialization format, not a schema language. HEDL's schema declarations cannot be preserved in YAML:
 
 **Lost in YAML Conversion**:
-- `%STRUCT` schema definitions (field types, constraints, validation rules)
+- `%STRUCT` schema definitions (column names and ordering)
 - `%NEST` hierarchy declarations (parent-child relationships)
 - `%ALIAS` type aliases (semantic type names)
-- Validation constraints (min/max, format patterns, required fields)
-- Document metadata (version, author, license)
+- `%COUNT` statistics hints
+- Document metadata (version, mode, prompts)
 
 **Preserved in YAML Conversion**:
 - All data values (strings, numbers, booleans, null)
@@ -33,7 +33,7 @@ When converting HEDL → YAML → HEDL, you get the data back but schemas must b
 
 ```toml
 [dependencies]
-hedl-yaml = "1.2"
+hedl-yaml = "2.0"
 ```
 
 ## Bidirectional Conversion
@@ -47,12 +47,12 @@ use hedl_yaml::{to_yaml, ToYamlConfig};
 
 // Parse HEDL document (using hedl-core's parser)
 let hedl_source = br#"
-%STRUCT: Service: [name, image, port]
-%NEST: Service > Environment
+%S:Service:[name, image, port]
+%N:Service>Environment
 ---
 services: @Service
-  | web, nginx:latest, 80
-  | api, node:18, 3000
+ | web, nginx:latest, 80
+ | api, node:18, 3000
 "#;
 let doc = hedl_core::parse(hedl_source)?;
 
@@ -231,8 +231,8 @@ Example:
 
 ```hedl
 users: @User[id, name]
-  | alice, Alice Smith
-  | bob, Bob Jones
+ | alice, Alice Smith
+ | bob, Bob Jones
 ```
 
 Becomes:
@@ -264,11 +264,11 @@ use hedl_yaml::{to_yaml, from_yaml, ToYamlConfig, FromYamlConfig};
 
 // Original HEDL with schema declaration
 let hedl_source = br#"
-%STRUCT: User: [id, name, email]
+%S:User:[id, name, email]
 ---
 users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
 "#;
 let original = hedl_core::parse(hedl_source)?;
 
@@ -283,7 +283,7 @@ let restored = from_yaml(&yaml, &FromYamlConfig::default())?;
 // Schema LOST: Original %STRUCT declaration (but field order preserved)
 ```
 
-The restored document has all data values and a matrix list with **inferred** schema. The original `%STRUCT` declaration is gone—if you need validation, redefine schemas in HEDL.
+The restored document has all data values and a matrix list with **inferred** schema. The original `%STRUCT` declaration is gone -if you need validation, redefine schemas in HEDL.
 
 ## Use Cases
 
@@ -295,7 +295,7 @@ The restored document has all data values and a matrix list with **inferred** sc
 
 **Ansible Playbook Refactoring**: Convert playbooks to HEDL for programmatic manipulation, deduplication, and optimization. Export back to YAML for execution.
 
-**Multi-Format Workflows**: Read YAML configs, combine with JSON APIs (`hedl-json`), query with structured access, export to CSV (`hedl-csv`) for reporting—all through HEDL's unified data model.
+**Multi-Format Workflows**: Read YAML configs, combine with JSON APIs (`hedl-json`), query with structured access, export to CSV (`hedl-csv`) for reporting -all through HEDL's unified data model.
 
 ## What This Crate Doesn't Do
 
@@ -310,7 +310,7 @@ The restored document has all data values and a matrix list with **inferred** sc
 ## Dependencies
 
 - `serde_yaml` 0.9 - YAML parsing and serialization (handles anchors, aliases, multi-line strings)
-- `hedl-core` 1.2 - HEDL parsing and data model
+- `hedl-core` 2.0 - HEDL parsing and data model
 - `thiserror` 1.0 - Error type definitions
 
 ## Performance Characteristics

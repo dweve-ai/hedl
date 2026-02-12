@@ -1,0 +1,9 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Minimal valid HEDL v2.0 document
+# Shows required headers and simple key-value pairs
+---
+name: HEDL
+version: 2.0
+active: true

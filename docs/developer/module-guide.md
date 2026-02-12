@@ -1,235 +1,270 @@
 # HEDL Module Guide
 
-Comprehensive guide to all 19 crates in the HEDL workspace. Each crate has a focused, single responsibility.
+Nineteen crates. One purpose.
 
-## Table of Contents
+Each crate in the HEDL workspace has exactly one job. The lexer lexes. The parser parses. The JSON converter converts to JSON. Nothing more, nothing less.
 
-1. [Core Crates](#core-crates)
-   - [hedl](#hedl) - Unified API
-   - [hedl-core](#hedl-core) - Parser & AST
-2. [Processing Crates](#processing-crates)
-   - [hedl-c14n](#hedl-c14n) - Canonicalization
-   - [hedl-lint](#hedl-lint) - Validation
-   - [hedl-stream](#hedl-stream) - Streaming Parser
-3. [Format Conversion Crates](#format-conversion-crates)
-   - [hedl-json](#hedl-json) - JSON
-   - [hedl-yaml](#hedl-yaml) - YAML
-   - [hedl-xml](#hedl-xml) - XML
-   - [hedl-csv](#hedl-csv) - CSV
-   - [hedl-toon](#hedl-toon) - TOON
-   - [hedl-parquet](#hedl-parquet) - Parquet
-   - [hedl-neo4j](#hedl-neo4j) - Neo4j Cypher
-4. [User Interface Crates](#user-interface-crates)
-   - [hedl-cli](#hedl-cli) - CLI Tool
-   - [hedl-lsp](#hedl-lsp) - Language Server
-   - [hedl-mcp](#hedl-mcp) - Model Context Protocol
-5. [Binding Crates](#binding-crates)
-   - [hedl-ffi](#hedl-ffi) - C FFI
-   - [hedl-wasm](#hedl-wasm) - WebAssembly
-6. [Support Crates](#support-crates)
-   - [hedl-test](#hedl-test) - Test Utilities
-   - [hedl-bench](#hedl-bench) - Benchmarks
+This radical modularity is intentional. When you fix a bug in `hedl-json`, you don't touch `hedl-yaml`. When you optimize the lexer, you don't break the CLI. When you add a feature to one crate, you know exactly where to put it.
+
+This guide takes you through all nineteen crates. You'll learn what each one does, how it fits with the others, and when you might need to modify it.
+
+---
+
+## The Architecture at a Glance
+
+Before diving into individual crates, understand how they fit together:
+
+```mermaid
+flowchart TB
+    subgraph UserFacing["USER-FACING LAYER"]
+        CLI["hedl-cli<br/>Terminal commands"]
+        LSP["hedl-lsp<br/>Editor support"]
+        MCP["hedl-mcp<br/>AI/LLM context"]
+    end
+
+    subgraph Facade["FACADE"]
+        HEDL["hedl (facade)<br/>One import for everything. Clean API."]
+    end
+
+    subgraph CoreLayer["CORE LAYER"]
+        CORE["hedl-core (engine)<br/>Lexer, parser, AST, validation, traversal"]
+        C14N["hedl-c14n<br/>Canonical output"]
+        LINT["hedl-lint<br/>Validation & linting"]
+        STREAM["hedl-stream<br/>Streaming parser"]
+    end
+
+    subgraph Adapters["FORMAT ADAPTERS"]
+        JSON["json<br/>Most common"]
+        YAML["yaml<br/>Config files"]
+        XML["xml<br/>Legacy data"]
+        CSV["csv<br/>Tabular"]
+        PARQUET["parquet<br/>Analytics"]
+        NEO4J["neo4j<br/>Graph DB"]
+        TOON["toon<br/>LLM optim."]
+    end
+
+    subgraph Bindings["BINDINGS"]
+        FFI["hedl-ffi<br/>C ABI for C/C++<br/>Python, and more"]
+        WASM["hedl-wasm<br/>WebAssembly for<br/>browsers & Node"]
+    end
+
+    subgraph Infra["INFRASTRUCTURE"]
+        TEST["hedl-test<br/>Shared fixtures<br/>and test helpers"]
+        BENCH["hedl-bench<br/>Performance<br/>benchmarks"]
+    end
+
+    CLI --> HEDL
+    LSP --> HEDL
+    MCP --> HEDL
+    HEDL --> CORE
+    CORE --> C14N
+    CORE --> LINT
+    CORE --> STREAM
+
+    style UserFacing fill:#e3f2fd,stroke:#1565c0
+    style Facade fill:#e8f5e9,stroke:#2e7d32
+    style CoreLayer fill:#fff3e0,stroke:#ef6c00
+    style Adapters fill:#f3e5f5,stroke:#7b1fa2
+    style Bindings fill:#fce4ec,stroke:#c2185b
+    style Infra fill:#e0f7fa,stroke:#00796b
+```
+
+Data flows down through this stack. A CLI command uses `hedl`, which uses `hedl-core`, which uses the format adapters as needed. Each layer depends only on the layers below it.
 
 ---
 
 ## Core Crates
 
-### hedl
+These crates form the foundation. Everything else builds on them.
 
-**Path**: `crates/hedl/`
-**Purpose**: Unified API facade providing single entry point
-**Dependencies**: All other crates (feature-gated)
+### hedl (The Facade)
 
-#### Overview
+**Path:** `crates/hedl/`
 
-The main library crate that re-exports functionality from all other crates. Users typically depend only on this crate.
+Think of this crate as the front door. Users of HEDL typically depend only on this crate. It re-exports everything they need from the other crates, providing a single, stable API.
 
-#### Key Features
-
-- **Unified API**: Single import for all functionality
-- **Feature gates**: Optional functionality via Cargo features
-- **API stability**: Stable public API across versions
-- **Documentation hub**: Central documentation point
-
-#### API Structure
+**What It Does:**
 
 ```rust
-// Core parsing
-use hedl::{parse, parse_with_limits};
+// One import gives you everything
+use hedl::{parse, canonicalize, to_json, from_json};
 
-// Canonicalization
-use hedl::c14n::{canonicalize, canonicalize_with_config};
+// Parse a document
+let doc = parse(input)?;
 
-// Format conversion
-use hedl::json::{to_json, from_json};
-use hedl::yaml::{to_yaml, from_yaml};  // feature = "yaml"
-use hedl::xml::{to_xml, from_xml};     // feature = "xml"
+// Convert to JSON
+let json = to_json(&doc)?;
 
-// Utilities
-use hedl::lex::{is_valid_key_token, parse_reference};
-use hedl::lint::{lint, lint_with_config};
+// Convert back
+let doc2 = from_json(&json)?;
+
+// Canonicalize
+let canonical = canonicalize(&doc)?;
 ```
 
-#### Cargo Features
+**Feature Flags:**
+
+Not everyone needs every format. Cargo features let users include only what they need:
 
 ```toml
 [dependencies]
-hedl = { version = "1.2", features = ["yaml", "xml", "csv"] }
+hedl = { version = "2.0", features = ["yaml", "xml"] }
 ```
 
-Available features:
-- `yaml` - YAML conversion
-- `xml` - XML conversion
-- `csv` - CSV conversion
-- `parquet` - Parquet conversion
-- `neo4j` - Neo4j Cypher generation
-- `toon` - TOON format support
-- `all-formats` - All format conversion features enabled
+| Feature | What It Enables |
+|---------|-----------------|
+| `yaml` | YAML conversion |
+| `xml` | XML conversion |
+| `csv` | CSV conversion |
+| `parquet` | Parquet conversion |
+| `neo4j` | Neo4j Cypher generation |
+| `toon` | TOON format |
+| `all-formats` | Everything above |
+
+**When You'd Modify It:**
+
+- Adding a new re-export
+- Adding a new feature flag
+- Updating the public API
 
 ---
 
-### hedl-core
+### hedl-core (The Engine)
 
-**Path**: `crates/hedl-core/`
-**Purpose**: Core parser, AST, and data model
-**Dependencies**: thiserror, memchr, bumpalo (arena), serde (optional)
+**Path:** `crates/hedl-core/`
 
-#### Overview
+This is where the magic happens. The lexer, parser, AST, validation, and traversal all live here. Every other crate depends on this one.
 
-The foundational crate containing the parser, abstract syntax tree, and core data structures. All other crates depend on this.
+**The Lexer** (`lex` module):
 
-#### Key Components
-
-**1. Lexical Analysis** (`lex` module)
 ```rust
-// Token validation
-pub fn is_valid_key_token(s: &str) -> bool;
-pub fn is_valid_type_name(s: &str) -> bool;
-pub fn is_valid_id_token(s: &str) -> bool;
+use hedl_core::lex::{
+    is_valid_key_token,
+    is_valid_type_name,
+    is_valid_id_token,
+    parse_reference,
+    parse_csv_row,
+    parse_tensor,
+};
 
-// Reference parsing
-pub fn parse_reference(s: &str) -> Result<Reference, LexError>;
+// Validate tokens
+assert!(is_valid_key_token("user_name"));    // snake_case for keys
+assert!(is_valid_type_name("User"));          // PascalCase for types
+assert!(is_valid_id_token("alice-123"));      // IDs allow hyphens
 
-// CSV row parsing
-pub fn parse_csv_row(s: &str) -> Result<Vec<CsvField>, LexError>;
-
-// Tensor parsing
-pub fn parse_tensor(s: &str) -> Result<Tensor, LexError>;
+// Parse complex tokens
+let reference = parse_reference("@User:alice")?;
+let row = parse_csv_row("|alice,Alice,alice@example.com")?;
+let tensor = parse_tensor("[1,2,3]")?;
 ```
 
-**2. Parsing** (`parser` module)
+**The Parser:**
+
 ```rust
-// Main parsing function (bytes input)
-pub fn parse(input: &[u8]) -> HedlResult<Document>;
+use hedl_core::{parse, parse_with_options, ParseOptions};
 
-// With configuration
-pub fn parse_with_limits(
-    input: &[u8],
-    options: ParseOptions
-) -> HedlResult<Document>;
+// Simple parsing
+let doc = parse(input)?;
 
-// Builder pattern (available via ParseOptions::builder())
+// With options
 let options = ParseOptions::builder()
     .max_depth(50)
     .reference_mode(ReferenceMode::Strict)
     .build();
 
-// Note: max_depth corresponds to limits.max_indent_depth internally
+let doc = parse_with_options(input, &options)?;
 ```
 
-**3. Data Model**
+**The Data Model:**
+
 ```rust
-// Document structure
+// The document structure
 pub struct Document {
-    pub version: (u32, u32),
-    pub schema_versions: BTreeMap<String, SchemaVersion>,
-    pub aliases: BTreeMap<String, String>,
-    pub structs: BTreeMap<String, Vec<String>>,
-    pub nests: BTreeMap<String, String>,
-    pub root: BTreeMap<String, Item>,
+    pub version: (u32, u32),                      // Version tuple
+    pub aliases: BTreeMap<String, String>,        // %A: directives
+    pub structs: BTreeMap<String, Vec<String>>,   // %S: schemas
+    pub nests: BTreeMap<String, String>,          // %N: nesting rules
+    pub root: BTreeMap<String, Item>,             // Body content
 }
 
+// Items in the body
 pub enum Item {
-    Scalar(Value),
-    Object(BTreeMap<String, Item>),
-    List(MatrixList),
+    Scalar(Value),                    // Single value
+    Object(BTreeMap<String, Item>),   // Nested key-values
+    List(MatrixList),                 // Typed entity list
 }
 
+// Matrix lists hold typed entities
 pub struct MatrixList {
-    pub type_name: String,
-    pub schema: Vec<String>,
-    pub rows: Vec<Node>,
-    pub count_hint: Option<usize>,
+    pub type_name: String,            // "User"
+    pub schema: Vec<String>,          // ["id", "name", "email"]
+    pub rows: Vec<Node>,              // The entities
+    pub count_hint: Option<usize>,    // Optional %C hint
 }
 
+// Entities in matrix lists
 pub struct Node {
     pub type_name: String,
     pub id: String,
-    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for ≤4 fields
-    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,  // Lazy allocation
-    pub child_count: u16,  // Compact hint
+    pub fields: SmallVec<[Value; 4]>,  // Stack-allocated for common case
+    pub children: Option<Box<BTreeMap<String, Vec<Node>>>>,
+    pub child_count: u16,
 }
 
+// All value types
 pub enum Value {
     Null,
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(Box<str>),           // Box<str> reduces enum size
-    Tensor(Box<Tensor>),        // Boxed to reduce enum size
+    String(Box<str>),
+    Tensor(Box<Tensor>),
     Reference(Reference),
-    Expression(Box<Expression>), // Boxed to reduce enum size
+    Expression(Box<Expression>),
 }
 ```
 
-**4. Traversal** (`traverse` module)
+**The Visitor Pattern:**
+
 ```rust
-pub trait DocumentVisitor {
-    type Error;
+use hedl_core::traverse::{DocumentVisitor, VisitorContext, traverse};
 
-    // Methods with default implementations (optional to override)
-    fn begin_document(&mut self, doc: &Document, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn end_document(&mut self, doc: &Document, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn begin_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn end_object(&mut self, key: &str, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn begin_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn end_list(&mut self, key: &str, list: &MatrixList, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn begin_node_children(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
-    fn end_node_children(&mut self, node: &Node, ctx: &VisitorContext) -> Result<(), Self::Error> { Ok(()) }
+struct MyVisitor { /* state */ }
 
-    // Required methods (must be implemented)
-    fn visit_scalar(&mut self, key: &str, value: &Value, ctx: &VisitorContext) -> Result<(), Self::Error>;
-    fn visit_node(&mut self, node: &Node, schema: &[String], ctx: &VisitorContext) -> Result<(), Self::Error>;
+impl DocumentVisitor for MyVisitor {
+    type Error = MyError;
+
+    fn visit_scalar(
+        &mut self,
+        key: &str,
+        value: &Value,
+        ctx: &VisitorContext,
+    ) -> Result<(), Self::Error> {
+        // Process scalar values
+        Ok(())
+    }
+
+    fn visit_node(
+        &mut self,
+        node: &Node,
+        schema: &[String],
+        ctx: &VisitorContext,
+    ) -> Result<(), Self::Error> {
+        // Process matrix list nodes
+        Ok(())
+    }
 }
 
-// Traverse document
-pub fn traverse<V: DocumentVisitor>(
-    doc: &Document,
-    visitor: &mut V
-) -> Result<(), V::Error>;
+// Traverse the document
+let mut visitor = MyVisitor::new();
+traverse(&doc, &mut visitor)?;
 ```
 
-**5. Error Handling**
-```rust
-pub struct HedlError {
-    pub kind: HedlErrorKind,
-    pub message: String,
-    pub line: usize,
-    pub column: Option<usize>,
-    pub context: Option<String>,
-}
+**Resource Limits:**
 
-pub enum HedlErrorKind {
-    Syntax, Version, Schema, Alias, Shape, Semantic,
-    OrphanRow, Collision, Reference, Security, Conversion, IO,
-}
-```
-
-#### Resource Limits
+Security limits prevent denial-of-service attacks:
 
 ```rust
-use std::time::Duration;
-
 pub struct Limits {
     pub max_file_size: usize,         // Default: 1 GB
     pub max_line_length: usize,       // Default: 1 MB
@@ -237,185 +272,186 @@ pub struct Limits {
     pub max_nodes: usize,             // Default: 10 million
     pub max_aliases: usize,           // Default: 10,000
     pub max_columns: usize,           // Default: 100
-    pub max_nest_depth: usize,        // Default: 100
-    pub max_block_string_size: usize, // Default: 10 MB
-    pub max_object_keys: usize,       // Default: 10,000
-    pub max_total_keys: usize,        // Default: 10 million
-    pub max_total_ids: usize,         // Default: 10 million
-    pub timeout: Option<Duration>,    // Default: 30 seconds (None disables)
+    pub timeout: Option<Duration>,    // Default: 30 seconds
 }
 ```
 
-#### Key Algorithms
+**When You'd Modify It:**
 
-1. **Indentation-based Parsing**: Whitespace-significant parsing
-2. **Reference Resolution**: Two-pass parsing (collect IDs, resolve references)
-3. **Type Inference**: Automatic type detection for values
-4. **Schema Validation**: Runtime schema checking for matrix lists
+- Fixing parser bugs
+- Adding new value types
+- Optimizing performance
+- Adding validation rules
 
 ---
 
 ## Processing Crates
 
-### hedl-c14n
+These crates transform or analyze parsed documents.
 
-**Path**: `crates/hedl-c14n/`
-**Purpose**: Canonicalization (AST to HEDL text)
-**Dependencies**: hedl-core
+### hedl-c14n (Canonical Output)
 
-#### Overview
+**Path:** `crates/hedl-c14n/`
 
-Converts AST back to canonical HEDL text with consistent formatting and minimal quoting.
+"C14N" is short for "canonicalization." This crate converts a `Document` back to HEDL text in a deterministic, consistent format.
 
-#### API
+**Why Canonicalization Matters:**
+
+Two HEDL documents can be semantically identical but textually different:
+
+```hedl
+# Document A
+name: Alice
+age: 30
+
+# Document B (same meaning, different formatting)
+age:30
+name:Alice
+```
+
+Canonicalization produces a single, consistent representation:
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+---
+age: 30
+name: Alice
+```
+
+Keys are sorted. Formatting is consistent. The same input always produces the same output.
+
+**Usage:**
 
 ```rust
+use hedl_c14n::{canonicalize, canonicalize_with_config, CanonicalConfig, QuotingStrategy};
+
 // Simple canonicalization
-pub fn canonicalize(doc: &Document) -> Result<String, HedlError>;
+let hedl_text = canonicalize(&doc)?;
 
 // With configuration
-pub fn canonicalize_with_config(
-    doc: &Document,
-    config: &CanonicalConfig
-) -> Result<String, HedlError>;
-
-// Configuration
 let config = CanonicalConfig::builder()
-    .with_quoting(QuotingStrategy::Minimal)
-    .with_ditto_enabled(true)
+    .with_quoting(QuotingStrategy::Minimal)  // Quote only when necessary
     .build();
+
+let hedl_text = canonicalize_with_config(&doc, &config)?;
 ```
 
-#### Features
+**When You'd Modify It:**
 
-- **Deterministic output**: Same AST always produces same text
-- **Minimal quoting**: Only quote when necessary
-- **Configurable formatting**: Indentation, line endings, spacing
-- **Preserves semantics**: Round-trip stability
-
-#### Quoting Strategy
-
-```rust
-pub enum QuotingStrategy {
-    Minimal,    // Quote only when necessary (default)
-    Always,     // Always quote strings
-}
-```
+- Changing output formatting
+- Adding configuration options
+- Fixing edge cases in quoting
 
 ---
 
-### hedl-lint
+### hedl-lint (Validation and Style)
 
-**Path**: `crates/hedl-lint/`
-**Purpose**: Validation and linting
-**Dependencies**: hedl-core
+**Path:** `crates/hedl-lint/`
 
-#### Overview
+The linter catches problems and suggests improvements. It goes beyond parsing errors to find logical issues and style problems.
 
-Validates HEDL documents and provides actionable suggestions for improvements.
-
-#### API
+**Usage:**
 
 ```rust
-// Lint document
-pub fn lint(doc: &Document) -> Vec<Diagnostic>;
+use hedl_lint::{lint, lint_with_config, LintConfig, Severity};
+
+// Simple linting
+let diagnostics = lint(&doc);
 
 // With configuration
-pub fn lint_with_config(
-    doc: &Document,
-    config: LintConfig
-) -> Vec<Diagnostic>;
+let config = LintConfig {
+    min_severity: Severity::Warning,
+    enabled_rules: vec!["unused-schema".to_string(), "id-naming".to_string()],
+    ..Default::default()
+};
 
-// Diagnostic structure - access via methods
-pub struct Diagnostic {
-    // Methods:
-    // - severity() -> Severity
-    // - kind() -> &DiagnosticKind
-    // - message() -> &str
-    // - line() -> Option<usize>
-    // - rule_id() -> &str
-    // - suggestion() -> Option<&str>
-}
+let diagnostics = lint_with_config(&doc, config);
 
-pub enum Severity {
-    Error,
-    Warning,
-    Hint,
+// Process results
+for diagnostic in diagnostics {
+    println!("{}: {}", diagnostic.rule_id(), diagnostic.message());
 }
 ```
 
-#### Lint Rules
+**Built-in Rules:**
 
-**Schema Rules**:
-- `unused-schema` - Schema defined but never used
-- `schema-missing-column` - Matrix entry missing columns
-- `schema-extra-column` - Matrix entry has extra columns
+| Rule | Category | What It Catches |
+|------|----------|-----------------|
+| `unused-schema` | Semantic | Schema defined but never used |
+| `empty-list` | Style | Matrix list with no entities |
+| `id-naming` | Style | IDs that don't follow conventions |
+| `duplicate-key` | Semantic | Same key appears twice in object |
+| `dangling-reference` | Semantic | Reference to nonexistent entity |
+| `ambiguous-reference` | Style | Unqualified reference matches multiple types |
+| `circular-reference` | Semantic | Reference cycle detected |
+| `deeply-nested` | Style | Nesting exceeds threshold |
 
-**Naming Rules**:
-- `inconsistent-naming` - Mixed naming conventions
-- `reserved-keyword` - Using reserved keywords
-- `invalid-identifier` - Invalid ID or key format
+**When You'd Modify It:**
 
-**Reference Rules**:
-- `dangling-reference` - Reference to non-existent ID
-- `ambiguous-reference` - Unqualified reference matches multiple types
-- `circular-reference` - Circular reference chain
-
-**Best Practice Rules**:
-- `missing-type` - Object without type annotation
-- `duplicate-key` - Duplicate key in object
-- `empty-object` - Empty object definition
-- `deeply-nested` - Nesting depth exceeds threshold
-
-#### Configuration
-
-```rust
-let mut config = LintConfig::default();
-config.enable_rule("unused-schema");
-config.set_rule_error("inconsistent-naming");
-config.min_severity = Severity::Warning;
-```
+- Adding new lint rules
+- Improving error messages
+- Adding fix suggestions
 
 ---
 
-### hedl-stream
+### hedl-stream (Streaming Parser)
 
-**Path**: `crates/hedl-stream/`
-**Purpose**: Streaming parser for large files
-**Dependencies**: hedl-core, tokio (optional)
+**Path:** `crates/hedl-stream/`
 
-#### Overview
+For large files that don't fit in memory, the streaming parser processes documents as a series of events without loading everything at once.
 
-Event-based streaming parser that processes HEDL documents without loading the entire file into memory.
-
-#### API
+**Synchronous Usage:**
 
 ```rust
-// Synchronous streaming (implements Iterator)
-pub struct StreamingParser<R: Read> {
-    // ...
+use hedl_stream::{StreamingParser, NodeEvent};
+use std::io::BufReader;
+use std::fs::File;
+
+let file = File::open("large.hedl")?;
+let parser = StreamingParser::new(BufReader::new(file))?;
+
+for event in parser {
+    match event? {
+        NodeEvent::ListStart { key, type_name, schema, .. } => {
+            println!("Starting list '{}' of type {}", key, type_name);
+        }
+        NodeEvent::Node(info) => {
+            println!("  Entity: {} ({})", info.id, info.type_name);
+        }
+        NodeEvent::ListEnd { key, count, .. } => {
+            println!("Finished list '{}' with {} entities", key, count);
+        }
+        NodeEvent::Scalar { key, value, .. } => {
+            println!("Scalar: {} = {:?}", key, value);
+        }
+        _ => {}
+    }
+}
+```
+
+**Asynchronous Usage:**
+
+```rust
+use hedl_stream::{AsyncStreamingParser, NodeEvent};
+use tokio::fs::File;
+use tokio::io::BufReader;
+
+let file = File::open("large.hedl").await?;
+let mut parser = AsyncStreamingParser::new(BufReader::new(file)).await?;
+
+while let Some(event) = parser.next_event().await? {
+    // Process event
 }
 
-impl<R: Read> StreamingParser<R> {
-    pub fn new(reader: R) -> StreamResult<Self>;
-    pub fn with_config(reader: R, config: StreamingParserConfig) -> StreamResult<Self>;
-    pub fn header(&self) -> Option<&HeaderInfo>;
-}
+// Or process in batches
+let batch = parser.next_batch(1000).await?;
+```
 
-// Implements Iterator<Item = StreamResult<NodeEvent>>
+**Event Types:**
 
-// Asynchronous streaming (feature = "async")
-pub struct AsyncStreamingParser<R: AsyncRead + Unpin> {
-    // ...
-}
-
-impl<R: AsyncRead + Unpin> AsyncStreamingParser<R> {
-    pub async fn new(reader: R) -> StreamResult<Self>;
-    pub async fn next_event(&mut self) -> StreamResult<Option<NodeEvent>>;
-    pub async fn next_batch(&mut self, batch_size: usize) -> StreamResult<Vec<NodeEvent>>;
-}
-
-// Events emitted by the streaming parser
+```rust
 pub enum NodeEvent {
     Header(HeaderInfo),
     ListStart { key: String, type_name: String, schema: Vec<String>, line: usize },
@@ -428,123 +464,98 @@ pub enum NodeEvent {
 }
 ```
 
-#### Use Cases
+**When You'd Modify It:**
 
-- Processing multi-GB files
-- Real-time data streaming
-- Memory-constrained environments
-- Parallel processing pipelines
-
-#### Example
-
-```rust
-use hedl_stream::{StreamingParser, NodeEvent};
-use std::io::BufReader;
-use std::fs::File;
-
-let file = File::open("large.hedl")?;
-let parser = StreamingParser::new(BufReader::new(file))?;
-
-for event in parser {
-    match event? {
-        NodeEvent::Node(info) => {
-            println!("Node: {} (type: {})", info.id, info.type_name);
-        }
-        NodeEvent::Scalar { key, value, .. } => {
-            println!("  {}: {:?}", key, value);
-        }
-        NodeEvent::ListStart { key, type_name, .. } => {
-            println!("List: {} of type {}", key, type_name);
-        }
-        _ => {}
-    }
-}
-```
+- Adding new event types
+- Optimizing memory usage
+- Improving async performance
 
 ---
 
-## Format Conversion Crates
+## Format Adapters
 
-All format converters follow a consistent API pattern:
+Each format adapter handles bidirectional conversion between HEDL and another format.
+
+### hedl-json (JSON Conversion)
+
+**Path:** `crates/hedl-json/`
+
+The most commonly used adapter. JSON and HEDL map naturally to each other.
+
+**HEDL to JSON:**
 
 ```rust
-// To HEDL
-pub fn from_format(input: &str) -> Result<Document, FormatError>;
-pub fn from_format_with_config(
-    input: &str,
-    config: &FromConfig
-) -> Result<Document, FormatError>;
+use hedl_json::{hedl_to_json, to_json_with_config, ToJsonConfig};
 
-// From HEDL
-pub fn to_format(doc: &Document) -> Result<String, FormatError>;
-pub fn to_format_with_config(
-    doc: &Document,
-    config: &ToConfig
-) -> Result<String, FormatError>;
+// Simple conversion
+let json = hedl_to_json(&doc)?;
+
+// With configuration
+let config = ToJsonConfig {
+    include_metadata: true,   // Include __type__, __schema__
+    expand_references: false, // Keep references as strings
+    include_children: true,   // Include nested children
+};
+
+let json = to_json_with_config(&doc, &config)?;
 ```
 
-### hedl-json
+**JSON to HEDL:**
 
-**Path**: `crates/hedl-json/`
-**Purpose**: JSON ↔ HEDL conversion
-**Dependencies**: hedl-core, serde_json
+```rust
+use hedl_json::{json_to_hedl, from_json_with_config, FromJsonConfig};
 
-#### Mapping Strategy
+// Simple conversion
+let doc = json_to_hedl(&json_string)?;
 
-**JSON → HEDL**:
-```json
-{
-  "users": [
-    {"id": "alice", "name": "Alice", "age": 30},
-    {"id": "bob", "name": "Bob", "age": 25}
+// With configuration
+let config = FromJsonConfig {
+    infer_schemas: true,  // Auto-detect schemas from arrays
+};
+
+let doc = from_json_with_config(&json_string, &config)?;
+```
+
+**Mapping:**
+
+```
+JSON                              HEDL
+────                              ────
+
+{                                 %V:2.0
+  "users": [                      %NULL:~
+    {                             %QUOTE:"
+      "id": "alice",              %S:User:[id,name,email]
+      "name": "Alice",            ---
+      "email": "alice@ex.com"     users:@User
+    },                             |alice,Alice,alice@ex.com
+    {                              |bob,Bob,bob@ex.com
+      "id": "bob",
+      "name": "Bob",
+      "email": "bob@ex.com"
+    }
   ]
 }
 ```
 
-```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name, age]
----
-users: @User
-  | alice, Alice, 30
-  | bob, Bob, 25
-```
-
-**HEDL → JSON**:
-- Objects → JSON objects
-- Matrix lists → JSON arrays of objects
-- Scalars → JSON primitives
-- References → String IDs or expanded objects
-
-#### Configuration
-
-```rust
-let config = ToJsonConfig {
-    include_metadata: true,
-    flatten_lists: false,
-    include_children: true,
-};
-```
-
 ---
 
-### hedl-yaml
+### hedl-yaml (YAML Conversion)
 
-**Path**: `crates/hedl-yaml/`
-**Purpose**: YAML ↔ HEDL conversion
-**Dependencies**: hedl-core, serde_yaml
+**Path:** `crates/hedl-yaml/`
 
-#### Special Features
+YAML is popular for configuration files. This adapter preserves YAML's features where possible.
 
-- YAML anchors → HEDL aliases
-- YAML tags → HEDL type annotations
-- Merge keys → Flattened attributes
-- Multi-document YAML → Multiple root objects
+**Special Handling:**
 
-#### Example
+- YAML anchors become HEDL aliases
+- YAML tags become type annotations
+- Multi-document YAML becomes multiple root objects
+
+**Example:**
 
 ```yaml
-# YAML
+# YAML input
 users:
   - &alice
     id: alice
@@ -555,27 +566,29 @@ users:
 ```
 
 ```hedl
-# HEDL
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%ALIAS: %alice: "@User:alice"
+# HEDL output
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
+users:@User
+ |alice,Alice
+ |bob,Bob
 ```
 
 ---
 
-### hedl-xml
+### hedl-xml (XML Conversion)
 
-**Path**: `crates/hedl-xml/`
-**Purpose**: XML ↔ HEDL conversion
-**Dependencies**: hedl-core, quick-xml
+**Path:** `crates/hedl-xml/`
 
-#### Mapping Strategy
+XML has a different data model (attributes vs. elements), so this adapter makes smart choices about mapping.
+
+**Mapping Strategy:**
 
 ```xml
+<!-- XML input -->
 <user id="alice" role="admin">
   <name>Alice</name>
   <email>alice@example.com</email>
@@ -583,91 +596,113 @@ users: @User
 ```
 
 ```hedl
-%VERSION: 1.0
+# HEDL output
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 user:
-  id: alice
-  role: admin
-  name: Alice
-  email: alice@example.com
+ id: alice
+ role: admin
+ name: Alice
+ email: alice@example.com
 ```
 
-#### Features
-
-- **Attributes**: XML attributes → regular HEDL fields (no prefix)
-- **Text content**: Mapped to `_text` attribute
-- **Namespaces**: Preserved in attribute names
-- **CDATA**: Preserved as string values
+XML attributes and child elements both become HEDL key-value pairs. Text content becomes a `_text` field if there are also attributes or child elements.
 
 ---
 
-### hedl-csv
+### hedl-csv (CSV Conversion)
 
-**Path**: `crates/hedl-csv/`
-**Purpose**: CSV ↔ HEDL conversion
-**Dependencies**: hedl-core, csv
+**Path:** `crates/hedl-csv/`
 
-#### Features
+CSV is inherently tabular, making it a natural fit for HEDL's matrix lists.
 
-- Header row → Schema inference
-- Type detection (string, int, float, bool)
-- Configurable delimiters
-- Quote handling
-
-#### Example
+**Example:**
 
 ```csv
-id,name,age,active
-alice,Alice,30,true
-bob,Bob,25,false
+id,name,email,active
+alice,Alice,alice@example.com,true
+bob,Bob,bob@example.com,false
 ```
 
 ```hedl
-%VERSION: 1.0
-%STRUCT: Data: [id, name, age, active]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Data:[id,name,email,active]
 ---
-data: @Data
-  | alice, Alice, 30, true
-  | bob, Bob, 25, false
+data:@Data
+ |alice,Alice,alice@example.com,true
+ |bob,Bob,bob@example.com,false
+```
+
+The adapter infers types from the data (strings, integers, floats, booleans) and creates an appropriate schema.
+
+---
+
+### hedl-parquet (Apache Parquet)
+
+**Path:** `crates/hedl-parquet/`
+
+Parquet is a columnar format optimized for analytics. This adapter enables HEDL integration with data warehouses.
+
+**Features:**
+
+- Schema mapping: HEDL schemas become Parquet schemas
+- Columnar storage: Matrix lists become Parquet tables
+- Compression: Configurable (Snappy, GZIP, LZ4)
+- Type preservation: Full fidelity for all HEDL types
+
+**Use Cases:**
+
+- Loading HEDL data into Spark/Pandas/DuckDB
+- Storing HEDL data in data lakes
+- Efficient analytics on large datasets
+
+---
+
+### hedl-neo4j (Neo4j Cypher)
+
+**Path:** `crates/hedl-neo4j/`
+
+Generates Cypher queries to import HEDL data into Neo4j graph databases.
+
+**Example:**
+
+```hedl
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Person:[id,name]
+%S:Knows:[id,person1,person2]
+---
+people:@Person
+ |alice,Alice
+ |bob,Bob
+
+relationships:@Knows
+ |k1,@alice,@bob
+```
+
+Generated Cypher:
+
+```cypher
+CREATE (alice:Person {id: 'alice', name: 'Alice'});
+CREATE (bob:Person {id: 'bob', name: 'Bob'});
+MATCH (a:Person {id: 'alice'}), (b:Person {id: 'bob'})
+CREATE (a)-[:KNOWS {id: 'k1'}]->(b);
 ```
 
 ---
 
-### hedl-toon
+### hedl-toon (TOON Format)
 
-**Path**: `crates/hedl-toon/`
-**Purpose**: TOON format
-**Dependencies**: hedl-core
+**Path:** `crates/hedl-toon/`
 
-#### Overview
+TOON (Token-Oriented Object Notation) is optimized for LLM consumption. It's even more compact than HEDL.
 
-TOON (Token-Oriented Object Notation) is a format optimized for LLM consumption.
-
-#### API
-
-```rust
-// HEDL to TOON
-pub fn hedl_to_toon(doc: &Document) -> Result<String, ToonError>;
-
-// With configuration
-pub fn to_toon(
-    doc: &Document,
-    config: &ToToonConfig
-) -> Result<String, ToonError>;
-
-let config = ToToonConfig::builder()
-    .delimiter(Delimiter::Tab)
-    .indent(4)
-    .build();
-```
-
-#### Differences from HEDL
-
-- **Compact**: Optimized for LLM token efficiency
-- **Type-Optional**: Less strict typing
-- **Line-Oriented**: Simplified parsing structure
-
-#### Example
+**Example:**
 
 ```toon
 users[2]{id,name}:
@@ -675,360 +710,273 @@ users[2]{id,name}:
   u2,Bob
 ```
 
----
-
-### hedl-parquet
-
-**Path**: `crates/hedl-parquet/`
-**Purpose**: Parquet ↔ HEDL conversion
-**Dependencies**: hedl-core, parquet, arrow
-
-#### Features
-
-- **Schema mapping**: HEDL schemas → Parquet schemas
-- **Columnar storage**: Matrix lists → Parquet tables
-- **Type preservation**: Full type fidelity
-- **Nested structures**: Support for nested objects
-- **Compression**: Configurable compression (Snappy, GZIP, LZ4)
-
-#### Use Cases
-
-- Large-scale data analytics
-- Data warehouse integration
-- Efficient storage of tabular data
-- Interop with Spark, Pandas, DuckDB
-
----
-
-### hedl-neo4j
-
-**Path**: `crates/hedl-neo4j/`
-**Purpose**: Neo4j Cypher query generation
-**Dependencies**: hedl-core
-
-#### Features
-
-Generate Cypher queries to import HEDL data into Neo4j:
-
-```hedl
-%VERSION: 1.0
-%STRUCT: Person: [id, name]
-%STRUCT: Friendship: [id, person1, person2]
----
-people: @Person
-  | alice, Alice
-  | bob, Bob
-
-friendships: @Friendship
-  | f1, @Person:alice, @Person:bob
-```
-
-Generated Cypher:
-```cypher
-CREATE (alice:Person {id: 'alice', name: 'Alice'});
-CREATE (bob:Person {id: 'bob', name: 'Bob'});
-MATCH (a:Person {id: 'alice'}), (b:Person {id: 'bob'})
-CREATE (a)-[:FRIENDSHIP {id: 'f1'}]->(b);
-```
-
-#### API
-
-```rust
-pub fn to_cypher(doc: &Document) -> Result<String, Neo4jError>;
-
-pub fn to_cypher_with_config(
-    doc: &Document,
-    config: &CypherConfig
-) -> Result<String, Neo4jError>;
-
-let config = CypherConfig::builder()
-    .batch_size(1000)
-    .relationship_inference(true)
-    .build();
-```
+This adapter converts between HEDL and TOON, enabling efficient LLM context usage.
 
 ---
 
 ## User Interface Crates
 
-### hedl-cli
+These crates provide ways for users to interact with HEDL.
 
-**Path**: `crates/hedl-cli/`
-**Purpose**: Command-line interface
-**Dependencies**: hedl-core, hedl-c14n, hedl-json, hedl-yaml, hedl-xml, hedl-csv, hedl-parquet, hedl-toon, hedl-lint, hedl-stream, clap, colored, rayon, walkdir, indicatif
+### hedl-cli (Command Line)
 
-#### Commands
+**Path:** `crates/hedl-cli/`
+
+The command-line interface for all HEDL operations.
+
+**Commands:**
 
 ```bash
-# Parse and validate
-hedl validate <file>
+# Validate a document
+hedl validate data.hedl
 
 # Convert formats
-hedl from-json input.json -o output.hedl
-hedl to-yaml input.hedl -o output.yaml
+hedl to-json data.hedl -o data.json
+hedl from-yaml config.yaml -o config.hedl
+
+# Format (canonicalize)
+hedl format data.hedl
 
 # Lint
-hedl lint <file>
+hedl lint data.hedl
 
-# Format (Canonicalize)
-hedl format <file>
+# Show statistics
+hedl stats data.hedl
 
-# Statistics
-hedl stats <file>
-
-# Schema validation
-hedl validate --schema schema.hedl data.hedl
+# Batch operations
+hedl batch-validate *.hedl --parallel
 ```
 
-#### Features
+**Features:**
 
-- Colored output
+- Colored output for readability
 - Progress bars for large files
-- Batch processing
+- JSON output mode for scripting
 - Shell completion (bash, zsh, fish)
-- JSON/YAML output for scripting
+- Parallel processing for batch operations
 
 ---
 
-### hedl-lsp
+### hedl-lsp (Language Server)
 
-**Path**: `crates/hedl-lsp/`
-**Purpose**: Language Server Protocol implementation
-**Dependencies**: hedl, tower-lsp
+**Path:** `crates/hedl-lsp/`
 
-#### LSP Features
+Language Server Protocol implementation for editor integration.
 
-- **Diagnostics**: Real-time error checking
-- **Auto-completion**: Keys, types, IDs, references
-- **Hover**: Show type information and documentation
-- **Go-to-definition**: Jump to ID definitions
-- **Find references**: Find all uses of an ID
-- **Rename**: Rename IDs across document
-- **Formatting**: Auto-format document
-- **Code actions**: Quick fixes for common issues
+**Features:**
 
-#### Integration
+| Feature | What It Does |
+|---------|--------------|
+| Diagnostics | Real-time error and warning highlighting |
+| Completion | Autocomplete for keys, types, IDs, references |
+| Hover | Show type information on hover |
+| Go to Definition | Jump to where an ID is defined |
+| Find References | Find all uses of an ID |
+| Rename | Rename IDs across the document |
+| Formatting | Auto-format on save |
+| Code Actions | Quick fixes for common issues |
 
-Supports all LSP-compatible editors:
+**Supported Editors:**
+
 - VS Code (via extension)
 - Vim/Neovim (via coc.nvim or native LSP)
 - Emacs (via lsp-mode)
 - IntelliJ (via LSP plugin)
+- Any LSP-compatible editor
 
 ---
 
-### hedl-mcp
+### hedl-mcp (Model Context Protocol)
 
-**Path**: `crates/hedl-mcp/`
-**Purpose**: Model Context Protocol server
-**Dependencies**: hedl-core, hedl-json, hedl-c14n, hedl-lint, hedl-yaml, hedl-csv, hedl-parquet, hedl-neo4j, hedl-stream, tokio, serde_json
+**Path:** `crates/hedl-mcp/`
 
-#### Overview
+MCP server for AI and LLM integration.
 
-MCP server for AI/LLM integration, optimizing HEDL for use in AI contexts.
-
-#### Features
-
-- Format conversion (HEDL ↔ JSON/YAML)
-- Schema validation
-- Document linting
-- Format detection
-- Streaming support for large contexts
-- Token efficiency analysis
-
-#### MCP Tools
+**Available Tools:**
 
 ```typescript
 // Convert HEDL to JSON
 {
   "tool": "hedl_to_json",
-  "arguments": {
-    "hedl": "...",
-    "expand_references": true
-  }
+  "arguments": { "hedl": "...", "expand_references": true }
+}
+
+// Convert JSON to HEDL
+{
+  "tool": "json_to_hedl",
+  "arguments": { "json": "..." }
 }
 
 // Validate HEDL
 {
   "tool": "hedl_validate",
-  "arguments": {
-    "hedl": "...",
-    "schema": "..."
-  }
+  "arguments": { "hedl": "...", "run_lint": true }
 }
 
 // Analyze token efficiency
 {
   "tool": "hedl_analyze",
-  "arguments": {
-    "hedl": "..."
-  }
+  "arguments": { "hedl": "...", "compare_to_json": true }
 }
 ```
+
+This enables AI assistants to work with HEDL documents efficiently, leveraging HEDL's token efficiency for larger context windows.
 
 ---
 
 ## Binding Crates
 
-### hedl-ffi
+These crates expose HEDL to other languages.
 
-**Path**: `crates/hedl-ffi/`
-**Purpose**: C FFI bindings
-**Dependencies**: hedl
+### hedl-ffi (C Bindings)
 
-#### API Design
+**Path:** `crates/hedl-ffi/`
+
+C-compatible API for integration with C, C++, Python, and other languages that can call C functions.
+
+**C API:**
 
 ```c
 // Parse HEDL
-// input_len: -1 for null-terminated, strict: non-zero for reference validation
 int hedl_parse(const char* input, int input_len, int strict, HedlDocument** out_doc);
 
 // Convert to JSON
-// include_metadata: non-zero to include __type__, __schema__ fields
 int hedl_to_json(const HedlDocument* doc, int include_metadata, char** out_str);
 
 // Free resources
 void hedl_free_document(HedlDocument* doc);
 void hedl_free_string(char* str);
 
-// Error handling (thread-local storage)
+// Error handling
 const char* hedl_get_last_error(void);
 ```
 
-#### Safety Guarantees
+**Safety Guarantees:**
 
 - No panics across FFI boundary
-- Clear ownership semantics
+- Clear ownership semantics (caller or callee frees)
 - NULL-safe API
-- Thread-safe where applicable
+- Thread-local error storage
 
 ---
 
-### hedl-wasm
+### hedl-wasm (WebAssembly)
 
-**Path**: `crates/hedl-wasm/`
-**Purpose**: WebAssembly bindings
-**Dependencies**: hedl, wasm-bindgen
+**Path:** `crates/hedl-wasm/`
 
-#### JavaScript API
+WebAssembly bindings for browsers and Node.js.
+
+**JavaScript API:**
 
 ```javascript
-import init, { parse } from './hedl_wasm.js';
+import init, { parse, toJson, fromJson, validate } from './hedl_wasm.js';
 
 await init();
 
 // Parse HEDL
 const doc = parse(hedlText);
 
-// Convert using methods on the document
-const json = doc.toJsonString();
+// Convert to JSON
+const json = doc.toJsonString(true);  // pretty printed
+
+// Get as JavaScript object
+const obj = doc.toJson();
+
+// Back to HEDL
 const hedl = doc.toHedl();
+
+// Validate
+const result = validate(hedlText, true);  // run lint
+if (!result.valid) {
+  console.error(result.errors);
+}
 ```
 
-#### TypeScript Types
+**TypeScript Support:**
 
-Full TypeScript definitions provided:
+Full type definitions are provided:
 
 ```typescript
-// Standalone functions
-export function parse(input: string): HedlDocument;  // May throw on error
+export function parse(input: string): HedlDocument;
 export function toJson(input: string, pretty?: boolean): string;
-export function fromJson(json: string, useDitto?: boolean): string;
-export function format(input: string, useDitto?: boolean): string;
+export function fromJson(json: string): string;
+export function format(input: string): string;
 export function validate(input: string, runLint?: boolean): ValidationResult;
-export function version(): string;
 
-// Document class
 export class HedlDocument {
-  toJson(): any;                          // Returns parsed JSON object (requires "json" feature)
-  toJsonString(pretty?: boolean): string; // Returns JSON string
-  toHedl(useDitto?: boolean): string;     // Returns HEDL string
+  toJson(): any;
+  toJsonString(pretty?: boolean): string;
+  toHedl(): string;
   readonly rootItemCount: number;
 }
 ```
 
 ---
 
-## Support Crates
+## Infrastructure Crates
 
-### hedl-test
+These crates support development and testing.
 
-**Path**: `crates/hedl-test/`
-**Purpose**: Test utilities and fixtures
-**Dependencies**: hedl-core, hedl-c14n
+### hedl-test (Test Utilities)
 
-#### Utilities
+**Path:** `crates/hedl-test/`
+
+Shared fixtures and helpers for testing across all crates.
+
+**Fixtures:**
 
 ```rust
-// Fixture access
 use hedl_test::fixtures;
 
+// Pre-built documents for testing
 let doc = fixtures::scalars();           // All scalar types
-let doc = fixtures::user_list();         // MatrixList with users
-let doc = fixtures::with_references();   // Cross-references
+let doc = fixtures::user_list();         // Matrix list with users
+let doc = fixtures::with_nest();         // Nested relationships
+let doc = fixtures::with_references();   // Cross-entity references
 let doc = fixtures::comprehensive();     // Everything together
 
-// Count utilities (from counts module)
-use hedl_test::{count_nodes, count_references};
-
-let node_count = count_nodes(&doc);
-let ref_count = count_references(&doc);
-
-// Expression utilities
-use hedl_test::{expr, expr_value};
-
-let e = expr("now()");               // Create Expression
-let v = expr_value("count + 1");     // Create Value::Expression
-
-// Get all fixtures
+// Iterate all fixtures
 for (name, fixture_fn) in fixtures::all() {
     let doc = fixture_fn();
-    // Use fixture
+    // Test with this fixture
 }
 ```
 
-#### Available Fixtures
+**Utilities:**
 
-All fixtures are provided as functions in the `fixtures` module:
-- `scalars()` - All scalar value types
-- `user_list()` - MatrixList with 3 users
-- `with_nest()` - Nested relationships
-- `with_references()` - Cross-entity references
-- `comprehensive()` - Full feature coverage
+```rust
+use hedl_test::{count_nodes, count_references, expr, expr_value};
+
+// Count things in documents
+let node_count = count_nodes(&doc);
+let ref_count = count_references(&doc);
+
+// Create expression values for testing
+let e = expr("now()");
+let v = expr_value("count + 1");
+```
 
 ---
 
-### hedl-bench
+### hedl-bench (Benchmarks)
 
-**Path**: `crates/hedl-bench/`
-**Purpose**: Performance benchmarks
-**Dependencies**: hedl, criterion
+**Path:** `crates/hedl-bench/`
 
-#### Benchmark Categories
+Performance benchmarks using Criterion.
 
-**Core Benchmarks**:
-- Lexer performance
-- Parser performance
-- Full document parsing
+**Benchmark Categories:**
 
-**Format Benchmarks**:
-- JSON conversion
-- YAML conversion
-- XML conversion
-- CSV conversion
+| Category | What It Measures |
+|----------|-----------------|
+| Parsing | Lexer and parser performance |
+| Canonicalization | AST to HEDL text |
+| JSON | JSON conversion both ways |
+| YAML | YAML conversion both ways |
+| Streaming | Large file processing |
+| Reference Resolution | ID lookup performance |
+| Traversal | Visitor pattern overhead |
 
-**Feature Benchmarks**:
-- Canonicalization
-- Streaming
-- Reference resolution
-- Traversal
-
-**Scalability Benchmarks**:
-- Small documents (< 1 KB)
-- Medium documents (1-100 KB)
-- Large documents (> 100 KB)
-
-#### Running Benchmarks
+**Running Benchmarks:**
 
 ```bash
 # All benchmarks
@@ -1037,76 +985,151 @@ cargo bench -p hedl-bench
 # Specific benchmark
 cargo bench -p hedl-bench --bench parsing
 
-# Generate reports
-cargo bench -p hedl-bench -- --save-baseline master
-# Make changes...
-cargo bench -p hedl-bench -- --baseline master
+# Compare to baseline
+cargo bench -p hedl-bench -- --baseline main
+
+# Save new baseline
+cargo bench -p hedl-bench -- --save-baseline feature-branch
 ```
 
 ---
 
 ## Dependency Graph
 
+Understanding how crates depend on each other helps you know what might be affected by changes:
+
 ```mermaid
-graph TD
-    CORE[hedl-core]
+flowchart TB
+    subgraph Core["FOUNDATION"]
+        CORE["hedl-core<br/>Everything depends on this"]
+    end
 
-    CORE --> C14N[hedl-c14n]
-    CORE --> LINT[hedl-lint]
-    CORE --> STREAM[hedl-stream]
-    CORE --> JSON[hedl-json]
-    CORE --> YAML[hedl-yaml]
-    CORE --> XML[hedl-xml]
-    CORE --> CSV[hedl-csv]
-    CORE --> TOON[hedl-toon]
-    CORE --> PARQUET[hedl-parquet]
-    CORE --> NEO4J[hedl-neo4j]
-    CORE --> TEST[hedl-test]
+    subgraph Mid["MIDDLE LAYER"]
+        C14N["c14n"]
+        LINT["lint"]
+        STREAM["stream"]
+        JSON["json"]
+        YAML["yaml"]
+        XML["xml"]
+        OTHER["..."]
+    end
 
-    C14N --> HEDL[hedl]
+    subgraph FacadeLayer["FACADE LAYER"]
+        HEDL["hedl (facade)<br/>Re-exports everything"]
+    end
+
+    subgraph Apps["APPLICATIONS"]
+        CLI["cli"]
+        LSP["lsp"]
+        MCP["mcp"]
+    end
+
+    subgraph BindingsLayer["BINDINGS"]
+        FFI["ffi"]
+        WASM["wasm"]
+    end
+
+    subgraph Testing["TESTING"]
+        TEST["test"]
+        BENCH["bench"]
+    end
+
+    CORE --> C14N
+    CORE --> LINT
+    CORE --> STREAM
+    CORE --> JSON
+    CORE --> YAML
+    CORE --> XML
+    CORE --> OTHER
+
+    C14N --> HEDL
     LINT --> HEDL
     STREAM --> HEDL
     JSON --> HEDL
     YAML --> HEDL
     XML --> HEDL
-    CSV --> HEDL
-    TOON --> HEDL
-    PARQUET --> HEDL
-    NEO4J --> HEDL
+    OTHER --> HEDL
 
-    HEDL --> CLI[hedl-cli]
-    HEDL --> LSP[hedl-lsp]
-    HEDL --> MCP[hedl-mcp]
-    HEDL --> FFI[hedl-ffi]
-    HEDL --> WASM[hedl-wasm]
+    HEDL --> CLI
+    HEDL --> LSP
+    HEDL --> MCP
+    HEDL --> FFI
+    HEDL --> WASM
+    TEST --> BENCH
 
-    TEST --> BENCH[hedl-bench]
+    style Core fill:#ffebee,stroke:#c62828
+    style FacadeLayer fill:#e8f5e9,stroke:#2e7d32
+    style Apps fill:#e3f2fd,stroke:#1565c0
 ```
 
-## Summary
-
-| Crate | Purpose | Key Dependencies |
-|-------|---------|------------------|
-| hedl | Unified API | All crates |
-| hedl-core | Parser & AST | serde, thiserror |
-| hedl-c14n | Canonicalization | hedl-core |
-| hedl-lint | Validation | hedl-core |
-| hedl-stream | Streaming | hedl-core, tokio |
-| hedl-json | JSON conversion | hedl-core, serde_json |
-| hedl-yaml | YAML conversion | hedl-core, serde_yaml |
-| hedl-xml | XML conversion | hedl-core, quick-xml |
-| hedl-csv | CSV conversion | hedl-core, csv |
-| hedl-toon | TOON format | hedl-core |
-| hedl-parquet | Parquet conversion | hedl-core, parquet |
-| hedl-neo4j | Neo4j Cypher | hedl-core |
-| hedl-cli | CLI tool | All hedl crates, clap, colored, rayon |
-| hedl-lsp | Language server | hedl, hedl-core, hedl-lint, hedl-c14n, tower-lsp |
-| hedl-mcp | MCP server | hedl, all format crates, tokio, serde_json |
-| hedl-ffi | C bindings | hedl |
-| hedl-wasm | WASM bindings | hedl, wasm-bindgen |
-| hedl-test | Test utilities | hedl-core, proptest |
-| hedl-bench | Benchmarks | hedl, criterion |
+The arrows show dependency direction. A change to `hedl-core` potentially affects everything. A change to `hedl-json` only affects crates that depend on JSON functionality.
 
 ---
 
-**Next**: Dive deeper into [Internals](internals.md) or start [Contributing](contributing.md)
+## Quick Reference
+
+| Crate | Purpose | Key Dependencies |
+|-------|---------|------------------|
+| **hedl** | Unified API facade | All other crates |
+| **hedl-core** | Parser, AST, validation | serde, thiserror, memchr |
+| **hedl-c14n** | Canonical output | hedl-core |
+| **hedl-lint** | Validation and linting | hedl-core |
+| **hedl-stream** | Streaming parser | hedl-core, tokio |
+| **hedl-json** | JSON conversion | hedl-core, serde_json |
+| **hedl-yaml** | YAML conversion | hedl-core, serde_yaml |
+| **hedl-xml** | XML conversion | hedl-core, quick-xml |
+| **hedl-csv** | CSV conversion | hedl-core, csv |
+| **hedl-parquet** | Parquet conversion | hedl-core, parquet, arrow |
+| **hedl-neo4j** | Neo4j Cypher | hedl-core |
+| **hedl-toon** | TOON format | hedl-core |
+| **hedl-cli** | Command line | hedl, clap, rayon |
+| **hedl-lsp** | Language server | hedl, tower-lsp |
+| **hedl-mcp** | MCP server | hedl, tokio |
+| **hedl-ffi** | C bindings | hedl |
+| **hedl-wasm** | WebAssembly | hedl, wasm-bindgen |
+| **hedl-test** | Test utilities | hedl-core |
+| **hedl-bench** | Benchmarks | hedl, criterion |
+
+---
+
+## Navigating the Codebase
+
+When you need to make a change, use this guide:
+
+**"I need to fix a parsing bug"**
+→ Look in `hedl-core/src/parser/` or `hedl-core/src/lex/`
+
+**"I need to change error messages"**
+→ Look in `hedl-core/src/error.rs`
+
+**"I need to fix JSON conversion"**
+→ Look in `hedl-json/src/`
+
+**"I need to add a lint rule"**
+→ Look in `hedl-lint/src/rules/`
+
+**"I need to add a CLI command"**
+→ Look in `hedl-cli/src/`
+
+**"I need to add test fixtures"**
+→ Look in `hedl-test/src/fixtures.rs`
+
+**"I need to add a benchmark"**
+→ Look in `hedl-bench/benches/`
+
+---
+
+## What's Next
+
+You now understand how the crates fit together. Pick your next step:
+
+**Dive deeper into the parser:**
+→ [Internals](internals.md)
+
+**Start contributing:**
+→ [Contributing Guide](contributing.md)
+
+**Understand the specification:**
+→ [SPEC.md](../../SPEC.md) in the repository root
+
+Nineteen crates. One purpose. Now you know where everything lives.

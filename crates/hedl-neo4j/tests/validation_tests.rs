@@ -50,7 +50,7 @@ fn test_string_length_validation_in_conversion() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -112,7 +112,7 @@ fn test_expression_string_length_validation() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -160,7 +160,7 @@ fn test_untrusted_input_config() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -202,7 +202,7 @@ fn test_no_string_length_limit() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -247,7 +247,7 @@ fn test_multiple_strings_within_limit() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -287,7 +287,7 @@ fn test_unicode_string_length_bytes() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -330,7 +330,7 @@ fn test_empty_string_always_valid() {
     );
 
     let doc = Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),

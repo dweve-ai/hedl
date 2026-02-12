@@ -160,7 +160,7 @@ pub async fn from_xml_file_async(
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let config = ToXmlConfig::default();
 /// to_xml_file_async(&doc, "output.xml", &config).await?;
 /// # Ok(())
@@ -237,7 +237,7 @@ pub async fn from_xml_reader_async<R: AsyncRead + Unpin>(
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let file = File::create("output.xml").await?;
 /// let config = ToXmlConfig::default();
 /// to_xml_writer_async(&doc, file, &config).await?;
@@ -489,7 +489,7 @@ pub async fn from_xml_async(xml: &str, config: &FromXmlConfig) -> Result<Documen
 ///
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let doc = Document::new((1, 0));
+/// let doc = Document::new((2, 0));
 /// let config = ToXmlConfig::default();
 /// let xml = to_xml_async(&doc, &config).await?;
 /// # Ok(())
@@ -618,8 +618,8 @@ where
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let docs = vec![
-///     Document::new((1, 0)),
-///     Document::new((1, 0)),
+///     Document::new((2, 0)),
+///     Document::new((2, 0)),
 /// ];
 /// let paths = vec!["out1.xml", "out2.xml"];
 /// let config = ToXmlConfig::default();
@@ -725,7 +725,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_xml_file_async_invalid_path() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToXmlConfig::default();
         let result = to_xml_file_async(&doc, "/invalid/\0/path.xml", &config).await;
         assert!(result.is_err());
@@ -758,7 +758,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_xml_writer_async_valid() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(42)));
 
@@ -775,7 +775,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_xml_writer_async_empty() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let mut buffer = Vec::new();
         let config = ToXmlConfig::default();
 
@@ -813,7 +813,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_xml_async_valid() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("val".to_string(), Item::Scalar(Value::Int(123)));
 
@@ -825,7 +825,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_xml_async_empty() {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         let config = ToXmlConfig::default();
 
         let xml = to_xml_async(&doc, &config).await.unwrap();
@@ -887,7 +887,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_round_trip_async() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root
             .insert("bool_val".to_string(), Item::Scalar(Value::Bool(true)));
         doc.root
@@ -953,11 +953,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_generation() {
-        let mut doc1 = Document::new((1, 0));
+        let mut doc1 = Document::new((2, 0));
         doc1.root
             .insert("id".to_string(), Item::Scalar(Value::Int(1)));
 
-        let mut doc2 = Document::new((1, 0));
+        let mut doc2 = Document::new((2, 0));
         doc2.root
             .insert("id".to_string(), Item::Scalar(Value::Int(2)));
 

@@ -19,14 +19,41 @@
 
 use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
 use crate::error::{clear_error, set_error};
+use crate::ffi_strings::allocate_output_string;
 use crate::memory::is_valid_document_ptr;
 use crate::types::{
     HedlDiagnostics, HedlDocument, HEDL_ERR_CANONICALIZE, HEDL_ERR_NULL_PTR, HEDL_OK,
 };
-use crate::utils::allocate_output_string;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::time::Instant;
+
+/// Internal helper to safely obtain a reference to the inner document.
+///
+/// Returns `Ok(&inner)` when the pointer is valid, otherwise logs a failure and
+/// returns an appropriate error code.
+unsafe fn get_valid_doc_ref<'a>(
+    doc: *const HedlDocument,
+    op_name: &'static str,
+    start: Instant,
+) -> Result<&'a hedl_core::Document, c_int> {
+    // Explicitly reject NULL pointers before attempting to dereference.
+    if doc.is_null() || !is_valid_document_ptr(doc) {
+        let duration = start.elapsed();
+        set_error("Null or invalid document handle");
+        audit_call_failure(
+            op_name,
+            HEDL_ERR_NULL_PTR,
+            "Null or invalid document handle",
+            duration,
+        );
+        return Err(HEDL_ERR_NULL_PTR);
+    }
+
+    // SAFETY: We have checked that `doc` is non-null and `is_valid_document_ptr(doc)` returned
+    // true, so it is safe to dereference and access the inner document.
+    Ok(&(*doc).inner)
+}
 
 // =============================================================================
 // Canonicalization
@@ -72,7 +99,12 @@ pub unsafe extern "C" fn hedl_canonicalize(
         return HEDL_ERR_NULL_PTR;
     }
 
-    let doc_ref = &(*doc).inner;
+    // SAFETY: We validated the pointer using `get_valid_doc_ref`, which also
+    // handles logging and error reporting on failure.
+    let doc_ref = match get_valid_doc_ref(doc, "hedl_canonicalize", start) {
+        Ok(doc_ref) => doc_ref,
+        Err(code) => return code,
+    };
 
     match hedl_c14n::canonicalize(doc_ref) {
         Ok(canonical) => {
@@ -90,6 +122,7 @@ pub unsafe extern "C" fn hedl_canonicalize(
             let duration = start.elapsed();
             let msg = format!("Canonicalization error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_canonicalize", HEDL_ERR_CANONICALIZE, &msg, duration);
             HEDL_ERR_CANONICALIZE
@@ -141,10 +174,14 @@ pub unsafe extern "C" fn hedl_lint(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
     let diagnostics = hedl_lint::lint(doc_ref);
 
     let handle = Box::new(HedlDiagnostics { inner: diagnostics });
+    // SAFETY: We validated out_diag is non-null above.
+    // We write a valid pointer from Box::into_raw.
     *out_diag = Box::into_raw(handle);
     audit_call_success("hedl_lint", start.elapsed());
     HEDL_OK

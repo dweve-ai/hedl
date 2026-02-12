@@ -1,0 +1,804 @@
+{
+  "questions": [
+    {
+      "id": "hc-001",
+      "prompt": "How many patients are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "25",
+      "notes": "Count of patient entities"
+    },
+    {
+      "id": "hc-002",
+      "prompt": "How many facilities are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count of facility entities"
+    },
+    {
+      "id": "hc-003",
+      "prompt": "How many providers are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "15",
+      "notes": "Count of provider entities"
+    },
+    {
+      "id": "hc-004",
+      "prompt": "How many appointments are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "40",
+      "notes": "Count of appointment entities"
+    },
+    {
+      "id": "hc-005",
+      "prompt": "How many diagnoses are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "30",
+      "notes": "Count of diagnosis entities"
+    },
+    {
+      "id": "hc-006",
+      "prompt": "How many prescriptions are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "35",
+      "notes": "Count of prescription entities"
+    },
+    {
+      "id": "hc-007",
+      "prompt": "How many lab results are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "40",
+      "notes": "Count of lab result entities"
+    },
+    {
+      "id": "hc-008",
+      "prompt": "How many procedures are there?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "15",
+      "notes": "Count of procedure entities"
+    },
+    {
+      "id": "hc-009",
+      "prompt": "How many male patients are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "13",
+      "notes": "Count patients where gender=M"
+    },
+    {
+      "id": "hc-010",
+      "prompt": "How many female patients are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "12",
+      "notes": "Count patients where gender=F"
+    },
+    {
+      "id": "hc-011",
+      "prompt": "How many patients have Medicare insurance?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "9",
+      "notes": "Count patients where insurance_type=medicare"
+    },
+    {
+      "id": "hc-012",
+      "prompt": "How many patients have private insurance?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "13",
+      "notes": "Count patients where insurance_type=private"
+    },
+    {
+      "id": "hc-013",
+      "prompt": "How many patients have Medicaid insurance?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count patients where insurance_type=medicaid"
+    },
+    {
+      "id": "hc-014",
+      "prompt": "How many completed appointments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "33",
+      "notes": "Count appointments where status=completed"
+    },
+    {
+      "id": "hc-015",
+      "prompt": "How many scheduled appointments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count appointments where status=scheduled"
+    },
+    {
+      "id": "hc-016",
+      "prompt": "How many cancelled appointments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count appointments where status=cancelled"
+    },
+    {
+      "id": "hc-017",
+      "prompt": "How many no-show appointments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count appointments where status=no_show"
+    },
+    {
+      "id": "hc-018",
+      "prompt": "How many lab results have critical status?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Count labs where status=critical"
+    },
+    {
+      "id": "hc-019",
+      "prompt": "How many lab results have abnormal status?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "25",
+      "notes": "Count labs where status=abnormal (explicit only, ^ inherits from previous)"
+    },
+    {
+      "id": "hc-020",
+      "prompt": "How many lab results have normal status?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "11",
+      "notes": "Count labs where status=normal (explicit only, ^ inherits from previous)"
+    },
+    {
+      "id": "hc-021",
+      "prompt": "How many procedures had successful outcomes?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "13",
+      "notes": "Count procedures where outcome=success"
+    },
+    {
+      "id": "hc-022",
+      "prompt": "How many procedures had complications?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count procedures where outcome=complication"
+    },
+    {
+      "id": "hc-023",
+      "prompt": "How many procedures had partial success?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count procedures where outcome=partial"
+    },
+    {
+      "id": "hc-024",
+      "prompt": "What is the name of patient pat-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "John Smith",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-025",
+      "prompt": "What blood type does patient pat-003 have?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "B+",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-026",
+      "prompt": "What is the rating of provider prov-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "4.8",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-027",
+      "prompt": "What is the name of facility fac-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Metro General Hospital",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-028",
+      "prompt": "How many beds does facility fac-001 have?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "450",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-029",
+      "prompt": "How many providers are cardiologists?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count providers where specialty=cardio"
+    },
+    {
+      "id": "hc-030",
+      "prompt": "How many providers are general practitioners?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count providers where specialty=gp"
+    },
+    {
+      "id": "hc-031",
+      "prompt": "How many providers have the MD role?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "12",
+      "notes": "Count providers where role=MD"
+    },
+    {
+      "id": "hc-032",
+      "prompt": "How many providers are registered nurses?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where role=RN"
+    },
+    {
+      "id": "hc-033",
+      "prompt": "How many patients have O+ blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Count patients where blood_type=O+"
+    },
+    {
+      "id": "hc-034",
+      "prompt": "How many patients have A+ blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Count patients where blood_type=A+"
+    },
+    {
+      "id": "hc-035",
+      "prompt": "How many patients have B+ blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Count patients where blood_type=B+"
+    },
+    {
+      "id": "hc-036",
+      "prompt": "How many patients have AB- blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count patients where blood_type=AB-"
+    },
+    {
+      "id": "hc-037",
+      "prompt": "How many chronic diagnoses are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "29",
+      "notes": "Count diagnoses where is_chronic=true"
+    },
+    {
+      "id": "hc-038",
+      "prompt": "How many non-chronic diagnoses are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count diagnoses where is_chronic=false (dx-022 only)"
+    },
+    {
+      "id": "hc-039",
+      "prompt": "What is the specialty of provider prov-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Cardiology",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-040",
+      "prompt": "How many years of experience does provider prov-012 have?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "28",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-041",
+      "prompt": "How many facilities have emergency rooms available?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count facilities where er_available=true"
+    },
+    {
+      "id": "hc-042",
+      "prompt": "How many facilities do not have emergency rooms?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count facilities where er_available=false"
+    },
+    {
+      "id": "hc-043",
+      "prompt": "What is the dosage in mg of prescription rx-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "10",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-044",
+      "prompt": "How many prescriptions are taken once daily?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "17",
+      "notes": "Count prescriptions where frequency=qd"
+    },
+    {
+      "id": "hc-045",
+      "prompt": "How many prescriptions are taken twice daily?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "11",
+      "notes": "Count prescriptions where frequency=bid"
+    },
+    {
+      "id": "hc-046",
+      "prompt": "How many prescriptions are taken three times daily?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Count prescriptions where frequency=tid"
+    },
+    {
+      "id": "hc-047",
+      "prompt": "How many prescriptions are taken as needed?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count prescriptions where frequency=prn"
+    },
+    {
+      "id": "hc-048",
+      "prompt": "What is the cost of procedure proc-005?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "85000",
+      "notes": "Direct field lookup for TAVR procedure"
+    },
+    {
+      "id": "hc-049",
+      "prompt": "How many procedures cost more than 50000?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count procedures where cost > 50000"
+    },
+    {
+      "id": "hc-050",
+      "prompt": "How many procedures cost less than 10000?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Count procedures where cost < 10000 (proc-006: 8500, proc-007: 6500)"
+    },
+    {
+      "id": "hc-051",
+      "prompt": "How many providers have a rating higher than 4.7?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Count providers where rating > 4.7"
+    },
+    {
+      "id": "hc-052",
+      "prompt": "How many providers work at facility fac-001?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Count providers where facility=fac-001"
+    },
+    {
+      "id": "hc-053",
+      "prompt": "Does appointment apt-026 have notes recorded?",
+      "question_type": "StructureAwareness",
+      "answer_type": "String",
+      "ground_truth": "no",
+      "notes": "Scheduled appointment apt-026 has null notes field - tests null detection"
+    },
+    {
+      "id": "hc-054",
+      "prompt": "Does patient pat-004 have any chronic conditions?",
+      "question_type": "StructureAwareness",
+      "answer_type": "String",
+      "ground_truth": "no",
+      "notes": "Patient pat-004 has empty conditions array [] - tests empty array detection"
+    },
+    {
+      "id": "hc-055",
+      "prompt": "How many patients have no allergies listed?",
+      "question_type": "StructureAwareness",
+      "answer_type": "Integer",
+      "ground_truth": "11",
+      "notes": "Count patients with empty allergies array []"
+    },
+    {
+      "id": "hc-056",
+      "prompt": "How many patients have at least one allergy?",
+      "question_type": "StructureAwareness",
+      "answer_type": "Integer",
+      "ground_truth": "14",
+      "notes": "Count patients with non-empty allergies array"
+    },
+    {
+      "id": "hc-057",
+      "prompt": "What is the ICD code for diagnosis dx-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "I10",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-058",
+      "prompt": "What is the condition for diagnosis dx-023?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Lung Cancer",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-059",
+      "prompt": "How many diagnoses have severe severity?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Count diagnoses where severity=severe"
+    },
+    {
+      "id": "hc-060",
+      "prompt": "How many diagnoses have moderate severity?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "15",
+      "notes": "Count diagnoses where severity=moderate"
+    },
+    {
+      "id": "hc-061",
+      "prompt": "How many diagnoses have mild severity?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "9",
+      "notes": "Count diagnoses where severity=mild"
+    },
+    {
+      "id": "hc-062",
+      "prompt": "What is the CPT code for procedure proc-005?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "33361",
+      "notes": "Direct field lookup for TAVR"
+    },
+    {
+      "id": "hc-063",
+      "prompt": "How many providers are orthopedic specialists?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count providers where specialty=ortho"
+    },
+    {
+      "id": "hc-064",
+      "prompt": "How many providers are pediatricians?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where specialty=peds"
+    },
+    {
+      "id": "hc-065",
+      "prompt": "How many providers are neurologists?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where specialty=neuro"
+    },
+    {
+      "id": "hc-066",
+      "prompt": "How many providers are oncologists?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where specialty=Oncology"
+    },
+    {
+      "id": "hc-067",
+      "prompt": "How many providers are psychiatrists?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where specialty=psych"
+    },
+    {
+      "id": "hc-068",
+      "prompt": "What is the status of appointment apt-029?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Cancelled",
+      "notes": "apt-029 was cancelled - patient called to cancel"
+    },
+    {
+      "id": "hc-069",
+      "prompt": "What is the duration in minutes of appointment apt-033?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "240",
+      "notes": "Direct field lookup - TAVR Procedure appointment"
+    },
+    {
+      "id": "hc-070",
+      "prompt": "How many appointments are scheduled at facility fac-001?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "18",
+      "notes": "Count appointments where facility=fac-001"
+    },
+    {
+      "id": "hc-071",
+      "prompt": "How many appointments are scheduled at facility fac-005?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Count appointments where facility=fac-005"
+    },
+    {
+      "id": "hc-072",
+      "prompt": "How many patients have A- blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count patients where blood_type=A-"
+    },
+    {
+      "id": "hc-073",
+      "prompt": "How many patients have B- blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count patients where blood_type=B-"
+    },
+    {
+      "id": "hc-074",
+      "prompt": "How many patients have O- blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count patients where blood_type=O-"
+    },
+    {
+      "id": "hc-075",
+      "prompt": "How many patients have AB+ blood type?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count patients where blood_type=AB+"
+    },
+    {
+      "id": "hc-076",
+      "prompt": "What medication is prescribed in prescription rx-031?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Ocrelizumab",
+      "notes": "Direct field lookup - MS treatment"
+    },
+    {
+      "id": "hc-077",
+      "prompt": "How many prescriptions have 0 refills?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count prescriptions where refills=0"
+    },
+    {
+      "id": "hc-078",
+      "prompt": "How many prescriptions have 3 refills?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "24",
+      "notes": "Count prescriptions where refills=3"
+    },
+    {
+      "id": "hc-079",
+      "prompt": "How many prescriptions have 6 refills?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count prescriptions where refills=6"
+    },
+    {
+      "id": "hc-080",
+      "prompt": "What is the test name for lab result lab-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "HbA1c",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-081",
+      "prompt": "What is the value for lab result lab-009?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "890",
+      "notes": "Direct field lookup - BNP value (Critical)"
+    },
+    {
+      "id": "hc-082",
+      "prompt": "How many providers see more than 25 patients per day?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count providers where patients_per_day > 25"
+    },
+    {
+      "id": "hc-083",
+      "prompt": "How many providers have more than 20 years of experience?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count providers where years_exp > 20"
+    },
+    {
+      "id": "hc-084",
+      "prompt": "What is the city where facility fac-004 is located?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Evanston",
+      "notes": "Direct field lookup"
+    },
+    {
+      "id": "hc-085",
+      "prompt": "How many facilities are located in Chicago?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count facilities where city=Chicago"
+    },
+    {
+      "id": "hc-086",
+      "prompt": "How many providers work at facility fac-002?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Count providers where facility=@fac-002"
+    },
+    {
+      "id": "hc-087",
+      "prompt": "How many providers work at facility fac-005?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count providers where facility=fac-005"
+    },
+    {
+      "id": "hc-088",
+      "prompt": "How many appointments does patient pat-003 have?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count appointments where patient=pat-003 (apt-003, apt-027)"
+    },
+    {
+      "id": "hc-089",
+      "prompt": "How many diagnoses does patient pat-001 have?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count diagnoses where patient=@pat-001"
+    },
+    {
+      "id": "hc-090",
+      "prompt": "How many prescriptions does patient pat-003 have?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Count prescriptions where patient=pat-003 (rx-004, rx-005, rx-006, rx-035)"
+    },
+    {
+      "id": "hc-091",
+      "prompt": "How many lab results does patient pat-005 have?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count labs where patient=pat-005 (lab-009 to lab-012, lab-036)"
+    },
+    {
+      "id": "hc-092",
+      "prompt": "How many procedures were performed at facility fac-003?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count procedures nested under fac-003 (proc-002, proc-003)"
+    },
+    {
+      "id": "hc-093",
+      "prompt": "How many procedures were performed at facility fac-001?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Count procedures where facility=fac-001 (proc-002, proc-003, proc-007, proc-008, proc-011, proc-012)"
+    },
+    {
+      "id": "hc-094",
+      "prompt": "How many procedures did provider prov-001 perform?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count procedures where provider=prov-001"
+    },
+    {
+      "id": "hc-095",
+      "prompt": "How many appointments does provider prov-006 have?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Count appointments where provider=@prov-006"
+    },
+    {
+      "id": "hc-096",
+      "prompt": "How many prescriptions did provider prov-003 write?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Count prescriptions nested under prov-003 (rx-013 to rx-017)"
+    },
+    {
+      "id": "hc-097",
+      "prompt": "How many diagnoses did provider prov-012 make?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Count diagnoses where provider=@prov-012"
+    },
+    {
+      "id": "hc-098",
+      "prompt": "How many providers have Physician Assistant role?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where role=PA"
+    },
+    {
+      "id": "hc-099",
+      "prompt": "How many providers have Nurse Practitioner role?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Count providers where role=NP"
+    },
+    {
+      "id": "hc-100",
+      "prompt": "How many facilities have 0 beds?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Count facilities where beds=0 (clinics)"
+    }
+  ]
+}

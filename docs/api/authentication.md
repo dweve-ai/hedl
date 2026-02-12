@@ -41,7 +41,7 @@ let config = McpServerConfig {
 
     // Server identification
     name: "hedl-mcp".to_string(),
-    version: "1.2.0".to_string(),
+    version: "2.0.0".to_string(),
 
     // Rate limiting (token bucket)
     rate_limit_burst: 200,         // Maximum burst size
@@ -81,11 +81,13 @@ let config = McpServerConfig {
 
 Example with proper HEDL syntax:
 ```hedl
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
 ---
-users: @User
-  | alice, Alice
+users:@User
+ |alice,Alice
 ```
 
 ### Caching
@@ -158,16 +160,16 @@ impl JwtAuth {
 Secure session handling with configurable timeouts:
 
 ```rust
-use hedl_mcp::auth::{SessionManager, SessionConfig, SessionId, Session};
+use hedl_mcp::auth::{SessionRegistry, SessionConfig, SessionId, Session};
 use dashmap::DashMap;
 use std::sync::Arc;
 
-pub struct SessionManager {
+pub struct SessionRegistry {
     sessions: Arc<DashMap<SessionId, Session>>,
     config: SessionConfig,
 }
 
-impl SessionManager {
+impl SessionRegistry {
     pub fn new(config: SessionConfig) -> Self;
     pub fn create_session(&self, client_metadata: ClientMetadata) -> Session;
     pub fn validate_session(&self, session_id: &SessionId) -> Result<Session, AuthError>;
@@ -286,7 +288,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Server identification
         name: "hedl-mcp".to_string(),
-        version: "1.2.0".to_string(),
+        version: "2.0.0".to_string(),
 
         // Conservative rate limiting
         rate_limit_burst: 100,      // Lower burst for production

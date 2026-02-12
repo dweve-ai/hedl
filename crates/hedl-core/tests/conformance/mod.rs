@@ -17,4 +17,5 @@
 
 //! Conformance test suite for HEDL specification compliance
 
+/// Unicode Edge Case Tests
 pub mod unicode;

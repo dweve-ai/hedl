@@ -26,10 +26,6 @@ Please include the following information in your report:
 - Proof-of-concept or exploit code (if possible)
 - Impact of the issue, including how an attacker might exploit it
 
-### Encrypted Communication
-
-For sensitive security reports requiring encrypted communication, contact security@dweve.com to request our PGP public key.
-
 ## Our Commitment
 
 When you report a security issue, we commit to:
@@ -44,20 +40,12 @@ When you report a security issue, we commit to:
 
 ### In Scope
 
-- All Dweve-owned repositories
-- Dweve platform (platform.dweve.com)
-- Dweve APIs
-- Dweve Mesh infrastructure
-- dweve.com and subdomains
+- The HEDL repository and its crates
 
 ### Out of Scope
 
-- Third-party applications using Dweve APIs
-- Vulnerabilities in third-party libraries (report to the library maintainer)
-- Social engineering attacks
+- Vulnerabilities in third-party dependencies (report to the upstream maintainer)
 - Denial of service attacks
-- Spam or social media account takeovers
-- Issues requiring physical access to a user's device
 
 ## Safe Harbor
 
@@ -85,18 +73,6 @@ We provide security updates for the following versions:
 | Latest - 1 minor | :white_check_mark: |
 | Older   | :x:                |
 
-For enterprise customers with extended support agreements, additional versions may be covered.
-
-## Security Best Practices
-
-When using Dweve software, we recommend:
-
-1. **Keep software updated** to the latest stable version
-2. **Use strong authentication** including MFA where available
-3. **Follow the principle of least privilege** when configuring access
-4. **Monitor logs** for suspicious activity
-5. **Report anomalies** to security@dweve.com
-
 ## Disclosure Policy
 
 - We aim to fix critical vulnerabilities within 7 days
@@ -104,37 +80,11 @@ When using Dweve software, we recommend:
 - We will coordinate public disclosure with the reporter
 - We typically request 90 days before public disclosure
 
-## Recognition
-
-We maintain a hall of fame for security researchers who have helped improve Dweve security:
-
-https://dweve.com/security/hall-of-fame
-
-Researchers who report valid vulnerabilities will be recognized (with their permission) and may be eligible for our bug bounty program.
-
-## Bug Bounty Program
-
-We offer rewards for qualifying vulnerability reports. Bounty amounts depend on severity:
-
-| Severity | Bounty Range |
-| -------- | ------------ |
-| Critical | EUR 1,000 - 5,000 |
-| High     | EUR 500 - 1,000 |
-| Medium   | EUR 100 - 500 |
-| Low      | EUR 50 - 100 |
-
-Contact security@dweve.com for current program details and eligibility requirements.
-
 ## Contact
 
 **Security Team**: security@dweve.com
-**24/7 Emergency**: +31 (0)85 0041 022
 
 Dweve B.V.
 Meander 251
 6825 MC Arnhem
 The Netherlands
-
----
-
-Made with love in Europe, for Europeans who believe technology should serve humanity, not the other way around.

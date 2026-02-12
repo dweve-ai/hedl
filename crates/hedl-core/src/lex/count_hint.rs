@@ -19,7 +19,7 @@
 //!
 //! HEDL supports count hints in two contexts:
 //! 1. `%STRUCT: TypeName (N): [columns]` - Struct instance count hints
-//! 2. `name(N): @Type` (DEPRECATED) - List declaration count hints
+//! 2. `name(N):@Type` (DEPRECATED) - List declaration count hints
 //!
 //! This module provides a unified parser with configurable validation rules.
 
@@ -54,7 +54,7 @@ pub struct CountParsingConfig {
 }
 
 impl CountParsingConfig {
-    /// Configuration for deprecated list count hints: `teams(3): @Team`
+    /// Configuration for deprecated list count hints: `teams(3):@Team`
     ///
     /// Lenient validation for backward compatibility:
     /// - Requires non-zero counts

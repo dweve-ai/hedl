@@ -49,13 +49,15 @@ pub fn extract_relationships(
         }
     }
 
-    // Extract relationships from NEST hierarchies (doc.nests is BTreeMap<String, String>)
-    for (parent, child) in &doc.nests {
-        let nest = Nest {
-            parent: parent.clone(),
-            child: child.clone(),
-        };
-        extract_nest_relationships(doc, &nest, config, &mut relationships)?;
+    // Extract relationships from NEST hierarchies (doc.nests is BTreeMap<String, Vec<String>>)
+    for (parent, children) in &doc.nests {
+        for child in children {
+            let nest = Nest {
+                parent: parent.clone(),
+                child: child.clone(),
+            };
+            extract_nest_relationships(doc, &nest, config, &mut relationships)?;
+        }
     }
 
     Ok(relationships)
@@ -493,7 +495,7 @@ mod tests {
         );
 
         let doc = Document {
-            version: (1, 0),
+            version: (2, 0),
             schema_versions: BTreeMap::new(),
             aliases: BTreeMap::new(),
             structs: BTreeMap::new(),

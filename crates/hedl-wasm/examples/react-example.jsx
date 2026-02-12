@@ -355,10 +355,12 @@ function StatsPanel({ stats }) {
 /**
  * Default HEDL Content
  */
-const DEFAULT_HEDL = `%VERSION: 1.0
-%STRUCT: User[id,name,email]
-%STRUCT: Post[id,title,views]
-%NEST: User > Post
+const DEFAULT_HEDL = `%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email]
+%S:Post:[id,title,views]
+%N:User>Post
 ---
 users: @User
   |alice,Alice Smith,alice@example.com

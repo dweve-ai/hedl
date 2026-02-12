@@ -67,7 +67,9 @@ pub fn parse_csv_row(s: &str) -> Result<Vec<CsvField>, LexError> {
         });
     }
 
-    let mut fields = Vec::new();
+    // Pre-allocate based on comma count
+    let estimated_fields = s.matches(',').count() + 1;
+    let mut fields = Vec::with_capacity(estimated_fields);
     let mut i = 0;
     let chars: Vec<char> = s.chars().collect();
 
@@ -172,10 +174,6 @@ fn parse_quoted_field(chars: &[char], start: usize) -> Result<(CsvField, usize),
                     value.push('\t');
                     i += 2;
                 }
-                'r' => {
-                    value.push('\r');
-                    i += 2;
-                }
                 '\\' => {
                     value.push('\\');
                     i += 2;
@@ -185,9 +183,11 @@ fn parse_quoted_field(chars: &[char], start: usize) -> Result<(CsvField, usize),
                     i += 2;
                 }
                 _ => {
-                    // Unknown escape - keep as-is
-                    value.push(chars[i]);
-                    i += 1;
+                    // Only \", \\, \n, \t are valid escapes
+                    return Err(LexError::InvalidEscape {
+                        sequence: format!("\\{}", next),
+                        pos: SourcePos::new(1, i + 1),
+                    });
                 }
             }
         } else {
@@ -280,6 +280,130 @@ fn parse_unquoted_field(chars: &[char], start: usize) -> Result<(CsvField, usize
         },
         i,
     ))
+}
+
+/// Split inline children data by `|` at top level only.
+///
+/// In inline child blocks, `|` splits rows only at top level.
+/// Commas and `|` do NOT split when inside:
+/// - "quoted strings"
+/// - [tensor literals]
+/// - (list literals)
+/// - $(expressions)
+///
+/// # Examples
+///
+/// ```
+/// use hedl_core::lex::csv::split_inline_children;
+///
+/// // Simple split
+/// let parts = split_inline_children("a|b|c", '"').unwrap();
+/// assert_eq!(parts, vec!["a", "b", "c"]);
+///
+/// // Quoted pipe preserved
+/// let parts = split_inline_children(r#"a|"b|c"|d"#, '"').unwrap();
+/// assert_eq!(parts, vec!["a", "\"b|c\"", "d"]);
+///
+/// // Tensor pipe preserved
+/// let parts = split_inline_children("a|[1|2]|c", '"').unwrap();
+/// assert_eq!(parts, vec!["a", "[1|2]", "c"]);
+/// ```
+pub fn split_inline_children(s: &str, quote_char: char) -> Result<Vec<&str>, LexError> {
+    if s.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+
+    // Track nesting depth for various constructs
+    let mut quote_open = false;
+    let mut bracket_depth = 0; // [tensor literals]
+    let mut paren_depth = 0; // (list literals) and $(expressions)
+
+    while i < chars.len() {
+        let ch = chars[i];
+
+        // Handle quotes
+        if ch == quote_char && bracket_depth == 0 && paren_depth == 0 {
+            if quote_open {
+                // Check for escaped quote (doubled quote)
+                if i + 1 < chars.len() && chars[i + 1] == quote_char {
+                    i += 2; // Skip both quotes
+                    continue;
+                }
+                quote_open = false;
+            } else {
+                quote_open = true;
+            }
+            i += 1;
+            continue;
+        }
+
+        // If inside quotes, just advance
+        if quote_open {
+            i += 1;
+            continue;
+        }
+
+        // Handle backslash escapes (like \| inside strings)
+        if ch == '\\' && i + 1 < chars.len() {
+            i += 2; // Skip escaped character
+            continue;
+        }
+
+        // Track bracket depth for tensor literals
+        if ch == '[' {
+            bracket_depth += 1;
+        } else if ch == ']' && bracket_depth > 0 {
+            bracket_depth -= 1;
+        }
+
+        // Track paren depth for list literals and expressions
+        if ch == '(' {
+            paren_depth += 1;
+        } else if ch == ')' && paren_depth > 0 {
+            paren_depth -= 1;
+        }
+
+        // Split on pipe only at top level
+        if ch == '|' && bracket_depth == 0 && paren_depth == 0 {
+            // Calculate byte offset for slice
+            let byte_start: usize = chars[..start].iter().map(|c| c.len_utf8()).sum();
+            let byte_end: usize = chars[..i].iter().map(|c| c.len_utf8()).sum();
+            parts.push(&s[byte_start..byte_end]);
+            start = i + 1;
+        }
+
+        i += 1;
+    }
+
+    // Check for unclosed constructs
+    if quote_open {
+        return Err(LexError::UnclosedQuote {
+            pos: SourcePos::new(1, start + 1),
+        });
+    }
+    if bracket_depth > 0 {
+        return Err(LexError::InvalidToken {
+            message: "unclosed tensor literal '[' in inline children".to_string(),
+            pos: SourcePos::new(1, start + 1),
+        });
+    }
+    if paren_depth > 0 {
+        return Err(LexError::InvalidToken {
+            message: "unclosed list literal '(' in inline children".to_string(),
+            pos: SourcePos::new(1, start + 1),
+        });
+    }
+
+    // Add the last part
+    let byte_start: usize = chars[..start].iter().map(|c| c.len_utf8()).sum();
+    parts.push(&s[byte_start..]);
+
+    Ok(parts)
 }
 
 #[cfg(test)]
@@ -462,12 +586,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_csv_carriage_return() {
-        // \r becomes carriage return
-        let fields = parse_csv_row(r#""windows\r\nline""#).unwrap();
-        assert_eq!(fields.len(), 1);
-        assert!(fields[0].value.contains('\r'));
-        assert!(fields[0].value.contains('\n'));
+    fn test_parse_csv_carriage_return_invalid() {
+        // \r is NOT a valid escape sequence (only \", \\, \n, \t are allowed)
+        let result = parse_csv_row(r#""windows\r\nline""#);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            LexError::InvalidEscape { .. }
+        ));
     }
 
     // ==================== Additional edge cases ====================
@@ -592,11 +718,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_csv_unknown_escape() {
-        // Unknown escape sequences are kept as-is (backslash preserved)
-        let fields = parse_csv_row(r#""\x""#).unwrap();
-        assert_eq!(fields.len(), 1);
-        assert!(fields[0].value.contains('\\'));
+    fn test_parse_csv_unknown_escape_error() {
+        // Unknown escape sequences return an error (only \", \\, \n, \t are allowed)
+        let result = parse_csv_row(r#""\x""#);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            LexError::InvalidEscape { .. }
+        ));
     }
 
     #[test]
@@ -717,12 +846,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_csv_all_escapes_together() {
-        let fields = parse_csv_row(r#""line1\nline2\ttab\r\nwindows\\path\"""#).unwrap();
+    fn test_parse_csv_all_valid_escapes_together() {
+        // Only \", \\, \n, \t are valid escapes
+        let fields = parse_csv_row(r#""line1\nline2\ttab\\path\"""#).unwrap();
         assert_eq!(fields.len(), 1);
         assert!(fields[0].value.contains('\n'));
         assert!(fields[0].value.contains('\t'));
-        assert!(fields[0].value.contains('\r'));
         assert!(fields[0].value.contains('\\'));
         assert!(fields[0].value.contains('"'));
     }

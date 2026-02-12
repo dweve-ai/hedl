@@ -1,0 +1,27 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates alias system for global constants
+# Aliases reduce redundancy and enable token substitution
+%A:%prod:"production"
+%A:%dev:"development"
+%A:%active:"true"
+%A:%inactive:"false"
+%A:%api_url:"https://api.dweve.ai"
+%S:Service:[id,name,environment,status,endpoint]
+---
+# Services using aliases
+services:@Service
+ |s1,core,%prod,%active,https://api.dweve.ai/core
+ |s2,loom,%prod,%active,https://api.dweve.ai/loom
+ |s3,nexus,%dev,%inactive,https://api.dweve.ai/nexus
+ |s4,mesh,%prod,%active,https://api.dweve.ai/mesh
+
+# Configuration using aliases
+config:
+ environment: %prod
+ api_endpoint: %api_url
+ features:
+  search: %active
+  analytics: %active
+  beta_features: %inactive

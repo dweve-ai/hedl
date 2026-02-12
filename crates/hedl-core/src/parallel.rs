@@ -501,27 +501,11 @@ fn parse_single_matrix_row_with_ditto(
     line_num: usize,
     prev_values: Option<&[Value]>,
 ) -> HedlResult<Node> {
-    // Skip | prefix and extract optional child count
+    // Skip | prefix
     let content = row_content.strip_prefix('|').unwrap_or(row_content);
 
-    // Parse child count prefix if present: [N] data
-    let (child_count, csv_content) = if content.starts_with('[') {
-        if let Some(bracket_end) = content.find(']') {
-            let count_str = &content[1..bracket_end];
-            if let Ok(count) = count_str.parse::<usize>() {
-                let data = content[bracket_end + 1..].trim_start();
-                (Some(count), data)
-            } else {
-                (None, content)
-            }
-        } else {
-            (None, content)
-        }
-    } else {
-        (None, content)
-    };
-
-    let csv_content = strip_comment(csv_content).trim();
+    // v2.0: No inline child counts - they're in child blocks
+    let csv_content = strip_comment(content).trim();
 
     // Parse CSV fields
     let fields =
@@ -539,7 +523,9 @@ fn parse_single_matrix_row_with_ditto(
     let mut values = Vec::with_capacity(fields.len());
     for (col_idx, field) in fields.iter().enumerate() {
         let ctx =
-            InferenceContext::for_matrix_cell(&header.aliases, col_idx, prev_values, type_name);
+            InferenceContext::for_matrix_cell(&header.aliases, col_idx, prev_values, type_name)
+                .with_version(header.version)
+                .with_null_char(header.null_char);
 
         let value = if field.is_quoted {
             infer_quoted_value(&field.value)
@@ -559,10 +545,7 @@ fn parse_single_matrix_row_with_ditto(
     };
 
     // Create node
-    let mut node = Node::new(type_name, &*id, values);
-    if let Some(count) = child_count {
-        node.set_child_count(count);
-    }
+    let node = Node::new(type_name, &*id, values);
 
     Ok(node)
 }
@@ -970,7 +953,7 @@ mod tests {
     #[test]
     fn test_entity_boundary_identification() {
         let lines: Vec<(usize, &str)> = vec![
-            (1, "users: @User"),
+            (1, "users:@User"),
             (2, "| alice"),
             (3, "| bob"),
             (4, "settings:"),
@@ -1031,14 +1014,15 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_single_matrix_row_with_child_count() {
-        let header = Header::new((1, 0));
+    fn test_parse_single_matrix_row_basic() {
+        let header = Header::new((2, 0));
         let schema = vec!["id".to_string(), "name".to_string()];
 
-        let node =
-            parse_single_matrix_row("|[3] alice, Alice", &schema, "User", &header, 1).unwrap();
+        let node = parse_single_matrix_row("|alice, Alice", &schema, "User", &header, 1).unwrap();
 
         assert_eq!(node.id, "alice");
-        assert_eq!(node.child_count, 3);
+        assert_eq!(node.type_name, "User");
+        // v2.0: child_count is set via child blocks, not inline
+        assert_eq!(node.child_count, 0);
     }
 }

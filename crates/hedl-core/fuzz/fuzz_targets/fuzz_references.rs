@@ -35,9 +35,9 @@
 //! # Reference Graph Patterns Tested
 //!
 //! 1. **Simple References**: Single @id pointing to existing node
-//! 2. **Qualified References**: @Type:id with explicit type
-//! 3. **Ambiguous References**: @id matching multiple types
-//! 4. **Missing References**: @id with no matching node
+//! 2. **Qualified References**:@Type:id with explicit type
+//! 3. **Ambiguous References**:@id matching multiple types
+//! 4. **Missing References**:@id with no matching node
 //! 5. **Self-References**: Node referencing itself
 //! 6. **Circular Graphs**: A->B->C->A cycles
 //! 7. **Complex Graphs**: Multiple interconnected reference chains

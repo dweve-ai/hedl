@@ -19,7 +19,7 @@ use hedl_parquet::{
 
 #[test]
 fn test_infer_bool_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Flag", vec!["id".to_string(), "active".to_string()]);
 
     list.add_row(Node::new(
@@ -49,7 +49,7 @@ fn test_infer_bool_column() {
 
 #[test]
 fn test_infer_int_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Counter", vec!["id".to_string(), "count".to_string()]);
 
     list.add_row(Node::new(
@@ -85,7 +85,7 @@ fn test_infer_int_column() {
 
 #[test]
 fn test_infer_float_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Metric", vec!["id".to_string(), "value".to_string()]);
 
     list.add_row(Node::new(
@@ -134,7 +134,7 @@ fn test_infer_float_column() {
 
 #[test]
 fn test_infer_string_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Text", vec!["id".to_string(), "content".to_string()]);
 
     list.add_row(Node::new(
@@ -179,7 +179,7 @@ fn test_infer_string_column() {
 
 #[test]
 fn test_reference_serialization() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Post", vec!["id".to_string(), "author".to_string()]);
 
     list.add_row(Node::new(
@@ -231,7 +231,7 @@ fn test_reference_serialization() {
 fn test_tensor_serialization() {
     use hedl_core::lex::Tensor as LexTensor;
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "matrix".to_string()]);
 
     // Create a 2D tensor using Array of Arrays
@@ -270,7 +270,7 @@ fn test_tensor_serialization() {
 
 #[test]
 fn test_mixed_types_with_nulls() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Mixed",
         vec!["id".to_string(), "value".to_string(), "flag".to_string()],
@@ -321,7 +321,7 @@ fn test_mixed_types_with_nulls() {
 
 #[test]
 fn test_all_nulls_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("NullTest", vec!["id".to_string(), "null_col".to_string()]);
 
     for i in 0..10 {
@@ -353,7 +353,7 @@ fn test_all_nulls_column() {
 
 #[test]
 fn test_type_coercion_disabled_by_default() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row establishes Int type
@@ -391,7 +391,7 @@ fn test_type_coercion_disabled_by_default() {
 
 #[test]
 fn test_type_coercion_enabled() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "number".to_string()]);
 
     // First row establishes Int type
@@ -433,7 +433,7 @@ fn test_type_coercion_enabled() {
 
 #[test]
 fn test_wide_schema_50_columns() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create schema with 50 columns
     let mut schema = vec!["id".to_string()];
@@ -469,7 +469,7 @@ fn test_wide_schema_50_columns() {
 
 #[test]
 fn test_narrow_schema_single_column() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Narrow", vec!["id".to_string()]);
 
     list.add_row(Node::new(
@@ -497,7 +497,7 @@ fn test_narrow_schema_single_column() {
 
 #[test]
 fn test_column_name_with_special_chars() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Column names with special characters should be sanitized
     let mut list = MatrixList::new(
@@ -542,7 +542,7 @@ fn test_column_name_with_special_chars() {
 fn test_expression_serialization() {
     use hedl_core::lex::{Expression as LexExpression, SourcePos, Span};
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Expr", vec!["id".to_string(), "formula".to_string()]);
 
     // Create a simple expression
@@ -581,7 +581,7 @@ fn test_expression_serialization() {
 
 #[test]
 fn test_multiple_lists_warning() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list1 = MatrixList::new("Type1", vec!["id".to_string()]);
     list1.add_row(Node::new(

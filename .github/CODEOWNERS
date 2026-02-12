@@ -1,0 +1,17 @@
+# Default owners for everything
+* @dweve-ai/hedl-maintainers
+
+# Core parser - requires careful review
+/crates/hedl-core/ @dweve-ai/hedl-core
+
+# Security-sensitive areas
+/crates/hedl-ffi/ @dweve-ai/hedl-security
+/crates/hedl-mcp/src/auth/ @dweve-ai/hedl-security
+SECURITY.md @dweve-ai/hedl-security
+
+# Documentation
+*.md @dweve-ai/hedl-docs
+/docs/ @dweve-ai/hedl-docs
+
+# CI/CD
+/.github/ @dweve-ai/hedl-maintainers

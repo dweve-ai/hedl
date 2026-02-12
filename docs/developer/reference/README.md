@@ -38,12 +38,12 @@ Technical specifications and reference material for HEDL.
 
 ## Quick Links
 
-| Reference | Purpose |
+| Reference |Purpose |
 |-----------|---------|
-| [Module API](module-api.md) | Function and type reference |
-| [Build System](build-system.md) | Cargo configuration |
-| [Dependencies](dependencies.md) | Dependency information |
-| [Testing Framework](testing-framework.md) | Test infrastructure |
+| [Module API](module-api.md) |Function and type reference |
+| [Build System](build-system.md) |Cargo configuration |
+| [Dependencies](dependencies.md) |Dependency information |
+| [Testing Framework](testing-framework.md) |Test infrastructure |
 
 ## Related
 

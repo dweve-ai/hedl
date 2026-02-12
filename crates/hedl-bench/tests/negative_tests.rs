@@ -15,9 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Allow using deprecated legacy module items for testing backward compatibility
-#![allow(deprecated)]
-
 //! Negative tests for hedl-bench error handling and robustness.
 //!
 //! Tests error paths for:
@@ -33,9 +30,9 @@
 //! 2. Error messages are clear and actionable
 //! 3. Error types are correct and specific
 
+use hedl_bench::accuracy::normalize::{compare, normalize};
+use hedl_bench::accuracy::questions::AnswerType;
 use hedl_bench::error::{validate_dataset_size, BenchError, MAX_DATASET_SIZE};
-use hedl_bench::legacy::normalize::{compare, normalize};
-use hedl_bench::legacy::questions::AnswerType;
 use hedl_bench::token_counter::{compare_batch, compare_formats_str};
 use hedl_bench::{compare_formats, count_tokens, generate_users, generate_users_safe};
 
@@ -63,12 +60,14 @@ fn test_invalid_hedl_syntax_returns_error() {
 
 #[test]
 fn test_malformed_hedl_key_value() {
-    let malformed = r"%VERSION: 1.0
+    let malformed = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 key without colon value
 another: valid
 broken again no colon
-";
+"#;
     let result = hedl_core::parse(malformed.as_bytes());
     assert!(
         result.is_err(),
@@ -78,7 +77,7 @@ broken again no colon
 
 #[test]
 fn test_invalid_version_header() {
-    let invalid_version = r"%VERSION: 999.999
+    let invalid_version = r"%V:999.999
 ---
 data: value
 ";
@@ -90,7 +89,7 @@ data: value
 
 #[test]
 fn test_incomplete_hedl_document() {
-    let incomplete = "%VERSION: 1.0";
+    let incomplete = "%V:2.0";
     // Missing separator and content
     let result = hedl_core::parse(incomplete.as_bytes());
     // Should handle gracefully (empty doc or error, but no panic)
@@ -102,48 +101,57 @@ fn test_incomplete_hedl_document() {
 
 #[test]
 fn test_invalid_struct_declaration() {
-    let invalid_struct = r"%VERSION: 1.0
-%STRUCT: User (not_a_number): [id,name]
+    let invalid_struct = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name]
+%C:User.total=not_a_number
 ---
-users: @User
-  | u1, Alice
-";
+users:@User
+  |u1, Alice
+"#;
     let result = hedl_core::parse(invalid_struct.as_bytes());
-    // Should handle malformed struct count gracefully
+    // Should handle malformed count directive gracefully
     assert!(
         result.is_ok() || result.is_err(),
-        "Parser should handle malformed STRUCT declaration"
+        "Parser should handle malformed COUNT declaration"
     );
 }
 
 #[test]
 fn test_invalid_nest_declaration() {
-    let invalid_nest = r"%VERSION: 1.0
-%NEST: Parent >>> Child
+    let invalid_nest = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%N:Parent>>>Child
 ---
-parent: @Parent
-";
+parent:@Parent
+"#;
     let _result = hedl_core::parse(invalid_nest.as_bytes());
     // Invalid NEST syntax should be handled gracefully
 }
 
 #[test]
 fn test_circular_references() {
-    let circular = r"%VERSION: 1.0
+    let circular = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 a: @b
 b: @a
-";
+"#;
     let _result = hedl_core::parse(circular.as_bytes());
     // Circular references should be detected or handled gracefully
 }
 
 #[test]
 fn test_unresolved_reference() {
-    let unresolved = r"%VERSION: 1.0
+    let unresolved = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 user: @NonExistentType:xyz
-";
+"#;
     let result = hedl_core::parse(unresolved.as_bytes());
     // Unresolved references should produce clear error in strict mode
     if let Err(e) = result {
@@ -236,7 +244,7 @@ fn test_generate_users_safe_boundary_sizes() {
         if size > 0 {
             let hedl = result.unwrap();
             assert!(
-                hedl.contains("%STRUCT: User"),
+                hedl.contains("%S:User"),
                 "Generated dataset should have STRUCT declaration"
             );
         }
@@ -534,8 +542,8 @@ fn test_normalize_empty_strings() {
     let empty_cases = vec![
         ("", &AnswerType::String),
         ("   ", &AnswerType::String),
-        ("", &AnswerType::CsvListOrdered),
-        ("", &AnswerType::CsvListUnordered),
+        ("", &AnswerType::ListOrdered),
+        ("", &AnswerType::ListUnordered),
     ];
 
     for (input, answer_type) in empty_cases {
@@ -623,7 +631,7 @@ fn test_count_tokens_very_long_string() {
 #[test]
 fn test_compare_formats_with_invalid_document() {
     // Create a minimal valid document
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = hedl_core::parse(hedl.as_bytes()).unwrap();
 
     // Should handle document with no data gracefully
@@ -684,20 +692,20 @@ fn test_dataset_size_validation_boundary() {
 #[test]
 fn test_normalize_csv_list_edge_cases() {
     // Empty list
-    let result = normalize("", &AnswerType::CsvListOrdered);
+    let result = normalize("", &AnswerType::ListOrdered);
     assert!(result.is_ok(), "Should handle empty CSV list");
 
     // Single item
-    let result = normalize("item", &AnswerType::CsvListOrdered);
+    let result = normalize("item", &AnswerType::ListOrdered);
     assert!(result.is_ok(), "Should handle single-item list");
     assert_eq!(result.unwrap(), "item");
 
     // Whitespace variations
-    let result = normalize(" a , b , c ", &AnswerType::CsvListUnordered);
+    let result = normalize(" a , b , c ", &AnswerType::ListUnordered);
     assert!(result.is_ok(), "Should handle whitespace in CSV");
 
     // Empty items (consecutive commas)
-    let result = normalize("a,,b", &AnswerType::CsvListOrdered);
+    let result = normalize("a,,b", &AnswerType::ListOrdered);
     assert!(result.is_ok(), "Should handle empty items");
 }
 

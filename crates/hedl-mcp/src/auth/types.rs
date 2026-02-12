@@ -95,9 +95,8 @@ impl SecretString {
     }
 
     /// Create from a string slice.
-    #[allow(clippy::should_implement_trait)]
     #[must_use]
-    pub fn from_str(value: &str) -> Self {
+    pub fn from_string_slice(value: &str) -> Self {
         Self::new(value.to_string())
     }
 }
@@ -132,9 +131,8 @@ impl SessionId {
     }
 
     /// Create from a string.
-    #[allow(clippy::should_implement_trait)]
     #[must_use]
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_string_slice(s: &str) -> Self {
         Self(s.to_string())
     }
 
@@ -172,19 +170,6 @@ pub enum AuthenticationScheme {
 }
 
 impl AuthenticationScheme {
-    /// Parse from string.
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self, AuthError> {
-        match s.to_lowercase().as_str() {
-            "none" | "disabled" => Ok(Self::None),
-            "api_key" | "apikey" => Ok(Self::ApiKey),
-            "jwt" => Ok(Self::Jwt),
-            "oauth2" | "oauth" => Ok(Self::OAuth2),
-            "mtls" | "tls" => Ok(Self::Mtls),
-            _ => Err(AuthError::UnsupportedScheme(s.to_string())),
-        }
-    }
-
     /// Convert to string.
     #[must_use]
     pub fn as_str(&self) -> &str {
@@ -198,6 +183,21 @@ impl AuthenticationScheme {
     }
 }
 
+impl std::str::FromStr for AuthenticationScheme {
+    type Err = AuthError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "none" | "disabled" => Ok(Self::None),
+            "api_key" | "apikey" => Ok(Self::ApiKey),
+            "jwt" => Ok(Self::Jwt),
+            "oauth2" | "oauth" => Ok(Self::OAuth2),
+            "mtls" | "tls" => Ok(Self::Mtls),
+            _ => Err(AuthError::UnsupportedScheme(s.to_string())),
+        }
+    }
+}
+
 impl fmt::Display for AuthenticationScheme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
@@ -207,6 +207,7 @@ impl fmt::Display for AuthenticationScheme {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_secret_string_debug() {
@@ -230,8 +231,8 @@ mod tests {
     }
 
     #[test]
-    fn test_session_id_from_str() {
-        let id = SessionId::from_str("test-session");
+    fn test_session_id_from_string_slice() {
+        let id = SessionId::from_string_slice("test-session");
         assert_eq!(id.as_str(), "test-session");
     }
 

@@ -1,0 +1,21 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates reference system for graph relationships
+# References use @ prefix to link to node IDs
+%S:User:[id,name,manager]
+%S:Task:[id,title,assignee]
+---
+# Users with manager references
+users:@User
+ |u1,Alice,~
+ |u2,Bob,@u1
+ |u3,Charlie,@u1
+ |u4,David,@u2
+
+# Tasks with user references
+tasks:@Task
+ |t1,"Implement feature A",@u2
+ |t2,"Review PR #123",@u3
+ |t3,"Deploy to prod",@u1
+ |t4,"Write docs",@u4

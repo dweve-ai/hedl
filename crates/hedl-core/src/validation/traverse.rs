@@ -98,17 +98,6 @@ impl<'a> ValueVisitContext<'a> {
             depth: 0,
         }
     }
-
-    /// Create context for an object value.
-    #[allow(dead_code)]
-    fn from_object(key: &'a str, depth: usize) -> Self {
-        Self {
-            type_name: "",
-            node_id: key,
-            field_index: None,
-            depth,
-        }
-    }
 }
 
 /// Visit all nodes in a document recursively.
@@ -248,9 +237,9 @@ mod tests {
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
+users:@User
+ | alice, Alice
+ | bob, Bob
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -272,12 +261,12 @@ users: @User
 %STRUCT: Post: [id]
 %NEST: User > Post
 ---
-users: @User
-  | alice
-    | post1
-    | post2
-  | bob
-    | post3
+users:@User
+ | alice
+  | post1
+  | post2
+ | bob
+  | post3
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -306,12 +295,12 @@ users: @User
 %NEST: B > C
 %NEST: C > D
 ---
-items: @A
-  | a1
-    | b1
-      | c1
-        | d1
-        | d2
+items:@A
+ | a1
+  | b1
+   | c1
+    | d1
+    | d2
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -334,9 +323,9 @@ items: @A
 %VERSION: 1.0
 %STRUCT: User: [id, score]
 ---
-users: @User
-  | alice, 100
-  | bob, 200
+users:@User
+ | alice, 100
+ | bob, 200
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -360,12 +349,12 @@ users: @User
 %STRUCT: Post: [id, likes]
 %NEST: User > Post
 ---
-users: @User
-  | alice
-    | post1, 10
-    | post2, 20
-  | bob
-    | post3, 30
+users:@User
+ | alice
+  | post1, 10
+  | post2, 20
+ | bob
+  | post3, 30
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -387,10 +376,10 @@ users: @User
 %STRUCT: Post: [id, author]
 %NEST: User > Post
 ---
-users: @User
-  | alice
-    | post1, @User:alice
-    | post2, @User:alice
+users:@User
+ | alice
+  | post1, @User:alice
+  | post2, @User:alice
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -415,12 +404,12 @@ users: @User
 %NEST: B > C
 %NEST: C > D
 ---
-items: @A
-  | a1
-    | b1
-      | c1
-        | d1, @A:a1
-        | d2, @B:b1
+items:@A
+ | a1
+  | b1
+   | c1
+    | d1, @A:a1
+    | d2, @B:b1
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -444,10 +433,10 @@ items: @A
 %NEST: A > B
 %NEST: B > C
 ---
-items: @A
-  | a1
-    | b1
-      | c1
+items:@A
+ | a1
+  | b1
+   | c1
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 
@@ -468,8 +457,8 @@ items: @A
 %VERSION: 1.0
 ---
 config:
-  nested:
-    value: 42
+ nested:
+  value: 42
 "#;
         let doc = parse(hedl.as_bytes()).unwrap();
 

@@ -24,7 +24,7 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_nested_matrix_list() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Team".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -84,7 +84,7 @@ fn test_nested_matrix_list() {
 
 #[test]
 fn test_nested_matrix_list_with_children() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Team".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -143,8 +143,8 @@ fn test_nested_matrix_list_round_trip() {
     let input = r"%VERSION: 1.0
 %STRUCT: Team: [id, name]
 ---
-teams: @Team
-  | t1, Engineering
+teams:@Team
+ | t1, Engineering
 ";
 
     let doc = parse(input.as_bytes()).unwrap();
@@ -165,7 +165,7 @@ teams: @Team
 #[test]
 fn test_max_nesting_depth_error() {
     // Create deeply nested structure exceeding MAX_NESTING_DEPTH (1000)
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut inner = BTreeMap::new();
     inner.insert("leaf".to_string(), Item::Scalar(Value::Int(1001)));
@@ -192,7 +192,7 @@ fn test_max_nesting_depth_error() {
 #[test]
 fn test_acceptable_nesting_depth_succeeds() {
     // Create structure with 100 levels (well below 1000 limit)
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut inner = BTreeMap::new();
     inner.insert("leaf".to_string(), Item::Scalar(Value::Int(100)));
@@ -218,7 +218,7 @@ fn test_acceptable_nesting_depth_succeeds() {
 
 #[test]
 fn test_string_with_leading_tilde() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("~tilde".to_string().into())),
@@ -231,7 +231,7 @@ fn test_string_with_leading_tilde() {
 
 #[test]
 fn test_string_with_leading_dollar() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("$variable".to_string().into())),
@@ -244,7 +244,7 @@ fn test_string_with_leading_dollar() {
 
 #[test]
 fn test_string_with_leading_percent() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("%directive".to_string().into())),
@@ -257,7 +257,7 @@ fn test_string_with_leading_percent() {
 
 #[test]
 fn test_string_with_leading_bracket() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("[array".to_string().into())),
@@ -270,7 +270,7 @@ fn test_string_with_leading_bracket() {
 
 #[test]
 fn test_string_false_needs_quotes() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("false".to_string().into())),
@@ -282,7 +282,7 @@ fn test_string_false_needs_quotes() {
 
 #[test]
 fn test_string_true_needs_quotes() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("true".to_string().into())),
@@ -294,7 +294,7 @@ fn test_string_true_needs_quotes() {
 
 #[test]
 fn test_float_string_needs_quotes() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("3.5".to_string().into())),
@@ -306,7 +306,7 @@ fn test_float_string_needs_quotes() {
 
 #[test]
 fn test_scientific_notation_string_needs_quotes() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "value".to_string(),
         Item::Scalar(Value::String("1e10".to_string().into())),
@@ -322,7 +322,7 @@ fn test_scientific_notation_string_needs_quotes() {
 
 #[test]
 fn test_cell_with_comma_quoted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -343,7 +343,7 @@ fn test_cell_with_comma_quoted() {
 
 #[test]
 fn test_cell_with_pipe_quoted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -364,7 +364,7 @@ fn test_cell_with_pipe_quoted() {
 
 #[test]
 fn test_cell_with_hash_quoted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -385,7 +385,7 @@ fn test_cell_with_hash_quoted() {
 
 #[test]
 fn test_cell_with_leading_caret_quoted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string(), "text".to_string()]);
     list.add_row(Node::new(
         "Item",
@@ -410,7 +410,7 @@ fn test_cell_with_leading_caret_quoted() {
 
 #[test]
 fn test_float_infinity_formatted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "pos_inf".to_string(),
         Item::Scalar(Value::Float(f64::INFINITY)),
@@ -427,7 +427,7 @@ fn test_float_infinity_formatted() {
 
 #[test]
 fn test_float_nan_formatted() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("nan".to_string(), Item::Scalar(Value::Float(f64::NAN)));
 
@@ -437,7 +437,7 @@ fn test_float_nan_formatted() {
 
 #[test]
 fn test_float_negative_zero() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root
         .insert("neg_zero".to_string(), Item::Scalar(Value::Float(-0.0)));
 
@@ -452,7 +452,7 @@ fn test_float_negative_zero() {
 
 #[test]
 fn test_empty_matrix_list() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "Empty".to_string(),
         vec!["id".to_string(), "value".to_string()],
@@ -464,25 +464,28 @@ fn test_empty_matrix_list() {
     let output = canonicalize(&doc).unwrap();
 
     // Should have the list declaration but no rows
-    assert!(output.contains("items: @Empty"));
+    assert!(output.contains("items:@Empty"));
     // Should not have any | row markers
     assert!(!output.contains('|'));
 }
 
 #[test]
 fn test_document_with_only_aliases() {
-    let mut doc = Document::new((1, 0));
+    // Compact %A: format
+    let mut doc = Document::new((2, 0));
     doc.aliases.insert("foo".to_string(), "bar".to_string());
 
     let output = canonicalize(&doc).unwrap();
 
-    assert!(output.contains("%ALIAS: %foo: \"bar\""));
+    // Format: %A:%name:"value"
+    assert!(output.contains("%A:%foo:"));
     assert!(output.contains("---"));
 }
 
 #[test]
 fn test_document_with_only_structs() {
-    let mut doc = Document::new((1, 0));
+    // Compact %S: format
+    let mut doc = Document::new((2, 0));
     doc.structs.insert(
         "User".to_string(),
         vec!["id".to_string(), "name".to_string()],
@@ -491,7 +494,7 @@ fn test_document_with_only_structs() {
     let config = CanonicalConfig::new().with_inline_schemas(false);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    assert!(output.contains("%STRUCT: User: [id,name]"));
+    assert!(output.contains("%S:User:[id,name]"));
     assert!(output.contains("---"));
 }
 
@@ -501,7 +504,7 @@ fn test_document_with_only_structs() {
 
 #[test]
 fn test_nested_object_indentation() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut level2 = BTreeMap::new();
     level2.insert(
         "value".to_string(),
@@ -515,15 +518,15 @@ fn test_nested_object_indentation() {
 
     let output = canonicalize(&doc).unwrap();
 
-    // Check indentation levels (2 spaces per level)
+    // Check indentation levels (1 space per level)
     assert!(output.contains("level1:\n"));
-    assert!(output.contains("  level2:\n"));
-    assert!(output.contains("    value: deep"));
+    assert!(output.contains(" level2:\n"));
+    assert!(output.contains("  value: deep"));
 }
 
 #[test]
 fn test_matrix_row_indentation() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Item", vec!["id".to_string()]);
     list.add_row(Node::new("Item", "i1", vec![Value::String("i1".into())]));
 
@@ -532,6 +535,6 @@ fn test_matrix_row_indentation() {
     let config = CanonicalConfig::new().with_inline_schemas(true);
     let output = canonicalize_with_config(&doc, &config).unwrap();
 
-    // Matrix rows should be indented by 2 spaces
-    assert!(output.contains("  |i1"));
+    // Matrix rows should be indented by 1 space
+    assert!(output.contains(" |i1"));
 }

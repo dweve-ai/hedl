@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_add_count_hints_document() {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
 
         let mut list1 = MatrixList::new("Team", vec!["id".to_string()]);
         list1.add_row(Node::new("Team", "t1", vec![]));

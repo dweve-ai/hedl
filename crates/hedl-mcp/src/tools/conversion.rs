@@ -19,8 +19,8 @@
 
 use crate::error::{McpError, McpResult};
 use crate::protocol::{CallToolResult, Content};
-use crate::tools::helpers::{parse_args, validate_input_size};
-use crate::tools::json_utils::count_entities;
+use crate::tools::argument_parsing::{parse_args, validate_input_size};
+use crate::tools::json_serialization::count_entities;
 use crate::tools::types::{ConvertFromArgs, ConvertToArgs, MAX_INPUT_SIZE};
 use hedl_core::parse;
 use hedl_json::{from_json_value, to_json_value, FromJsonConfig, ToJsonConfig};
@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn test_hedl_convert_to_json_basic() {
         let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice Smith\n";
         let args = json!({ "hedl": hedl, "format": "json" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -285,8 +285,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_json_compact() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "json", "options": { "pretty": false } });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -304,8 +303,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_yaml() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "yaml" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -320,8 +318,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_csv() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "csv" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -336,8 +333,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_cypher() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "cypher" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -352,8 +348,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_parquet() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "parquet" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -388,8 +383,7 @@ mod tests {
 
     #[test]
     fn test_convert_to_csv_no_headers() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args =
             json!({ "hedl": hedl, "format": "csv", "options": { "include_headers": false } });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
@@ -447,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_convert_parquet_round_trip() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: Data: [id, value]\n---\ndata: @Data\n  | row1, 42\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: Data: [id, value]\n---\ndata:@Data\n | row1, 42\n";
 
         // Convert to parquet
         let args = json!({ "hedl": hedl, "format": "parquet" });
@@ -486,8 +480,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_toon() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "toon" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -519,7 +512,7 @@ mod tests {
     #[test]
     fn test_hedl_convert_to_xml() {
         let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice Smith\n";
         let args = json!({ "hedl": hedl, "format": "xml" });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 
@@ -536,8 +529,7 @@ mod tests {
 
     #[test]
     fn test_hedl_convert_to_xml_compact() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "format": "xml", "options": { "pretty": false } });
         let result = execute_hedl_convert_to(Some(args)).unwrap();
 

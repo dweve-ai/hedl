@@ -168,7 +168,7 @@ fn contains_quote_outside_expressions(s: &str) -> bool {
 /// - Tensor literals `[...]` where commas don't delimit
 /// - Whitespace trimming for unquoted fields
 /// - Full UTF-8 support for multi-byte characters
-/// - Escape sequences: `\n`, `\t`, `\r`, `\\`, `\"`
+/// - Escape sequences: `\n`, `\t`, `\\`, `\"` (only these are valid)
 ///
 /// # Examples
 ///
@@ -221,6 +221,7 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
     let mut state = State::StartField;
     let mut expression_depth: usize = 0;
     let mut bracket_depth: usize = 0;
+    let mut paren_depth: usize = 0;
     let mut in_expression_quotes = false;
 
     let mut chars = csv_string.chars().peekable();
@@ -245,6 +246,10 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
                     bracket_depth = 1;
                     current_field.push(ch);
                     state = State::InUnquotedField;
+                } else if ch == '(' {
+                    paren_depth = 1;
+                    current_field.push(ch);
+                    state = State::InUnquotedField;
                 } else {
                     state = State::InUnquotedField;
                     current_field.push(ch);
@@ -258,10 +263,17 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
                 } else if ch == ']' {
                     bracket_depth = bracket_depth.saturating_sub(1);
                     current_field.push(ch);
-                } else if ch == ',' && bracket_depth == 0 {
+                } else if ch == '(' {
+                    paren_depth += 1;
+                    current_field.push(ch);
+                } else if ch == ')' {
+                    paren_depth = paren_depth.saturating_sub(1);
+                    current_field.push(ch);
+                } else if ch == ',' && bracket_depth == 0 && paren_depth == 0 {
                     let value = finalize_unquoted_field(std::mem::take(&mut current_field))?;
                     fields.push(CsvField::from_owned(value, false));
                     bracket_depth = 0;
+                    paren_depth = 0;
                     state = State::StartField;
                 } else {
                     current_field.push(ch);
@@ -287,10 +299,6 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
                                 chars.next();
                                 current_field.push('\t');
                             }
-                            'r' => {
-                                chars.next();
-                                current_field.push('\r');
-                            }
                             '\\' => {
                                 chars.next();
                                 current_field.push('\\');
@@ -300,7 +308,11 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError> {
                                 current_field.push('"');
                             }
                             _ => {
-                                current_field.push(ch);
+                                // Only \", \\, \n, \t are valid escapes
+                                return Err(LexError::InvalidEscape {
+                                    sequence: format!("\\{}", next_ch),
+                                    pos: crate::lex::error::SourcePos::default(),
+                                });
                             }
                         }
                     } else {
@@ -556,6 +568,36 @@ mod tests {
         assert_eq!(fields[0].value, "hello");
         assert_eq!(fields[1].value, "wörld");
         assert_eq!(fields[2].value, "日本語");
+    }
+
+    // ==================== List literal tests ====================
+
+    #[test]
+    fn test_list_literal() {
+        let fields = parse_csv_row("id, (admin, editor), value").unwrap();
+        assert_eq!(fields.len(), 3);
+        assert_eq!(fields[1].value, "(admin, editor)");
+    }
+
+    #[test]
+    fn test_list_literal_with_references() {
+        let fields = parse_csv_row("id, (@user1, @user2), value").unwrap();
+        assert_eq!(fields.len(), 3);
+        assert_eq!(fields[1].value, "(@user1, @user2)");
+    }
+
+    #[test]
+    fn test_empty_list() {
+        let fields = parse_csv_row("id, (), value").unwrap();
+        assert_eq!(fields.len(), 3);
+        assert_eq!(fields[1].value, "()");
+    }
+
+    #[test]
+    fn test_nested_parens() {
+        let fields = parse_csv_row("id, (a, (b, c)), value").unwrap();
+        assert_eq!(fields.len(), 3);
+        assert_eq!(fields[1].value, "(a, (b, c))");
     }
 
     // ==================== CsvField tests ====================

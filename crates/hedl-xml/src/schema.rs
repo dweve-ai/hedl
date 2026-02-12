@@ -344,8 +344,6 @@ impl std::error::Error for ValidationError {}
 #[derive(Debug, Clone)]
 struct Schema {
     elements: HashMap<String, ElementDef>,
-    #[allow(dead_code)]
-    target_namespace: Option<String>,
 }
 
 /// Element definition in XSD schema
@@ -433,7 +431,6 @@ impl SchemaValidator {
             });
         }
 
-        let target_namespace = root.attribute("targetNamespace").map(|s| s.to_string());
         let mut elements = HashMap::new();
 
         // Parse top-level elements
@@ -444,10 +441,7 @@ impl SchemaValidator {
             }
         }
 
-        Ok(Schema {
-            elements,
-            target_namespace,
-        })
+        Ok(Schema { elements })
     }
 
     /// Parse an element definition

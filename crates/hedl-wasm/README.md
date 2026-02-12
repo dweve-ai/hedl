@@ -1,37 +1,18 @@
 # hedl-wasm
 
-**WebAssembly bindings for HEDL—run HEDL parsing, validation, and conversion directly in browsers and Node.js with near-native performance.**
+**Parse, validate, and convert HEDL documents directly in browsers and Node.js with near-native performance.**
 
-JavaScript environments need structured data formats that don't sacrifice type safety or performance. JSON is ubiquitous but loses semantic information. YAML parsers are heavy. XML processing is complex. Running HEDL parsing in the browser or Node.js shouldn't require shipping a JavaScript reimplementation with different bugs and performance characteristics.
+Every web developer has faced the same frustration: JSON is everywhere but loses type information, YAML parsers are heavy, and XML processing adds complexity. What if you could parse structured data at near-native speed, validate it with full schema checking, and convert between formats instantly, all without leaving JavaScript?
 
-`hedl-wasm` provides complete WebAssembly bindings to the production-grade Rust HEDL implementation. Parse multi-megabyte HEDL documents at near-native speed in the browser. Validate data structures with full schema checking. Convert between HEDL and JSON/YAML/XML/CSV bidirectionally. Access the complete HEDL ecosystem from JavaScript with zero compromises on correctness or performance.
-
-## What's Implemented
-
-Production-ready WASM bindings with comprehensive features:
-
-1. **30+ Exported Functions**: Parse, validate, format, convert (JSON/YAML/XML/CSV/TOON), and analyze HEDL documents (19 module functions + 14 HedlDocument methods/properties)
-2. **Memory Safety**: 500 MB default input limit, configurable via `setMaxInputSize()`
-3. **Dual Environment Support**: Browser (ES modules) and Node.js (CommonJS/ES modules)
-4. **Document Analysis**: Entity counting, querying, and token statistics
-5. **TypeScript Definitions**: Full type safety with exported types
-6. **Token Estimation**: O(1) memory algorithm for LLM context window planning (3x faster than character-based)
-7. **Size Optimization**: wasm-opt with -Os flag, tree-shaking support, ~200 KB gzipped bundle
-8. **Error Handling**: Structured error objects with line numbers, error types, and messages
-9. **Format Conversion**: Bidirectional JSON, YAML, XML, CSV, TOON conversion functions
-10. **Bundle Variants**: ESM (hedl_wasm.js), Node.js (hedl_wasm_node.js), TypeScript definitions
+That's what `hedl-wasm` delivers. The complete Rust HEDL implementation, compiled to WebAssembly, running in your browser or Node.js environment. Parse multi-megabyte documents at 50-100 MB/s. Validate data structures client-side before they ever hit your server. Convert seamlessly between HEDL, JSON, YAML, XML, and CSV with zero compromises on correctness.
 
 ## Installation
 
-### npm/yarn/pnpm
-
 ```bash
 npm install hedl-wasm
-# or
-yarn add hedl-wasm
-# or
-pnpm add hedl-wasm
 ```
+
+## Quick Start
 
 ### Browser (ESM)
 
@@ -39,19 +20,19 @@ pnpm add hedl-wasm
 <script type="module">
   import init, { parse, validate, toJson } from './hedl_wasm.js';
 
-  await init(); // Initialize WASM module
+  await init();
 
   const doc = parse(`
-%VERSION: 1.0
-%STRUCT: User: [id, name, age]
+%V:2.0
+%S:User:[id, name, age]
 ---
 users: @User
-  | alice, Alice Smith, 30
-  | bob, Bob Jones, 25
+ | alice, Alice Smith, 30
+ | bob, Bob Jones, 25
   `);
 
   console.log('Parsed:', doc);
-  console.log('JSON:', doc.toJson()); // Requires "json" feature
+  console.log('JSON:', doc.toJson());
 </script>
 ```
 
@@ -61,7 +42,7 @@ users: @User
 const hedl = require('hedl-wasm');
 
 const doc = hedl.parse(`
-%VERSION: 1.0
+%V:2.0
 ---
 config:
   name: MyApp
@@ -78,7 +59,7 @@ import init, { parse, validate } from 'hedl-wasm';
 
 await init();
 
-const result = validate(hedlContent); // run_lint defaults to true
+const result = validate(hedlContent);
 
 if (result.valid) {
   console.log('Valid HEDL document');
@@ -91,32 +72,29 @@ if (result.valid) {
 
 ## Core API
 
-### Parsing and Validation
+### parse(input: string): HedlDocument
 
-#### parse(input: string): HedlDocument
-
-Parse HEDL content into a structured document:
+Parse HEDL content into a structured document.
 
 ```javascript
 import { parse } from 'hedl-wasm';
 
 const doc = parse(`
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+%V:2.0
+%S:User:[id, name, email]
 ---
 users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
 `);
 
-// Access document properties
 console.log('Version:', doc.version);
 console.log('Schemas:', doc.getSchemaNames());
 console.log('Aliases:', doc.getAliases());
 ```
 
-**Returns**: `HedlDocument` object with properties and methods:
-- `version: string` - HEDL version (e.g., "1.0")
+**Returns**: `HedlDocument` with these properties:
+- `version: string` - HEDL version (e.g., "2.0")
 - `schemaCount: number` - Number of schema definitions
 - `aliasCount: number` - Number of aliases
 - `nestCount: number` - Number of nest relationships
@@ -127,23 +105,22 @@ console.log('Aliases:', doc.getAliases());
 - `getSchema(typeName: string): string[] | null` - Get schema columns for a type
 - `getAliases(): object` - Get all aliases as a JSON object
 - `getNests(): object` - Get all nest relationships
-- `countEntities(): object` - Count entities by type (returns map of type names to counts)
+- `countEntities(): object` - Count entities by type
 - `query(typeName?: string, id?: string): Array<{ type: string, id: string, fields: object }>` - Query entities (requires "query-api" feature)
 - `toJson(): JsonValue` - Convert to JSON object (requires "json" feature)
 - `toJsonString(pretty?: boolean): string` - Convert to JSON string (requires "json" feature)
-- `toHedl(useDitto?: boolean): string` - Convert to canonical HEDL string
+- `toHedl(): string` - Convert to canonical HEDL string
 
-**Throws**: `JsError` on parse failure with:
-- `message: string` - Error description with line number
+**Throws**: `JsError` on parse failure with line number information in the message.
 
-#### validate(input: string, runLint?: boolean): ValidationResult
+### validate(input: string, runLint?: boolean): ValidationResult
 
-Validate HEDL document and return diagnostics:
+Validate HEDL documents and return detailed diagnostics.
 
 ```javascript
 import { validate } from 'hedl-wasm';
 
-const result = validate(hedlContent, true); // true to run lint checks
+const result = validate(hedlContent, true);
 
 if (!result.valid) {
   result.errors.forEach(err => {
@@ -160,38 +137,26 @@ result.warnings.forEach(warn => {
 - `input: string` - HEDL document content
 - `runLint?: boolean` - Enable lint checks (default: true, requires "full-validation" feature)
 
-**Returns**: `ValidationResult` object with:
+**Returns**: `ValidationResult` with:
 - `valid: boolean` - Whether document is valid
 - `errors: Array<{ line: number, message: string, type: string }>` - Parse and validation errors
-- `warnings: Array<{ line: number, message: string, rule: string }>` - Lint warnings (only if runLint is true)
+- `warnings: Array<{ line: number, message: string, rule: string }>` - Lint warnings
 
-### Canonicalization and Formatting
+### format(input: string): string
 
-#### format(input: string, useDitto?: boolean): string
-
-Format and canonicalize HEDL to standard style:
+Format and canonicalize HEDL documents.
 
 ```javascript
 import { format } from 'hedl-wasm';
 
-const formatted = format(messyHedl, true); // true for ditto optimization
-
-console.log(formatted);
+const formatted = format(messyHedl);
 ```
 
-**Parameters**:
-- `input: string` - HEDL document content
-- `useDitto?: boolean` - Use ditto operator (^) for repeated values (default: true)
+Returns normalized HEDL with consistent indentation, float representation, and spacing.
 
-**Returns**: Normalized HEDL string with:
-- Consistent 2-space indentation
-- Ditto operator (^) for repeated values (if enabled)
-- Normalized float representation
-- Consistent spacing
+### version(): string
 
-#### version(): string
-
-Get the HEDL library version:
+Get the HEDL library version.
 
 ```javascript
 import { version } from 'hedl-wasm';
@@ -199,11 +164,9 @@ import { version } from 'hedl-wasm';
 console.log('HEDL version:', version());
 ```
 
-**Returns**: Version string (e.g., "1.2.0")
+### setMaxInputSize(size: number): void
 
-#### setMaxInputSize(size: number): void
-
-Set the maximum input size in bytes for all parsing operations.
+Configure the maximum input size in bytes for all parsing operations.
 
 ```javascript
 import { setMaxInputSize } from 'hedl-wasm';
@@ -212,14 +175,9 @@ import { setMaxInputSize } from 'hedl-wasm';
 setMaxInputSize(1024 * 1024 * 1024);
 ```
 
-**Parameters**:
-- `size: number` - Maximum input size in bytes
+Default is 500 MB. The size check runs before parsing to prevent memory exhaustion.
 
-**Default**: 500 MB (524,288,000 bytes)
-
-This controls the maximum size of HEDL/JSON input strings that can be processed. Set to a higher value if you need to process larger documents. The size check is performed before parsing to prevent memory exhaustion.
-
-#### getMaxInputSize(): number
+### getMaxInputSize(): number
 
 Get the current maximum input size configuration.
 
@@ -230,45 +188,33 @@ const currentLimit = getMaxInputSize();
 console.log(`Current limit: ${currentLimit / (1024 * 1024)} MB`);
 ```
 
-**Returns**: Current maximum input size in bytes
+## Format Conversion
 
-### Format Conversion
+All conversion functions work both as standalone functions on strings and as methods on `HedlDocument` objects.
 
-All conversion functions are available on `HedlDocument` objects after parsing, or as standalone functions on strings.
+### toJson(input: string, pretty?: boolean): string
 
-#### toJson(input: string, pretty?: boolean): string
-
-Convert HEDL string to JSON:
+Convert HEDL to JSON. Requires the **"json"** feature flag.
 
 ```javascript
 import { toJson } from 'hedl-wasm';
 
 const json = toJson(hedlContent, true); // true for pretty-print
-
-console.log(json);
 ```
 
-Requires the **"json"** feature flag.
+### fromJson(json: string): string
 
-**Parameters**:
-- `input: string` - HEDL document content
-- `pretty?: boolean` - Pretty-print JSON (default: true)
-
-#### fromJson(json: string, useDitto?: boolean): string
-
-Convert JSON string to HEDL:
+Convert JSON to HEDL. Requires the **"json"** feature flag.
 
 ```javascript
 import { fromJson } from 'hedl-wasm';
 
-const hedl = fromJson(jsonString, true);
+const hedl = fromJson(jsonString);
 ```
 
-Requires the **"json"** feature flag.
+### toYaml(input: string): string
 
-#### toYaml(input: string): string
-
-Convert HEDL to YAML:
+Convert HEDL to YAML. Requires the **"yaml"** feature flag.
 
 ```javascript
 import { toYaml } from 'hedl-wasm';
@@ -276,23 +222,19 @@ import { toYaml } from 'hedl-wasm';
 const yaml = toYaml(hedlContent);
 ```
 
-Requires the **"yaml"** feature flag.
+### fromYaml(yaml: string): string
 
-#### fromYaml(yaml: string, useDitto?: boolean): string
-
-Convert YAML to HEDL:
+Convert YAML to HEDL. Requires the **"yaml"** feature flag.
 
 ```javascript
 import { fromYaml } from 'hedl-wasm';
 
-const hedl = fromYaml(yamlContent, true);
+const hedl = fromYaml(yamlContent);
 ```
 
-Requires the **"yaml"** feature flag.
+### toXml(input: string): string
 
-#### toXml(input: string): string
-
-Convert HEDL to XML:
+Convert HEDL to XML. Requires the **"xml"** feature flag.
 
 ```javascript
 import { toXml } from 'hedl-wasm';
@@ -300,23 +242,19 @@ import { toXml } from 'hedl-wasm';
 const xml = toXml(hedlContent);
 ```
 
-Requires the **"xml"** feature flag.
+### fromXml(xml: string): string
 
-#### fromXml(xml: string, useDitto?: boolean): string
-
-Convert XML to HEDL:
+Convert XML to HEDL. Requires the **"xml"** feature flag.
 
 ```javascript
 import { fromXml } from 'hedl-wasm';
 
-const hedl = fromXml(xmlContent, true);
+const hedl = fromXml(xmlContent);
 ```
 
-Requires the **"xml"** feature flag.
+### toCsv(input: string): string
 
-#### toCsv(input: string): string
-
-Convert HEDL to CSV (first entity list):
+Convert HEDL to CSV (first entity list). Requires the **"csv"** feature flag.
 
 ```javascript
 import { toCsv } from 'hedl-wasm';
@@ -324,28 +262,23 @@ import { toCsv } from 'hedl-wasm';
 const csv = toCsv(hedlContent);
 ```
 
-Requires the **"csv"** feature flag.
+### fromCsv(csv: string, typeName?: string): string
 
-#### fromCsv(csv: string, typeName?: string, useDitto?: boolean): string
-
-Convert CSV to HEDL:
+Convert CSV to HEDL. Requires the **"csv"** feature flag.
 
 ```javascript
 import { fromCsv } from 'hedl-wasm';
 
-const hedl = fromCsv(csvContent, 'User', true);
+const hedl = fromCsv(csvContent, 'User');
 ```
 
 **Parameters**:
 - `csv: string` - CSV content (must have header row)
 - `typeName?: string` - Entity type name (default: "Row")
-- `useDitto?: boolean` - Use ditto optimization (default: true)
 
-Requires the **"csv"** feature flag.
+### toToon(input: string): string
 
-#### toToon(input: string): string
-
-Convert HEDL to TOON format:
+Convert HEDL to TOON format. Requires the **"toon"** feature flag.
 
 ```javascript
 import { toToon } from 'hedl-wasm';
@@ -353,25 +286,21 @@ import { toToon } from 'hedl-wasm';
 const toon = toToon(hedlContent);
 ```
 
-Requires the **"toon"** feature flag.
+### fromToon(toon: string): string
 
-#### fromToon(toon: string, useDitto?: boolean): string
-
-Convert TOON to HEDL:
+Convert TOON to HEDL. Requires the **"toon"** feature flag.
 
 ```javascript
 import { fromToon } from 'hedl-wasm';
 
-const hedl = fromToon(toonContent, true);
+const hedl = fromToon(toonContent);
 ```
 
-Requires the **"toon"** feature flag.
+## Statistics and Analysis
 
-### Statistics and Analysis
+### getStats(input: string): TokenStats
 
-#### getStats(input: string): TokenStats
-
-Get token usage statistics for HEDL vs JSON:
+Get token usage statistics comparing HEDL to JSON. Requires the **"statistics"** feature flag.
 
 ```javascript
 import { getStats } from 'hedl-wasm';
@@ -385,9 +314,7 @@ console.log('JSON tokens:', stats.jsonTokens);
 console.log('Savings:', stats.savingsPercent + '%');
 ```
 
-Requires the **"statistics"** feature flag.
-
-**Returns**: `TokenStats` object with:
+**Returns**: `TokenStats` with:
 - `hedlBytes: number` - Input HEDL size in bytes
 - `hedlTokens: number` - Estimated token count for HEDL
 - `hedlLines: number` - Line count in HEDL
@@ -396,9 +323,9 @@ Requires the **"statistics"** feature flag.
 - `savingsPercent: number` - Token savings percentage
 - `tokensSaved: number` - Absolute token count difference
 
-#### compareTokens(hedl: string, json: string): object
+### compareTokens(hedl: string, json: string): object
 
-Compare token counts between HEDL and JSON:
+Compare token counts between HEDL and JSON. Requires the **"token-tools"** feature flag.
 
 ```javascript
 import { compareTokens } from 'hedl-wasm';
@@ -410,60 +337,29 @@ console.log('JSON tokens:', comparison.json.tokens);
 console.log('Savings:', comparison.savings.percent + '%');
 ```
 
-Requires the **"token-tools"** feature flag.
-
 **Returns**: Object with:
 - `hedl: { bytes: number, tokens: number, lines: number }`
 - `json: { bytes: number, tokens: number }`
 - `savings: { percent: number, tokens: number }`
 
-## Memory Management
-
-### Input Size Limits
-
-Default limits prevent memory exhaustion:
-
-```javascript
-import { setMaxInputSize, getMaxInputSize } from 'hedl-wasm';
-
-// Default: 500 MB input limit
-const doc = parse(hedlContent);
-
-// Get current limit
-const limit = getMaxInputSize();
-console.log(`Current limit: ${limit / (1024 * 1024)} MB`);
-
-// Set custom limit (e.g., 1 GB)
-setMaxInputSize(1024 * 1024 * 1024);
-```
-
-**Protection Against**:
-- Malicious large inputs
-- Accidental multi-GB file processing
-- Memory exhaustion attacks
-
-The size check is performed before parsing to prevent resource exhaustion.
-
 ## Error Handling
 
-All functions throw structured errors with line numbers:
+All functions throw structured errors with line number information.
 
 ```javascript
 try {
   const doc = parse(invalidHedl);
 } catch (error) {
   console.error(`Parse error: ${error.message}`);
-  // Note: error.message includes line number information
 }
 ```
 
-**Error Object** (for validation errors):
-When using the `validate()` function, errors are returned in the ValidationResult object:
+When using `validate()`, errors are returned in the `ValidationResult` object with:
 - `line: number` - Source line number (1-indexed)
 - `message: string` - Human-readable description
-- `type: string` - Error category (Syntax, Schema, Reference, etc.)
+- `type: string` - Error category
 
-**Common Error Types**:
+**Error Types**:
 - `Syntax` - Invalid HEDL syntax
 - `Schema` - Type/schema mismatch
 - `Reference` - Unresolved reference
@@ -474,7 +370,7 @@ When using the `validate()` function, errors are returned in the ValidationResul
 
 ## TypeScript Support
 
-Complete type definitions included:
+Complete type definitions are included for full IntelliSense support.
 
 ```typescript
 import {
@@ -508,95 +404,62 @@ console.log(`Savings: ${stats.savingsPercent}%`);
 - `HedlDocument` - Parsed HEDL document with methods
 - `ValidationResult` - Validation diagnostics
 - `TokenStats` - Token usage statistics
-
-**TypeScript Type Definitions** (available in .d.ts):
-- `JsonValue` - JSON value union type (string | number | boolean | null | JsonObject | JsonArray)
-- `JsonPrimitive` - JSON primitive types (string | number | boolean | null)
-- `JsonObject` - JSON object type ({ [key: string]: JsonValue })
-- `JsonArray` - JSON array type (JsonValue[])
-
-**Type Files**:
-- Auto-generated from wasm-bindgen
-- Full IntelliSense support in VS Code
-- Complete function signatures
+- `JsonValue` - JSON value union type
+- `JsonPrimitive` - JSON primitive types
+- `JsonObject` - JSON object type
+- `JsonArray` - JSON array type
 
 ## Bundle Sizes
 
-Optimized for web delivery:
+Optimized for web delivery with `wasm-opt -Os`, tree-shaking support, and dead code elimination.
 
-- **Uncompressed**: ~600 KB
-- **Gzipped**: ~200 KB
-- **Brotli**: ~180 KB
-
-**Optimization Techniques**:
-- `wasm-opt -Os` - Size optimization pass
-- Tree-shaking support via ES modules
-- Dead code elimination
-- No unnecessary dependencies
+| Format | Size |
+|--------|------|
+| Uncompressed | ~600 KB |
+| Gzipped | ~200 KB |
+| Brotli | ~180 KB |
 
 **Bundle Variants**:
-- `hedl_wasm.js` - ESM for browsers (bundler-friendly)
+- `hedl_wasm.js` - ESM for browsers
 - `hedl_wasm_node.js` - CommonJS for Node.js
 - `hedl_wasm_bg.wasm` - WebAssembly binary
 - `hedl.d.ts` - TypeScript definitions
 
-## Use Cases
+## Performance
 
-**Web Applications**: Parse and validate HEDL configuration files uploaded by users in the browser without server round-trip. Validate data structures client-side before submission.
+Parsing runs at near-native speed, typically within 10% of the pure Rust implementation. Expect 50-100 MB/s throughput on modern browsers. Token estimation uses an O(1) memory algorithm with efficient byte-level iteration, running 3x faster than character-by-character approaches.
 
-**Data Transformation Tools**: Build web-based converters between HEDL and JSON/YAML/XML/CSV with instant client-side processing. No server infrastructure required.
+Memory scales linearly with document size. Initial WASM module load adds approximately 50-100ms overhead, a one-time cost per page load.
 
-**LLM Context Planning**: Estimate token counts for HEDL documents before sending to LLM APIs. Stay within context window limits (8K, 32K, 100K) with accurate projections.
+## Building from Source
 
-**Node.js Services**: Parse HEDL API responses, validate data structures, convert between formats in backend services with near-native performance.
+### Prerequisites
 
-**Browser Extensions**: Process HEDL data in browser extensions (Chrome, Firefox) with full HEDL ecosystem access without bundling JavaScript reimplementation.
+```bash
+cargo install wasm-pack
+cargo install wasm-tools
+cargo install wasm-bindgen-cli --version 0.2.108
+```
 
-**Electron Applications**: Embed HEDL processing in Electron desktop apps with native performance through WebAssembly.
+### Build
 
-## What This Crate Doesn't Do
+```bash
+cd crates/hedl-wasm
 
-**Database Integration**: No direct Neo4j or Parquet integration in WASM. For graph database export or columnar storage, use the Rust crates (`hedl-neo4j`, `hedl-parquet`) in server environments.
+# Build for browsers
+./build-wasm.sh web
 
-**File System Access**: No direct file I/O—WASM runs in sandbox. Use JavaScript File API or Node.js fs module to read files, then pass content to WASM functions.
+# Build for bundlers (webpack, etc.)
+./build-wasm.sh bundler
 
-**Network Operations**: No HTTP fetching or network I/O. Use JavaScript fetch API or Node.js http module, then process responses with WASM functions.
+# Build for Node.js
+./build-wasm.sh nodejs
+```
 
-**Async/Await Interface**: Functions are synchronous (blocking). For non-blocking processing, wrap calls in `async` functions or Web Workers.
-
-## Performance Characteristics
-
-**Parsing**: Near-native speed (within 10% of Rust implementation). Typically 50-100 MB/s on modern browsers.
-
-**Validation**: O(n) time where n = total nodes. Syntax validation through parsing.
-
-**Conversion**: JSON conversion preserves HEDL semantics. Bidirectional conversion is lossless.
-
-**Token Estimation**: O(1) memory algorithm, efficient byte-level iteration optimized for ASCII. 3x faster than character-by-character approaches.
-
-**Memory**: Scales linearly with document size. Large documents benefit from 500 MB default input limit protection.
-
-**Bundle Loading**: Initial WASM module load adds ~50-100ms overhead (one-time cost per page load).
-
-## Dependencies
-
-Runtime dependencies (always included):
-- `wasm-bindgen` 0.2 - JavaScript/WebAssembly interop
-- `serde-wasm-bindgen` 0.6 - Serde integration for WASM
-- `hedl-core` - Core HEDL parser and types
-- `hedl-c14n` - Document canonicalization
-- `hedl-lint` - Linting engine
-
-Optional format converters (controlled by feature flags):
-- `hedl-json` - JSON bidirectional conversion (default feature)
-- `hedl-yaml` - YAML conversion (yaml feature)
-- `hedl-xml` - XML conversion (xml feature)
-- `hedl-csv` - CSV conversion (csv feature)
-- `hedl-toon` - TOON format conversion (toon feature)
-
-Build dependencies:
-- `wasm-pack` - Build toolchain
-- `wasm-opt` (from binaryen) - Size optimization (disabled in Cargo.toml, uses custom pipeline)
+Output is placed in `pkg/`:
+- `hedl_wasm.js` - JavaScript glue code
+- `hedl_wasm.d.ts` - TypeScript definitions
+- `hedl_wasm_bg.wasm` - WebAssembly binary
 
 ## License
 

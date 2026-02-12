@@ -75,8 +75,41 @@ export function getMaxInputSize(): number;
 
 /**
  * Parse a HEDL string and return a document object.
+ *
+ * Supports all HEDL v1.2 features including inline child lists.
+ *
  * @param input - HEDL document string
  * @throws Error if parsing fails or input exceeds the configured maximum size (default: 500 MB)
+ *
+ * Error types include:
+ * - SyntaxError: Invalid HEDL syntax, including inline child list format errors
+ * - SchemaError: Type/schema violations (undefined types, missing NEST rules)
+ * - ShapeError: Field count mismatches in rows
+ * - SemanticError: Logical errors (null IDs, invalid references, etc.)
+ * - SecurityError: Resource limit exceeded (file size, nesting depth, etc.)
+ *
+ * @example
+ * ```typescript
+ * // Basic parsing
+ * const doc = parse(`
+ * %VERSION: 1.0
+ * %STRUCT: User: [id, name]
+ * ---
+ * users: @User
+ *   | alice, Alice
+ * `);
+ *
+ * // Inline child lists (v1.2+)
+ * const docWithChildren = parse(`
+ * %VERSION: 1.0
+ * %STRUCT: Post: [id, title]
+ * %STRUCT: Comment: [id, text]
+ * %NEST: Post > Comment
+ * ---
+ * posts: @Post
+ *   | p1, First Post, @Comment#2:|c1,Good|c2,Bad
+ * `);
+ * ```
  */
 export function parse(input: string): HedlDocument;
 
@@ -197,10 +230,26 @@ export interface ValidationResult {
 
 /**
  * Validation error.
+ *
+ * Error types:
+ * - "SyntaxError": Lexical or structural violations (malformed inline children, missing separators, etc.)
+ * - "SchemaError": Schema violations (undefined types, missing NEST rules, etc.)
+ * - "ShapeError": Wrong number of fields in matrix rows
+ * - "SemanticError": Logical errors (null IDs, ditto in ID column, etc.)
+ * - "VersionError": Unsupported HEDL version
+ * - "AliasError": Duplicate or invalid alias definitions
+ * - "OrphanRowError": Child row without NEST rule
+ * - "CollisionError": Duplicate ID within type
+ * - "ReferenceError": Unresolved reference in strict mode
+ * - "SecurityError": Resource limit exceeded
+ * - "InputSizeError": Input exceeds maximum size limit
  */
 export interface ValidationError {
+  /** Line number where error occurred (1-based) */
   line: number;
+  /** Human-readable error message */
   message: string;
+  /** Error type identifier (e.g., "SyntaxError", "SchemaError") */
   type: string;
 }
 

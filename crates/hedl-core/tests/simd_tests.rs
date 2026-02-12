@@ -39,22 +39,23 @@ fn test_simd_many_empty_lines() {
 fn test_simd_long_lines() {
     // Test SIMD performance on very long lines
     let long_line = "x".repeat(100_000);
-    let mut input = format!("%VERSION: 1.0\n{long_line}\n");
+    let mut input = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{long_line}\n");
     input.push_str("end: true\n");
 
     let result = preprocess(input.as_bytes(), &Limits::default()).unwrap();
     let lines: Vec<_> = result.lines().collect();
 
-    assert_eq!(lines.len(), 4);
-    assert_eq!(lines[0].1, "%VERSION: 1.0");
-    assert_eq!(lines[1].1.len(), 100_000);
-    assert_eq!(lines[2].1, "end: true");
+    // v2.0 header: %V:2.0, %NULL:~, %QUOTE:", --- = 4 lines, plus long_line, end: true, empty = 7
+    assert_eq!(lines.len(), 7);
+    assert_eq!(lines[0].1, "%V:2.0");
+    assert_eq!(lines[4].1.len(), 100_000);
+    assert_eq!(lines[5].1, "end: true");
 }
 
 #[test]
 fn test_simd_many_short_lines() {
     // Test SIMD efficiency on many short lines
-    let mut input = String::from("%VERSION: 1.0\n---\n");
+    let mut input = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
     for i in 0..10_000 {
         input.push_str(&format!("k{i}: v{i}\n"));
@@ -63,13 +64,13 @@ fn test_simd_many_short_lines() {
     let result = preprocess(input.as_bytes(), &Limits::default()).unwrap();
     let lines: Vec<_> = result.lines().collect();
 
-    // %VERSION, ---, 10000 lines, plus empty line after final \n = 10003
-    assert_eq!(lines.len(), 10_003);
-    assert_eq!(lines[0].1, "%VERSION: 1.0");
-    assert_eq!(lines[1].1, "---");
-    assert_eq!(lines[2].1, "k0: v0");
-    assert_eq!(lines[10_001].1, "k9999: v9999");
-    assert_eq!(lines[10_002].1, ""); // Empty line after final newline
+    // v2.0 header: %V:2.0, %NULL:~, %QUOTE:", --- = 4 lines, plus 10000 data lines, plus empty = 10005
+    assert_eq!(lines.len(), 10_005);
+    assert_eq!(lines[0].1, "%V:2.0");
+    assert_eq!(lines[3].1, "---");
+    assert_eq!(lines[4].1, "k0: v0");
+    assert_eq!(lines[10_003].1, "k9999: v9999");
+    assert_eq!(lines[10_004].1, ""); // Empty line after final newline
 }
 
 #[test]
@@ -87,20 +88,20 @@ fn test_simd_control_char_early() {
 #[test]
 fn test_simd_control_char_late() {
     // Control char on line 9999 (test early termination)
-    let mut input = String::from("%VERSION: 1.0\n---\n");
+    let mut input = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
     for i in 0..9997 {
         input.push_str(&format!("k{i}: v{i}\n"));
     }
 
-    // Add line with control char (line 10000 = %VERSION + --- + 9997 lines + this line)
+    // Add line with control char (line 10002 = 4 header lines + 9997 data lines + this line)
     input.push_str("bad\x00line\n");
 
     let result = preprocess(input.as_bytes(), &Limits::default());
 
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert_eq!(err.line, 10_000); // Fixed: was 9999, should be 10000
+    assert_eq!(err.line, 10_002); // 4 header lines + 9997 data lines + 1 bad line = 10002
     assert!(err.message.contains("U+0000"));
 }
 
@@ -126,7 +127,7 @@ fn test_simd_line_length_limit_exact() {
 fn test_simd_mixed_line_lengths() {
     // Realistic scenario with varied line lengths
     let input = concat!(
-        "%VERSION: 1.0\n",
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n",
         "---\n",
         "short: 1\n",
         "medium_key_with_longer_value: this is a medium length line\n",
@@ -139,9 +140,10 @@ fn test_simd_mixed_line_lengths() {
     let result = preprocess(input.as_bytes(), &Limits::default()).unwrap();
     let lines: Vec<_> = result.lines().collect();
 
-    assert_eq!(lines.len(), 8);
-    assert_eq!(lines[0].1, "%VERSION: 1.0");
-    assert_eq!(lines[2].1, "short: 1");
+    // 4 header lines + 6 data lines (including extra ---) + 1 empty = 11
+    assert_eq!(lines.len(), 11);
+    assert_eq!(lines[0].1, "%V:2.0");
+    assert_eq!(lines[5].1, "short: 1");
 }
 
 #[test]
@@ -161,7 +163,7 @@ fn test_simd_unicode_with_newlines() {
 #[test]
 fn test_simd_stress_100k_lines() {
     // Stress test: 100K lines
-    let mut input = String::from("%VERSION: 1.0\n---\n");
+    let mut input = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
     for i in 0..100_000 {
         input.push_str(&format!("key{i}: value{i}\n"));
@@ -170,8 +172,8 @@ fn test_simd_stress_100k_lines() {
     let result = preprocess(input.as_bytes(), &Limits::unlimited()).unwrap();
     let lines: Vec<_> = result.lines().collect();
 
-    // %VERSION + --- + 100000 lines + empty line after final \n = 100003
-    assert_eq!(lines.len(), 100_003);
+    // v2.0 header: 4 lines + 100000 data lines + empty line after final \n = 100005
+    assert_eq!(lines.len(), 100_005);
 }
 
 #[test]
@@ -222,7 +224,7 @@ fn test_simd_allowed_control_chars() {
 #[test]
 fn test_simd_realistic_hedl_document() {
     let input = concat!(
-        "%VERSION: 1.0\n",
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n",
         "---\n",
         "\n",
         "# User records\n",
@@ -243,10 +245,11 @@ fn test_simd_realistic_hedl_document() {
     let result = preprocess(input.as_bytes(), &Limits::default()).unwrap();
     let lines: Vec<_> = result.lines().collect();
 
-    assert_eq!(lines.len(), 17);
-    assert_eq!(lines[0].1, "%VERSION: 1.0");
-    assert_eq!(lines[1].1, "---");
-    assert_eq!(lines[3].1, "# User records");
+    // 4 header lines + 16 body lines (including extra --- and empty lines) = 20
+    assert_eq!(lines.len(), 20);
+    assert_eq!(lines[0].1, "%V:2.0");
+    assert_eq!(lines[3].1, "---");
+    assert_eq!(lines[6].1, "# User records");
 }
 
 #[test]

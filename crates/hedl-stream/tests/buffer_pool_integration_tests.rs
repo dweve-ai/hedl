@@ -13,15 +13,15 @@ use std::io::Cursor;
 
 #[test]
 fn test_parser_with_pooling_enabled() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-";
+items:@Item
+ | a
+ | b
+ | c
+"#;
 
     let config = StreamingParserConfig::default().with_buffer_pooling(true);
 
@@ -35,14 +35,14 @@ items: @Item
 
 #[test]
 fn test_parser_with_pooling_disabled() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-";
+items:@Item
+ | a
+ | b
+"#;
 
     let config = StreamingParserConfig::default().with_buffer_pooling(false);
 
@@ -55,13 +55,13 @@ items: @Item
 
 #[test]
 fn test_parser_with_custom_pool_size() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig::default()
         .with_buffer_pooling(true)
@@ -75,17 +75,17 @@ items: @Item
 
 #[test]
 fn test_parser_with_large_pool() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | item1
-  | item2
-  | item3
-  | item4
-  | item5
-";
+items:@Item
+ | item1
+ | item2
+ | item3
+ | item4
+ | item5
+"#;
 
     let config = StreamingParserConfig::default()
         .with_buffer_pooling(true)
@@ -100,13 +100,13 @@ items: @Item
 
 #[test]
 fn test_parser_with_zero_pool_size() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig::default()
         .with_buffer_pooling(true)
@@ -123,13 +123,13 @@ items: @Item
 
 #[test]
 fn test_parser_with_embedded_limits() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig::default().with_memory_limits(MemoryLimits::embedded());
 
@@ -141,14 +141,14 @@ items: @Item
 
 #[test]
 fn test_parser_with_high_throughput_limits() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id, value]
 ---
-items: @Item
-  | a, value_a
-  | b, value_b
-";
+items:@Item
+ | a, value_a
+ | b, value_b
+"#;
 
     let config =
         StreamingParserConfig::default().with_memory_limits(MemoryLimits::high_throughput());
@@ -162,13 +162,13 @@ items: @Item
 
 #[test]
 fn test_parser_with_untrusted_limits() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig::default().with_memory_limits(MemoryLimits::untrusted());
 
@@ -199,14 +199,14 @@ fn test_untrusted_limits_enforce_line_length() {
 
 #[test]
 fn test_parser_with_small_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-";
+items:@Item
+ | a
+ | b
+"#;
 
     let config = StreamingParserConfig::default().with_buffer_hint(BufferSizeHint::Small);
 
@@ -219,15 +219,15 @@ items: @Item
 
 #[test]
 fn test_parser_with_medium_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-";
+items:@Item
+ | a
+ | b
+ | c
+"#;
 
     let config = StreamingParserConfig::default().with_buffer_hint(BufferSizeHint::Medium);
 
@@ -240,16 +240,16 @@ items: @Item
 
 #[test]
 fn test_parser_with_large_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-  | d
-";
+items:@Item
+ | a
+ | b
+ | c
+ | d
+"#;
 
     let config = StreamingParserConfig::default().with_buffer_hint(BufferSizeHint::Large);
 
@@ -262,17 +262,17 @@ items: @Item
 
 #[test]
 fn test_parser_with_huge_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-  | d
-  | e
-";
+items:@Item
+ | a
+ | b
+ | c
+ | d
+ | e
+"#;
 
     let config = StreamingParserConfig::default().with_buffer_hint(BufferSizeHint::Huge);
 
@@ -287,13 +287,13 @@ items: @Item
 
 #[test]
 fn test_pooling_with_small_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig::default()
         .with_buffer_hint(BufferSizeHint::Small)
@@ -307,14 +307,14 @@ items: @Item
 
 #[test]
 fn test_pooling_with_huge_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-";
+items:@Item
+ | a
+ | b
+"#;
 
     let config = StreamingParserConfig::default()
         .with_buffer_hint(BufferSizeHint::Huge)
@@ -330,13 +330,13 @@ items: @Item
 
 #[test]
 fn test_embedded_with_pooling_disabled() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-";
+items:@Item
+ | a
+"#;
 
     let config = StreamingParserConfig::default()
         .with_memory_limits(MemoryLimits::embedded())
@@ -350,15 +350,15 @@ items: @Item
 
 #[test]
 fn test_high_throughput_with_large_buffer() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Item: [id]
 ---
-items: @Item
-  | a
-  | b
-  | c
-";
+items:@Item
+ | a
+ | b
+ | c
+"#;
 
     let config = StreamingParserConfig::default()
         .with_memory_limits(MemoryLimits::high_throughput())
@@ -375,9 +375,9 @@ items: @Item
 
 #[test]
 fn test_many_rows_with_pooling() {
-    let mut input = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\nitems: @Item\n");
+    let mut input = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\nitems:@Item\n");
     for i in 0..500 {
-        input.push_str(&format!("  | item{i}\n"));
+        input.push_str(&format!(" | item{i}\n"));
     }
 
     let config = StreamingParserConfig::default()
@@ -393,9 +393,9 @@ fn test_many_rows_with_pooling() {
 
 #[test]
 fn test_many_rows_with_small_buffer() {
-    let mut input = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\nitems: @Item\n");
+    let mut input = String::from("%VERSION: 1.0\n%STRUCT: Item: [id]\n---\nitems:@Item\n");
     for i in 0..200 {
-        input.push_str(&format!("  | item{i}\n"));
+        input.push_str(&format!(" | item{i}\n"));
     }
 
     let config = StreamingParserConfig::default().with_buffer_hint(BufferSizeHint::Small);
@@ -416,7 +416,7 @@ fn test_wide_rows_with_pooling() {
         }
         header.push_str(&format!("f{i}"));
     }
-    header.push_str("]\n---\ndata: @Wide\n  | ");
+    header.push_str("]\n---\ndata:@Wide\n | ");
 
     for i in 0..50 {
         if i > 0 {

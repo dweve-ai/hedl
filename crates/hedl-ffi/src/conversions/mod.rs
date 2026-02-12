@@ -17,6 +17,9 @@
 
 //! Conversion functions for FFI.
 
+/// Import functions (from_*).
 pub mod from_formats;
+/// Export functions (to_*).
 pub mod to_formats;
+/// Callback-based export functions.
 pub mod to_formats_callback;

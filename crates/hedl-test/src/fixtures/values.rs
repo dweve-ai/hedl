@@ -52,7 +52,7 @@ pub fn scalars() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -102,7 +102,7 @@ pub fn special_strings() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -137,7 +137,7 @@ pub fn references() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -194,7 +194,7 @@ pub fn tensors() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -228,7 +228,7 @@ pub fn named_values() -> Document {
     root.insert("deprecated_feature".to_string(), Item::Scalar(Value::Null));
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -271,7 +271,7 @@ pub fn edge_cases() -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -286,7 +286,7 @@ pub fn edge_cases() -> Document {
 #[must_use]
 pub fn empty() -> Document {
     Document {
-        version: (1, 0),
+        version: (1, 2),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),

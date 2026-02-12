@@ -329,7 +329,7 @@ pub fn from_xml_stream<R: Read>(
 }
 
 // ============================================================================
-// Parsing functions (shared with from_xml.rs)
+// Parsing functions (shared with from_xml module)
 // ============================================================================
 
 fn parse_element<R>(
@@ -452,7 +452,8 @@ where
 
         // Check for flattening
         if result_children.len() == 1 {
-            let (child_key, child_item) = result_children.iter().next().unwrap();
+            // SAFETY: len() == 1 guarantees at least one element
+            let (child_key, child_item) = result_children.iter().next().expect("len == 1");
             if let Item::List(list) = child_item {
                 let has_nested_children = list
                     .rows
@@ -463,7 +464,8 @@ where
                         singularize_and_capitalize(&to_hedl_key(&name)).to_lowercase();
                     let child_type = singularize_and_capitalize(child_key).to_lowercase();
                     if parent_singular == child_type {
-                        return Ok(result_children.into_values().next().unwrap());
+                        // SAFETY: len() == 1 guarantees at least one element
+                        return Ok(result_children.into_values().next().expect("len == 1"));
                     }
                 }
             }
@@ -505,7 +507,8 @@ fn parse_empty_element(
     if attributes.is_empty() {
         Ok(Item::Scalar(Value::Null))
     } else if attributes.len() == 1 && attributes.contains_key("value") {
-        let value_str = attributes.get("value").unwrap();
+        // SAFETY: contains_key("value") guarantees get() succeeds
+        let value_str = attributes.get("value").expect("key exists");
         let value = parse_value_with_config(value_str, config)?;
         Ok(Item::Scalar(value))
     } else {
@@ -568,7 +571,7 @@ fn parse_value_with_config(s: &str, config: &StreamConfig) -> Result<Value, Stri
     Ok(Value::String(trimmed.to_string().into()))
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 fn parse_value(s: &str) -> Result<Value, String> {
     // Legacy function for backward compatibility
     let config = StreamConfig::default();
@@ -816,10 +819,9 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::approx_constant)]
     fn test_parse_value_float() {
-        match parse_value("3.14") {
-            Ok(Value::Float(f)) => assert!((f - 3.14).abs() < 0.001),
+        match parse_value("4.56") {
+            Ok(Value::Float(f)) => assert!((f - 4.56).abs() < 0.001),
             _ => panic!("Expected float"),
         }
     }

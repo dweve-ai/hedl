@@ -27,7 +27,7 @@
 //! - Position encoding preservation
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hedl_bench::helpers::measure_throughput_ns;
+use hedl_bench::benchmark_utilities::measure_throughput_ns;
 use hedl_bench::{
     generate_analytics, generate_products, generate_users, sizes, BenchmarkReport, CustomTable,
     ExportConfig, Insight, PerfResult, TableCell,
@@ -1455,7 +1455,24 @@ fn create_ecosystem_integration_table(report: &mut BenchmarkReport) {
 
 fn bench_export(c: &mut Criterion) {
     let mut group = c.benchmark_group("export");
-    group.bench_function("finalize", |b| b.iter(|| 1 + 1));
+
+    // Benchmark report serialization - measures actual Parquet report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "parquet_conversion".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(8192),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = black_box(&sample_report).to_json().unwrap();
+            black_box(json)
+        })
+    });
+
     group.finish();
 
     REPORT.with(|r| {

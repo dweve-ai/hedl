@@ -1,0 +1,804 @@
+{
+  "questions": [
+    {
+      "id": "fin-001",
+      "prompt": "How many customers are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "20",
+      "notes": "Count of customer entities"
+    },
+    {
+      "id": "fin-002",
+      "prompt": "How many accounts are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "36",
+      "notes": "Count of account entities"
+    },
+    {
+      "id": "fin-003",
+      "prompt": "How many transactions are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "74",
+      "notes": "Count of transaction entities"
+    },
+    {
+      "id": "fin-004",
+      "prompt": "How many cards are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "24",
+      "notes": "Count of card entities"
+    },
+    {
+      "id": "fin-005",
+      "prompt": "How many investments are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "30",
+      "notes": "Count of investment entities"
+    },
+    {
+      "id": "fin-006",
+      "prompt": "How many loans are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Count of loan entities"
+    },
+    {
+      "id": "fin-007",
+      "prompt": "How many alerts are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "11",
+      "notes": "Count of alert entities"
+    },
+    {
+      "id": "fin-008",
+      "prompt": "How many statements are there in total?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "11",
+      "notes": "Count of statement entities"
+    },
+    {
+      "id": "fin-009",
+      "prompt": "How many checking accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "20",
+      "notes": "Accounts with type=checking"
+    },
+    {
+      "id": "fin-010",
+      "prompt": "How many savings accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Accounts with type=savings"
+    },
+    {
+      "id": "fin-011",
+      "prompt": "How many investment accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Accounts with type=investment (acc-003,008,013,017,028)"
+    },
+    {
+      "id": "fin-012",
+      "prompt": "How many credit card accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Accounts with type=credit (credit card accounts)"
+    },
+    {
+      "id": "fin-013",
+      "prompt": "How many active accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "35",
+      "notes": "Accounts with status=active"
+    },
+    {
+      "id": "fin-014",
+      "prompt": "How many frozen accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Accounts with status=frozen (acc-015 only)"
+    },
+    {
+      "id": "fin-015",
+      "prompt": "How many closed accounts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Accounts with status=closed (none)"
+    },
+    {
+      "id": "fin-016",
+      "prompt": "How many completed transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "74",
+      "notes": "Transactions with status=completed (all transactions)"
+    },
+    {
+      "id": "fin-017",
+      "prompt": "How many pending transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Transactions with status=pending (none)"
+    },
+    {
+      "id": "fin-018",
+      "prompt": "How many failed transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Transactions with status=failed (none)"
+    },
+    {
+      "id": "fin-019",
+      "prompt": "How many deposit transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "20",
+      "notes": "Transactions with type=deposit"
+    },
+    {
+      "id": "fin-020",
+      "prompt": "How many withdrawal transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Transactions with type=withdrawal"
+    },
+    {
+      "id": "fin-021",
+      "prompt": "How many payment transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "25",
+      "notes": "Transactions with type=payment"
+    },
+    {
+      "id": "fin-022",
+      "prompt": "How many transfer transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "8",
+      "notes": "Transactions with type=transfer (txn-004,005,022,023,042)"
+    },
+    {
+      "id": "fin-023",
+      "prompt": "How many interest transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "8",
+      "notes": "Transactions with type=interest"
+    },
+    {
+      "id": "fin-024",
+      "prompt": "How many fee transactions are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Transactions with type=fee (txn-012 only)"
+    },
+    {
+      "id": "fin-025",
+      "prompt": "How many Visa cards are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "12",
+      "notes": "Cards with network=visa"
+    },
+    {
+      "id": "fin-026",
+      "prompt": "How many Mastercard cards are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "8",
+      "notes": "Cards with network=mastercard"
+    },
+    {
+      "id": "fin-027",
+      "prompt": "How many American Express cards are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Cards with network=amex"
+    },
+    {
+      "id": "fin-028",
+      "prompt": "How many Discover cards are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Cards with network=discover"
+    },
+    {
+      "id": "fin-029",
+      "prompt": "How many debit cards are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "20",
+      "notes": "Cards with type=debit"
+    },
+    {
+      "id": "fin-030",
+      "prompt": "How many credit cards are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Cards with type=credit"
+    },
+    {
+      "id": "fin-031",
+      "prompt": "How many stock investments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "15",
+      "notes": "Investments with type=stock"
+    },
+    {
+      "id": "fin-032",
+      "prompt": "How many ETF investments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Investments with type=etf"
+    },
+    {
+      "id": "fin-033",
+      "prompt": "How many bond investments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Investments with type=bond"
+    },
+    {
+      "id": "fin-034",
+      "prompt": "How many mutual fund investments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Investments with type=mutual_fund (inv-009,018,025)"
+    },
+    {
+      "id": "fin-035",
+      "prompt": "How many cryptocurrency investments are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Investments with type=crypto (inv-023,024)"
+    },
+    {
+      "id": "fin-036",
+      "prompt": "How many mortgage loans are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Loans with type=mortgage"
+    },
+    {
+      "id": "fin-037",
+      "prompt": "How many auto loans are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Loans with type=auto"
+    },
+    {
+      "id": "fin-038",
+      "prompt": "How many personal loans are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Loans with type=personal"
+    },
+    {
+      "id": "fin-039",
+      "prompt": "How many student loans are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Loans with type=student"
+    },
+    {
+      "id": "fin-040",
+      "prompt": "How many business loans are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Loans with type=business (none)"
+    },
+    {
+      "id": "fin-041",
+      "prompt": "How many loans have current status?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Loans with status=current (all loans)"
+    },
+    {
+      "id": "fin-042",
+      "prompt": "How many loans are paid off?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Loans with status=paid_off (none)"
+    },
+    {
+      "id": "fin-043",
+      "prompt": "How many loans are delinquent?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Loans with status=delinquent (none)"
+    },
+    {
+      "id": "fin-044",
+      "prompt": "How many loans are in default?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "Loans with status=default (none)"
+    },
+    {
+      "id": "fin-045",
+      "prompt": "How many acknowledged alerts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Alerts with acknowledged=true"
+    },
+    {
+      "id": "fin-046",
+      "prompt": "How many unacknowledged alerts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Alerts with acknowledged=false"
+    },
+    {
+      "id": "fin-047",
+      "prompt": "How many critical severity alerts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Alerts with severity=critical"
+    },
+    {
+      "id": "fin-048",
+      "prompt": "How many high severity alerts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Alerts with severity=high"
+    },
+    {
+      "id": "fin-049",
+      "prompt": "How many medium severity alerts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Alerts with severity=medium"
+    },
+    {
+      "id": "fin-050",
+      "prompt": "How many low severity alerts are there?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Alerts with severity=low"
+    },
+    {
+      "id": "fin-051",
+      "prompt": "What is the risk score for customer cust-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "720",
+      "notes": "James Wilson's risk score"
+    },
+    {
+      "id": "fin-052",
+      "prompt": "What is the risk score for customer cust-016?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "800",
+      "notes": "Elizabeth Hall's risk score (highest)"
+    },
+    {
+      "id": "fin-053",
+      "prompt": "What is the balance of account acc-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "15234.56",
+      "notes": "Checking account balance"
+    },
+    {
+      "id": "fin-054",
+      "prompt": "What is the balance of account acc-013?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "1567890.23",
+      "notes": "Investment account balance (largest)"
+    },
+    {
+      "id": "fin-055",
+      "prompt": "What is the interest rate for account acc-002?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "4.25",
+      "notes": "Savings account interest rate"
+    },
+    {
+      "id": "fin-056",
+      "prompt": "What is the amount of transaction txn-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "5000.00",
+      "notes": "Payroll deposit amount"
+    },
+    {
+      "id": "fin-057",
+      "prompt": "What is the merchant for transaction txn-003?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Skyline Apartments",
+      "notes": "Rent payment merchant"
+    },
+    {
+      "id": "fin-058",
+      "prompt": "What is the credit limit for card card-004?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "8000.00",
+      "notes": "Credit card limit"
+    },
+    {
+      "id": "fin-059",
+      "prompt": "What is the rewards rate for card card-009?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "2.5",
+      "notes": "American Express rewards rate"
+    },
+    {
+      "id": "fin-060",
+      "prompt": "How many shares of AAPL does investment inv-001 hold?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "150",
+      "notes": "Apple Inc shares"
+    },
+    {
+      "id": "fin-061",
+      "prompt": "What is the current price for investment inv-008?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "875.50",
+      "notes": "NVIDIA (NVDA) current price at inv-008"
+    },
+    {
+      "id": "fin-062",
+      "prompt": "What is the principal amount for loan loan-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "450000.00",
+      "notes": "Mortgage principal"
+    },
+    {
+      "id": "fin-063",
+      "prompt": "What is the interest rate for loan loan-003?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "9.99",
+      "notes": "Personal loan rate"
+    },
+    {
+      "id": "fin-064",
+      "prompt": "What is the monthly payment for loan loan-007?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "1918.56",
+      "notes": "Mortgage monthly payment"
+    },
+    {
+      "id": "fin-065",
+      "prompt": "How many accounts does customer cust-001 have?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "acc-001, acc-002, acc-003"
+    },
+    {
+      "id": "fin-066",
+      "prompt": "How many accounts does customer cust-003 have?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "acc-006, acc-007, acc-008"
+    },
+    {
+      "id": "fin-067",
+      "prompt": "How many accounts does customer cust-005 have?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "acc-011, acc-012, acc-013"
+    },
+    {
+      "id": "fin-068",
+      "prompt": "How many alerts reference account acc-001?",
+      "question_type": "Aggregation",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "alert-005 only"
+    },
+    {
+      "id": "fin-069",
+      "prompt": "How many alerts do not reference any account?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "2",
+      "notes": "Alerts with null account field (alert-009, alert-018)"
+    },
+    {
+      "id": "fin-070",
+      "prompt": "How many transactions are in the income category?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "20",
+      "notes": "Transactions with category=income"
+    },
+    {
+      "id": "fin-071",
+      "prompt": "How many transactions are in the housing category?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Transactions with category=housing"
+    },
+    {
+      "id": "fin-072",
+      "prompt": "How many transactions are in the shopping category?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "3",
+      "notes": "Transactions with category=shopping"
+    },
+    {
+      "id": "fin-073",
+      "prompt": "What is the email address for customer cust-010?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "amanda.white@email.com",
+      "notes": "Amanda White's email"
+    },
+    {
+      "id": "fin-074",
+      "prompt": "What city does customer cust-019 live in?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Denver",
+      "notes": "Richard King's city"
+    },
+    {
+      "id": "fin-075",
+      "prompt": "What state does customer cust-002 live in?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "CA",
+      "notes": "Maria Garcia's state"
+    },
+    {
+      "id": "fin-076",
+      "prompt": "How many customers live in Texas?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "5",
+      "notes": "Customers with state=TX (cust-004,007,009,011,013)"
+    },
+    {
+      "id": "fin-077",
+      "prompt": "How many customers live in California?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Customers with state=CA (cust-002,008,010,016)"
+    },
+    {
+      "id": "fin-078",
+      "prompt": "What is the symbol for investment inv-010?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "QQQ",
+      "notes": "Invesco QQQ ETF symbol"
+    },
+    {
+      "id": "fin-079",
+      "prompt": "What is the name for investment inv-006?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Bitcoin",
+      "notes": "Cryptocurrency name (BTC at inv-006)"
+    },
+    {
+      "id": "fin-080",
+      "prompt": "How many investments have the symbol starting with a vowel?",
+      "question_type": "StructureAwareness",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "AAPL, AMZN, ETH, AGG"
+    },
+    {
+      "id": "fin-081",
+      "prompt": "What is the closing balance for statement stmt-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "15234.56",
+      "notes": "February closing balance"
+    },
+    {
+      "id": "fin-082",
+      "prompt": "What is the total deposits for statement stmt-008?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "10000.00",
+      "notes": "Total deposits in period for stmt-008"
+    },
+    {
+      "id": "fin-083",
+      "prompt": "What is the total fees for statement stmt-002?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "35.00",
+      "notes": "Fees charged in period for stmt-002"
+    },
+    {
+      "id": "fin-084",
+      "prompt": "How many accounts have an interest rate greater than 4%?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Accounts with interest_rate > 4.0 (savings accounts with 4.25-4.75)"
+    },
+    {
+      "id": "fin-085",
+      "prompt": "How many accounts have a negative balance?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "4",
+      "notes": "Credit accounts with negative balances (acc-005,010,019,023)"
+    },
+    {
+      "id": "fin-086",
+      "prompt": "How many transactions have an amount over 5000?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "11",
+      "notes": "Transactions with amount > 5000"
+    },
+    {
+      "id": "fin-087",
+      "prompt": "What is the last4 digits for card card-001?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "4521",
+      "notes": "Debit card last 4 digits"
+    },
+    {
+      "id": "fin-088",
+      "prompt": "What is the expiry date for card card-012?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "2025-10",
+      "notes": "Credit card expiration"
+    },
+    {
+      "id": "fin-089",
+      "prompt": "How many cards expire in 2027?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "6",
+      "notes": "Cards with expiry year 2027"
+    },
+    {
+      "id": "fin-090",
+      "prompt": "How many cards are marked as primary?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "24",
+      "notes": "Cards with is_primary=true (all cards)"
+    },
+    {
+      "id": "fin-091",
+      "prompt": "What is the term in months for loan loan-004?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Integer",
+      "ground_truth": "120",
+      "notes": "Student loan term"
+    },
+    {
+      "id": "fin-092",
+      "prompt": "What is the remaining balance for loan loan-005?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "32500.00",
+      "notes": "Auto loan remaining balance"
+    },
+    {
+      "id": "fin-093",
+      "prompt": "How many loans have a remaining balance of zero?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "0",
+      "notes": "No loans have zero balance - all are current"
+    },
+    {
+      "id": "fin-094",
+      "prompt": "What is the alert message for alert alert-003?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "Late payment fee charged",
+      "notes": "High severity late payment alert"
+    },
+    {
+      "id": "fin-095",
+      "prompt": "What is the opening balance for statement stmt-007?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "-1200.00",
+      "notes": "Credit card February opening balance (negative)"
+    },
+    {
+      "id": "fin-096",
+      "prompt": "How many statements have fees greater than zero?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "1",
+      "notes": "Only stmt-002 has fees > 0 (35.00)"
+    },
+    {
+      "id": "fin-097",
+      "prompt": "How many investments were purchased in 2019?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "7",
+      "notes": "Investments with purchase_date in 2019"
+    },
+    {
+      "id": "fin-098",
+      "prompt": "What currency is used for account acc-020?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "String",
+      "ground_truth": "USD",
+      "notes": "Account currency"
+    },
+    {
+      "id": "fin-099",
+      "prompt": "How many transactions have USD as currency?",
+      "question_type": "Filtering",
+      "answer_type": "Integer",
+      "ground_truth": "74",
+      "notes": "All transactions use USD"
+    },
+    {
+      "id": "fin-100",
+      "prompt": "What is the purchase price for investment inv-008?",
+      "question_type": "FieldRetrieval",
+      "answer_type": "Number",
+      "ground_truth": "150.00",
+      "notes": "NVIDIA (NVDA) cost basis at inv-008"
+    }
+  ]
+}

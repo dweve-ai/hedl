@@ -57,7 +57,7 @@ unsafe extern "C" fn test_callback(data: *const c_char, len: usize, user_data: *
 
 /// Create a test HEDL document
 unsafe fn create_test_document() -> *mut HedlDocument {
-    let hedl = b"%VERSION: 1.0\n---\nperson:\n  name: Alice\n  age: 30\n  city: NYC\0";
+    let hedl = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nperson:\n name: Alice\n age: 30\n city: NYC\0";
     let mut doc: *mut HedlDocument = ptr::null_mut();
     let result = hedl_parse(hedl.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
     assert_eq!(result, HEDL_OK);
@@ -67,12 +67,12 @@ unsafe fn create_test_document() -> *mut HedlDocument {
 
 /// Create a large test HEDL document (for >1MB output)
 unsafe fn create_large_document() -> *mut HedlDocument {
-    let mut hedl = String::from("%VERSION: 1.0\n---\n");
+    let mut hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
     // Create a document with many entities to generate large output
     for i in 0..10000 {
         hedl.push_str(&format!(
-            "entity{i}:\n  field1: value_{i}\n  field2: value_{i}\n  field3: value_{i}\n"
+            "entity{i}:\n field1: value_{i}\n field2: value_{i}\n field3: value_{i}\n"
         ));
     }
 
@@ -91,6 +91,7 @@ unsafe fn create_large_document() -> *mut HedlDocument {
 
 #[test]
 fn test_canonicalize_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
@@ -105,7 +106,7 @@ fn test_canonicalize_callback() {
         assert_eq!(ctx.call_count, 1);
 
         let output = ctx.as_string();
-        assert!(output.contains("%VERSION: 1.0"));
+        assert!(output.contains("%V:2.0"));
         assert!(output.contains("person"));
         assert!(output.contains("Alice"));
 
@@ -116,6 +117,7 @@ fn test_canonicalize_callback() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
@@ -142,6 +144,7 @@ fn test_json_callback() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_callback_with_metadata() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
@@ -167,6 +170,7 @@ fn test_json_callback_with_metadata() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_yaml_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
@@ -192,6 +196,7 @@ fn test_yaml_callback() {
 #[cfg(feature = "xml")]
 #[test]
 fn test_xml_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
@@ -217,17 +222,19 @@ fn test_xml_callback() {
 #[cfg(feature = "csv")]
 #[test]
 fn test_csv_callback() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // Create a document with matrix list for CSV conversion
         // Using proper HEDL syntax with struct definition
         let hedl = concat!(
-            "%VERSION: 1.0\n",
-            "---\n",
-            "@Person: [name, age]\n",
+            "%V:2.0\n",
+            "%NULL:~\n",
+            "%QUOTE:\"\n",
+            "%S:Person:[name, age]\n",
             "---\n",
             "people: [\n",
-            "  [Alice, 30]\n",
-            "  [Bob, 25]\n",
+            " [Alice, 30]\n",
+            " [Bob, 25]\n",
             "]\0"
         );
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -262,6 +269,7 @@ fn test_csv_callback() {
 #[cfg(feature = "neo4j")]
 #[test]
 fn test_neo4j_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
         let mut ctx = CallbackContext::new();
@@ -286,6 +294,7 @@ fn test_neo4j_callback() {
 
 #[test]
 fn test_callback_null_document() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let mut ctx = CallbackContext::new();
 
@@ -307,6 +316,7 @@ fn test_callback_null_document() {
 #[cfg(feature = "json")]
 #[test]
 fn test_json_callback_vs_regular() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
 
@@ -338,6 +348,7 @@ fn test_json_callback_vs_regular() {
 #[cfg(feature = "yaml")]
 #[test]
 fn test_yaml_callback_vs_regular() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
 
@@ -367,6 +378,7 @@ fn test_yaml_callback_vs_regular() {
 #[cfg(feature = "xml")]
 #[test]
 fn test_xml_callback_vs_regular() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
 
@@ -394,6 +406,7 @@ fn test_xml_callback_vs_regular() {
 
 #[test]
 fn test_canonicalize_callback_vs_regular() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_test_document();
 
@@ -426,6 +439,7 @@ fn test_canonicalize_callback_vs_regular() {
 #[cfg(feature = "json")]
 #[test]
 fn test_large_json_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_large_document();
         let mut ctx = CallbackContext::new();
@@ -453,6 +467,7 @@ fn test_large_json_callback() {
 
 #[test]
 fn test_large_canonicalize_callback() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let doc = create_large_document();
         let mut ctx = CallbackContext::new();
@@ -477,6 +492,7 @@ fn test_large_canonicalize_callback() {
 
 #[test]
 fn test_callback_data_lifetime() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let doc = create_test_document();
 
@@ -509,6 +525,7 @@ fn test_callback_data_lifetime() {
 #[cfg(feature = "json")]
 #[test]
 fn test_multiple_callbacks_different_documents() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let doc1 = create_test_document();
         let doc2 = create_test_document();
@@ -547,6 +564,7 @@ fn test_callback_thread_safety() {
     use std::sync::{Arc, Mutex};
     use std::thread;
 
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         let doc = create_test_document();
 

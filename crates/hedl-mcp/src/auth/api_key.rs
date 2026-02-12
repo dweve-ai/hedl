@@ -217,9 +217,9 @@ impl ApiKeyStore for InMemoryApiKeyStore {
                 if let Some(entry) = self.keys.get(hash) {
                     let metadata = entry.value();
                     infos.push(ApiKeyInfo {
-                        key_id: key_id.clone(),
-                        client_id: metadata.client_id.clone(),
-                        scopes: metadata.scopes.clone(),
+                        key_id: key_id.to_string(),
+                        client_id: metadata.client_id.to_string(),
+                        scopes: metadata.scopes.iter().map(|s| s.to_string()).collect(),
                         created_at: metadata.created_at,
                         expires_at: metadata.expires_at,
                         revoked: false,

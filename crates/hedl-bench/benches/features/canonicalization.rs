@@ -15,17 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Canonicalization (C14N) benchmarks.
 //!
 //! Measures HEDL canonicalization performance across document sizes and complexity levels.
-//! Tests ditto marker expansion, reference resolution, deterministic ordering, and deep nesting.
+//! Tests ditto marker expansion (pre-v2.0 only), reference resolution, deterministic ordering, and deep nesting.
 //!
 //! ## Unique HEDL Features Tested
 //!
-//! - **Ditto marker optimization**: Efficient expansion of ^ markers
-//! - **Reference resolution**: @Type:id cross-reference handling
+//! - **Ditto marker optimization** (pre-v2.0 only): Efficient expansion of ^ markers
+//! - **Reference resolution**:@Type:id cross-reference handling
 //! - **Deterministic ordering**: Stable output for cryptographic hashing
 //! - **Idempotency**: canonicalize(canonicalize(x)) == canonicalize(x)
 //!
@@ -33,8 +31,10 @@
 //!
 //! - C14N throughput across complexity levels
 //! - Memory efficiency during canonicalization
-//! - Output size reduction from ditto expansion
+//! - Output size reduction from ditto expansion (pre-v2.0 only)
 //! - Comparison with raw parsing performance
+//!
+//! **Note**: Ditto operator (`^`) is only supported in pre-v2.0 and is NOT allowed in v2.0.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use hedl_bench::core::measurement::measure_with_throughput;
@@ -256,7 +256,9 @@ fn hash_string(s: &str) -> u64 {
     hasher.finish()
 }
 
-/// Count ditto markers in HEDL source
+/// Count ditto markers in HEDL source (pre-v2.0 only).
+///
+/// **Note**: Ditto operator (`^`) is only supported in pre-v2.0 and is NOT allowed in v2.0.
 fn count_ditto_markers(hedl: &str) -> usize {
     hedl.matches('^').count()
 }
@@ -342,15 +344,17 @@ fn bench_c14n_datasets(c: &mut Criterion) {
         );
 
         // Collect comprehensive results
-        let mut result = CanonResult::default();
-        result.dataset = (*name).to_string();
-        result.input_size_bytes = hedl.len();
-        result.record_count = *size;
-        result.strategy = "default".to_string();
-        result.field_count = count_fields(&hedl);
-        result.nesting_depth = estimate_nesting_depth(&hedl);
-        result.ditto_markers = count_ditto_markers(&hedl);
-        result.references = count_references(&hedl);
+        let mut result = CanonResult {
+            dataset: (*name).to_string(),
+            input_size_bytes: hedl.len(),
+            record_count: *size,
+            strategy: "default".to_string(),
+            field_count: count_fields(&hedl),
+            nesting_depth: estimate_nesting_depth(&hedl),
+            ditto_markers: count_ditto_markers(&hedl),
+            references: count_references(&hedl),
+            ..Default::default()
+        };
 
         // Measure multiple times for statistics
         let mut times = Vec::new();
@@ -380,12 +384,14 @@ fn bench_c14n_datasets(c: &mut Criterion) {
 // Ditto Marker Expansion
 // ============================================================================
 
-/// Benchmark ditto marker expansion performance
+/// Benchmark ditto marker expansion performance (pre-v2.0 only).
+///
+/// **Note**: Ditto operator (`^`) is only supported in pre-v2.0 and is NOT allowed in v2.0.
 fn bench_ditto_expansion(c: &mut Criterion) {
     ensure_init();
     let mut group = c.benchmark_group("c14n_ditto_expansion");
 
-    // Use ditto-heavy dataset
+    // Use ditto-heavy dataset (pre-v2.0 only)
     for &size in &STANDARD_SIZES {
         let hedl = generate_ditto_heavy(size);
         let doc = parse_hedl(&hedl);
@@ -415,12 +421,14 @@ fn bench_ditto_expansion(c: &mut Criterion) {
         );
 
         // Collect comprehensive results
-        let mut result = CanonResult::default();
-        result.dataset = format!("ditto_heavy_{size}");
-        result.input_size_bytes = hedl.len();
-        result.record_count = size;
-        result.strategy = "ditto_expansion".to_string();
-        result.ditto_markers = count_ditto_markers(&hedl);
+        let mut result = CanonResult {
+            dataset: format!("ditto_heavy_{size}"),
+            input_size_bytes: hedl.len(),
+            record_count: size,
+            strategy: "ditto_expansion".to_string(),
+            ditto_markers: count_ditto_markers(&hedl),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -475,12 +483,14 @@ fn bench_reference_resolution(c: &mut Criterion) {
         );
 
         // Collect comprehensive results
-        let mut result = CanonResult::default();
-        result.dataset = format!("reference_heavy_{size}");
-        result.input_size_bytes = hedl.len();
-        result.record_count = size;
-        result.strategy = "reference_resolution".to_string();
-        result.references = count_references(&hedl);
+        let mut result = CanonResult {
+            dataset: format!("reference_heavy_{size}"),
+            input_size_bytes: hedl.len(),
+            record_count: size,
+            strategy: "reference_resolution".to_string(),
+            references: count_references(&hedl),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -534,12 +544,14 @@ fn bench_deep_nesting(c: &mut Criterion) {
         );
 
         // Collect comprehensive results
-        let mut result = CanonResult::default();
-        result.dataset = format!("deep_hierarchy_{size}");
-        result.input_size_bytes = hedl.len();
-        result.record_count = size;
-        result.strategy = "deep_nesting".to_string();
-        result.nesting_depth = estimate_nesting_depth(&hedl);
+        let mut result = CanonResult {
+            dataset: format!("deep_hierarchy_{size}"),
+            input_size_bytes: hedl.len(),
+            record_count: size,
+            strategy: "deep_nesting".to_string(),
+            nesting_depth: estimate_nesting_depth(&hedl),
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         for _ in 0..10 {
@@ -665,13 +677,15 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
             memory_kb = result.len() / 1024;
         }
 
-        let mut result = CanonResult::default();
-        result.dataset = "users".to_string();
-        result.algorithm = (*algo_name).to_string();
-        result.input_size_bytes = data.len();
-        result.normalization_times_ns = times;
-        result.memory_overhead_kb = memory_kb;
-        result.deterministic = true;
+        let result = CanonResult {
+            dataset: "users".to_string(),
+            algorithm: (*algo_name).to_string(),
+            input_size_bytes: data.len(),
+            normalization_times_ns: times,
+            memory_overhead_kb: memory_kb,
+            deterministic: true,
+            ..Default::default()
+        };
 
         record_result(result);
     }
@@ -740,11 +754,13 @@ fn bench_hash_functions(c: &mut Criterion) {
             non_canon_times.push(start.elapsed().as_nanos() as u64);
         }
 
-        let mut result = CanonResult::default();
-        result.dataset = "users".to_string();
-        result.hash_function = (*hash_name).to_string();
-        result.input_size_bytes = canonical_bytes.len();
-        result.normalization_times_ns = canon_times;
+        let mut result = CanonResult {
+            dataset: "users".to_string(),
+            hash_function: (*hash_name).to_string(),
+            input_size_bytes: canonical_bytes.len(),
+            normalization_times_ns: canon_times,
+            ..Default::default()
+        };
         result.collisions = 0; // Would need actual collision testing
 
         record_result(result);
@@ -814,12 +830,14 @@ fn bench_canonical_benefits(c: &mut Criterion) {
             non_canon_times.push(start.elapsed().as_nanos() as u64);
         }
 
-        let mut result = CanonResult::default();
-        result.dataset = "users".to_string();
-        result.use_case = (*use_case).to_string();
-        result.input_size_bytes = canonical.len();
-        result.normalization_times_ns = canon_times;
-        result.output_size_bytes = hedl.len();
+        let result = CanonResult {
+            dataset: "users".to_string(),
+            use_case: (*use_case).to_string(),
+            input_size_bytes: canonical.len(),
+            normalization_times_ns: canon_times,
+            output_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         record_result(result);
     }
@@ -860,11 +878,13 @@ fn bench_cache_effectiveness(c: &mut Criterion) {
     });
 
     // Record cache statistics
-    let mut result = CanonResult::default();
-    result.dataset = "users".to_string();
-    result.cache_hits = cache_hits;
-    result.cache_misses = cache_misses;
-    result.input_size_bytes = hedl.len();
+    let result = CanonResult {
+        dataset: "users".to_string(),
+        cache_hits,
+        cache_misses,
+        input_size_bytes: hedl.len(),
+        ..Default::default()
+    };
 
     record_result(result);
 

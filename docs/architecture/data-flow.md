@@ -152,7 +152,7 @@ pub struct Document {
 
 **Key Functions**:
 ```rust
-// From hedl-core/src/header.rs
+// From hedl-core/src/header/
 fn parse_header(lines: &[&str], limits: &Limits) -> HedlResult<ParsedHeader>
 // Returns ParsedHeader with version, structs, aliases, nests
 // Note: Header is internal structure, Document fields are public API
@@ -191,7 +191,7 @@ pub fn parse_csv_row(csv_string: &str) -> Result<Vec<CsvField>, LexError>
 // From hedl-core/src/lex/tensor.rs
 pub fn parse_tensor(s: &str) -> Result<Tensor, LexError>
 
-// From hedl-core/src/inference.rs
+// From hedl-core/src/inference/
 fn infer_value(token: &str, ctx: &InferenceContext, line_num: usize) -> HedlResult<Value>
 ```
 
@@ -216,7 +216,7 @@ Reference resolution and validation occur during parsing, not as a separate post
 pub(crate) fn register_node(registry: &mut TypeRegistry, node: &Node)
 // Registers nodes in type registry during parsing
 
-// From hedl-core/src/parser.rs
+// From hedl-core/src/parser/
 // Limits are checked during parsing:
 // - max_file_size: checked before parsing starts
 // - max_total_keys: tracked incrementally and checked during body parsing
@@ -594,7 +594,7 @@ graph LR
 - Schema information preserved (via STRUCT)
 
 **Lossy Conversions**:
-- Some HEDL features (expressions, ditto) may not round-trip perfectly
+- Some HEDL features (expressions) may not round-trip perfectly
 - Type inference may differ on reverse conversion
 
 ## See Also

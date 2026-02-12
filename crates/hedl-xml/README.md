@@ -1,12 +1,12 @@
 # hedl-xml
 
-**HEDL's XML ecosystem integration—bidirectional conversion, XSD schema validation, streaming, and async I/O.**
+**HEDL's XML ecosystem integration -bidirectional conversion, XSD schema validation, streaming, and async I/O.**
 
 XML powers enterprise systems: SOAP APIs, configuration files, data interchange across legacy platforms, regulatory compliance documents. Your infrastructure depends on it. Your vendors require it. But XML's verbosity and lack of type safety create friction.
 
 `hedl-xml` bridges HEDL's structured data model with XML's ubiquity. Convert between formats with configurable fidelity. Validate against XSD schemas with detailed error messages. Stream multi-gigabyte files without loading everything into memory. Use async I/O for concurrent processing with Tokio.
 
-Part of the **HEDL format family** alongside `hedl-json`, `hedl-yaml`, `hedl-csv`, and `hedl-parquet`—bringing HEDL's efficiency and structure to every ecosystem you work in.
+Part of the **HEDL format family** alongside `hedl-json`, `hedl-yaml`, `hedl-csv`, and `hedl-parquet` -bringing HEDL's efficiency and structure to every ecosystem you work in.
 
 ## What's Implemented
 
@@ -23,10 +23,10 @@ Based on 6,068 lines of Rust across 7 modules:
 
 ```toml
 [dependencies]
-hedl-xml = "1.2"
+hedl-xml = "2.0"
 
 # For async I/O support:
-hedl-xml = { version = "1.2", features = ["async"] }
+hedl-xml = { version = "2.0", features = ["async"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -40,11 +40,11 @@ Convert HEDL documents to XML when you need compatibility with existing enterpri
 use hedl_xml::{to_xml, ToXmlConfig};
 
 let doc = hedl_core::parse(br#"
-%STRUCT: User: [id, name, email]
+%S:User:[id, name, email]
 ---
 users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
 "#)?;
 
 // Configure XML output
@@ -63,7 +63,7 @@ Generated XML (3-5x larger than HEDL):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<hedl version="1.0">
+<hedl version="2.0">
   <users>
     <user>
       <id>alice</id>
@@ -399,7 +399,7 @@ let config = StreamConfig {
 
 **Regulatory Compliance**: Parse XML from compliance systems (banking, healthcare, government). Validate against regulatory XSD schemas. Transform with HEDL's structured API.
 
-**Multi-Format Pipelines**: Read XML from SOAP APIs, convert to HEDL, combine with JSON from REST APIs (`hedl-json`), export to CSV for reporting (`hedl-csv`)—all through HEDL's unified data model.
+**Multi-Format Pipelines**: Read XML from SOAP APIs, convert to HEDL, combine with JSON from REST APIs (`hedl-json`), export to CSV for reporting (`hedl-csv`) -all through HEDL's unified data model.
 
 ## What This Crate Doesn't Do
 
@@ -407,7 +407,7 @@ let config = StreamConfig {
 
 **Validation**: Converts formats, doesn't validate data. For HEDL schema validation, use `hedl-lint`. For XML schema validation, use `SchemaValidator` with XSD.
 
-**Optimization**: Converts faithfully, not optimally. Verbose XML becomes verbose HEDL (3-5x size overhead). XML is inherently verbose—HEDL's efficiency comes from avoiding XML in the first place.
+**Optimization**: Converts faithfully, not optimally. Verbose XML becomes verbose HEDL (3-5x size overhead). XML is inherently verbose -HEDL's efficiency comes from avoiding XML in the first place.
 
 **XML Comments**: XML comments are discarded during parsing (standard XML processing behavior). Use HEDL comments in source `.hedl` files for preserved documentation.
 
@@ -415,7 +415,7 @@ let config = StreamConfig {
 
 - `quick-xml` 0.31 - High-performance XML parsing and serialization
 - `roxmltree` 0.20 - XSD schema parsing and validation
-- `hedl-core` 1.0 - HEDL parsing and data model
+- `hedl-core` 2.0 - HEDL parsing and data model
 - `parking_lot` 0.12 - High-performance RwLock for schema cache
 - `tokio` 1.0 (optional) - Async I/O runtime (requires `async` feature)
 - `thiserror` 1.0 - Error type definitions

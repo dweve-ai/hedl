@@ -119,12 +119,14 @@ fn main() {
     println!();
 
     // Example 2: HEDL data
-    let hedl = r"%VERSION: 1.0
-%STRUCT: User: [id, name, email]
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com";
+users:@User
+ |alice, Alice Smith, alice@example.com
+ |bob, Bob Jones, bob@example.com"#;
     println!("Example 2: HEDL Document");
     println!("Length: {} bytes", hedl.len());
     let tokens = estimate_tokens_optimized(hedl);

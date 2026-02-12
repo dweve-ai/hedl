@@ -457,7 +457,7 @@ fn test_jsonl_writer_basic_workflow() {
     let mut writer = JsonLinesWriter::new(&mut buffer);
 
     for i in 1..=5 {
-        let mut doc = Document::new((1, 0));
+        let mut doc = Document::new((2, 0));
         doc.root.insert(
             "id".to_string(),
             Item::Scalar(Value::String(i.to_string().into())),
@@ -485,7 +485,7 @@ fn test_jsonl_writer_empty_documents() {
     let mut writer = JsonLinesWriter::new(&mut buffer);
 
     for _ in 0..3 {
-        let doc = Document::new((1, 0));
+        let doc = Document::new((2, 0));
         writer.write_document(&doc).unwrap();
     }
 
@@ -502,7 +502,7 @@ fn test_jsonl_writer_complex_documents() {
     let mut buffer = Vec::new();
     let mut writer = JsonLinesWriter::new(&mut buffer);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "string".to_string(),
         Item::Scalar(Value::String("test".to_string().into())),
@@ -602,7 +602,7 @@ fn test_jsonl_roundtrip_special_characters() {
     let mut buffer = Vec::new();
     let mut writer = JsonLinesWriter::new(&mut buffer);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "text".to_string(),
         Item::Scalar(Value::String(
@@ -692,7 +692,7 @@ fn test_stream_config_unlimited() {
 // =============================================================================
 
 fn create_test_document(id: &str, name: &str, age: i64) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     doc.root.insert(
         "id".to_string(),
         Item::Scalar(Value::String(id.to_string().into())),

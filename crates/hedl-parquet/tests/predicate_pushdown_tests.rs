@@ -113,7 +113,7 @@ fn test_predicate_or() {
 
 #[test]
 fn test_predicate_not() {
-    let pred = Predicate::not(Predicate::is_null("email"));
+    let pred = !Predicate::is_null("email");
     assert_eq!(pred.to_string(), "NOT (email IS NULL)");
 }
 
@@ -125,7 +125,7 @@ fn test_predicate_complex_nested() {
             Predicate::equal("type", PredicateValue::String("admin".into())),
         ]),
         Predicate::between("age", PredicateValue::Int(18), PredicateValue::Int(100)),
-        Predicate::not(Predicate::is_null("email")),
+        !Predicate::is_null("email"),
     ]);
     // Should produce nested expression
     assert!(pred.to_string().contains("AND"));
@@ -336,23 +336,20 @@ fn test_predicate_with_special_characters_in_string() {
 #[test]
 fn test_not_is_null_simplification() {
     // NOT (IS NULL) should behave like IS NOT NULL
-    let pred = Predicate::not(Predicate::is_null("email"));
+    let pred = !Predicate::is_null("email");
     assert_eq!(pred.to_string(), "NOT (email IS NULL)");
 }
 
 #[test]
 fn test_not_is_not_null_simplification() {
     // NOT (IS NOT NULL) should behave like IS NULL
-    let pred = Predicate::not(Predicate::is_not_null("phone"));
+    let pred = !Predicate::is_not_null("phone");
     assert_eq!(pred.to_string(), "NOT (phone IS NOT NULL)");
 }
 
 #[test]
 fn test_double_negation() {
-    let pred = Predicate::not(Predicate::not(Predicate::equal(
-        "status",
-        PredicateValue::String("active".into()),
-    )));
+    let pred = !!Predicate::equal("status", PredicateValue::String("active".into()));
     // Should preserve double NOT
     assert!(pred.to_string().contains("NOT"));
 }

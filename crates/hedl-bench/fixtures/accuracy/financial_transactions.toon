@@ -1,0 +1,215 @@
+customers[20]{id,name,email,phone,address,city,state,zip,dob,ssn_last4,risk_score,created_date}:
+  cust-001,James Wilson,james.wilson@email.com,555-0101,123 Oak Street,"New York",NY,10001,1975-03-15,4521,720,2018-06-15
+  cust-002,Maria Garcia,maria.garcia@email.com,555-0102,456 Maple Ave,Los Angeles,CA,90001,1982-07-22,8934,680,2019-01-20
+  cust-003,Robert Chen,robert.chen@email.com,555-0103,789 Pine Road,Chicago,IL,60601,1968-11-08,2156,785,2015-09-10
+  cust-004,Sarah Johnson,sarah.johnson@email.com,555-0104,321 Elm Lane,Houston,TX,77001,1990-04-30,6743,650,2020-03-05
+  cust-005,Michael Brown,michael.brown@email.com,555-0105,654 Cedar Blvd,Phoenix,AZ,85001,1955-09-12,1298,810,2012-11-28
+  cust-006,Emily Davis,emily.davis@email.com,555-0106,987 Birch Court,Philadelphia,PA,19101,1985-12-03,5672,695,2017-07-14
+  cust-007,David Martinez,david.martinez@email.com,555-0107,147 Walnut Way,San Antonio,TX,78201,1972-06-18,3489,740,2016-04-22
+  cust-008,Jennifer Lee,jennifer.lee@email.com,555-0108,258 Ash Drive,San Diego,CA,92101,1988-02-25,7821,710,2019-08-30
+  cust-009,William Taylor,william.taylor@email.com,555-0109,369 Spruce Lane,Dallas,TX,75201,1960-08-14,4156,755,2014-02-18
+  cust-010,Amanda White,amanda.white@email.com,555-0110,741 Poplar Street,San Jose,CA,95101,1992-01-29,9234,620,2021-05-12
+  cust-011,Christopher Harris,christopher.harris@email.com,555-0111,852 Willow Ave,Austin,TX,78701,1978-05-06,1567,770,2013-10-05
+  cust-012,Jessica Clark,jessica.clark@email.com,555-0112,963 Hickory Road,Jacksonville,FL,32099,1995-10-17,8345,700,2020-12-01
+  cust-013,Daniel Lewis,daniel.lewis@email.com,555-0113,174 Chestnut Blvd,Fort Worth,TX,76101,1965-12-22,2678,790,2011-06-30
+  cust-014,Michelle Robinson,michelle.robinson@email.com,555-0114,285 Magnolia Court,Columbus,OH,43085,1983-03-08,5912,665,2018-09-25
+  cust-015,Joseph Walker,joseph.walker@email.com,555-0115,396 Dogwood Lane,Charlotte,NC,28201,1970-07-14,3745,725,2015-01-15
+  cust-016,Elizabeth Hall,elizabeth.hall@email.com,555-0116,507 Redwood Drive,San Francisco,CA,94102,1958-11-30,6189,800,2010-08-20
+  cust-017,Thomas Allen,thomas.allen@email.com,555-0117,618 Sequoia Way,Indianapolis,IN,46201,1987-04-25,4523,735,2016-11-08
+  cust-018,Patricia Young,patricia.young@email.com,555-0118,729 Cypress Street,Seattle,WA,98101,1993-09-11,7856,675,2021-02-28
+  cust-019,Richard King,richard.king@email.com,555-0119,840 Juniper Ave,Denver,CO,80201,1962-02-17,1934,760,2012-04-10
+  cust-020,Linda Scott,linda.scott@email.com,555-0120,951 Sycamore Road,Washington,DC,20001,1980-06-05,8267,705,2017-03-22
+
+accounts[35]{id,customer,type,status,balance,currency,interest_rate,opened_date,last_activity}:
+  acc-001,cust-001,checking,active,15234.56,USD,0.01,2018-06-15,2024-03-10
+  acc-002,cust-001,savings,active,48750.00,USD,4.25,2018-06-15,2024-03-08
+  acc-003,cust-001,investment,active,125680.45,USD,0,2019-03-20,2024-03-10
+  acc-004,cust-002,checking,active,3456.78,USD,0.01,2019-01-20,2024-03-09
+  acc-005,cust-002,credit,active,-2150.00,USD,19.99,2019-05-15,2024-03-10
+  acc-006,cust-003,checking,active,28945.12,USD,0.02,2015-09-10,2024-03-10
+  acc-007,cust-003,savings,active,156780.00,USD,4.50,2015-09-10,2024-03-05
+  acc-008,cust-003,investment,active,892450.78,USD,0,2016-01-15,2024-03-10
+  acc-009,cust-004,checking,active,1245.89,USD,0.01,2020-03-05,2024-03-10
+  acc-010,cust-004,credit,active,-4580.25,USD,22.99,2020-06-10,2024-03-09
+  acc-011,cust-005,checking,active,45678.90,USD,0.03,2012-11-28,2024-03-10
+  acc-012,cust-005,savings,active,234500.00,USD,4.75,2012-11-28,2024-03-01
+  acc-013,cust-005,investment,active,1567890.23,USD,0,2013-05-01,2024-03-10
+  acc-014,cust-006,checking,active,8765.43,USD,0.01,2017-07-14,2024-03-10
+  acc-015,cust-006,savings,frozen,12500.00,USD,4.25,2017-07-14,2024-01-15
+  acc-016,cust-007,checking,active,19876.54,USD,0.02,2016-04-22,2024-03-09
+  acc-017,cust-007,investment,active,345670.89,USD,0,2017-01-10,2024-03-10
+  acc-018,cust-008,checking,active,5432.10,USD,0.01,2019-08-30,2024-03-10
+  acc-019,cust-008,credit,active,-1875.50,USD,18.99,2019-10-15,2024-03-08
+  acc-020,cust-009,checking,active,67890.12,USD,0.02,2014-02-18,2024-03-10
+  acc-021,cust-009,savings,active,189500.00,USD,4.50,2014-02-18,2024-03-03
+  acc-022,cust-010,checking,active,2345.67,USD,0.01,2021-05-12,2024-03-10
+  acc-023,cust-010,credit,active,-6750.00,USD,24.99,2021-08-20,2024-03-10
+  acc-024,cust-011,checking,active,34567.89,USD,0.02,2013-10-05,2024-03-10
+  acc-025,cust-011,savings,active,87650.00,USD,4.25,2013-10-05,2024-03-06
+  acc-026,cust-012,checking,active,4567.12,USD,0.01,2020-12-01,2024-03-09
+  acc-027,cust-013,checking,active,56789.34,USD,0.02,2011-06-30,2024-03-10
+  acc-028,cust-013,investment,active,678900.56,USD,0,2012-02-15,2024-03-10
+  acc-029,cust-014,checking,active,6543.21,USD,0.01,2018-09-25,2024-03-10
+  acc-030,cust-015,checking,active,23456.78,USD,0.02,2015-01-15,2024-03-08
+  acc-031,cust-016,checking,active,78901.23,USD,0.03,2010-08-20,2024-03-10
+  acc-032,cust-016,savings,active,345600.00,USD,4.75,2010-08-20,2024-03-02
+  acc-033,cust-017,checking,active,12345.67,USD,0.01,2016-11-08,2024-03-10
+  acc-034,cust-018,checking,active,3456.78,USD,0.01,2021-02-28,2024-03-09
+  acc-035,cust-019,checking,active,45678.90,USD,0.02,2012-04-10,2024-03-10
+
+transactions[50]{id,account,type,status,amount,currency,description,merchant,category,timestamp,reference}:
+  txn-001,acc-001,deposit,completed,5000.00,USD,Payroll Direct Deposit,Acme Corp,income,2024-03-01T09:00:00Z,PAY-2024-0301-001
+  txn-002,acc-001,withdrawal,completed,200.00,USD,ATM Withdrawal,Chase ATM,cash,2024-03-02T14:30:00Z,ATM-2024-0302-001
+  txn-003,acc-001,payment,completed,1500.00,USD,Rent Payment,Skyline Apartments,housing,2024-03-03T08:00:00Z,PMT-2024-0303-001
+  txn-004,acc-001,transfer,completed,2000.00,USD,Transfer to Savings,Internal,transfer,2024-03-04T10:15:00Z,TRF-2024-0304-001
+  txn-005,acc-002,transfer,completed,2000.00,USD,Transfer from Checking,Internal,transfer,2024-03-04T10:15:00Z,TRF-2024-0304-002
+  txn-006,acc-002,interest,completed,172.40,USD,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z,INT-2024-0305-001
+  txn-007,acc-004,deposit,completed,3200.00,USD,Payroll Direct Deposit,Tech Solutions Inc,income,2024-03-01T09:00:00Z,PAY-2024-0301-002
+  txn-008,acc-004,payment,completed,850.00,USD,Car Payment,Auto Finance Co,auto,2024-03-05T08:00:00Z,PMT-2024-0305-001
+  txn-009,acc-005,payment,completed,125.50,USD,Restaurant Purchase,The Italian Place,dining,2024-03-02T19:45:00Z,POS-2024-0302-001
+  txn-010,acc-005,payment,completed,89.99,USD,Streaming Services,Netflix,entertainment,2024-03-03T00:00:00Z,REC-2024-0303-001
+  txn-011,acc-005,payment,completed,234.56,USD,Online Shopping,Amazon,shopping,2024-03-04T16:20:00Z,ONL-2024-0304-001
+  txn-012,acc-005,fee,completed,35.00,USD,Late Payment Fee,Bank,fees,2024-03-05T00:00:00Z,FEE-2024-0305-001
+  txn-013,acc-006,deposit,completed,8500.00,USD,Consulting Income,Client ABC,income,2024-03-01T10:30:00Z,DEP-2024-0301-001
+  txn-014,acc-006,payment,completed,2800.00,USD,Mortgage Payment,Home Lenders Inc,housing,2024-03-01T08:00:00Z,PMT-2024-0301-001
+  txn-015,acc-006,withdrawal,completed,500.00,USD,ATM Withdrawal,Bank ATM,cash,2024-03-03T11:45:00Z,ATM-2024-0303-001
+  txn-016,acc-007,interest,completed,587.93,USD,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z,INT-2024-0305-002
+  txn-017,acc-009,deposit,completed,2800.00,USD,Payroll Direct Deposit,Retail Corp,income,2024-03-01T09:00:00Z,PAY-2024-0301-003
+  txn-018,acc-009,payment,completed,1200.00,USD,Rent Payment,Metro Living,housing,2024-03-02T08:00:00Z,PMT-2024-0302-001
+  txn-019,acc-010,payment,completed,456.78,USD,Grocery Shopping,Whole Foods,groceries,2024-03-01T15:30:00Z,POS-2024-0301-001
+  txn-020,acc-010,payment,completed,78.90,USD,Gas Station,Shell,transportation,2024-03-03T08:15:00Z,POS-2024-0303-001
+  txn-021,acc-011,deposit,completed,12000.00,USD,Pension Deposit,State Pension Fund,income,2024-03-01T09:00:00Z,PEN-2024-0301-001
+  txn-022,acc-011,transfer,completed,5000.00,USD,Transfer to Savings,Internal,transfer,2024-03-02T10:00:00Z,TRF-2024-0302-001
+  txn-023,acc-012,transfer,completed,5000.00,USD,Transfer from Checking,Internal,transfer,2024-03-02T10:00:00Z,TRF-2024-0302-002
+  txn-024,acc-012,interest,completed,928.44,USD,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z,INT-2024-0305-003
+  txn-025,acc-014,deposit,completed,4500.00,USD,Payroll Direct Deposit,Marketing Agency,income,2024-03-01T09:00:00Z,PAY-2024-0301-004
+  txn-026,acc-014,payment,completed,1800.00,USD,Rent Payment,Urban Apartments,housing,2024-03-03T08:00:00Z,PMT-2024-0303-002
+  txn-027,acc-016,deposit,completed,6200.00,USD,Payroll Direct Deposit,Construction Co,income,2024-03-01T09:00:00Z,PAY-2024-0301-005
+  txn-028,acc-016,payment,completed,350.00,USD,Utility Bills,City Power,utilities,2024-03-04T08:00:00Z,PMT-2024-0304-001
+  txn-029,acc-018,deposit,completed,3800.00,USD,Payroll Direct Deposit,Design Studio,income,2024-03-01T09:00:00Z,PAY-2024-0301-006
+  txn-030,acc-018,withdrawal,completed,300.00,USD,ATM Withdrawal,Bank ATM,cash,2024-03-02T12:00:00Z,ATM-2024-0302-002
+  txn-031,acc-019,payment,completed,567.89,USD,Department Store,Macy's,shopping,2024-03-01T14:20:00Z,POS-2024-0301-002
+  txn-032,acc-019,payment,completed,45.00,USD,Subscription,Spotify,entertainment,2024-03-01T00:00:00Z,REC-2024-0301-001
+  txn-033,acc-020,deposit,completed,7500.00,USD,Business Income,Self-Employment,income,2024-03-01T11:00:00Z,DEP-2024-0301-002
+  txn-034,acc-020,payment,completed,2200.00,USD,Mortgage Payment,Wells Fargo,housing,2024-03-01T08:00:00Z,PMT-2024-0301-002
+  txn-035,acc-021,interest,completed,710.63,USD,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z,INT-2024-0305-004
+  txn-036,acc-022,deposit,completed,2500.00,USD,Payroll Direct Deposit,Startup Inc,income,2024-03-01T09:00:00Z,PAY-2024-0301-007
+  txn-037,acc-023,payment,completed,1234.56,USD,Electronics Purchase,Best Buy,shopping,2024-03-02T16:45:00Z,POS-2024-0302-002
+  txn-038,acc-024,deposit,completed,5800.00,USD,Payroll Direct Deposit,Law Firm LLP,income,2024-03-01T09:00:00Z,PAY-2024-0301-008
+  txn-039,acc-025,interest,completed,310.17,USD,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z,INT-2024-0305-005
+  txn-040,acc-026,deposit,completed,3100.00,USD,Payroll Direct Deposit,Hospital,income,2024-03-01T09:00:00Z,PAY-2024-0301-009
+  txn-041,acc-027,deposit,completed,9800.00,USD,Investment Returns,Dividend Income,income,2024-03-01T10:00:00Z,DIV-2024-0301-001
+  txn-042,acc-027,transfer,completed,3000.00,USD,Transfer to Investment,Internal,transfer,2024-03-03T09:00:00Z,TRF-2024-0303-001
+  txn-043,acc-029,deposit,completed,4200.00,USD,Payroll Direct Deposit,School District,income,2024-03-01T09:00:00Z,PAY-2024-0301-010
+  txn-044,acc-030,deposit,completed,5500.00,USD,Payroll Direct Deposit,Insurance Co,income,2024-03-01T09:00:00Z,PAY-2024-0301-011
+  txn-045,acc-031,deposit,completed,15000.00,USD,Consulting Income,Client XYZ,income,2024-03-01T10:30:00Z,DEP-2024-0301-003
+  txn-046,acc-032,interest,completed,1368.00,USD,Monthly Interest,Bank,interest,2024-03-05T00:00:00Z,INT-2024-0305-006
+  txn-047,acc-033,deposit,completed,4100.00,USD,Payroll Direct Deposit,Manufacturing Co,income,2024-03-01T09:00:00Z,PAY-2024-0301-012
+  txn-048,acc-034,deposit,completed,2900.00,USD,Payroll Direct Deposit,Media Company,income,2024-03-01T09:00:00Z,PAY-2024-0301-013
+  txn-049,acc-035,deposit,completed,6800.00,USD,Pension Deposit,Federal Pension,income,2024-03-01T09:00:00Z,PEN-2024-0301-002
+  txn-050,acc-001,payment,pending,750.00,USD,Insurance Premium,State Farm,insurance,2024-03-10T08:00:00Z,PMT-2024-0310-001
+
+cards[20]{id,account,type,network,last4,expiry,credit_limit,rewards_rate,is_primary}:
+  card-001,acc-001,debit,visa,4521,2027-06,null,0.5,true
+  card-002,acc-005,credit,mastercard,8934,2026-09,5000.00,1.5,true
+  card-003,acc-006,debit,visa,2156,2028-03,null,0.5,true
+  card-004,acc-010,credit,visa,6743,2025-12,8000.00,2.0,true
+  card-005,acc-011,debit,mastercard,1298,2027-09,null,0.5,true
+  card-006,acc-014,debit,visa,5672,2026-06,null,0.5,true
+  card-007,acc-016,debit,discover,3489,2028-01,null,1.0,true
+  card-008,acc-018,debit,visa,7821,2027-04,null,0.5,true
+  card-009,acc-019,credit,amex,4156,2026-08,3000.00,2.5,true
+  card-010,acc-020,debit,mastercard,9234,2027-11,null,0.5,true
+  card-011,acc-022,debit,visa,1567,2028-05,null,0.5,true
+  card-012,acc-023,credit,visa,8345,2025-10,10000.00,1.5,true
+  card-013,acc-024,debit,discover,2678,2027-07,null,1.0,true
+  card-014,acc-026,debit,visa,5912,2026-12,null,0.5,true
+  card-015,acc-027,debit,mastercard,3745,2028-02,null,0.5,true
+  card-016,acc-029,debit,visa,6189,2027-08,null,0.5,true
+  card-017,acc-030,debit,amex,4523,2026-05,null,1.5,true
+  card-018,acc-031,debit,visa,7856,2028-04,null,0.5,true
+  card-019,acc-033,debit,mastercard,1934,2027-10,null,0.5,true
+  card-020,acc-034,debit,visa,8267,2026-11,null,0.5,true
+
+investments[25]{id,account,type,symbol,name,shares,purchase_price,current_price,purchase_date}:
+  inv-001,acc-003,stock,AAPL,Apple Inc,150,142.50,178.25,2019-03-20
+  inv-002,acc-003,stock,MSFT,Microsoft Corp,100,245.00,415.80,2020-01-15
+  inv-003,acc-003,etf,SPY,S&P 500 ETF,50,380.00,512.45,2019-06-10
+  inv-004,acc-003,stock,GOOGL,Alphabet Inc,25,1250.00,141.95,2021-02-20
+  inv-005,acc-003,bond,BND,Vanguard Bond ETF,200,82.50,73.25,2020-08-15
+  inv-006,acc-008,stock,NVDA,NVIDIA Corp,80,220.00,878.35,2019-01-10
+  inv-007,acc-008,stock,AMZN,Amazon.com Inc,60,1850.00,178.50,2018-05-20
+  inv-008,acc-008,etf,QQQ,Nasdaq 100 ETF,75,285.00,438.20,2019-09-15
+  inv-009,acc-008,mutual_fund,VFIAX,Vanguard 500 Index,120,350.00,485.60,2016-03-01
+  inv-010,acc-008,stock,META,Meta Platforms,45,185.00,505.75,2022-11-10
+  inv-011,acc-013,stock,TSLA,Tesla Inc,100,180.00,175.45,2020-06-15
+  inv-012,acc-013,stock,JPM,JPMorgan Chase,150,125.00,198.50,2015-04-20
+  inv-013,acc-013,etf,VTI,Vanguard Total Market,200,180.00,264.30,2014-01-10
+  inv-014,acc-013,bond,TLT,iShares 20+ Year Treasury,100,145.00,92.15,2019-12-01
+  inv-015,acc-013,stock,V,Visa Inc,80,185.00,282.40,2017-08-15
+  inv-016,acc-017,stock,DIS,Walt Disney Co,120,140.00,112.85,2018-03-20
+  inv-017,acc-017,etf,IWM,Russell 2000 ETF,100,165.00,207.50,2019-07-10
+  inv-018,acc-017,mutual_fund,FXAIX,Fidelity 500 Index,80,145.00,185.25,2020-04-15
+  inv-019,acc-028,stock,JNJ,Johnson & Johnson,200,145.00,156.80,2013-02-10
+  inv-020,acc-028,stock,PG,Procter & Gamble,150,125.00,162.45,2014-06-20
+  inv-021,acc-028,etf,VYM,Vanguard High Dividend,175,95.00,118.60,2015-09-15
+  inv-022,acc-028,bond,AGG,iShares Core Bond,250,108.00,96.75,2016-01-10
+  inv-023,acc-028,crypto,BTC,Bitcoin,2.5,28000.00,67500.00,2021-07-15
+  inv-024,acc-028,crypto,ETH,Ethereum,15,1800.00,3450.00,2021-08-20
+  inv-025,acc-003,mutual_fund,VTSAX,Vanguard Total Stock,50,95.00,125.40,2022-01-10
+
+loans[15]{id,customer,type,status,principal,interest_rate,term_months,monthly_payment,start_date,remaining_balance}:
+  loan-001,cust-003,mortgage,current,450000.00,3.75,360,2084.82,2020-06-01,412500.00
+  loan-002,cust-004,auto,current,28000.00,5.99,60,541.87,2022-01-15,18500.00
+  loan-003,cust-006,personal,current,15000.00,9.99,36,484.15,2023-03-01,8750.00
+  loan-004,cust-007,mortgage,current,325000.00,4.25,360,1599.24,2019-09-01,298000.00
+  loan-005,cust-009,auto,paid_off,35000.00,4.99,48,805.84,2020-02-01,0.00
+  loan-006,cust-010,student,current,45000.00,6.50,120,510.25,2021-09-01,38500.00
+  loan-007,cust-011,mortgage,current,550000.00,3.50,360,2470.53,2018-04-01,485000.00
+  loan-008,cust-012,auto,current,22000.00,6.49,60,430.78,2023-06-01,19200.00
+  loan-009,cust-013,business,current,150000.00,7.50,84,2292.15,2021-01-15,98500.00
+  loan-010,cust-014,personal,delinquent,10000.00,12.99,24,475.88,2023-08-01,6200.00
+  loan-011,cust-015,mortgage,current,280000.00,4.00,360,1337.02,2017-11-01,248000.00
+  loan-012,cust-016,auto,paid_off,42000.00,4.25,48,952.85,2019-08-01,0.00
+  loan-013,cust-017,student,current,65000.00,5.99,120,721.65,2020-05-01,52000.00
+  loan-014,cust-018,personal,current,8000.00,11.99,24,377.42,2024-01-15,7250.00
+  loan-015,cust-020,mortgage,current,380000.00,3.875,360,1787.21,2021-03-01,358000.00
+
+alerts[20]{id,customer,account,type,message,severity,timestamp,acknowledged}:
+  alert-001,cust-002,acc-005,low_balance,Credit utilization above 40%,medium,2024-03-05T10:00:00Z,false
+  alert-002,cust-004,acc-010,high_utilization,Credit limit reached 57%,high,2024-03-04T14:30:00Z,true
+  alert-003,cust-006,acc-015,account_frozen,Account frozen due to suspicious activity,critical,2024-01-15T08:45:00Z,true
+  alert-004,cust-010,acc-023,over_limit,Credit limit exceeded by $750,critical,2024-03-08T16:20:00Z,false
+  alert-005,cust-001,acc-002,large_deposit,Large deposit detected: $2000,low,2024-03-04T10:15:00Z,true
+  alert-006,cust-003,acc-006,unusual_activity,Multiple transactions in short period,medium,2024-03-03T12:30:00Z,true
+  alert-007,cust-005,acc-011,large_withdrawal,Large withdrawal: $5000,medium,2024-03-02T10:00:00Z,true
+  alert-008,cust-008,acc-019,payment_due,Payment due in 3 days,low,2024-03-05T09:00:00Z,false
+  alert-009,cust-014,null,loan_delinquent,Loan payment overdue 15 days,critical,2024-03-10T08:00:00Z,false
+  alert-010,cust-009,acc-020,security,New device login detected,high,2024-03-06T22:15:00Z,true
+  alert-011,cust-011,acc-024,fraud_attempt,Potential fraud detected - transaction blocked,critical,2024-03-07T03:45:00Z,true
+  alert-012,cust-012,acc-026,low_balance,Balance below $500 threshold,low,2024-03-09T11:00:00Z,false
+  alert-013,cust-015,acc-030,statement_ready,Monthly statement available,low,2024-03-01T06:00:00Z,true
+  alert-014,cust-016,acc-031,large_transfer,Wire transfer: $10000 initiated,high,2024-03-08T14:00:00Z,true
+  alert-015,cust-017,acc-033,card_expiring,Debit card expires next month,medium,2024-03-01T09:00:00Z,false
+  alert-016,cust-018,acc-034,direct_deposit,Direct deposit received: $2900,low,2024-03-01T09:00:00Z,true
+  alert-017,cust-019,acc-035,interest_paid,Interest credited: $250.45,low,2024-03-05T00:00:00Z,true
+  alert-018,cust-020,null,loan_payment,Mortgage payment due in 5 days,medium,2024-03-05T08:00:00Z,false
+  alert-019,cust-003,acc-008,dividend,Dividend payment received: $1250,low,2024-03-10T10:00:00Z,true
+  alert-020,cust-007,acc-017,market_alert,Portfolio down 5% today,high,2024-03-04T16:00:00Z,true
+
+statements[15]{id,account,period_start,period_end,opening_balance,closing_balance,total_deposits,total_withdrawals,fees,interest_earned}:
+  stmt-001,acc-001,2024-02-01,2024-02-29,12234.56,15234.56,8500.00,5500.00,15.00,0.12
+  stmt-002,acc-002,2024-02-01,2024-02-29,46577.60,48750.00,2000.00,0.00,0.00,172.40
+  stmt-003,acc-004,2024-02-01,2024-02-29,2106.78,3456.78,3200.00,1850.00,0.00,0.02
+  stmt-004,acc-006,2024-02-01,2024-02-29,23245.12,28945.12,8500.00,3300.00,25.00,25.00
+  stmt-005,acc-007,2024-02-01,2024-02-29,151192.07,156780.00,5000.00,0.00,0.00,587.93
+  stmt-006,acc-009,2024-02-01,2024-02-29,645.89,1245.89,2800.00,2200.00,0.00,0.01
+  stmt-007,acc-011,2024-02-01,2024-02-29,38678.90,45678.90,12000.00,5000.00,0.00,13.68
+  stmt-008,acc-012,2024-02-01,2024-02-29,228571.56,234500.00,5000.00,0.00,0.00,928.44
+  stmt-009,acc-014,2024-02-01,2024-02-29,6065.43,8765.43,4500.00,1800.00,0.00,4.38
+  stmt-010,acc-016,2024-02-01,2024-02-29,14026.54,19876.54,6200.00,350.00,0.00,11.92
+  stmt-011,acc-020,2024-02-01,2024-02-29,62590.12,67890.12,7500.00,2200.00,0.00,62.59
+  stmt-012,acc-021,2024-02-01,2024-02-29,183789.37,189500.00,5000.00,0.00,0.00,710.63
+  stmt-013,acc-024,2024-02-01,2024-02-29,28767.89,34567.89,5800.00,0.00,0.00,17.38
+  stmt-014,acc-027,2024-02-01,2024-02-29,50989.34,56789.34,9800.00,4000.00,0.00,50.99
+  stmt-015,acc-031,2024-02-01,2024-02-29,63901.23,78901.23,15000.00,0.00,0.00,63.90

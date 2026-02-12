@@ -37,7 +37,7 @@
 //! - **Go to Definition**: Navigate to entity and type definitions
 //! - **Find References**: Find all uses of an entity
 //! - **Document Symbols**: Outline view with entities and schemas
-//! - **Formatting**: Canonical formatting with ditto optimization
+//! - **Formatting**: Canonical formatting
 //!
 //! # Editor Integration
 //!

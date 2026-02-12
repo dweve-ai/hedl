@@ -82,24 +82,26 @@ fn test_input_size_mb_calculation() {
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_version_getter() {
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Format version as string
     let version_str = format!("{}.{}", doc.version.0, doc.version.1);
-    assert_eq!(version_str, "1.0");
+    assert_eq!(version_str, "2.0");
 }
 
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_schema_count() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
-%STRUCT: Comment: [id, text]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title]
+%S:Comment:[id, text]
 ---
-";
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
     assert_eq!(doc.structs.len(), 3);
 }
@@ -108,9 +110,11 @@ fn test_hedl_document_schema_count() {
 #[cfg(feature = "json")]
 fn test_hedl_document_alias_count() {
     let hedl = r#"
-%VERSION: 1.0
-%ALIAS: %active: "true"
-%ALIAS: %inactive: "false"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%A:%active:"true"
+%A:%inactive:"false"
 ---
 "#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
@@ -120,15 +124,17 @@ fn test_hedl_document_alias_count() {
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_nest_count() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id]
-%STRUCT: Post: [id]
-%STRUCT: Comment: [id]
-%NEST: User > Post
-%NEST: Post > Comment
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id]
+%S:Post:[id]
+%S:Comment:[id]
+%N:User>Post
+%N:Post>Comment
 ---
-";
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
     assert_eq!(doc.nests.len(), 2);
 }
@@ -136,13 +142,15 @@ fn test_hedl_document_nest_count() {
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_root_item_count() {
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 users: data1
 posts: data2
 comments: data3
-";
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
     assert_eq!(doc.root.len(), 3);
 }
@@ -150,12 +158,14 @@ comments: data3
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_get_schema_names() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title]
 ---
-";
+"#;
     let doc = core_parse(hedl.as_bytes()).unwrap();
     let schema_names: Vec<String> = doc.structs.keys().cloned().collect();
 
@@ -167,7 +177,7 @@ fn test_hedl_document_get_schema_names() {
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_get_schema() {
-    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name, email]\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name, email]\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     let schema = doc.structs.get("User").unwrap();
@@ -180,7 +190,7 @@ fn test_hedl_document_get_schema() {
 #[test]
 #[cfg(feature = "json")]
 fn test_hedl_document_get_schema_missing() {
-    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     let schema = doc.structs.get("NonExistent");
@@ -378,14 +388,16 @@ fn test_format_with_ditto_disabled() {
 fn test_query_all_entities() {
     use hedl_core::{parse as core_parse, Item};
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-";
+users:@User
+ |alice, Alice
+ |bob, Bob
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -404,17 +416,19 @@ users: @User
 fn test_query_by_type_filter() {
     use hedl_core::{parse as core_parse, Item};
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id]
-%STRUCT: Post: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id]
+%S:Post:[id]
 ---
-users: @User
-  | alice
-posts: @Post
-  | post1
-  | post2
-";
+users:@User
+ |alice
+posts:@Post
+ |post1
+ |post2
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -436,14 +450,16 @@ posts: @Post
 fn test_query_by_id_filter() {
     use hedl_core::{parse as core_parse, Item};
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-";
+users:@User
+ |alice, Alice
+ |bob, Bob
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -468,7 +484,7 @@ users: @User
 fn test_query_empty_result() {
     use hedl_core::{parse as core_parse, Item};
 
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     let mut count = 0;
@@ -509,19 +525,21 @@ fn test_count_nested_entities() {
     use hedl_core::{parse as core_parse, Item};
     use std::collections::BTreeMap;
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id]
-%STRUCT: Post: [id]
-%NEST: User > Post
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id]
+%S:Post:[id]
+%N:User>Post
 ---
-users: @User
-  | alice
-    | post1
-    | post2
-  | bob
-    | post3
-";
+users:@User
+ |alice
+  |post1
+  |post2
+ |bob
+  |post3
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
@@ -590,8 +608,8 @@ fn test_canonical_config_default() {
 
     let config = CanonicalConfig::default();
 
-    // Default should have ditto enabled
-    assert!(config.use_ditto);
+    // Default is ditto disabled per spec (explicit values preferred)
+    assert!(!config.use_ditto);
 }
 
 #[test]
@@ -642,12 +660,14 @@ fn test_large_nested_structure() {
 fn test_special_characters_in_keys() {
     use hedl_core::parse as core_parse;
 
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 normal_key: value1
 key_with_underscores: value2
-";
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
     // Keys may be normalized, just verify the document parses
@@ -660,7 +680,7 @@ key_with_underscores: value2
 fn test_clone_vs_borrow() {
     use hedl_core::parse as core_parse;
 
-    let hedl = "%VERSION: 1.0\n%STRUCT: T: [id]\n---\n";
+    let hedl = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id]\n---\n";
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Test borrowing vs cloning
@@ -675,17 +695,17 @@ fn test_clone_vs_borrow() {
 fn test_document_lifetime() {
     use hedl_core::parse as core_parse;
 
-    let hedl = String::from("%VERSION: 1.0\n---\n");
+    let hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
     let doc = core_parse(hedl.as_bytes()).unwrap();
 
     // Document should outlive the parse
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (2, 0));
 
     // Original string can be dropped
     drop(hedl);
 
     // Document should still be valid
-    assert_eq!(doc.version, (1, 0));
+    assert_eq!(doc.version, (2, 0));
 }
 
 // ============ UNICODE HANDLING TESTS ============
@@ -694,13 +714,15 @@ fn test_document_lifetime() {
 fn test_unicode_in_values() {
     use hedl_core::parse as core_parse;
 
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 emoji: 🚀
 chinese: 你好世界
 arabic: مرحبا بالعالم
-";
+"#;
 
     let result = core_parse(hedl.as_bytes());
     assert!(result.is_ok(), "Should handle Unicode correctly");
@@ -710,11 +732,13 @@ arabic: مرحبا بالعالم
 fn test_unicode_in_keys() {
     use hedl_core::parse as core_parse;
 
-    let hedl = r"
-%VERSION: 1.0
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 名前: value
-";
+"#;
 
     let result = core_parse(hedl.as_bytes());
     // May or may not be valid depending on HEDL spec, but should not panic
@@ -727,14 +751,14 @@ fn test_unicode_in_keys() {
 fn test_multiple_documents_simultaneously() {
     use hedl_core::parse as core_parse;
 
-    let hedl1 = "%VERSION: 1.0\n---\nkey1: value1\n";
-    let hedl2 = "%VERSION: 1.0\n---\nkey2: value2\n";
+    let hedl1 = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey1: value1\n";
+    let hedl2 = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey2: value2\n";
 
     let doc1 = core_parse(hedl1.as_bytes()).unwrap();
     let doc2 = core_parse(hedl2.as_bytes()).unwrap();
 
-    assert_eq!(doc1.version, (1, 0));
-    assert_eq!(doc2.version, (1, 0));
+    assert_eq!(doc1.version, (2, 0));
+    assert_eq!(doc2.version, (2, 0));
     assert_ne!(doc1.root.len(), 0);
     assert_ne!(doc2.root.len(), 0);
 }
@@ -749,7 +773,7 @@ fn test_hedl_to_json_to_hedl_roundtrip() {
     use hedl_json::{from_json_value, to_json_value, FromJsonConfig, ToJsonConfig};
 
     let original_hedl =
-        "%VERSION: 1.0\n%STRUCT: T: [id, value]\n---\nitems: @T\n  | a, 1\n  | b, 2\n";
+        "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:T:[id, value]\n---\nitems:@T\n |a, 1\n |b, 2\n";
 
     // Parse HEDL
     let doc1 = core_parse(original_hedl.as_bytes()).unwrap();
@@ -762,8 +786,10 @@ fn test_hedl_to_json_to_hedl_roundtrip() {
     let from_config = FromJsonConfig::default();
     let doc2 = from_json_value(&json, &from_config).unwrap();
 
-    // Both documents should have same structure
-    assert_eq!(doc1.version, doc2.version);
+    // Both docs are v2.0 (parsed from hedl, created from json with default config)
+    assert_eq!(doc1.version, (2, 0));
+    assert_eq!(doc2.version, (2, 0));
+    // Both documents should have same structure (except version)
     assert_eq!(doc1.structs.len(), doc2.structs.len());
 
     // Canonicalize both
@@ -782,9 +808,9 @@ fn test_hedl_to_json_to_hedl_roundtrip() {
 fn test_many_schemas() {
     use hedl_core::parse as core_parse;
 
-    let mut hedl = String::from("%VERSION: 1.0\n");
+    let mut hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
     for i in 0..100 {
-        hedl.push_str(&format!("%STRUCT: Type{i}: [id]\n"));
+        hedl.push_str(&format!("%S:Type{i}:[id]\n"));
     }
     hedl.push_str("---\n");
 
@@ -796,9 +822,9 @@ fn test_many_schemas() {
 fn test_many_aliases() {
     use hedl_core::parse as core_parse;
 
-    let mut hedl = String::from("%VERSION: 1.0\n");
+    let mut hedl = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
     for i in 0..100 {
-        hedl.push_str(&format!("%ALIAS: %alias{i}: \"value{i}\"\n"));
+        hedl.push_str(&format!("%A:%alias{i}:\"value{i}\"\n"));
     }
     hedl.push_str("---\n");
 
@@ -811,22 +837,24 @@ fn test_deeply_nested_children() {
     use hedl_core::parse as core_parse;
 
     // Test document with multiple nesting levels
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: Level0: [id]
-%STRUCT: Level1: [id]
-%STRUCT: Level2: [id]
-%NEST: Level0 > Level1
-%NEST: Level1 > Level2
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Level0:[id]
+%S:Level1:[id]
+%S:Level2:[id]
+%N:Level0>Level1
+%N:Level1>Level2
 ---
-root: @Level0
-  | l0
-    | l1a
-      | l2a
-      | l2b
-    | l1b
-      | l2c
-";
+root:@Level0
+ |l0
+  |l1a
+   |l2a
+   |l2b
+  |l1b
+   |l2c
+"#;
 
     let doc = core_parse(hedl.as_bytes()).unwrap();
     assert_eq!(doc.nests.len(), 2);

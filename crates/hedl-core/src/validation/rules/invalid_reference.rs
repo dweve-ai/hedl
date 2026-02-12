@@ -8,7 +8,7 @@
 
 use crate::validation::traverse::{visit_all_nodes, visit_all_references};
 use crate::validation::{Diagnostic, Rule, RuleCategory, Severity, ValidationContext};
-use crate::{Document, HedlError, Reference};
+use crate::{Document, HedlError};
 
 /// Detects references that point to non-existent nodes.
 pub struct InvalidReferenceRule;
@@ -53,33 +53,27 @@ impl Rule for InvalidReferenceRule {
             context.register_node(ctx.type_name, node);
         });
 
-        // Second pass: collect all references using recursive traversal
-        let mut all_refs: Vec<Reference> = Vec::new();
+        // Second pass: validate all references using recursive traversal
         visit_all_references(doc, |r, _ctx| {
-            all_refs.push(r.clone());
-        });
-
-        // Validate all references
-        for reference in &all_refs {
-            if context.resolve_reference(reference).is_none() {
-                let message = if let Some(type_name) = &reference.type_name {
+            if context.resolve_reference(r).is_none() {
+                let message = if let Some(type_name) = &r.type_name {
                     format!(
                         "Reference '{}' points to non-existent '{}' with ID '{}'",
-                        reference.to_ref_string(),
+                        r.to_ref_string(),
                         type_name,
-                        reference.id
+                        r.id
                     )
                 } else {
                     format!(
                         "Reference '{}' points to non-existent ID",
-                        reference.to_ref_string()
+                        r.to_ref_string()
                     )
                 };
 
                 let diag = Diagnostic::error(DiagnosticKind::InvalidReference, message, self.id());
                 diagnostics.push(diag);
             }
-        }
+        });
 
         Ok(diagnostics)
     }

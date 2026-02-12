@@ -30,7 +30,7 @@
 //!
 //! # Design
 //!
-//! The `DocumentManager` maintains a cache of analyzed documents with the following features:
+//! The `DocumentCache` maintains a cache of analyzed documents with the following features:
 //!
 //! - **LRU Eviction**: Automatically evicts least recently used documents when cache is full
 //! - **Dirty Tracking**: Tracks which documents need re-analysis via content hashing
@@ -86,20 +86,20 @@ pub struct CacheStatistics {
 
 /// Document manager with LRU caching and dirty tracking.
 ///
-/// The `DocumentManager` is the single source of truth for all document state
+/// The `DocumentCache` is the single source of truth for all document state
 /// in the LSP server. It handles document lifecycle, caching, and eviction.
 ///
 /// # Thread Safety
 ///
-/// The `DocumentManager` uses `DashMap` for concurrent access and `parking_lot::Mutex`
+/// The `DocumentCache` uses `DashMap` for concurrent access and `parking_lot::Mutex`
 /// for fine-grained locking. It can be safely shared across threads.
 ///
 /// # Example
 ///
 /// ```no_run
-/// use hedl_lsp::document_manager::DocumentManager;
+/// use hedl_lsp::document_manager::DocumentCache;
 ///
-/// let manager = DocumentManager::new(1000, 500 * 1024 * 1024);
+/// let manager = DocumentCache::new(1000, 500 * 1024 * 1024);
 ///
 /// // Insert a document
 /// // manager.insert_or_update(uri, content);
@@ -107,7 +107,7 @@ pub struct CacheStatistics {
 /// // Get a document
 /// // let doc = manager.get(&uri);
 /// ```
-pub struct DocumentManager {
+pub struct DocumentCache {
     /// Document store: URI -> document state.
     documents: DashMap<Url, Arc<Mutex<DocumentState>>>,
     /// Cache statistics for monitoring.
@@ -118,7 +118,7 @@ pub struct DocumentManager {
     max_document_size: Arc<parking_lot::RwLock<usize>>,
 }
 
-impl DocumentManager {
+impl DocumentCache {
     /// Create a new document manager with specified limits.
     ///
     /// # Parameters
@@ -129,10 +129,10 @@ impl DocumentManager {
     /// # Example
     ///
     /// ```no_run
-    /// use hedl_lsp::document_manager::DocumentManager;
+    /// use hedl_lsp::document_manager::DocumentCache;
     ///
     /// // Create with custom limits
-    /// let manager = DocumentManager::new(2000, 1024 * 1024 * 1024);
+    /// let manager = DocumentCache::new(2000, 1024 * 1024 * 1024);
     /// ```
     #[must_use]
     pub fn new(max_cache_size: usize, max_document_size: usize) -> Self {
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_document_manager_new() {
-        let manager = DocumentManager::new(100, 1024 * 1024);
+        let manager = DocumentCache::new(100, 1024 * 1024);
         assert_eq!(manager.max_cache_size(), 100);
         assert_eq!(manager.max_document_size(), 1024 * 1024);
 
@@ -548,9 +548,9 @@ mod tests {
 
     #[test]
     fn test_insert_and_get() {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
         let uri = Url::parse("file:///test.hedl").unwrap();
-        let content = "%VERSION: 1.0\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
 
         // Insert document
         assert!(manager.insert_or_update(&uri, content));
@@ -571,29 +571,29 @@ mod tests {
 
     #[test]
     fn test_update_marks_dirty() {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
         let uri = Url::parse("file:///test.hedl").unwrap();
 
         // Insert initial content
-        manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+        manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         assert!(!manager.is_dirty(&uri));
 
         // Update with different content
-        manager.insert_or_update(&uri, "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n");
+        manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\n");
         assert!(manager.is_dirty(&uri));
 
         // Update with same content (hash unchanged)
-        manager.insert_or_update(&uri, "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n");
+        manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\n");
         assert!(manager.is_dirty(&uri)); // Still dirty until marked clean
     }
 
     #[test]
     fn test_mark_clean() {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
         let uri = Url::parse("file:///test.hedl").unwrap();
 
-        manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
-        manager.insert_or_update(&uri, "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n");
+        manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
+        manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\n");
         assert!(manager.is_dirty(&uri));
 
         manager.mark_clean(&uri);
@@ -602,11 +602,11 @@ mod tests {
 
     #[test]
     fn test_document_size_limit() {
-        let manager = DocumentManager::new(10, 100); // Only 100 bytes allowed
+        let manager = DocumentCache::new(10, 100); // Only 100 bytes allowed
         let uri = Url::parse("file:///test.hedl").unwrap();
 
         // Small document should succeed
-        assert!(manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n"));
+        assert!(manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n"));
 
         // Large document should be rejected
         let large_content = "x".repeat(101);
@@ -615,12 +615,12 @@ mod tests {
 
     #[test]
     fn test_lru_eviction() {
-        let manager = DocumentManager::new(3, 1024 * 1024); // Max 3 documents
+        let manager = DocumentCache::new(3, 1024 * 1024); // Max 3 documents
 
         // Insert 3 documents
         for i in 0..3 {
             let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
-            manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+            manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         }
 
         let stats = manager.statistics();
@@ -629,7 +629,7 @@ mod tests {
 
         // Insert 4th document should trigger eviction
         let uri4 = Url::parse("file:///test4.hedl").unwrap();
-        manager.insert_or_update(&uri4, "%VERSION: 1.0\n---\n");
+        manager.insert_or_update(&uri4, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
 
         let stats = manager.statistics();
         assert_eq!(stats.current_size, 3); // Still at max
@@ -638,10 +638,10 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
         let uri = Url::parse("file:///test.hedl").unwrap();
 
-        manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+        manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         assert!(manager.get(&uri).is_some());
 
         assert!(manager.remove(&uri));
@@ -653,11 +653,11 @@ mod tests {
 
     #[test]
     fn test_all_uris() {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
 
         for i in 0..5 {
             let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
-            manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+            manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         }
 
         let uris = manager.all_uris();
@@ -666,11 +666,11 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
 
         for i in 0..3 {
             let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
-            manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+            manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         }
 
         assert_eq!(manager.statistics().current_size, 3);
@@ -684,7 +684,7 @@ mod tests {
 
     #[test]
     fn test_runtime_config_update() {
-        let manager = DocumentManager::new(100, 1024 * 1024);
+        let manager = DocumentCache::new(100, 1024 * 1024);
 
         assert_eq!(manager.max_cache_size(), 100);
         manager.set_max_cache_size(200);

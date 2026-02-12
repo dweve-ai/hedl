@@ -18,9 +18,9 @@
 //! Diagnostics accessor functions for FFI.
 
 use crate::error::set_error;
+use crate::ffi_strings::allocate_output_string;
 use crate::memory::is_valid_diagnostics_ptr;
 use crate::types::{HedlDiagnostics, HEDL_ERR_LINT, HEDL_ERR_NULL_PTR};
-use crate::utils::allocate_output_string;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 
@@ -34,9 +34,11 @@ use std::ptr;
 /// Pointer must be valid. Returns -1 if diag is NULL or poisoned.
 #[no_mangle]
 pub unsafe extern "C" fn hedl_diagnostics_count(diag: *const HedlDiagnostics) -> c_int {
-    if !is_valid_diagnostics_ptr(diag) {
+    if diag.is_null() || !is_valid_diagnostics_ptr(diag) {
         return -1;
     }
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The diagnostics was allocated by Box::into_raw in hedl_lint.
     (*diag).inner.len() as c_int
 }
 
@@ -62,9 +64,12 @@ pub unsafe extern "C" fn hedl_diagnostics_get(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The diagnostics was allocated by Box::into_raw in hedl_lint.
     let diagnostics = &(*diag).inner;
     if index < 0 || index as usize >= diagnostics.len() {
         set_error("Diagnostic index out of range");
+        // SAFETY: We validated out_str is non-null above.
         *out_str = ptr::null_mut();
         return HEDL_ERR_LINT;
     }
@@ -86,6 +91,8 @@ pub unsafe extern "C" fn hedl_diagnostics_severity(
         return -1;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The diagnostics was allocated by Box::into_raw in hedl_lint.
     let diagnostics = &(*diag).inner;
     if index < 0 || index as usize >= diagnostics.len() {
         return -1;

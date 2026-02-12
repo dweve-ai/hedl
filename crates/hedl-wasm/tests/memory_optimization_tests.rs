@@ -6,14 +6,19 @@ use hedl_core::{parse as core_parse, Item};
 
 /// Generate test HEDL document with specified node count
 fn generate_test_doc(node_count: usize) -> String {
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Entity: [id, name, value, timestamp]\n");
+    let mut doc = String::from(
+        r#"%V:2.0
+%NULL:~
+%QUOTE:"
+"#,
+    );
+    doc.push_str("%S:Entity:[id, name, value, timestamp]\n");
     doc.push_str("---\n");
-    doc.push_str("entities: @Entity\n");
+    doc.push_str("entities:@Entity\n");
 
     for i in 0..node_count {
         doc.push_str(&format!(
-            "  | entity_{}, Name {}, {}, 2024-01-01T00:00:00Z\n",
+            " |entity_{}, Name {}, {}, 2024-01-01T00:00:00Z\n",
             i,
             i,
             i * 100
@@ -25,16 +30,18 @@ fn generate_test_doc(node_count: usize) -> String {
 
 #[test]
 fn test_parse_partial_header_only() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%STRUCT: Post: [id, title]
-%NEST: User > Post
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
+%S:Post:[id, title]
+%N:User>Post
 ---
-users: @User
-  | alice, Alice, alice@example.com
-  | bob, Bob, bob@example.com
-";
+users:@User
+ |alice, Alice, alice@example.com
+ |bob, Bob, bob@example.com
+"#;
 
     let mut doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -89,19 +96,21 @@ fn test_parse_partial_truncate_entities() {
 fn test_memory_efficient_counting() {
     use std::collections::HashMap;
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-posts: @Post
-  | post1, First
-  | post2, Second
-  | post3, Third
-";
+users:@User
+ |alice, Alice
+ |bob, Bob
+posts:@Post
+ |post1, First
+ |post2, Second
+ |post3, Third
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -133,30 +142,33 @@ fn test_large_document_parsing() {
     assert!(doc.is_ok(), "Large document should parse");
 
     let doc = doc.unwrap();
-    assert_eq!(doc.version, (1, 0));
+    // generate_test_doc creates v2.0 documents, version is preserved
+    assert_eq!(doc.version, (2, 0));
     assert!(doc.structs.contains_key("Entity"));
 }
 
 #[test]
 fn test_partial_parse_preserves_metadata() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
-%STRUCT: Post: [id, title]
-%NEST: User > Post
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
+%S:Post:[id, title]
+%N:User>Post
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-";
+users:@User
+ |alice, Alice
+ |bob, Bob
+"#;
 
     let mut doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
     // Clear entities
     doc.root.clear();
 
-    // Metadata should be preserved
-    assert_eq!(doc.version, (1, 0));
+    // Metadata should be preserved - v2.0 input preserves version
+    assert_eq!(doc.version, (2, 0));
     assert_eq!(doc.structs.len(), 2);
     assert!(doc.structs.contains_key("User"));
     assert!(doc.structs.contains_key("Post"));
@@ -165,21 +177,23 @@ users: @User
 
 #[test]
 fn test_nested_entity_truncation() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id]
-%STRUCT: Post: [id]
-%NEST: User > Post
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id]
+%S:Post:[id]
+%N:User>Post
 ---
-users: @User
-  | user1
-    | post1
-    | post2
-    | post3
-  | user2
-    | post4
-    | post5
-";
+users:@User
+ |user1
+  |post1
+  |post2
+  |post3
+ |user2
+  |post4
+  |post5
+"#;
 
     let mut doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -234,7 +248,11 @@ fn test_shrink_to_fit_optimization() {
 
 #[test]
 fn test_empty_document_edge_case() {
-    let hedl = "%VERSION: 1.0\n---\n";
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
+---
+"#;
     let mut doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
     // Operations on empty document should not panic
@@ -244,22 +262,24 @@ fn test_empty_document_edge_case() {
 
 #[test]
 fn test_multiple_list_types() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id]
-%STRUCT: Product: [id]
-%STRUCT: Order: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id]
+%S:Product:[id]
+%S:Order:[id]
 ---
-users: @User
-  | user1
-products: @Product
-  | prod1
-  | prod2
-orders: @Order
-  | order1
-  | order2
-  | order3
-";
+users:@User
+ |user1
+products:@Product
+ |prod1
+ |prod2
+orders:@Order
+ |order1
+ |order2
+ |order3
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
     let mut counts: HashMap<&str, usize> = HashMap::new();
@@ -314,17 +334,19 @@ fn test_progressive_entity_processing() {
 
 #[test]
 fn test_schema_only_extraction() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email, created_at]
-%STRUCT: Post: [id, title, content, author_id]
-%STRUCT: Comment: [id, text, post_id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email, created_at]
+%S:Post:[id, title, content, author_id]
+%S:Comment:[id, text, post_id]
 ---
-users: @User
-  | alice, Alice, alice@example.com, 2024-01-01
-posts: @Post
-  | post1, Title, Content, alice
-";
+users:@User
+ |alice, Alice, alice@example.com, 2024-01-01
+posts:@Post
+ |post1, Title, Content, alice
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -389,14 +411,16 @@ fn test_incremental_counting() {
 
 #[test]
 fn test_selective_field_extraction() {
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email, phone, address]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email, phone, address]
 ---
-users: @User
-  | alice, Alice, alice@example.com, 555-1234, 123 Main St
-  | bob, Bob, bob@example.com, 555-5678, 456 Oak Ave
-";
+users:@User
+ |alice, Alice, alice@example.com, 555-1234, 123 Main St
+ |bob, Bob, bob@example.com, 555-5678, 456 Oak Ave
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -417,14 +441,16 @@ users: @User
 #[test]
 fn test_streaming_json_basic() {
     // Test basic streaming JSON conversion
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, name]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name]
 ---
-users: @User
-  | alice, Alice
-  | bob, Bob
-";
+users:@User
+ |alice, Alice
+ |bob, Bob
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -439,8 +465,8 @@ fn test_streaming_parser_event_generation() {
     let hedl = generate_test_doc(100);
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
-    // Verify document structure for streaming
-    assert_eq!(doc.version, (1, 0));
+    // Verify document structure for streaming - v2.0 input preserves version
+    assert_eq!(doc.version, (2, 0));
     assert!(doc.structs.contains_key("Entity"));
     assert_eq!(doc.root.len(), 1); // One root item (entities)
 
@@ -510,15 +536,17 @@ fn test_chunk_size_calculation() {
 fn test_progressive_json_serialization() {
     // Test that we can serialize JSON incrementally
 
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: Entity: [id, value]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Entity:[id, value]
 ---
-data: @Entity
-  | e1, 100
-  | e2, 200
-  | e3, 300
-";
+data:@Entity
+ |e1, 100
+ |e2, 200
+ |e3, 300
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -540,16 +568,18 @@ data: @Entity
 #[test]
 fn test_event_based_filtering() {
     // Test filtering during streaming to reduce memory
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id, active]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, active]
 ---
-users: @User
-  | alice, true
-  | bob, false
-  | charlie, true
-  | diana, false
-";
+users:@User
+ |alice, true
+ |bob, false
+ |charlie, true
+ |diana, false
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 
@@ -642,16 +672,18 @@ fn test_partial_entity_list_iteration() {
 fn test_schema_extraction_without_entities() {
     // Test extracting schema info without loading entities
     let hedl = r#"
-%VERSION: 1.0
-%STRUCT: User: [id, name, email]
-%STRUCT: Post: [id, title, content, author_id]
-%ALIAS: %production: "true"
-%NEST: User > Post
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id, name, email]
+%S:Post:[id, title, content, author_id]
+%A:%production:"true"
+%N:User>Post
 ---
-users: @User
-  | alice, Alice, alice@example.com
-posts: @Post
-  | post1, Title, Content, alice
+users:@User
+ |alice, Alice, alice@example.com
+posts:@Post
+ |post1, Title, Content, alice
 "#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
@@ -663,7 +695,7 @@ posts: @Post
     let nests: Vec<_> = doc.nests.keys().cloned().collect();
 
     // Verify we got the metadata
-    assert_eq!(version, (1, 0));
+    assert_eq!(version, (2, 0));
     assert_eq!(schemas.len(), 2);
     assert_eq!(aliases.len(), 1);
     assert_eq!(nests.len(), 1);
@@ -718,15 +750,17 @@ fn test_memory_limit_constants() {
 #[test]
 fn test_entity_count_estimation() {
     // Test estimating entity count without full iteration
-    let hedl = r"
-%VERSION: 1.0
-%STRUCT: User: [id]
+    let hedl = r#"
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id]
 ---
-users: @User
-  | user1
-  | user2
-  | user3
-";
+users:@User
+ |user1
+ |user2
+ |user3
+"#;
 
     let doc = core_parse(hedl.as_bytes()).expect("Parse should succeed");
 

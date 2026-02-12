@@ -59,7 +59,7 @@ json_str = hedl.to_json(doc)
 
 ## Feature Comparison
 
-| Feature | Rust | JavaScript | C/C++ | Python |
+| Feature |Rust |JavaScript |C/C++ |Python |
 |---------|------|------------|-------|--------|
 | Parsing | ✓ | ✓ | ✓ | ✓ |
 | Serialization | ✓ | ✓ | ✓ | ✓ |
@@ -79,10 +79,10 @@ json_str = hedl.to_json(doc)
 ### Rust
 ```toml
 [dependencies]
-hedl = "1.2"
+hedl = "2.0"
 
 # With optional features
-hedl = { version = "1.2", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
+hedl = { version = "2.0", features = ["yaml", "xml", "csv", "parquet", "neo4j"] }
 ```
 
 ### JavaScript/TypeScript
@@ -101,7 +101,7 @@ pnpm add hedl-wasm
 Download pre-built libraries or build from source:
 ```bash
 # Build from source
-git clone https://github.com/dweve/hedl.git
+git clone https://github.com/dweve-ai/hedl.git
 cd hedl
 cargo build --release -p hedl-ffi
 
@@ -114,14 +114,14 @@ cargo build --release -p hedl-ffi
 pip install hedl-python
 
 # From source
-git clone https://github.com/dweve/hedl.git
+git clone https://github.com/dweve-ai/hedl.git
 cd hedl/bindings/python
 pip install .
 ```
 
 ## Platform Support
 
-| Platform | Rust | JavaScript | C/C++ | Python |
+| Platform |Rust |JavaScript |C/C++ |Python |
 |----------|------|------------|-------|--------|
 | Linux | ✓ | ✓ | ✓ | ✓ |
 | macOS | ✓ | ✓ | ✓ | ✓ |

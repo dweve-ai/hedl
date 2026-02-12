@@ -97,8 +97,10 @@ pub fn inspect(file: &str, verbose: bool) -> Result<(), CliError> {
     if !doc.nests.is_empty() {
         println!();
         println!("{}", "Nests:".cyan());
-        for (parent, child) in &doc.nests {
-            println!("  {} > {}", parent.green(), child);
+        for (parent, children) in &doc.nests {
+            for child in children {
+                println!("  {} > {}", parent.green(), child);
+            }
         }
     }
 
@@ -123,7 +125,7 @@ fn print_items(items: &BTreeMap<String, Item>, indent: usize, verbose: bool) {
             }
             Item::List(list) => {
                 println!(
-                    "{}{}: @{} ({} rows)",
+                    "{}{}:@{} ({} rows)",
                     prefix,
                     key.yellow(),
                     list.type_name.green(),
@@ -155,5 +157,9 @@ fn format_value(value: &Value) -> String {
         Value::Tensor(t) => format!("{t:?}").cyan().to_string(),
         Value::Reference(r) => r.to_ref_string().green().to_string(),
         Value::Expression(e) => format!("$({e})").yellow().to_string(),
+        Value::List(items) => {
+            let formatted: Vec<String> = items.iter().map(format_value).collect();
+            format!("({})", formatted.join(", ")).cyan().to_string()
+        }
     }
 }

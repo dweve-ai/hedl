@@ -31,7 +31,7 @@ mod analysis_tests {
     #[test]
     fn test_analyze_valid_document() {
         let content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n---\nusers:@User\n |alice, Alice Smith\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         assert!(analysis.document.is_some());
@@ -48,7 +48,7 @@ mod analysis_tests {
 
     #[test]
     fn test_schema_extraction() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name, email]\n%STRUCT: Product: [id, title, price]\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name,email]\n%S:Product:[id,title,price]\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         assert!(analysis.schemas.contains_key("User"));
@@ -63,7 +63,7 @@ mod analysis_tests {
 
     #[test]
     fn test_alias_extraction() {
-        let content = "%VERSION: 1.0\n%ALIAS: active = \"Active Status\"\n%ALIAS: pending = \"Pending\"\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%active:\"Active Status\"\n%A:%pending:\"Pending\"\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         assert!(analysis.aliases.contains_key("active"));
@@ -75,17 +75,18 @@ mod analysis_tests {
 
     #[test]
     fn test_nest_extraction() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Post: [id, content]\n%NEST: User > Post\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Post:[id,content]\n%N:User>Post\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         assert!(analysis.nests.contains_key("User"));
-        let (child, _) = analysis.nests.get("User").unwrap();
-        assert_eq!(child, "Post");
+        let children = analysis.nests.get("User").unwrap();
+        assert!(!children.is_empty());
+        assert_eq!(children[0].0, "Post");
     }
 
     #[test]
     fn test_entity_extraction() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let user_entities = analysis.entities.get("User").unwrap();
@@ -95,7 +96,7 @@ mod analysis_tests {
 
     #[test]
     fn test_entity_ids_helper() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n  | charlie, Charlie\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\n |charlie, Charlie\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let ids = analysis.get_entity_ids("User");
@@ -108,7 +109,7 @@ mod analysis_tests {
     #[test]
     fn test_type_names_helper() {
         let content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\n";
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Product:[id, title]\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let types = analysis.get_type_names();
@@ -120,7 +121,7 @@ mod analysis_tests {
     #[test]
     fn test_entity_exists_qualified() {
         let content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         assert!(analysis.entity_exists(Some("User"), "alice"));
@@ -131,7 +132,7 @@ mod analysis_tests {
     #[test]
     fn test_entity_exists_unqualified() {
         let content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         assert!(analysis.entity_exists(None, "alice"));
@@ -149,7 +150,7 @@ mod analysis_tests {
 
     #[test]
     fn test_reference_tracking() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Post: [id, author]\n---\nusers: @User\n  | alice, Alice\nposts: @Post\n  | post1, @User:alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id,name]\n%S:Post:[id,author]\n---\nusers:@User\n |alice, Alice\nposts:@Post\n |post1, @User:alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         // Should track the @User:alice reference
@@ -167,14 +168,14 @@ mod completion_tests {
 
     #[test]
     fn test_header_completion_directives() {
-        let content = "%VERSION: 1.0\n%\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 1,
+                line: 3,
                 character: 1,
             },
         );
@@ -188,14 +189,14 @@ mod completion_tests {
 
     #[test]
     fn test_header_completion_at_empty_line() {
-        let content = "%VERSION: 1.0\n\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 1,
+                line: 3,
                 character: 0,
             },
         );
@@ -209,14 +210,15 @@ mod completion_tests {
 
     #[test]
     fn test_reference_type_completion() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nref: @\n";
+        let content =
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Product:[id, title]\n---\nref:@\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 4,
+                line: 6,
                 character: 6,
             },
         );
@@ -229,14 +231,14 @@ mod completion_tests {
 
     #[test]
     fn test_reference_type_completion_partial() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nref: @Us\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Product:[id, title]\n---\nref:@Us\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 4,
+                line: 6,
                 character: 8,
             },
         );
@@ -252,7 +254,7 @@ mod completion_tests {
         // Test reference ID completion - we simulate typing @User: and expecting entity IDs
         // Note: Document must be valid for parsing to succeed, so we use a valid reference
         // The completion position is at the end of @User: before we type the ID
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         // Verify entities were extracted
@@ -267,12 +269,12 @@ mod completion_tests {
         );
         assert!(ids.contains(&"bob".to_string()), "Should have bob entity");
 
-        // Simulate completion request as if user typed "ref: @User:" on a new line
+        // Simulate completion request as if user typed "ref:@User:" on a new line
         // We test the completion function directly with the right context
         let completions = crate::completion::get_completions(
             &analysis,
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\nref: @User:",
-            Position { line: 6, character: 11 }
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\nref:@User:",
+            Position { line: 8, character: 11 }
         );
 
         let labels: Vec<_> = completions.iter().map(|c| c.label.as_str()).collect();
@@ -290,14 +292,14 @@ mod completion_tests {
 
     #[test]
     fn test_reference_id_completion_empty_type() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nref: @UnknownType:\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nref:@UnknownType:\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 18,
             },
         );
@@ -310,14 +312,14 @@ mod completion_tests {
 
     #[test]
     fn test_list_type_completion() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 8,
             },
         );
@@ -329,22 +331,22 @@ mod completion_tests {
     // ============ MATRIX CELL COMPLETION TESTS ============
 
     #[test]
-    fn test_matrix_cell_ditto_completion() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, \n";
+    fn test_matrix_cell_value_completion() {
+        // Note: v2.0 does NOT allow ditto (^), so we only test null and booleans
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n |bob, \n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 5,
+                line: 7,
                 character: 9,
             },
         );
 
         let labels: Vec<_> = completions.iter().map(|c| c.label.as_str()).collect();
-        // Should suggest ditto (^) and null (~)
-        assert!(labels.contains(&"^"));
+        // Should suggest null (~) and booleans, but NOT ditto (^) in v2.0
         assert!(labels.contains(&"~"));
         assert!(labels.contains(&"true"));
         assert!(labels.contains(&"false"));
@@ -353,7 +355,7 @@ mod completion_tests {
     #[test]
     fn test_matrix_cell_reference_column_completion() {
         // Parse a valid document first to extract entities
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Post: [id, user_id]\n---\nusers: @User\n  | alice, Alice\nposts: @Post\n  | post1, @User:alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Post:[id, user_id]\n---\nusers:@User\n |alice, Alice\nposts:@Post\n |post1, @User:alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         // Verify User entities were extracted
@@ -365,21 +367,21 @@ mod completion_tests {
         // The completion should work when we're in a matrix cell position
         // For the user_id column, the logic should suggest references
         // We test with the editing content (simulating user typing in that position)
-        let editing_content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Post: [id, user_id]\n---\nusers: @User\n  | alice, Alice\nposts: @Post\n  | post1, ";
+        let editing_content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Post:[id, user_id]\n---\nusers:@User\n |alice, Alice\nposts:@Post\n |post1, ";
         let completions = get_completions(
             &analysis,
             editing_content,
             Position {
-                line: 7,
+                line: 9,
                 character: 11,
             },
         );
 
         let labels: Vec<_> = completions.iter().map(|c| c.label.as_str()).collect();
-        // Matrix cell completions should include ditto (^) and null (~) at minimum
+        // Matrix cell completions should include null (~) at minimum
+        // Note: v2.0 does NOT allow ditto (^)
         // The reference completion for _id columns is an enhancement feature
         // For now, verify basic matrix cell completions work
-        assert!(labels.contains(&"^"), "Should suggest ditto operator");
         assert!(labels.contains(&"~"), "Should suggest null value");
     }
 
@@ -387,14 +389,14 @@ mod completion_tests {
 
     #[test]
     fn test_key_completion() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\n\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\n\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 0,
             },
         );
@@ -406,14 +408,14 @@ mod completion_tests {
 
     #[test]
     fn test_value_completion_aliases() {
-        let content = "%VERSION: 1.0\n%ALIAS: active = \"Active\"\n---\nstatus: \n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%active:\"Active\"\n---\nstatus: \n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 8,
             },
         );
@@ -425,14 +427,14 @@ mod completion_tests {
 
     #[test]
     fn test_value_completion_types() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: \n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers: \n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let completions = get_completions(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 7,
             },
         );
@@ -453,7 +455,7 @@ mod hover_tests {
 
     #[test]
     fn test_hover_version_directive() {
-        let content = "%VERSION: 1.0\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
@@ -468,21 +470,26 @@ mod hover_tests {
         assert!(hover.is_some());
         if let Some(h) = hover {
             if let HoverContents::Markup(m) = h.contents {
-                assert!(m.value.contains("VERSION"));
+                // v2.0 compact uses %V:, hover shows "%V: Directive"
+                assert!(
+                    m.value.contains("%V:") || m.value.contains("VERSION"),
+                    "Should show version directive info: {}",
+                    m.value
+                );
             }
         }
     }
 
     #[test]
     fn test_hover_struct_directive() {
-        let content = "%STRUCT: User: [id, name]\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 0,
+                line: 3,
                 character: 3,
             },
         );
@@ -492,14 +499,14 @@ mod hover_tests {
 
     #[test]
     fn test_hover_alias_directive() {
-        let content = "%ALIAS: status = \"Active\"\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%status:\"Active\"\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 0,
+                line: 3,
                 character: 3,
             },
         );
@@ -509,14 +516,14 @@ mod hover_tests {
 
     #[test]
     fn test_hover_nest_directive() {
-        let content = "%NEST: User > Post\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n%S:Post:[id]\n%N:User>Post\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 0,
+                line: 5,
                 character: 3,
             },
         );
@@ -528,14 +535,14 @@ mod hover_tests {
 
     #[test]
     fn test_hover_qualified_reference() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\nref: @User:alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\nref: @User:alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 5,
+                line: 7,
                 character: 10,
             },
         );
@@ -551,14 +558,14 @@ mod hover_tests {
 
     #[test]
     fn test_hover_unqualified_reference() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\nref: @alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\nref: @alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 5,
+                line: 7,
                 character: 7,
             },
         );
@@ -568,14 +575,14 @@ mod hover_tests {
 
     #[test]
     fn test_hover_reference_entity_found() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\nref: @User:alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\nref: @User:alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 5,
+                line: 7,
                 character: 10,
             },
         );
@@ -592,14 +599,14 @@ mod hover_tests {
 
     #[test]
     fn test_hover_reference_entity_not_found() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\nref: @User:nonexistent\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\nref: @User:nonexistent\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 5,
+                line: 7,
                 character: 12,
             },
         );
@@ -618,8 +625,8 @@ mod hover_tests {
 
     #[test]
     fn test_hover_ditto_operator() {
-        let content =
-            "%VERSION: 1.0\n%STRUCT: Data: [id, val]\n---\ndata: @Data\n  | a, 1\n  | b, ^\n";
+        // Ditto is only allowed in pre-v2.0 documents
+        let content = "%VERSION: 1.2\n%STRUCT: Data: [id, val]\n---\ndata:@Data\n |a, 1\n |b, ^\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
@@ -627,7 +634,7 @@ mod hover_tests {
             content,
             Position {
                 line: 5,
-                character: 7,
+                character: 5,
             },
         );
 
@@ -641,15 +648,15 @@ mod hover_tests {
 
     #[test]
     fn test_hover_null_value() {
-        let content = "%VERSION: 1.0\n%STRUCT: Data: [id, val]\n---\ndata: @Data\n  | a, ~\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Data:[id, val]\n---\ndata:@Data\n |a, ~\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 4,
-                character: 7,
+                line: 6,
+                character: 5,
             },
         );
 
@@ -666,7 +673,7 @@ mod hover_tests {
     #[test]
     fn test_hover_type_name() {
         // Hover over a type name in the %STRUCT directive line
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name, email]\n---\nusers: @User\n  | alice, Alice, a@b.com\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name, email]\n---\nusers:@User\n |alice, Alice, a@b.com\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         // Verify schema was extracted
@@ -680,7 +687,7 @@ mod hover_tests {
             &analysis,
             content,
             Position {
-                line: 1,
+                line: 3,
                 character: 10,
             },
         );
@@ -688,19 +695,21 @@ mod hover_tests {
         assert!(hover.is_some(), "Should have hover for STRUCT line");
         if let Some(h) = hover {
             if let HoverContents::Markup(m) = h.contents {
+                // v2.0 compact uses %S:, hover shows "%S: Directive"
                 assert!(
-                    m.value.contains("STRUCT"),
-                    "Should show STRUCT directive info"
+                    m.value.contains("%S:") || m.value.contains("STRUCT"),
+                    "Should show schema directive info: {}",
+                    m.value
                 );
             }
         }
 
-        // For @User in "users: @User", hovering sees it as a reference
+        // For @User in "users:@User", hovering sees it as a reference
         let hover2 = get_hover(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 8,
             },
         );
@@ -715,7 +724,7 @@ mod hover_tests {
 
     #[test]
     fn test_hover_type_with_nest() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Post: [id, content]\n%NEST: User > Post\n---\nusers: @User\n  | alice, Alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Post:[id, content]\n%N:User>Post\n---\nusers:@User\n |alice, Alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         // Verify nest was extracted
@@ -723,24 +732,28 @@ mod hover_tests {
             analysis.nests.contains_key("User"),
             "User nest should be extracted"
         );
-        let (child, _) = analysis.nests.get("User").unwrap();
-        assert_eq!(child, "Post", "User should nest Post");
+        let children = analysis.nests.get("User").unwrap();
+        assert!(!children.is_empty(), "User should have at least one child");
+        assert_eq!(children[0].0, "Post", "User should nest Post");
 
         // Hover over the NEST directive line
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 2,
             },
         );
 
         if let Some(h) = hover {
             if let HoverContents::Markup(m) = h.contents {
+                // v2.0 compact uses %N:, hover shows "%N: Directive (v2.0 compact nesting)"
                 assert!(
-                    m.value.contains("NEST"),
-                    "Should show NEST directive info: {}",
+                    m.value.contains("%N:")
+                        || m.value.contains("NEST")
+                        || m.value.contains("nesting"),
+                    "Should show nest directive info: {}",
                     m.value
                 );
             }
@@ -751,14 +764,15 @@ mod hover_tests {
 
     #[test]
     fn test_hover_alias_usage() {
-        let content = "%VERSION: 1.0\n%ALIAS: active = \"Active Status\"\n---\nstatus: $active\n";
+        let content =
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%active:\"Active Status\"\n---\nstatus: $active\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let hover = get_hover(
             &analysis,
             content,
             Position {
-                line: 3,
+                line: 5,
                 character: 10,
             },
         );
@@ -796,7 +810,7 @@ mod symbols_tests {
     #[test]
     fn test_document_symbols_schemas() {
         let content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\n";
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Product:[id, title]\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let symbols = get_document_symbols(&analysis, content);
@@ -815,7 +829,7 @@ mod symbols_tests {
 
     #[test]
     fn test_document_symbols_entities() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let symbols = get_document_symbols(&analysis, content);
@@ -834,7 +848,7 @@ mod symbols_tests {
 
     #[test]
     fn test_document_symbols_aliases() {
-        let content = "%VERSION: 1.0\n%ALIAS: status = \"Active\"\n---\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%status:\"Active\"\n---\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let symbols = get_document_symbols(&analysis, content);
@@ -851,7 +865,7 @@ mod symbols_tests {
 
     #[test]
     fn test_workspace_symbols_query() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nusers: @User\n  | alice, Alice\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n%S:Product:[id, title]\n---\nusers:@User\n |alice, Alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let symbols = get_workspace_symbols(&analysis, "user");
@@ -863,7 +877,7 @@ mod symbols_tests {
 
     #[test]
     fn test_workspace_symbols_entity_query() {
-        let content = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let content = "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n |bob, Bob\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let symbols = get_workspace_symbols(&analysis, "ali");
@@ -875,7 +889,7 @@ mod symbols_tests {
     #[test]
     fn test_workspace_symbols_empty_query() {
         let content =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id, name]\n---\nusers:@User\n |alice, Alice\n";
         let analysis = AnalyzedDocument::analyze(content);
 
         let symbols = get_workspace_symbols(&analysis, "");
@@ -920,7 +934,7 @@ mod cache_tests {
                     uri,
                     language_id: "hedl".to_string(),
                     version: 1,
-                    text: "%VERSION: 1.0\n---\n".to_string(),
+                    text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
                 },
             };
             server.did_open(params).await;
@@ -939,7 +953,7 @@ mod cache_tests {
                 uri: uri6.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params6).await;
@@ -968,7 +982,7 @@ mod cache_tests {
                 uri: uri.clone(),
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params).await;
@@ -986,7 +1000,7 @@ mod cache_tests {
             content_changes: vec![TextDocumentContentChangeEvent {
                 range: None,
                 range_length: None,
-                text: "%VERSION: 1.0\n%STRUCT: User: [id]\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:User:[id]\n---\n".to_string(),
             }],
         };
         server.did_change(change_params).await;
@@ -1033,7 +1047,7 @@ mod cache_tests {
                     uri,
                     language_id: "hedl".to_string(),
                     version: 1,
-                    text: "%VERSION: 1.0\n---\n".to_string(),
+                    text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
                 },
             };
             server.did_open(params).await;
@@ -1082,7 +1096,7 @@ mod cache_tests {
                 uri: uri3,
                 language_id: "hedl".to_string(),
                 version: 1,
-                text: "%VERSION: 1.0\n---\n".to_string(),
+                text: "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string(),
             },
         };
         server.did_open(params3).await;

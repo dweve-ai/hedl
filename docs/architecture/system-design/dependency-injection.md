@@ -56,7 +56,7 @@ pub fn convert<A: FormatAdapter>(
 Configuration is injected via dedicated structs:
 
 ```rust
-// Actual structure from hedl-core/src/parser.rs
+// Actual structure from hedl-core/src/parser/
 pub struct ParseOptions {
     pub limits: Limits,
     pub reference_mode: ReferenceMode,
@@ -650,7 +650,7 @@ mod integration_tests {
     #[test]
     fn test_full_pipeline() {
         let ctx = TestContext::new();
-        let result = ctx.run_pipeline("%VERSION: 1.0\n---\nkey: value");
+        let result = ctx.run_pipeline("%V:2.0\n---\nkey: value");
         assert!(result.is_ok());
     }
 }

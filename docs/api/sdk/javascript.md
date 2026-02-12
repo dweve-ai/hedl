@@ -26,7 +26,9 @@ import init, { parse, toJson } from 'hedl-wasm';
 await init();
 
 const hedlText = `
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 name: Alice
 age: 30
@@ -80,7 +82,7 @@ Parse HEDL document and return a document object.
 function parse(input: string): HedlDocument
 // Or use module-level functions
 function toJson(hedl: string, pretty?: boolean): string
-function format(hedl: string, useDitto?: boolean): string
+function format(hedl: string): string
 ```
 
 - `parse()`: Parse HEDL to document, then use `doc.toJsonString()` to convert to JSON
@@ -119,23 +121,23 @@ function validate(hedl: string, runLint?: boolean): ValidationResult
 
 ```typescript
 // JSON conversion
-function fromJson(json: string, useDitto?: boolean): string
+function fromJson(json: string): string
 
 // YAML conversion (requires yaml feature)
 function toYaml(hedl: string): string
-function fromYaml(yaml: string, useDitto?: boolean): string
+function fromYaml(yaml: string): string
 
 // XML conversion (requires xml feature)
 function toXml(hedl: string): string
-function fromXml(xml: string, useDitto?: boolean): string
+function fromXml(xml: string): string
 
 // CSV conversion (requires csv feature)
 function toCsv(hedl: string): string
-function fromCsv(csv: string, typeName?: string, useDitto?: boolean): string
+function fromCsv(csv: string, typeName?: string): string
 
 // TOON conversion (requires toon feature)
 function toToon(hedl: string): string
-function fromToon(toon: string, useDitto?: boolean): string
+function fromToon(toon: string): string
 ```
 
 Convert between HEDL and various data formats.
@@ -186,7 +188,7 @@ export interface ValidationResult {
 }
 
 // JSON value types
-export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+export type JsonValue = string |number |boolean |null |JsonObject |JsonArray;
 export interface JsonObject { [key: string]: JsonValue; }
 export interface JsonArray extends Array<JsonValue> {}
 
@@ -353,7 +355,7 @@ function safeParseHedl(input: string) {
 }
 
 // Extract line number from parse error messages
-function extractLineFromError(error: Error): number | null {
+function extractLineFromError(error: Error): number |null {
     const match = error.message.match(/line (\d+)/i);
     return match ? parseInt(match[1], 10) : null;
 }

@@ -18,7 +18,7 @@ use hedl_c14n::{CanonicalConfig, CanonicalConfigBuilder, QuotingStrategy};
 fn test_fluent_api_with_quoting() {
     let config = CanonicalConfig::new().with_quoting(QuotingStrategy::Always);
     assert_eq!(config.quoting, QuotingStrategy::Always);
-    assert!(config.use_ditto); // Defaults unchanged
+    assert!(!config.use_ditto); // Defaults unchanged
     assert!(config.sort_keys);
     assert!(!config.inline_schemas);
 }
@@ -36,7 +36,7 @@ fn test_fluent_api_with_ditto() {
 fn test_fluent_api_with_sort_keys() {
     let config = CanonicalConfig::new().with_sort_keys(false);
     assert_eq!(config.quoting, QuotingStrategy::Minimal);
-    assert!(config.use_ditto);
+    assert!(!config.use_ditto);
     assert!(!config.sort_keys);
     assert!(!config.inline_schemas);
 }
@@ -45,7 +45,7 @@ fn test_fluent_api_with_sort_keys() {
 fn test_fluent_api_with_inline_schemas() {
     let config = CanonicalConfig::new().with_inline_schemas(true);
     assert_eq!(config.quoting, QuotingStrategy::Minimal);
-    assert!(config.use_ditto);
+    assert!(!config.use_ditto);
     assert!(config.sort_keys);
     assert!(config.inline_schemas);
 }
@@ -194,7 +194,7 @@ fn test_canonical_config_new_equals_default() {
 fn test_canonical_config_new_has_correct_defaults() {
     let config = CanonicalConfig::new();
     assert_eq!(config.quoting, QuotingStrategy::Minimal);
-    assert!(config.use_ditto);
+    assert!(!config.use_ditto);
     assert!(config.sort_keys);
     assert!(!config.inline_schemas);
 }

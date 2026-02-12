@@ -1,8 +1,10 @@
-%VERSION: 1.0
-%STRUCT: A: [id,v]
-%STRUCT: B: [id,v]
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:A:[id,v]
+%S:B:[id,v]
 ---
-a: @A
-  |x,1
-b: @B
-  |x,2
+a:@A
+ |x,1
+b:@B
+ |x,2

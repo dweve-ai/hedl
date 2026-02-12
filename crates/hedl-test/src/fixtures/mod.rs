@@ -26,8 +26,10 @@
 //! - **errors**: Invalid documents and error test cases
 //! - **builders**: Builder pattern for customizable fixtures
 
+/// Builder pattern for creating customizable test fixtures.
 pub mod builders;
 mod documents;
+/// Error test fixtures for HEDL.
 pub mod errors;
 mod expressions;
 mod matrices;

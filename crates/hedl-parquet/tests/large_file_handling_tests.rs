@@ -21,7 +21,7 @@ use parquet::basic::Compression;
 
 #[test]
 fn test_large_row_count_1k() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..1_000 {
@@ -47,7 +47,7 @@ fn test_large_row_count_1k() {
 
 #[test]
 fn test_large_row_count_10k() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..10_000 {
@@ -73,7 +73,7 @@ fn test_large_row_count_10k() {
 
 #[test]
 fn test_large_row_count_100k() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..100_000 {
@@ -108,7 +108,7 @@ fn test_large_row_count_100k() {
 
 #[test]
 fn test_small_batch_size_processing() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..1_000 {
@@ -137,7 +137,7 @@ fn test_small_batch_size_processing() {
 
 #[test]
 fn test_large_batch_size_processing() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..5_000 {
@@ -166,7 +166,7 @@ fn test_large_batch_size_processing() {
 
 #[test]
 fn test_adaptive_batch_size() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..2_000 {
@@ -198,7 +198,7 @@ fn test_adaptive_batch_size() {
 
 #[test]
 fn test_large_string_values() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Text", vec!["id".to_string(), "content".to_string()]);
 
     let large_string = "x".repeat(10_000); // 10KB string
@@ -229,7 +229,7 @@ fn test_large_string_values() {
 
 #[test]
 fn test_many_unique_strings() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "unique_val".to_string()]);
 
     // Create many unique string values (defeats dictionary encoding)
@@ -260,7 +260,7 @@ fn test_many_unique_strings() {
 
 #[test]
 fn test_wide_table_100_columns() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut schema = vec!["id".to_string()];
     for i in 1..100 {
@@ -289,7 +289,7 @@ fn test_wide_table_100_columns() {
 
 #[test]
 fn test_wide_and_tall_table() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // 50 columns
     let mut schema = vec!["id".to_string()];
@@ -330,7 +330,7 @@ fn test_wide_and_tall_table() {
 
 #[test]
 fn test_column_projection_reduces_memory() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create 20 columns
     let mut schema = vec!["id".to_string()];
@@ -369,7 +369,7 @@ fn test_column_projection_reduces_memory() {
 
 #[test]
 fn test_compression_ratio_high_cardinality() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     // High cardinality: every value is unique
@@ -405,7 +405,7 @@ fn test_compression_ratio_high_cardinality() {
 
 #[test]
 fn test_compression_ratio_low_cardinality() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "category".to_string()]);
 
     // Low cardinality: only 5 distinct values
@@ -449,7 +449,7 @@ fn test_compression_ratio_low_cardinality() {
 
 #[test]
 fn test_mixed_types_large_scale() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new(
         "Mixed",
         vec![
@@ -492,7 +492,7 @@ fn test_mixed_types_large_scale() {
 
 #[test]
 fn test_sparse_nulls_large_scale() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "optional".to_string()]);
 
     for i in 0..5_000 {
@@ -532,7 +532,7 @@ fn test_sparse_nulls_large_scale() {
 
 #[test]
 fn test_single_row() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Single", vec!["id".to_string()]);
     list.add_row(Node::new(
         "Single",
@@ -551,7 +551,7 @@ fn test_single_row() {
 
 #[test]
 fn test_two_rows() {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Pair", vec!["id".to_string()]);
     list.add_row(Node::new(
         "Pair",
@@ -580,7 +580,7 @@ fn test_two_rows() {
 #[test]
 fn test_estimate_batch_size_basic() {
     // Test that batches are processed without exceeding memory limits
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Data", vec!["id".to_string(), "value".to_string()]);
 
     for i in 0..1_000 {

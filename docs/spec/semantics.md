@@ -17,16 +17,16 @@ This document provides a formal specification of HEDL's semantic rules, covering
 
 HEDL supports the following value types (defined in `Value` enum):
 
-| Type | Syntax | Runtime Representation | Memory Size |
+| Type |Syntax |Runtime Representation |Memory Size |
 |------|--------|----------------------|-------------|
-| Null | `~` | `Value::Null` | Inline (1 byte discriminant) |
-| Bool | `true`, `false` | `Value::Bool(bool)` | Inline (2 bytes) |
-| Int | `-42`, `100` | `Value::Int(i64)` | Inline (8 bytes) |
-| Float | `3.5`, `-1.0` | `Value::Float(f64)` | Inline (8 bytes) |
-| String | `"hello"`, `"""block"""` | `Value::String(Box<str>)` | Boxed (16 bytes pointer) |
-| Tensor | `[1 2; 3 4]` | `Value::Tensor(Box<Tensor>)` | Boxed (16 bytes pointer) |
-| Reference | `@User:id`, `@id` | `Value::Reference(Reference)` | Inline (32 bytes) |
-| Expression | `$(now())` | `Value::Expression(Box<Expression>)` | Boxed (16 bytes pointer) |
+| Null | `~` | `Value::Null` |Inline (1 byte discriminant) |
+| Bool | `true`, `false` | `Value::Bool(bool)` |Inline (2 bytes) |
+| Int | `-42`, `100` | `Value::Int(i64)` |Inline (8 bytes) |
+| Float | `3.5`, `-1.0` | `Value::Float(f64)` |Inline (8 bytes) |
+| String | `"hello"`, `"""block"""` | `Value::String(Box<str>)` |Boxed (16 bytes pointer) |
+| Tensor | `[1 2; 3 4]` | `Value::Tensor(Box<Tensor>)` |Boxed (16 bytes pointer) |
+| Reference | `@User:id`, `@id` | `Value::Reference(Reference)` |Inline (32 bytes) |
+| Expression | `$(now())` | `Value::Expression(Box<Expression>)` |Boxed (16 bytes pointer) |
 
 **Memory Layout Optimization**: Total `Value` enum size is 40 bytes (discriminant + largest variant). Large variants are boxed to minimize memory overhead.
 
@@ -41,7 +41,7 @@ pub enum ExpectedType {
     Bool,
     Int,
     Float,
-    Numeric,              // Int | Float
+    Numeric,              // Int |Float
     String,
     Tensor {
         shape: Option<Vec<usize>>,
@@ -103,7 +103,7 @@ HEDL uses bidirectional type inference:
 
 The function `value_to_expected_type(&Value) -> ExpectedType` infers expected types:
 
-| Value | Inferred Expected Type |
+| Value |Inferred Expected Type |
 |-------|----------------------|
 | `Value::Null` | `ExpectedType::Null` |
 | `Value::Bool(_)` | `ExpectedType::Bool` |
@@ -120,7 +120,7 @@ For error reporting, `ExpectedType::describe()` and `describe_value_type(&Value)
 
 ```rust
 ExpectedType::Numeric.describe()         // "Numeric (Int or Float)"
-ExpectedType::Union([Int, String])       // "Union(Int | String)"
+ExpectedType::Union([Int, String])       // "Union(Int |String)"
 ExpectedType::Tensor { ... }             // "Tensor (shape: [2, 3]) (dtype: Float)"
 
 describe_value_type(&Value::Int(42))     // "Int"
@@ -146,27 +146,27 @@ pub enum CoercionLevel {
 
 ### 3.2 Coercion Rules Matrix
 
-| From Type | To Type | None | Strict | Standard | Permissive | Notes |
+| From Type |To Type |None |Strict |Standard |Permissive |Notes |
 |-----------|---------|------|--------|----------|------------|-------|
-| Int | Int | ✓ | ✓ | ✓ | ✓ | Exact match |
-| Int | Float | ✗ | ✓ | ✓ | ✓ | Safe widening |
-| Int | Numeric | ✗ | ✓ | ✓ | ✓ | Already numeric |
-| Int | String | ✗ | ✗ | ✓ | ✓ | `"42"` |
-| Float | Float | ✓ | ✓ | ✓ | ✓ | Exact match |
-| Float | Int | ✗ | ✗ | ✗ | ✓ | Lossy (truncates) |
-| Float | Numeric | ✗ | ✓ | ✓ | ✓ | Already numeric |
-| Float | String | ✗ | ✗ | ✓ | ✓ | `"3.5"` |
-| String | Int | ✗ | ✗ | ✓ | ✓ | Parses `"42"` |
-| String | Float | ✗ | ✗ | ✓ | ✓ | Parses `"3.5"` |
-| String | Bool | ✗ | ✗ | ✓ | ✓ | Parses `"true"`/`"false"` |
-| String | Numeric | ✗ | ✗ | ✓ | ✓ | Tries Int, then Float |
-| Bool | String | ✗ | ✗ | ✓ | ✓ | `"true"` or `"false"` |
-| Null | Any | ✗ | ✗ | ✗ | ✓ | To default value |
-| Null | Int | ✗ | ✗ | ✗ | ✓ | `0` |
-| Null | Float | ✗ | ✗ | ✗ | ✓ | `0.0` |
-| Null | Bool | ✗ | ✗ | ✗ | ✓ | `false` |
-| Null | String | ✗ | ✗ | ✗ | ✓ | `""` |
-| Reference | String | ✗ | ✗ | ✓ | ✓ | `"@User:id"` |
+| Int |Int | ✓ | ✓ | ✓ | ✓ |Exact match |
+| Int |Float | ✗ | ✓ | ✓ | ✓ |Safe widening |
+| Int |Numeric | ✗ | ✓ | ✓ | ✓ |Already numeric |
+| Int |String | ✗ | ✗ | ✓ | ✓ | `"42"` |
+| Float |Float | ✓ | ✓ | ✓ | ✓ |Exact match |
+| Float |Int | ✗ | ✗ | ✗ | ✓ |Lossy (truncates) |
+| Float |Numeric | ✗ | ✓ | ✓ | ✓ |Already numeric |
+| Float |String | ✗ | ✗ | ✓ | ✓ | `"3.5"` |
+| String |Int | ✗ | ✗ | ✓ | ✓ |Parses `"42"` |
+| String |Float | ✗ | ✗ | ✓ | ✓ |Parses `"3.5"` |
+| String |Bool | ✗ | ✗ | ✓ | ✓ |Parses `"true"`/`"false"` |
+| String |Numeric | ✗ | ✗ | ✓ | ✓ |Tries Int, then Float |
+| Bool |String | ✗ | ✗ | ✓ | ✓ | `"true"` or `"false"` |
+| Null |Any | ✗ | ✗ | ✗ | ✓ |To default value |
+| Null |Int | ✗ | ✗ | ✗ | ✓ | `0` |
+| Null |Float | ✗ | ✗ | ✗ | ✓ | `0.0` |
+| Null |Bool | ✗ | ✗ | ✗ | ✓ | `false` |
+| Null |String | ✗ | ✗ | ✗ | ✓ | `""` |
+| Reference |String | ✗ | ✗ | ✓ | ✓ | `"@User:id"` |
 
 **Legend**: ✓ = allowed, ✗ = rejected
 
@@ -338,10 +338,10 @@ pub struct Reference {
 
 #### Reference Syntax
 
-| Syntax | Type | Description | Example |
+| Syntax |Type |Description |Example |
 |--------|------|-------------|---------|
-| `@Type:id` | Qualified | Reference with explicit type | `@User:u1` |
-| `@id` | Unqualified | Reference without type | `@active` |
+| `@Type:id` |Qualified |Reference with explicit type | `@User:u1` |
+| `@id` |Unqualified |Reference without type | `@active` |
 
 **Creating References**:
 ```rust
@@ -402,11 +402,11 @@ pub enum ReferenceMode {
 
 #### Mode Behavior
 
-| Condition | Strict | Lenient |
+| Condition |Strict |Lenient |
 |-----------|--------|---------|
-| Unresolved reference | Error | Ignored |
-| Ambiguous reference | Error | Error |
-| Resolved reference | OK | OK |
+| Unresolved reference |Error |Ignored |
+| Ambiguous reference |Error |Error |
+| Resolved reference |OK |OK |
 
 **Note**: Ambiguous references ALWAYS cause errors, regardless of mode.
 
@@ -428,13 +428,13 @@ Qualified references (`@Type:id`) are resolved by checking the specific type reg
 **Example**:
 ```hedl
 STRUCT User: id name
-User: @User
+User:@User
   u1 "Alice"
   u2 "Bob"
 
-value: @User:u1  # OK (u1 exists in User)
-value: @User:u3  # ERROR in Strict, IGNORED in Lenient
-value: @Post:p1  # ERROR in Strict (Post not defined), IGNORED in Lenient
+value:@User:u1  # OK (u1 exists in User)
+value:@User:u3  # ERROR in Strict, IGNORED in Lenient
+value:@Post:p1  # ERROR in Strict (Post not defined), IGNORED in Lenient
 ```
 
 ### 4.5 Unqualified Reference Resolution
@@ -455,12 +455,12 @@ Inside a matrix list, unqualified references search ONLY the current type:
 STRUCT User: id name manager
 STRUCT Post: id title
 
-User: @User
+User:@User
   u1 "Alice" ~
   u2 "Bob" @u1      # Searches ONLY User type
   u3 "Charlie" @p1  # ERROR: p1 not in User (even if exists in Post)
 
-Post: @Post
+Post:@Post
   p1 "Hello"
 ```
 
@@ -488,19 +488,19 @@ Outside matrix lists (in key-value pairs), unqualified references search ALL typ
 STRUCT User: id name
 STRUCT Post: id title
 
-User: @User
+User:@User
   u1 "Alice"
   u2 "Bob"
 
-Post: @Post
+Post:@Post
   p1 "Hello"
   u1 "World"    # Same ID in different type
 
 # Key-value references
-ref1: @u2  # OK (only in User)
-ref2: @p1  # OK (only in Post)
-ref3: @u1  # ERROR (ambiguous: exists in both User and Post)
-ref4: @u3  # ERROR in Strict (not found), IGNORED in Lenient
+ref1:@u2  # OK (only in User)
+ref2:@p1  # OK (only in Post)
+ref3:@u1  # ERROR (ambiguous: exists in both User and Post)
+ref4:@u3  # ERROR in Strict (not found), IGNORED in Lenient
 ```
 
 ### 4.6 Ambiguous Reference Handling
@@ -520,10 +520,10 @@ if types.len() > 1 {
 **Resolution**: Use qualified references:
 ```hedl
 # Instead of ambiguous:
-value: @u1  # ERROR
+value:@u1  # ERROR
 
 # Use qualified:
-value: @User:u1  # OK
+value:@User:u1  # OK
 ```
 
 ### 4.7 Reference Resolution Algorithm
@@ -538,12 +538,12 @@ fn resolve_reference(
     current_type: Option<&str>,  // Current matrix type, if any
 ) -> Result<bool, HedlError> {
     match reference.type_name {
-        // Qualified reference: @Type:id
+        // Qualified reference:@Type:id
         Some(type_name) => {
             Ok(registries.contains_in_type(&type_name, &reference.id))
         }
 
-        // Unqualified reference: @id
+        // Unqualified reference:@id
         None => {
             match current_type {
                 // Matrix context: search only current type
@@ -590,14 +590,14 @@ Error: duplicate ID 'u1' in type 'User', previously defined at line 10
 STRUCT User: id
 STRUCT Post: id
 
-User: @User
+User:@User
   admin      # OK
 
-Post: @Post
+Post:@Post
   admin      # OK (different type)
 
-ref: @admin  # ERROR (ambiguous)
-ref: @User:admin  # OK
+ref:@admin  # ERROR (ambiguous)
+ref:@User:admin  # OK
 ```
 
 ## 5. NEST Hierarchy
@@ -741,20 +741,20 @@ pub struct Limits {
 
 ### 6.2 Default Limits
 
-| Limit | Default | Rationale |
+| Limit |Default |Rationale |
 |-------|---------|-----------|
-| `max_file_size` | 1GB | Prevents memory exhaustion from huge files |
-| `max_line_length` | 1MB | Prevents single-line DoS attacks |
-| `max_indent_depth` | 50 | Prevents deeply nested structures |
-| `max_nodes` | 10M | Limits total node count across document |
-| `max_aliases` | 10K | Prevents alias table bloat |
-| `max_columns` | 100 | Limits schema width |
-| `max_nest_depth` | 100 | Prevents stack overflow in recursion |
-| `max_block_string_size` | 10MB | Limits triple-quote block sizes |
-| `max_object_keys` | 10K | Limits keys per object/map |
-| `max_total_keys` | 10M | Defense-in-depth: limits total keys |
-| `max_total_ids` | 10M | Prevents TypeRegistry memory exhaustion |
-| `timeout` | 30s | Prevents parser hangs |
+| `max_file_size` |1GB |Prevents memory exhaustion from huge files |
+| `max_line_length` |1MB |Prevents single-line DoS attacks |
+| `max_indent_depth` |50 |Prevents deeply nested structures |
+| `max_nodes` |10M |Limits total node count across document |
+| `max_aliases` |10K |Prevents alias table bloat |
+| `max_columns` |100 |Limits schema width |
+| `max_nest_depth` |100 |Prevents stack overflow in recursion |
+| `max_block_string_size` |10MB |Limits triple-quote block sizes |
+| `max_object_keys` |10K |Limits keys per object/map |
+| `max_total_keys` |10M |Defense-in-depth: limits total keys |
+| `max_total_ids` |10M |Prevents TypeRegistry memory exhaustion |
+| `timeout` |30s |Prevents parser hangs |
 
 **Unlimited Mode** (testing only):
 ```rust
@@ -911,10 +911,10 @@ STRUCT Type2: id
 ...
 STRUCT Type1000: id
 
-Type1: @Type1
+Type1:@Type1
   id1 id2 id3 ... id10000  # 10K IDs
 
-Type2: @Type2
+Type2:@Type2
   id1 id2 id3 ... id10000  # 10K IDs
 
 # Total: 1000 types × 10K IDs = 10M IDs
@@ -998,16 +998,16 @@ Error::Security {
 
 ### Value Types (8 total)
 
-| Type | Discriminant | Size | Boxed | Coercible |
+| Type |Discriminant |Size |Boxed |Coercible |
 |------|--------------|------|-------|-----------|
-| Null | 1 byte | 1 byte | No | No (except in Permissive) |
-| Bool | 1 byte | 2 bytes | No | From String (Standard+) |
-| Int | 1 byte | 9 bytes | No | To Float (Strict+), From String (Standard+) |
-| Float | 1 byte | 9 bytes | No | From Int (Strict+), From String (Standard+), To Int (Permissive) |
-| String | 1 byte | 17 bytes | Yes | From most types (Standard+) |
-| Tensor | 1 byte | 17 bytes | Yes | No |
-| Reference | 1 byte | 33 bytes | No | To String (Standard+) |
-| Expression | 1 byte | 17 bytes | Yes | No |
+| Null |1 byte |1 byte |No |No (except in Permissive) |
+| Bool |1 byte |2 bytes |No |From String (Standard+) |
+| Int |1 byte |9 bytes |No |To Float (Strict+), From String (Standard+) |
+| Float |1 byte |9 bytes |No |From Int (Strict+), From String (Standard+), To Int (Permissive) |
+| String |1 byte |17 bytes |Yes |From most types (Standard+) |
+| Tensor |1 byte |17 bytes |Yes |No |
+| Reference |1 byte |33 bytes |No |To String (Standard+) |
+| Expression |1 byte |17 bytes |Yes |No |
 
 ### Expected Types (11 variants)
 
@@ -1016,7 +1016,7 @@ Error::Security {
 3. Bool
 4. Int
 5. Float
-6. Numeric (Int | Float)
+6. Numeric (Int |Float)
 7. String
 8. Tensor (with optional shape/dtype constraints)
 9. Reference (with optional type constraint)
@@ -1056,51 +1056,54 @@ Lossy Coercions (Permissive):
 ## Appendix C: Reference Resolution Decision Tree
 
 ```
-Reference: @Type:id or @id
-  |
+Reference:@Type:id or @id
+ |
   +-- Has type_name?
-  |     |
-  |     +-- YES: Qualified Reference (@Type:id)
-  |     |     |
-  |     |     +-- Look up in by_type[Type][id]
-  |     |     |
-  |     |     +-- Found?
-  |     |           |
-  |     |           +-- YES: RESOLVED
-  |     |           +-- NO:
-  |     |                 |
-  |     |                 +-- Strict mode? → ERROR
-  |     |                 +-- Lenient mode? → IGNORED
-  |     |
-  |     +-- NO: Unqualified Reference (@id)
-  |           |
-  |           +-- In matrix context?
-  |                 |
-  |                 +-- YES: Search current type only
-  |                 |     |
-  |                 |     +-- Look up in by_type[CurrentType][id]
-  |                 |     +-- Found? → RESOLVED : (Strict → ERROR, Lenient → IGNORED)
-  |                 |
-  |                 +-- NO: Key-value context
-  |                       |
-  |                       +-- Look up in by_id[id] (inverted index)
-  |                       |
-  |                       +-- Number of matching types?
-  |                             |
-  |                             +-- 0: Strict → ERROR, Lenient → IGNORED
-  |                             +-- 1: RESOLVED (unambiguous)
-  |                             +-- 2+: ERROR (ambiguous, always fails)
+ |     |
+ |     +-- YES: Qualified Reference (@Type:id)
+ |     |     |
+ |     |     +-- Look up in by_type[Type][id]
+ |     |     |
+ |     |     +-- Found?
+ |     |           |
+ |     |           +-- YES: RESOLVED
+ |     |           +-- NO:
+ |     |                 |
+ |     |                 +-- Strict mode? → ERROR
+ |     |                 +-- Lenient mode? → IGNORED
+ |     |
+ |     +-- NO: Unqualified Reference (@id)
+ |           |
+ |           +-- In matrix context?
+ |                 |
+ |                 +-- YES: Search current type only
+ |                 |     |
+ |                 |     +-- Look up in by_type[CurrentType][id]
+ |                 |     +-- Found? → RESOLVED : (Strict → ERROR, Lenient → IGNORED)
+ |                 |
+ |                 +-- NO: Key-value context
+ |                       |
+ |                       +-- Look up in by_id[id] (inverted index)
+ |                       |
+ |                       +-- Number of matching types?
+ |                             |
+ |                             +-- 0: Strict → ERROR, Lenient → IGNORED
+ |                             +-- 1: RESOLVED (unambiguous)
+ |                             +-- 2+: ERROR (ambiguous, always fails)
 ```
 
 ## Version History
 
-- **Version 1.0** (2025-01-20): Initial formal semantics specification
-  - Based on hedl-core v1.2.0 implementation
-  - Covers types, coercion, references, NEST, and security limits
-  - Extracted from actual Rust implementation in:
-    - `crates/hedl-core/src/types.rs`
-    - `crates/hedl-core/src/coercion.rs`
-    - `crates/hedl-core/src/reference.rs`
-    - `crates/hedl-core/src/value.rs`
-    - `crates/hedl-core/src/document.rs`
-    - `crates/hedl-core/src/limits.rs`
+- **Version 1.3** (2025-02): Current production version with required headers and 1-space indentation
+- **Version 1.2** (2025-01): Legacy version with compact syntax and metadata directives
+  - Compact directive syntax: `%V:`, `%S:`, `%A:`, `%N:`, `%C:`
+  - `%NULL` directive for configurable null representation
+  - `%QUOTE` directive for configurable quote character
+  - `%COUNT` / `%C` directive for statistical metadata (total counts, distributions)
+  - Struct count hints: `%S:Type(N):[cols]`
+  - List literals: `(elem1, elem2, ...)` for ordered sequences
+  - List literals: `(elem1, elem2, ...)` for ordered sequences
+  - Header fields: `null_char`, `quote_char`, `counts` in Header struct
+
+- **Version 1.0** (2025-01): Initial HEDL specification
+  - Core types, coercion, references, NEST, and security limits

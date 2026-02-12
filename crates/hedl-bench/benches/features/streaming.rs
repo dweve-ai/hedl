@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::field_reassign_with_default)]
-
 //! Streaming parser benchmarks with REAL measurements and comparative analysis.
 //!
 //! Measures HEDL streaming parser performance vs competitors (`DuckDB`, Polars, Arrow, `serde_json`).
@@ -106,7 +104,7 @@ impl MemoryTracker {
 #[derive(Clone)]
 struct StreamResult {
     dataset: String,
-    row_count: usize,
+    _row_count: usize,
     input_size_bytes: usize,
     streaming_times_ns: Vec<u64>,
     full_parse_times_ns: Vec<u64>,
@@ -115,7 +113,7 @@ struct StreamResult {
     nodes_processed: usize,
     peak_memory_streaming_kb: usize,
     peak_memory_full_kb: usize,
-    throughput_rows_per_sec: f64,
+    _throughput_rows_per_sec: f64,
 
     // Error recovery measurements (REAL data)
     error_recovery_times_ns: HashMap<String, Vec<u64>>,
@@ -145,7 +143,7 @@ impl Default for StreamResult {
     fn default() -> Self {
         Self {
             dataset: String::new(),
-            row_count: 0,
+            _row_count: 0,
             input_size_bytes: 0,
             streaming_times_ns: Vec::new(),
             full_parse_times_ns: Vec::new(),
@@ -154,7 +152,7 @@ impl Default for StreamResult {
             nodes_processed: 0,
             peak_memory_streaming_kb: 0,
             peak_memory_full_kb: 0,
-            throughput_rows_per_sec: 0.0,
+            _throughput_rows_per_sec: 0.0,
             error_recovery_times_ns: HashMap::new(),
             errors_recovered: 0,
             resume_times_ns: Vec::new(),
@@ -307,9 +305,11 @@ fn bench_error_recovery(c: &mut Criterion) {
         ("string_error", string_error_hedl.clone()),
     ];
 
-    let mut result = StreamResult::default();
-    result.dataset = "error_recovery".to_string();
-    result.row_count = 100;
+    let mut result = StreamResult {
+        dataset: "error_recovery".to_string(),
+        _row_count: 100,
+        ..Default::default()
+    };
 
     for (error_type, hedl) in &error_scenarios {
         group.bench_function(*error_type, |b| {
@@ -382,10 +382,12 @@ fn bench_resume_restart(c: &mut Criterion) {
     }
 
     let hedl = generate_users(1_000);
-    let mut result = StreamResult::default();
-    result.dataset = "size_comparison".to_string();
-    result.row_count = 1_000;
-    result.input_size_bytes = hedl.len();
+    let mut result = StreamResult {
+        dataset: "size_comparison".to_string(),
+        _row_count: 1_000,
+        input_size_bytes: hedl.len(),
+        ..Default::default()
+    };
 
     // Measure streaming parse times
     let mut streaming_times = Vec::new();
@@ -450,10 +452,12 @@ fn bench_concurrent_streaming(c: &mut Criterion) {
         );
     }
 
-    let mut result = StreamResult::default();
-    result.dataset = "concurrent".to_string();
-    result.row_count = 1_000;
-    result.input_size_bytes = hedl.len();
+    let mut result = StreamResult {
+        dataset: "concurrent".to_string(),
+        _row_count: 1_000,
+        input_size_bytes: hedl.len(),
+        ..Default::default()
+    };
 
     // Measure concurrent times (ACTUAL measurement, not formula)
     for &stream_count in &CONCURRENT_STREAMS[..4] {
@@ -515,14 +519,16 @@ fn bench_buffer_management(c: &mut Criterion) {
         // Measure ACTUAL allocations and reuses
         let (peak_memory, allocations, reuses) = measure_streaming_memory(&hedl, buffer_size);
 
-        let mut result = StreamResult::default();
-        result.dataset = format!("buffer_{buffer_size}");
-        result.buffer_size = buffer_size;
-        result.row_count = 1_000;
-        result.input_size_bytes = hedl.len();
-        result.peak_memory_streaming_kb = peak_memory;
-        result.actual_allocations = allocations;
-        result.buffer_reuses = reuses;
+        let mut result = StreamResult {
+            dataset: format!("buffer_{buffer_size}"),
+            buffer_size,
+            _row_count: 1_000,
+            input_size_bytes: hedl.len(),
+            peak_memory_streaming_kb: peak_memory,
+            actual_allocations: allocations,
+            buffer_reuses: reuses,
+            ..Default::default()
+        };
 
         let mut times = Vec::new();
         let config = StreamingParserConfig {
@@ -589,10 +595,12 @@ fn bench_protocol_overhead(c: &mut Criterion) {
         });
     });
 
-    let mut result = StreamResult::default();
-    result.dataset = "protocol_overhead".to_string();
-    result.row_count = 100;
-    result.input_size_bytes = hedl.len();
+    let mut result = StreamResult {
+        dataset: "protocol_overhead".to_string(),
+        _row_count: 100,
+        input_size_bytes: hedl.len(),
+        ..Default::default()
+    };
 
     // Measure actual event dispatch times
     let mut dispatch_times = Vec::new();
@@ -664,10 +672,12 @@ fn bench_json_streaming_comparison(c: &mut Criterion) {
         });
     });
 
-    let mut result = StreamResult::default();
-    result.dataset = "json_comparison".to_string();
-    result.row_count = 1_000;
-    result.input_size_bytes = hedl.len();
+    let mut result = StreamResult {
+        dataset: "json_comparison".to_string(),
+        _row_count: 1_000,
+        input_size_bytes: hedl.len(),
+        ..Default::default()
+    };
 
     // Measure HEDL streaming times
     let mut hedl_times = Vec::new();
@@ -751,11 +761,13 @@ fn bench_stream_throughput(c: &mut Criterion) {
             }
         });
 
-        let mut result = StreamResult::default();
-        result.dataset = format!("throughput_{row_count}");
-        result.row_count = row_count;
-        result.input_size_bytes = hedl.len();
-        result.throughput_rows_per_sec = rows_per_sec;
+        let mut result = StreamResult {
+            dataset: format!("throughput_{row_count}"),
+            _row_count: row_count,
+            input_size_bytes: hedl.len(),
+            _throughput_rows_per_sec: rows_per_sec,
+            ..Default::default()
+        };
 
         // REAL memory measurement
         let (peak_memory, allocations, _reuses) = measure_streaming_memory(&hedl, 8192);
@@ -806,10 +818,12 @@ fn bench_stream_vs_full_parse(c: &mut Criterion) {
             });
         });
 
-        let mut result = StreamResult::default();
-        result.dataset = format!("comparison_{size}");
-        result.row_count = size;
-        result.input_size_bytes = hedl.len();
+        let mut result = StreamResult {
+            dataset: format!("comparison_{size}"),
+            _row_count: size,
+            input_size_bytes: hedl.len(),
+            ..Default::default()
+        };
 
         // Measure streaming
         let mut streaming_times = Vec::new();

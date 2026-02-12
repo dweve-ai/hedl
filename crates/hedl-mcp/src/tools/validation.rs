@@ -19,8 +19,8 @@
 
 use crate::error::McpResult;
 use crate::protocol::{CallToolResult, Content};
-use crate::tools::helpers::{parse_args, validate_input_size};
-use crate::tools::json_utils::count_entities;
+use crate::tools::argument_parsing::{parse_args, validate_input_size};
+use crate::tools::json_serialization::count_entities;
 use crate::tools::types::{ValidateArgs, MAX_INPUT_SIZE};
 use hedl_core::parse;
 use hedl_lint::lint;
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn test_hedl_validate_valid_document() {
         let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice Smith\n";
         let args = json!({ "hedl": hedl });
         let result = execute_hedl_validate(Some(args)).unwrap();
 
@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn test_hedl_validate_with_lint() {
         let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice Smith\n";
         let args = json!({ "hedl": hedl, "lint": true });
         let result = execute_hedl_validate(Some(args)).unwrap();
 
@@ -165,7 +165,8 @@ mod tests {
     #[test]
     fn test_hedl_validate_strict_mode_with_warnings() {
         // Create a document that will generate lint warnings (short IDs)
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | a, Alice\n  | b, Bob\n";
+        let hedl =
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | a, Alice\n | b, Bob\n";
         let args = json!({ "hedl": hedl, "lint": true, "strict": true });
         let result = execute_hedl_validate(Some(args)).unwrap();
 
@@ -200,7 +201,8 @@ mod tests {
     #[test]
     fn test_hedl_validate_non_strict_mode_with_warnings() {
         // Create a document that will generate lint warnings (short IDs)
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | a, Alice\n  | b, Bob\n";
+        let hedl =
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | a, Alice\n | b, Bob\n";
         let args = json!({ "hedl": hedl, "lint": true, "strict": false });
         let result = execute_hedl_validate(Some(args)).unwrap();
 
@@ -251,7 +253,7 @@ mod tests {
     #[test]
     fn test_hedl_validate_lint_disabled() {
         // Even with warnings in the document, if lint is disabled, they shouldn't be reported
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | a, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | a, Alice\n";
         let args = json!({ "hedl": hedl, "lint": false });
         let result = execute_hedl_validate(Some(args)).unwrap();
 
@@ -269,7 +271,7 @@ mod tests {
     #[test]
     fn test_hedl_validate_unused_schema_warning() {
         // Test with unused schema which generates a warning
-        let hedl = "%VERSION: 1.0\n%STRUCT: UnusedType: [id]\n%STRUCT: UsedType: [id]\n---\nused: @UsedType\n  | test\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: UnusedType: [id]\n%STRUCT: UsedType: [id]\n---\nused:@UsedType\n | test\n";
 
         // Strict mode should fail
         let args = json!({ "hedl": hedl, "lint": true, "strict": true });
@@ -325,7 +327,7 @@ mod tests {
     #[test]
     fn test_hedl_validate_diagnostics_include_rule_id() {
         // Verify that diagnostics include rule_id field
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | a, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | a, Alice\n";
         let args = json!({ "hedl": hedl, "lint": true });
         let result = execute_hedl_validate(Some(args)).unwrap();
 

@@ -1,4 +1,6 @@
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 app_name: MyApp
 debug_mode: true

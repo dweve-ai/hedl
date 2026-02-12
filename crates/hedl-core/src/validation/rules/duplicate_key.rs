@@ -51,7 +51,10 @@ impl Rule for DuplicateKeyRule {
         visit_all_nodes(doc, |node: &Node, ctx: &NodeVisitContext<'_>| {
             let type_name = ctx.type_name;
             let id = &node.id;
-            let line: Option<usize> = None; // TODO: Track line numbers
+            // Line number tracking not yet implemented - requires parser changes
+            // to preserve source location metadata during parsing. For now, diagnostics
+            // report duplicate keys without line numbers.
+            let line: Option<usize> = None;
 
             let type_map = seen_ids.entry(type_name.to_string()).or_default();
 

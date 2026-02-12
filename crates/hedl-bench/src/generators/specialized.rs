@@ -18,7 +18,7 @@
 //! Domain-specific data generators.
 //!
 //! Specialized generators for specific use cases like tensor data,
-//! row operations, CSV-like structures, and ditto-heavy patterns.
+//! row operations, CSV-like structures, and ditto-heavy patterns (pre-v2.0 only).
 
 use crate::datasets::generate_ditto_heavy;
 
@@ -37,24 +37,25 @@ use crate::datasets::generate_ditto_heavy;
 #[must_use]
 pub fn generate_tensor_data(dimensions: &[usize]) -> String {
     if dimensions.is_empty() {
-        return "%VERSION: 1.0\n---\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string();
     }
 
     let total_elements: usize = dimensions.iter().product();
     if total_elements == 0 {
-        return "%VERSION: 1.0\n---\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: TensorElement: [id,value]\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:TensorElement:[id,value]\n");
     doc.push_str("---\n");
-    doc.push_str("tensor: @TensorElement\n");
+    doc.push_str("tensor:@TensorElement\n");
 
     // Generate elements with coordinate-based IDs
     let limit = total_elements.min(1000); // Limit for reasonable size
+    let mut coords = Vec::with_capacity(dimensions.len());
     for flat_idx in 0..limit {
         // Convert flat index to multi-dimensional coordinates
-        let mut coords = Vec::new();
+        coords.clear();
         let mut remaining = flat_idx;
 
         for dim_size in dimensions.iter().rev() {
@@ -70,7 +71,7 @@ pub fn generate_tensor_data(dimensions: &[usize]) -> String {
             .collect::<Vec<_>>()
             .join("_");
 
-        doc.push_str(&format!("  |elem_{},{:.2}\n", id, flat_idx as f64 * 0.1));
+        doc.push_str(&format!(" |elem_{},{:.2}\n", id, flat_idx as f64 * 0.1));
     }
 
     doc
@@ -91,21 +92,21 @@ pub fn generate_tensor_data(dimensions: &[usize]) -> String {
 #[must_use]
 pub fn generate_row_data(row_count: usize, col_count: usize) -> String {
     if row_count == 0 || col_count == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
 
     // Generate column headers
     let headers: Vec<String> = (0..col_count).map(|i| format!("col{i}")).collect();
 
-    doc.push_str(&format!("%STRUCT: Row: [{}]\n", headers.join(",")));
+    doc.push_str(&format!("%S:Row:[{}]\n", headers.join(",")));
     doc.push_str("---\n");
-    doc.push_str("data: @Row\n");
+    doc.push_str("data:@Row\n");
 
     // Generate rows
     for row in 0..row_count {
-        doc.push_str("  |");
+        doc.push_str(" |");
         for col in 0..col_count {
             if col > 0 {
                 doc.push(',');
@@ -135,10 +136,13 @@ pub fn generate_csv_like(rows: usize, cols: usize) -> String {
     generate_row_data(rows, cols)
 }
 
-/// Generates ditto-heavy data for token efficiency testing.
+/// Generates ditto-heavy data for token efficiency testing (pre-v2.0 only).
 ///
 /// Creates documents with extensive use of ditto markers (^) for
 /// repeated values, testing HEDL's token efficiency.
+///
+/// **Note**: This generates pre-v2.0 HEDL documents. The ditto operator (`^`)
+/// is NOT allowed in v2.0.
 ///
 /// # Arguments
 ///
@@ -146,7 +150,7 @@ pub fn generate_csv_like(rows: usize, cols: usize) -> String {
 ///
 /// # Returns
 ///
-/// HEDL document string with ditto-heavy pattern.
+/// HEDL pre-v2.0 document string with ditto-heavy pattern.
 #[must_use]
 pub fn generate_ditto_data(entity_count: usize) -> String {
     generate_ditto_heavy(entity_count)
@@ -182,19 +186,19 @@ pub fn generate_wide_rows(row_count: usize, field_count: usize) -> String {
 #[must_use]
 pub fn generate_time_series(data_points: usize) -> String {
     if data_points == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Metric: [timestamp,value,tags]\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:Metric:[timestamp,value,tags]\n");
     doc.push_str("---\n");
-    doc.push_str("metrics: @Metric\n");
+    doc.push_str("metrics:@Metric\n");
 
     for i in 0..data_points {
         let timestamp = 1704067200 + (i * 60); // Starting from 2024-01-01
         let value = (i as f64 * 0.5).sin() * 100.0 + 100.0;
         doc.push_str(&format!(
-            "  |{timestamp},{value:.2},[server:web1,env:prod]\n"
+            " |{timestamp},{value:.2},[server:web1,env:prod]\n"
         ));
     }
 
@@ -213,16 +217,16 @@ pub fn generate_time_series(data_points: usize) -> String {
 #[must_use]
 pub fn generate_key_value(pair_count: usize) -> String {
     if pair_count == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: Config: [key,value]\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:Config:[key,value]\n");
     doc.push_str("---\n");
-    doc.push_str("config: @Config\n");
+    doc.push_str("config:@Config\n");
 
     for i in 0..pair_count {
-        doc.push_str(&format!("  |config_key_{i},config_value_{i}\n"));
+        doc.push_str(&format!(" |config_key_{i},config_value_{i}\n"));
     }
 
     doc
@@ -242,20 +246,20 @@ pub fn generate_key_value(pair_count: usize) -> String {
 #[must_use]
 pub fn generate_sparse_matrix(rows: usize, cols: usize, density: f32) -> String {
     if rows == 0 || cols == 0 {
-        return "%VERSION: 1.0\n".to_string();
+        return "%V:2.0\n%NULL:~\n%QUOTE:\"\n".to_string();
     }
 
-    let mut doc = String::from("%VERSION: 1.0\n");
-    doc.push_str("%STRUCT: SparseEntry: [row,col,value]\n");
+    let mut doc = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n");
+    doc.push_str("%S:SparseEntry:[row,col,value]\n");
     doc.push_str("---\n");
-    doc.push_str("sparse: @SparseEntry\n");
+    doc.push_str("sparse:@SparseEntry\n");
 
     let total_entries = (rows * cols) as f32 * density.min(1.0);
     for i in 0..total_entries as usize {
         let row = i % rows;
         let col = (i / rows) % cols;
         let value = (i as f64 + 1.0) * 0.1;
-        doc.push_str(&format!("  |{row},{col},{value:.2}\n"));
+        doc.push_str(&format!(" |{row},{col},{value:.2}\n"));
     }
 
     doc
@@ -276,7 +280,7 @@ mod tests {
     #[test]
     fn test_row_data() {
         let doc = generate_row_data(5, 3);
-        assert!(doc.contains("%STRUCT: Row"));
+        assert!(doc.contains("%S:Row"));
         assert!(doc.contains("col0"));
         assert!(doc.contains("r0c0"));
     }
@@ -284,7 +288,7 @@ mod tests {
     #[test]
     fn test_csv_like() {
         let doc = generate_csv_like(10, 5);
-        assert!(doc.contains("%VERSION: 1.0"));
+        assert!(doc.contains("%V:2.0"));
     }
 
     #[test]

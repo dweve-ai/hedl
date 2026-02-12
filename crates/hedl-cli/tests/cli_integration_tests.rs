@@ -213,9 +213,9 @@ fn test_format_with_ditto() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
-  | y,1
+d:@T
+ | x,1
+ | y,1
 ";
     let file = create_temp_file(content, ".hedl");
 
@@ -230,12 +230,14 @@ d: @T
 
 #[test]
 fn test_format_with_counts() {
-    let content = r"%VERSION: 1.0
-%STRUCT: Team: [id,name]
+    let content = "%V:2.0
+%NULL:~
+%QUOTE:\"
+%S:Team:[id,name]
 ---
-teams: @Team
-  | t1,Warriors
-  | t2,Lakers
+teams:@Team
+ |t1,Warriors
+ |t2,Lakers
 ";
     let file = create_temp_file(content, ".hedl");
 
@@ -245,7 +247,8 @@ teams: @Team
         .arg("--with-counts")
         .assert()
         .success()
-        .stdout(predicate::str::contains("%STRUCT: Team (2): [id,name]"));
+        .stdout(predicate::str::contains("%S:Team:[id,name]"))
+        .stdout(predicate::str::contains("%C:Team.total=2"));
 }
 
 // ===== Lint Command Tests =====
@@ -402,7 +405,8 @@ fn test_from_json_to_hedl() {
         .arg(file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("%VERSION:"))
+        // Compact format uses %V: prefix
+        .stdout(predicate::str::contains("%V:"))
         .stdout(predicate::str::contains("a:"))
         .stdout(predicate::str::contains("b:"));
 }
@@ -471,7 +475,8 @@ fn test_from_yaml_to_hedl() {
         .arg(file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("%VERSION:"))
+        // Compact format uses %V: prefix
+        .stdout(predicate::str::contains("%V:"))
         .stdout(predicate::str::contains("a:"))
         .stdout(predicate::str::contains("b:"));
 }
@@ -558,7 +563,8 @@ fn test_from_xml_to_hedl() {
         .arg(file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("%VERSION:"));
+        // Compact format uses %V: prefix
+        .stdout(predicate::str::contains("%V:"));
 }
 
 #[test]
@@ -591,7 +597,11 @@ pages: 300
         .success();
 
     let output = fs::read_to_string(hedl_output_file.path()).expect("Failed to read output");
-    assert!(output.contains("%VERSION:"));
+    // Accept either verbose (%VERSION:) or compact (%V:) format
+    assert!(
+        output.contains("%V:") || output.contains("%VERSION:"),
+        "Expected HEDL version header"
+    );
 }
 
 // ===== CSV Conversion Tests =====
@@ -601,9 +611,9 @@ fn test_to_csv_stdout() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
-  | y,2
+d:@T
+ | x,1
+ | y,2
 ";
     let file = create_temp_file(content, ".hedl");
 
@@ -620,9 +630,9 @@ fn test_to_csv_with_headers() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
-  | y,2
+d:@T
+ | x,1
+ | y,2
 ";
     let file = create_temp_file(content, ".hedl");
 
@@ -644,7 +654,8 @@ fn test_from_csv_to_hedl() {
         .arg(file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("%VERSION:"))
+        // Compact format uses %V: prefix
+        .stdout(predicate::str::contains("%V:"))
         .stdout(predicate::str::contains("@Row"));
 }
 
@@ -670,8 +681,8 @@ fn test_to_parquet_requires_output() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
+d:@T
+ | x,1
 ";
     let file = create_temp_file(content, ".hedl");
     let output_file = NamedTempFile::new().expect("Failed to create output file");
@@ -710,9 +721,9 @@ fn test_from_parquet_to_hedl() {
     let hedl_content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
-  | y,2
+d:@T
+ | x,1
+ | y,2
 ";
     let hedl_file = create_temp_file(hedl_content, ".hedl");
     let parquet_file = NamedTempFile::new().expect("Failed to create parquet file");
@@ -732,7 +743,8 @@ d: @T
         .arg(parquet_file.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("%VERSION:"));
+        // Compact format uses %V: prefix
+        .stdout(predicate::str::contains("%V:"));
 }
 
 #[test]
@@ -740,9 +752,9 @@ fn test_parquet_roundtrip() {
     let original_hedl = r"%VERSION: 1.0
 %STRUCT: Person: [id,name,age]
 ---
-people: @Person
-  | p1,Alice,30
-  | p2,Bob,25
+people:@Person
+ | p1,Alice,30
+ | p2,Bob,25
 ";
     let hedl_file = create_temp_file(original_hedl, ".hedl");
     let parquet_file = NamedTempFile::new().expect("Failed to create parquet file");
@@ -767,7 +779,8 @@ people: @Person
         .success();
 
     let output = fs::read_to_string(hedl_output_file.path()).expect("Failed to read output");
-    assert!(output.contains("%VERSION:"));
+    // Compact format uses %V: prefix
+    assert!(output.contains("%V:"));
     assert!(output.contains("@Person"));
 }
 
@@ -794,8 +807,8 @@ fn test_inspect_verbose() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
+d:@T
+ | x,1
 ";
     let file = create_temp_file(content, ".hedl");
 
@@ -813,12 +826,12 @@ fn test_inspect_complex_structure() {
 %STRUCT: Team: [id,name]
 %ALIAS: %myref: "@Team#t1"
 ---
-teams: @Team
-  | t1,Warriors
-  | t2,Lakers
+teams:@Team
+ | t1,Warriors
+ | t2,Lakers
 nested:
-  inner:
-    value: 42
+ inner:
+  value: 42
 "#;
     let file = create_temp_file(content, ".hedl");
 
@@ -848,9 +861,9 @@ fn test_stats_with_tokens() {
     let content = r"%VERSION: 1.0
 %STRUCT: T: [id,v]
 ---
-d: @T
-  | x,1
-  | y,2
+d:@T
+ | x,1
+ | y,2
 ";
     let file = create_temp_file(content, ".hedl");
 
@@ -868,10 +881,10 @@ fn test_stats_shows_size_comparison() {
     let content = r"%VERSION: 1.0
 %STRUCT: Person: [id,name,age]
 ---
-people: @Person
-  | p1,Alice,30
-  | p2,Bob,25
-  | p3,Charlie,35
+people:@Person
+ | p1,Alice,30
+ | p2,Bob,25
+ | p3,Charlie,35
 ";
     let file = create_temp_file(content, ".hedl");
 

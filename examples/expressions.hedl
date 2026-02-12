@@ -1,0 +1,21 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+# Demonstrates expression syntax
+# Expressions are opaque tokens for embedding computations
+# Parser validates syntax but does not evaluate expressions
+---
+# Simple expressions - identifiers and field access
+config_value: $(config.timeout)
+user_id: $(auth.user.id)
+session_token: $(session.token)
+
+# Function calls
+timestamp: $(now())
+random_id: $(uuid())
+hash_value: $(hash("data"))
+
+# Complex function calls
+concatenated: $(concat("hello", "world"))
+formatted: $(format("User: {}", name))
+computed: $(calculate(a, b, c))

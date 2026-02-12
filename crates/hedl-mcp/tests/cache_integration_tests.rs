@@ -26,7 +26,7 @@ use tempfile::TempDir;
 fn test_cache_validate_operation() {
     let cache = OperationCache::new(100);
 
-    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
     let result = json!({"valid": true, "version": "1.0"});
 
     // Insert into cache
@@ -182,7 +182,7 @@ fn test_cache_correctness_validate() {
     let cache = Arc::new(OperationCache::new(100));
 
     let valid_hedl =
-        "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
     let invalid_hedl = "invalid hedl content";
 
     // Execute and cache valid HEDL
@@ -206,7 +206,7 @@ fn test_cache_correctness_validate() {
 fn test_cache_correctness_query() {
     let cache = Arc::new(OperationCache::new(100));
 
-    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n";
 
     // Query all users
     let args_all = json!({ "hedl": hedl });
@@ -237,7 +237,7 @@ fn test_cache_correctness_query() {
 fn test_cache_correctness_stats() {
     let cache = Arc::new(OperationCache::new(100));
 
-    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+    let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
 
     // Stats with simple tokenizer
     let args_simple = json!({ "hedl": hedl, "tokenizer": "simple" });

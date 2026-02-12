@@ -93,6 +93,36 @@ impl Span {
     }
 }
 
+/// Source context for an error, including location and code snippet.
+///
+/// Boxed inside error variants to keep the `YamlError` enum small enough
+/// for efficient `Result` return values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorContext {
+    /// Source location of the error.
+    pub location: Option<Location>,
+    /// Code snippet showing the error context.
+    pub snippet: Option<String>,
+}
+
+impl ErrorContext {
+    /// Creates a new error context with the given location and snippet.
+    #[must_use]
+    pub fn new(location: Option<Location>, snippet: Option<String>) -> Self {
+        Self { location, snippet }
+    }
+
+    /// Creates a boxed error context, or None if both fields are None.
+    #[must_use]
+    pub fn boxed(location: Option<Location>, snippet: Option<String>) -> Option<Box<ErrorContext>> {
+        if location.is_none() && snippet.is_none() {
+            None
+        } else {
+            Some(Box::new(ErrorContext { location, snippet }))
+        }
+    }
+}
+
 /// Errors that can occur during YAML to HEDL conversion.
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum YamlError {
@@ -101,10 +131,8 @@ pub enum YamlError {
     ParseError {
         /// Error message describing the parse failure.
         message: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Root element must be a mapping/object
@@ -112,10 +140,8 @@ pub enum YamlError {
     InvalidRootType {
         /// The type that was found instead of mapping.
         found: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Non-string key encountered in mapping
@@ -125,10 +151,8 @@ pub enum YamlError {
         key_type: String,
         /// Path to the problematic key.
         path: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Invalid number format
@@ -136,10 +160,8 @@ pub enum YamlError {
     InvalidNumber {
         /// The invalid number string.
         value: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Invalid expression syntax
@@ -147,10 +169,8 @@ pub enum YamlError {
     InvalidExpression {
         /// Error message describing the expression issue.
         message: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Invalid reference format
@@ -158,10 +178,8 @@ pub enum YamlError {
     InvalidReference {
         /// Error message describing the reference issue.
         message: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Nested objects not allowed in scalar context
@@ -169,10 +187,8 @@ pub enum YamlError {
     NestedObjectInScalar {
         /// Path where nesting was found.
         path: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Invalid tensor element type
@@ -184,10 +200,8 @@ pub enum YamlError {
         expected: String,
         /// Type that was found.
         found: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Resource limit exceeded
@@ -199,10 +213,8 @@ pub enum YamlError {
         limit: usize,
         /// Actual value that exceeded the limit.
         actual: usize,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Maximum nesting depth exceeded
@@ -216,10 +228,8 @@ pub enum YamlError {
         actual_depth: usize,
         /// Path where excessive nesting was found.
         path: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Document too large
@@ -229,10 +239,8 @@ pub enum YamlError {
         size: usize,
         /// Maximum allowed document size in bytes.
         max_size: usize,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Array too long
@@ -244,10 +252,8 @@ pub enum YamlError {
         max_length: usize,
         /// Path to the oversized array.
         path: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Generic conversion error
@@ -255,10 +261,8 @@ pub enum YamlError {
     Conversion {
         /// Error message describing the conversion failure.
         message: String,
-        /// Source location of the error.
-        location: Option<Location>,
-        /// Code snippet showing the error context.
-        snippet: Option<String>,
+        /// Source location and code snippet context.
+        context: Option<Box<ErrorContext>>,
     },
 
     /// Forward reference to undefined anchor
@@ -309,20 +313,22 @@ impl YamlError {
     #[must_use]
     pub fn location(&self) -> Option<&Location> {
         match self {
-            Self::ParseError { location, .. }
-            | Self::InvalidRootType { location, .. }
-            | Self::NonStringKey { location, .. }
-            | Self::InvalidNumber { location, .. }
-            | Self::InvalidExpression { location, .. }
-            | Self::InvalidReference { location, .. }
-            | Self::NestedObjectInScalar { location, .. }
-            | Self::InvalidTensorElement { location, .. }
-            | Self::ResourceLimitExceeded { location, .. }
-            | Self::MaxDepthExceeded { location, .. }
-            | Self::DocumentTooLarge { location, .. }
-            | Self::ArrayTooLong { location, .. }
-            | Self::Conversion { location, .. } => location.as_ref(),
-            // Anchor-related errors don't have Location fields
+            Self::ParseError { context, .. }
+            | Self::InvalidRootType { context, .. }
+            | Self::NonStringKey { context, .. }
+            | Self::InvalidNumber { context, .. }
+            | Self::InvalidExpression { context, .. }
+            | Self::InvalidReference { context, .. }
+            | Self::NestedObjectInScalar { context, .. }
+            | Self::InvalidTensorElement { context, .. }
+            | Self::ResourceLimitExceeded { context, .. }
+            | Self::MaxDepthExceeded { context, .. }
+            | Self::DocumentTooLarge { context, .. }
+            | Self::ArrayTooLong { context, .. }
+            | Self::Conversion { context, .. } => {
+                context.as_ref().and_then(|c| c.location.as_ref())
+            }
+            // Anchor-related errors don't have context fields
             Self::ForwardReference { .. }
             | Self::CircularReference { .. }
             | Self::InvalidAnchorName { .. }
@@ -334,20 +340,22 @@ impl YamlError {
     #[must_use]
     pub fn snippet(&self) -> Option<&str> {
         match self {
-            Self::ParseError { snippet, .. }
-            | Self::InvalidRootType { snippet, .. }
-            | Self::NonStringKey { snippet, .. }
-            | Self::InvalidNumber { snippet, .. }
-            | Self::InvalidExpression { snippet, .. }
-            | Self::InvalidReference { snippet, .. }
-            | Self::NestedObjectInScalar { snippet, .. }
-            | Self::InvalidTensorElement { snippet, .. }
-            | Self::ResourceLimitExceeded { snippet, .. }
-            | Self::MaxDepthExceeded { snippet, .. }
-            | Self::DocumentTooLarge { snippet, .. }
-            | Self::ArrayTooLong { snippet, .. }
-            | Self::Conversion { snippet, .. } => snippet.as_deref(),
-            // Anchor-related errors don't have snippet fields
+            Self::ParseError { context, .. }
+            | Self::InvalidRootType { context, .. }
+            | Self::NonStringKey { context, .. }
+            | Self::InvalidNumber { context, .. }
+            | Self::InvalidExpression { context, .. }
+            | Self::InvalidReference { context, .. }
+            | Self::NestedObjectInScalar { context, .. }
+            | Self::InvalidTensorElement { context, .. }
+            | Self::ResourceLimitExceeded { context, .. }
+            | Self::MaxDepthExceeded { context, .. }
+            | Self::DocumentTooLarge { context, .. }
+            | Self::ArrayTooLong { context, .. }
+            | Self::Conversion { context, .. } => {
+                context.as_ref().and_then(|c| c.snippet.as_deref())
+            }
+            // Anchor-related errors don't have context fields
             Self::ForwardReference { .. }
             | Self::CircularReference { .. }
             | Self::InvalidAnchorName { .. }
@@ -490,8 +498,7 @@ impl From<serde_yaml::Error> for YamlError {
 
         YamlError::ParseError {
             message: err.to_string(),
-            location,
-            snippet: None,
+            context: ErrorContext::boxed(location, None),
         }
     }
 }
@@ -500,8 +507,7 @@ impl From<String> for YamlError {
     fn from(err: String) -> Self {
         YamlError::Conversion {
             message: err,
-            location: None,
-            snippet: None,
+            context: None,
         }
     }
 }
@@ -510,8 +516,7 @@ impl From<&str> for YamlError {
     fn from(err: &str) -> Self {
         YamlError::Conversion {
             message: err.to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         }
     }
 }
@@ -520,8 +525,7 @@ impl From<hedl_core::lex::LexError> for YamlError {
     fn from(err: hedl_core::lex::LexError) -> Self {
         YamlError::InvalidExpression {
             message: err.to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         }
     }
 }
@@ -557,8 +561,7 @@ mod tests {
     fn test_parse_error_display() {
         let err = YamlError::ParseError {
             message: "invalid syntax".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("YAML parse error: invalid syntax"));
@@ -570,8 +573,7 @@ mod tests {
     fn test_parse_error_with_location() {
         let err = YamlError::ParseError {
             message: "invalid syntax".to_string(),
-            location: Some(Location::new(3, 5, 20)),
-            snippet: None,
+            context: ErrorContext::boxed(Some(Location::new(3, 5, 20)), None),
         };
         let display = err.to_string();
         assert!(display.contains("invalid syntax"));
@@ -586,8 +588,7 @@ mod tests {
     fn test_invalid_root_type_display() {
         let err = YamlError::InvalidRootType {
             found: "sequence".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("Root must be a YAML mapping, found sequence"));
@@ -600,8 +601,7 @@ mod tests {
         let err = YamlError::NonStringKey {
             key_type: "number".to_string(),
             path: "root.config".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("Non-string keys not supported"));
@@ -615,8 +615,7 @@ mod tests {
             limit_type: "array_length".to_string(),
             limit: 1000,
             actual: 2000,
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("Resource limit exceeded"));
@@ -630,8 +629,7 @@ mod tests {
             max_depth: 100,
             actual_depth: 150,
             path: "root.deep.path".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("Maximum nesting depth"));
@@ -645,8 +643,7 @@ mod tests {
         let err = YamlError::DocumentTooLarge {
             size: 20_000_000,
             max_size: 10_000_000,
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("Document size"));
@@ -660,8 +657,7 @@ mod tests {
             length: 2000,
             max_length: 1000,
             path: "root.items".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let display = err.to_string();
         assert!(display.contains("Array length"));
@@ -674,8 +670,7 @@ mod tests {
     fn test_error_clone() {
         let err1 = YamlError::ParseError {
             message: "test".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let err2 = err1.clone();
         assert_eq!(err1, err2);
@@ -685,18 +680,15 @@ mod tests {
     fn test_error_equality() {
         let err1 = YamlError::ParseError {
             message: "test".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let err2 = YamlError::ParseError {
             message: "test".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let err3 = YamlError::ParseError {
             message: "different".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
 
         assert_eq!(err1, err2);
@@ -776,8 +768,7 @@ mod tests {
         let loc = Location::new(5, 10, 50);
         let err = YamlError::ParseError {
             message: "test".to_string(),
-            location: Some(loc.clone()),
-            snippet: None,
+            context: ErrorContext::boxed(Some(loc.clone()), None),
         };
         assert_eq!(err.location(), Some(&loc));
     }
@@ -786,8 +777,7 @@ mod tests {
     fn test_snippet_method() {
         let err = YamlError::ParseError {
             message: "test".to_string(),
-            location: None,
-            snippet: Some("test snippet".to_string()),
+            context: ErrorContext::boxed(None, Some("test snippet".to_string())),
         };
         assert_eq!(err.snippet(), Some("test snippet"));
     }
@@ -797,8 +787,7 @@ mod tests {
         let err = YamlError::NonStringKey {
             key_type: "number".to_string(),
             path: "root.items".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         assert_eq!(err.path(), Some("root.items"));
     }
@@ -807,8 +796,7 @@ mod tests {
     fn test_suggestions_parse_error() {
         let err = YamlError::ParseError {
             message: "test".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let suggestions = err.suggestions();
         assert!(!suggestions.is_empty());
@@ -820,8 +808,7 @@ mod tests {
         let err = YamlError::NonStringKey {
             key_type: "number".to_string(),
             path: "test".to_string(),
-            location: None,
-            snippet: None,
+            context: None,
         };
         let suggestions = err.suggestions();
         assert!(!suggestions.is_empty());
@@ -834,8 +821,7 @@ mod tests {
         let err = YamlError::NonStringKey {
             key_type: "number".to_string(),
             path: "root.config".to_string(),
-            location: Some(loc),
-            snippet: Some("  123: value".to_string()),
+            context: ErrorContext::boxed(Some(loc), Some("  123: value".to_string())),
         };
 
         // Check base message contains path
@@ -869,13 +855,15 @@ mod tests {
 
         match yaml_err {
             YamlError::ParseError {
-                message, location, ..
+                message, context, ..
             } => {
                 assert!(!message.is_empty());
                 // Location may or may not be present depending on the error
-                if let Some(loc) = location {
-                    assert!(loc.line > 0);
-                    assert!(loc.column > 0);
+                if let Some(ctx) = &context {
+                    if let Some(loc) = &ctx.location {
+                        assert!(loc.line > 0);
+                        assert!(loc.column > 0);
+                    }
                 }
             }
             _ => panic!("Expected ParseError"),

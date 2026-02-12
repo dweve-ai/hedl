@@ -1,0 +1,27 @@
+[package]
+name = "hedl-neo4j-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.hedl-neo4j]
+path = ".."
+
+[dependencies.hedl-core]
+path = "../../hedl-core"
+
+# Prevent this from interfering with workspace
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_hedl_to_cypher"
+path = "fuzz_targets/fuzz_hedl_to_cypher.rs"
+test = false
+doc = false

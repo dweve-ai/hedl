@@ -138,6 +138,5 @@ metrics:
     println!("  - Mixed realistic: 10-12%");
     println!("  - Number-heavy: 2-5% (baseline)");
     println!();
-    println!("Implementation: /crates/hedl-core/src/inference.rs:98-273");
-    println!("Documentation: /crates/hedl-core/LOOKUP_TABLE_OPTIMIZATION.md");
+    println!("Implementation: /crates/hedl-core/src/inference/ (lookup.rs, conversions.rs)");
 }

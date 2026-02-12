@@ -17,16 +17,108 @@
 
 //! Export functions (to_*) for FFI.
 
+// Imports are feature-gated since all functions in this module require format features.
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
 use crate::audit::{audit_call_failure, audit_call_start, audit_call_success, sanitize_pointer};
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
 use crate::error::{clear_error, set_error};
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "neo4j",
+    feature = "toon"
+))]
+use crate::ffi_strings::allocate_output_string;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
 use crate::memory::is_valid_document_ptr;
-use crate::types::{
-    HedlDocument, HEDL_ERR_CSV, HEDL_ERR_JSON, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR, HEDL_ERR_PARQUET,
-    HEDL_ERR_TOON, HEDL_ERR_XML, HEDL_ERR_YAML, HEDL_OK,
-};
-use crate::utils::allocate_output_string;
-use std::os::raw::{c_char, c_int};
+#[cfg(feature = "csv")]
+use crate::types::HEDL_ERR_CSV;
+#[cfg(feature = "json")]
+use crate::types::HEDL_ERR_JSON;
+#[cfg(feature = "neo4j")]
+use crate::types::HEDL_ERR_NEO4J;
+#[cfg(feature = "parquet")]
+use crate::types::HEDL_ERR_PARQUET;
+#[cfg(feature = "toon")]
+use crate::types::HEDL_ERR_TOON;
+#[cfg(feature = "xml")]
+use crate::types::HEDL_ERR_XML;
+#[cfg(feature = "yaml")]
+use crate::types::HEDL_ERR_YAML;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
+use crate::types::{HedlDocument, HEDL_ERR_NULL_PTR, HEDL_OK};
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "neo4j",
+    feature = "toon"
+))]
+use std::os::raw::c_char;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
+use std::os::raw::c_int;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
 use std::ptr;
+#[cfg(any(
+    feature = "json",
+    feature = "yaml",
+    feature = "xml",
+    feature = "csv",
+    feature = "parquet",
+    feature = "neo4j",
+    feature = "toon"
+))]
 use std::time::Instant;
 
 // =============================================================================
@@ -68,7 +160,10 @@ pub unsafe extern "C" fn hedl_to_json(
 
     clear_error();
 
-    if !is_valid_document_ptr(doc) || out_str.is_null() {
+    // Validate pointers before any dereference. `doc` must be non-null and refer
+    // to a live HedlDocument created by this library; `out_str` must be a
+    // non-null pointer to a writable C string pointer.
+    if doc.is_null() || !is_valid_document_ptr(doc) || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
         audit_call_failure(
@@ -80,6 +175,8 @@ pub unsafe extern "C" fn hedl_to_json(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
     let config = hedl_json::ToJsonConfig {
         include_metadata: include_metadata != 0,
@@ -102,6 +199,7 @@ pub unsafe extern "C" fn hedl_to_json(
             let duration = start.elapsed();
             let msg = format!("JSON conversion error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_json", HEDL_ERR_JSON, &msg, duration);
             HEDL_ERR_JSON
@@ -148,7 +246,8 @@ pub unsafe extern "C" fn hedl_to_yaml(
 
     clear_error();
 
-    if !is_valid_document_ptr(doc) || out_str.is_null() {
+    // Validate basic pointer arguments before any dereference.
+    if doc.is_null() || out_str.is_null() {
         let duration = start.elapsed();
         set_error("Null pointer argument");
         audit_call_failure(
@@ -160,6 +259,22 @@ pub unsafe extern "C" fn hedl_to_yaml(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // Ensure the document pointer refers to a valid, non-poisoned HEDL document
+    // before we dereference it.
+    if !is_valid_document_ptr(doc) {
+        let duration = start.elapsed();
+        set_error("Invalid document handle");
+        audit_call_failure(
+            "hedl_to_yaml",
+            HEDL_ERR_NULL_PTR,
+            "Invalid document handle",
+            duration,
+        );
+        return HEDL_ERR_NULL_PTR;
+    }
+
+    // SAFETY: We validated the pointer is non-null and not poisoned via
+    // is_valid_document_ptr. The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
     let config = hedl_yaml::ToYamlConfig {
         include_metadata: include_metadata != 0,
@@ -182,6 +297,7 @@ pub unsafe extern "C" fn hedl_to_yaml(
             let duration = start.elapsed();
             let msg = format!("YAML conversion error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_yaml", HEDL_ERR_YAML, &msg, duration);
             HEDL_ERR_YAML
@@ -234,6 +350,8 @@ pub unsafe extern "C" fn hedl_to_xml(doc: *const HedlDocument, out_str: *mut *mu
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
 
     match hedl_xml::hedl_to_xml(doc_ref) {
@@ -252,6 +370,7 @@ pub unsafe extern "C" fn hedl_to_xml(doc: *const HedlDocument, out_str: *mut *mu
             let duration = start.elapsed();
             let msg = format!("XML conversion error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_xml", HEDL_ERR_XML, &msg, duration);
             HEDL_ERR_XML
@@ -306,6 +425,8 @@ pub unsafe extern "C" fn hedl_to_csv(doc: *const HedlDocument, out_str: *mut *mu
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
 
     match hedl_csv::to_csv(doc_ref) {
@@ -324,6 +445,7 @@ pub unsafe extern "C" fn hedl_to_csv(doc: *const HedlDocument, out_str: *mut *mu
             let duration = start.elapsed();
             let msg = format!("CSV conversion error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_csv", HEDL_ERR_CSV, &msg, duration);
             HEDL_ERR_CSV
@@ -385,6 +507,8 @@ pub unsafe extern "C" fn hedl_to_parquet(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
 
     match hedl_parquet::to_parquet_bytes(doc_ref) {
@@ -461,6 +585,8 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
     let config = if use_merge != 0 {
         hedl_neo4j::ToCypherConfig::default()
@@ -484,6 +610,7 @@ pub unsafe extern "C" fn hedl_to_neo4j_cypher(
             let duration = start.elapsed();
             let msg = format!("Neo4j conversion error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_neo4j_cypher", HEDL_ERR_NEO4J, &msg, duration);
             HEDL_ERR_NEO4J
@@ -542,6 +669,8 @@ pub unsafe extern "C" fn hedl_to_toon(
         return HEDL_ERR_NULL_PTR;
     }
 
+    // SAFETY: We validated the pointer is non-null and not poisoned.
+    // The document was allocated by Box::into_raw in hedl_parse.
     let doc_ref = &(*doc).inner;
 
     match hedl_toon::hedl_to_toon(doc_ref) {
@@ -560,6 +689,7 @@ pub unsafe extern "C" fn hedl_to_toon(
             let duration = start.elapsed();
             let msg = format!("TOON conversion error: {e}");
             set_error(&msg);
+            // SAFETY: We validated out_str is non-null above.
             *out_str = ptr::null_mut();
             audit_call_failure("hedl_to_toon", HEDL_ERR_TOON, &msg, duration);
             HEDL_ERR_TOON

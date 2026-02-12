@@ -27,7 +27,7 @@
 //! - CSV escaping, quoting, and encoding overhead analysis
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hedl_bench::helpers::measure_throughput_ns;
+use hedl_bench::benchmark_utilities::measure_throughput_ns;
 use hedl_bench::{
     count_tokens, generate_analytics, generate_orders, generate_products, generate_users, sizes,
     BenchmarkReport, CustomTable, ExportConfig, Insight, PerfResult, TableCell,
@@ -275,8 +275,23 @@ fn bench_csv_crate_comparison(c: &mut Criterion) {
 fn bench_size_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("size_comparison");
 
-    // Benchmark baseline
-    group.bench_function("baseline", |b| b.iter(|| 1 + 1));
+    // Benchmark report serialization - measures actual JSON report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "csv_size_comparison".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(2048),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = black_box(&sample_report).to_json().unwrap();
+            black_box(json)
+        })
+    });
+
     group.finish();
 
     // We'll collect size data in the export phase
@@ -1977,7 +1992,24 @@ fn generate_insights(
 
 fn bench_export(c: &mut Criterion) {
     let mut group = c.benchmark_group("export");
-    group.bench_function("finalize", |b| b.iter(|| 1 + 1));
+
+    // Benchmark report serialization - measures actual JSON report generation cost
+    let mut sample_report = BenchmarkReport::new("Sample Report");
+    sample_report.add_perf(PerfResult {
+        name: "csv_export".into(),
+        iterations: 1000,
+        total_time_ns: 1_000_000,
+        throughput_bytes: Some(4096),
+        avg_time_ns: None,
+        throughput_mbs: None,
+    });
+    group.bench_function("report_to_json", |b| {
+        b.iter(|| {
+            let json = black_box(&sample_report).to_json().unwrap();
+            black_box(json)
+        })
+    });
+
     group.finish();
 
     // Collect all data

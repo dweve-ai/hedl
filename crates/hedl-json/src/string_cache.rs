@@ -65,7 +65,7 @@ thread_local! {
 
 /// Inner cache structure with statistics tracking
 struct StringCacheInner {
-    /// Map from string content to Arc<str>
+    /// Map from string content to `Arc<str>`
     cache: HashMap<String, Arc<str>>,
     /// Number of cache hits
     hits: u64,
@@ -118,7 +118,7 @@ impl StringCacheInner {
     }
 }
 
-/// Intern a string, returning an Arc<str>
+/// Intern a string, returning an `Arc<str>`
 ///
 /// If the string has been interned before in this thread, returns the
 /// existing Arc (zero allocation). Otherwise, creates a new Arc and

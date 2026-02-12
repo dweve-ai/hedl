@@ -14,7 +14,7 @@ resolver = "2"
 # Workspace Package Defaults
 # =============================================================================
 [workspace.package]
-version = "1.2.0"
+version = "2.0.0"
 edition = "2021"
 rust-version = "1.70"
 
@@ -38,25 +38,25 @@ ip_holder = "Dweve IP B.V."
 # =============================================================================
 [workspace.dependencies]
 # Internal crates
-hedl = { version = "1.2.0", path = "crates/hedl" }
-hedl-bench = { version = "1.2.0", path = "crates/hedl-bench" }
-hedl-c14n = { version = "1.2.0", path = "crates/hedl-c14n" }
-hedl-cli = { version = "1.2.0", path = "crates/hedl-cli" }
-hedl-core = { version = "1.2.0", path = "crates/hedl-core" }
-hedl-csv = { version = "1.2.0", path = "crates/hedl-csv" }
-hedl-ffi = { version = "1.2.0", path = "crates/hedl-ffi" }
-hedl-json = { version = "1.2.0", path = "crates/hedl-json" }
-hedl-lint = { version = "1.2.0", path = "crates/hedl-lint" }
-hedl-lsp = { version = "1.2.0", path = "crates/hedl-lsp" }
-hedl-mcp = { version = "1.2.0", path = "crates/hedl-mcp" }
-hedl-neo4j = { version = "1.2.0", path = "crates/hedl-neo4j" }
-hedl-parquet = { version = "1.2.0", path = "crates/hedl-parquet" }
-hedl-stream = { version = "1.2.0", path = "crates/hedl-stream" }
-hedl-test = { version = "1.2.0", path = "crates/hedl-test" }
-hedl-toon = { version = "1.2.0", path = "crates/hedl-toon" }
-hedl-wasm = { version = "1.2.0", path = "crates/hedl-wasm" }
-hedl-xml = { version = "1.2.0", path = "crates/hedl-xml" }
-hedl-yaml = { version = "1.2.0", path = "crates/hedl-yaml" }
+hedl = { version = "2.0.0", path = "crates/hedl" }
+hedl-bench = { version = "2.0.0", path = "crates/hedl-bench" }
+hedl-c14n = { version = "2.0.0", path = "crates/hedl-c14n" }
+hedl-cli = { version = "2.0.0", path = "crates/hedl-cli" }
+hedl-core = { version = "2.0.0", path = "crates/hedl-core" }
+hedl-csv = { version = "2.0.0", path = "crates/hedl-csv" }
+hedl-ffi = { version = "2.0.0", path = "crates/hedl-ffi" }
+hedl-json = { version = "2.0.0", path = "crates/hedl-json" }
+hedl-lint = { version = "2.0.0", path = "crates/hedl-lint" }
+hedl-lsp = { version = "2.0.0", path = "crates/hedl-lsp" }
+hedl-mcp = { version = "2.0.0", path = "crates/hedl-mcp" }
+hedl-neo4j = { version = "2.0.0", path = "crates/hedl-neo4j" }
+hedl-parquet = { version = "2.0.0", path = "crates/hedl-parquet" }
+hedl-stream = { version = "2.0.0", path = "crates/hedl-stream" }
+hedl-test = { version = "2.0.0", path = "crates/hedl-test" }
+hedl-toon = { version = "2.0.0", path = "crates/hedl-toon" }
+hedl-wasm = { version = "2.0.0", path = "crates/hedl-wasm" }
+hedl-xml = { version = "2.0.0", path = "crates/hedl-xml" }
+hedl-yaml = { version = "2.0.0", path = "crates/hedl-yaml" }
 
 # Core utilities
 thiserror = "2.0"
@@ -145,7 +145,7 @@ tower-lsp = "0.20"
 ropey = "1.6"
 
 # WASM
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.108"
 wasm-bindgen-test = "0.3"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["console"] }
@@ -223,7 +223,7 @@ strip = "debuginfo"
 inherits = "release"
 lto = "fat"
 panic = "abort"
-debug = "line-tables-only"
+debug = "line-tables-only"  # MSRV 1.70+
 strip = "symbols"
 
 [profile.release-wasm]

@@ -154,8 +154,8 @@ mod tests {
     #[test]
     fn test_verify_post_application_valid() {
         let verifier = FixVerifier;
-        let original = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers: @User\n  |a,Alice\n";
-        let fixed = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers: @User\n  |alice,Alice\n";
+        let original = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers:@User\n |a,Alice\n";
+        let fixed = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers:@User\n |alice,Alice\n";
 
         let result = verifier.verify_post_application(original, fixed, &[]);
         if let Err(ref e) = result {
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_verify_post_application_invalid() {
         let verifier = FixVerifier;
-        let original = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers: @User\n  |a,Alice\n";
+        let original = "%VERSION: 1.0\n%STRUCT: User: [id,name]\n---\nusers:@User\n |a,Alice\n";
         let fixed = "<<<invalid syntax>>>\n";
 
         assert!(verifier

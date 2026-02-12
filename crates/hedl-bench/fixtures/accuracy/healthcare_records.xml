@@ -1,0 +1,2416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<healthcare_records>
+  <facilities>
+    <facility id="fac-001">
+      <name>Metro General Hospital</name>
+      <type>hospital</type>
+      <address>1200 Medical Center Dr</address>
+      <city>Chicago</city>
+      <state>IL</state>
+      <zip>60601</zip>
+      <beds>450</beds>
+      <er_available>true</er_available>
+    </facility>
+    <facility id="fac-002">
+      <name>Lakeside Medical Clinic</name>
+      <type>clinic</type>
+      <address>555 Lakeshore Ave</address>
+      <city>Chicago</city>
+      <state>IL</state>
+      <zip>60611</zip>
+      <beds>0</beds>
+      <er_available>false</er_available>
+    </facility>
+    <facility id="fac-003">
+      <name>North Shore Surgery Center</name>
+      <type>surgical_center</type>
+      <address>890 Northbrook Rd</address>
+      <city>Northbrook</city>
+      <state>IL</state>
+      <zip>60062</zip>
+      <beds>24</beds>
+      <er_available>true</er_available>
+    </facility>
+    <facility id="fac-004">
+      <name>Wellness Family Practice</name>
+      <type>clinic</type>
+      <address>234 Oak Street</address>
+      <city>Evanston</city>
+      <state>IL</state>
+      <zip>60201</zip>
+      <beds>0</beds>
+      <er_available>false</er_available>
+    </facility>
+    <facility id="fac-005">
+      <name>Chicago Heart Institute</name>
+      <type>specialty_center</type>
+      <address>678 Cardiac Way</address>
+      <city>Chicago</city>
+      <state>IL</state>
+      <zip>60605</zip>
+      <beds>85</beds>
+      <er_available>true</er_available>
+    </facility>
+  </facilities>
+  <providers>
+    <provider id="prov-001">
+      <facility>fac-001</facility>
+      <name>Dr. Sarah Chen</name>
+      <specialty>Cardiology</specialty>
+      <role>Doctor</role>
+      <years_exp>18</years_exp>
+      <patients_per_day>22</patients_per_day>
+      <rating>4.8</rating>
+      <certifications>
+        <item>ABIM</item>
+        <item>FACC</item>
+        <item>BLS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-002">
+      <facility>fac-001</facility>
+      <name>Dr. Michael Torres</name>
+      <specialty>Neurology</specialty>
+      <role>Doctor</role>
+      <years_exp>12</years_exp>
+      <patients_per_day>18</patients_per_day>
+      <rating>4.6</rating>
+      <certifications>
+        <item>ABPN</item>
+        <item>FAAN</item>
+      </certifications>
+    </provider>
+    <provider id="prov-003">
+      <facility>fac-001</facility>
+      <name>Dr. Emily Watson</name>
+      <specialty>General Practice</specialty>
+      <role>Doctor</role>
+      <years_exp>8</years_exp>
+      <patients_per_day>28</patients_per_day>
+      <rating>4.9</rating>
+      <certifications>
+        <item>ABFM</item>
+        <item>BLS</item>
+        <item>ACLS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-004">
+      <facility>fac-001</facility>
+      <name>Jennifer Adams</name>
+      <specialty/>
+      <role>Nurse</role>
+      <years_exp>15</years_exp>
+      <patients_per_day>35</patients_per_day>
+      <rating>4.7</rating>
+      <certifications>
+        <item>RN</item>
+        <item>BSN</item>
+        <item>CCRN</item>
+      </certifications>
+    </provider>
+    <provider id="prov-005">
+      <facility>fac-002</facility>
+      <name>Dr. James Liu</name>
+      <specialty>General Practice</specialty>
+      <role>Doctor</role>
+      <years_exp>22</years_exp>
+      <patients_per_day>32</patients_per_day>
+      <rating>4.5</rating>
+      <certifications>
+        <item>ABFM</item>
+      </certifications>
+    </provider>
+    <provider id="prov-006">
+      <facility>fac-002</facility>
+      <name>Dr. Maria Garcia</name>
+      <specialty>Pediatrics</specialty>
+      <role>Doctor</role>
+      <years_exp>10</years_exp>
+      <patients_per_day>26</patients_per_day>
+      <rating>4.8</rating>
+      <certifications>
+        <item>ABP</item>
+        <item>PALS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-007">
+      <facility>fac-002</facility>
+      <name>Thomas Wright</name>
+      <specialty/>
+      <role>Physician Assistant</role>
+      <years_exp>6</years_exp>
+      <patients_per_day>24</patients_per_day>
+      <rating>4.4</rating>
+      <certifications>
+        <item>PA-C</item>
+        <item>BLS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-008">
+      <facility>fac-003</facility>
+      <name>Dr. Robert Kim</name>
+      <specialty>Orthopedics</specialty>
+      <role>Doctor</role>
+      <years_exp>20</years_exp>
+      <patients_per_day>14</patients_per_day>
+      <rating>4.9</rating>
+      <certifications>
+        <item>ABOS</item>
+        <item>FAAOS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-009">
+      <facility>fac-003</facility>
+      <name>Dr. Lisa Patel</name>
+      <specialty>Orthopedics</specialty>
+      <role>Doctor</role>
+      <years_exp>14</years_exp>
+      <patients_per_day>16</patients_per_day>
+      <rating>4.7</rating>
+      <certifications>
+        <item>ABOS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-010">
+      <facility>fac-004</facility>
+      <name>Dr. David Brown</name>
+      <specialty>General Practice</specialty>
+      <role>Doctor</role>
+      <years_exp>25</years_exp>
+      <patients_per_day>30</patients_per_day>
+      <rating>4.6</rating>
+      <certifications>
+        <item>ABFM</item>
+        <item>AAFP</item>
+      </certifications>
+    </provider>
+    <provider id="prov-011">
+      <facility>fac-004</facility>
+      <name>Amanda Foster</name>
+      <specialty/>
+      <role>Nurse Practitioner</role>
+      <years_exp>9</years_exp>
+      <patients_per_day>22</patients_per_day>
+      <rating>4.5</rating>
+      <certifications>
+        <item>FNP-BC</item>
+        <item>BLS</item>
+      </certifications>
+    </provider>
+    <provider id="prov-012">
+      <facility>fac-005</facility>
+      <name>Dr. William Hayes</name>
+      <specialty>Cardiology</specialty>
+      <role>Doctor</role>
+      <years_exp>28</years_exp>
+      <patients_per_day>18</patients_per_day>
+      <rating>4.9</rating>
+      <certifications>
+        <item>ABIM</item>
+        <item>FACC</item>
+        <item>FSCAI</item>
+      </certifications>
+    </provider>
+    <provider id="prov-013">
+      <facility>fac-005</facility>
+      <name>Dr. Karen Miller</name>
+      <specialty>Cardiology</specialty>
+      <role>Doctor</role>
+      <years_exp>16</years_exp>
+      <patients_per_day>20</patients_per_day>
+      <rating>4.7</rating>
+      <certifications>
+        <item>ABIM</item>
+        <item>FACC</item>
+      </certifications>
+    </provider>
+    <provider id="prov-014">
+      <facility>fac-001</facility>
+      <name>Dr. Steven Park</name>
+      <specialty>Oncology</specialty>
+      <role>Doctor</role>
+      <years_exp>19</years_exp>
+      <patients_per_day>15</patients_per_day>
+      <rating>4.8</rating>
+      <certifications>
+        <item>ABIM</item>
+        <item>FACP</item>
+      </certifications>
+    </provider>
+    <provider id="prov-015">
+      <facility>fac-001</facility>
+      <name>Dr. Rachel Green</name>
+      <specialty>Psychiatry</specialty>
+      <role>Doctor</role>
+      <years_exp>11</years_exp>
+      <patients_per_day>20</patients_per_day>
+      <rating>4.6</rating>
+      <certifications>
+        <item>ABPN</item>
+      </certifications>
+    </provider>
+  </providers>
+  <patients>
+    <patient id="pat-001">
+      <name>John Smith</name>
+      <dob>1965-03-15</dob>
+      <gender>Male</gender>
+      <blood_type>A+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-003</primary_provider>
+      <emergency_contact>Mary Smith (555-0101)</emergency_contact>
+      <allergies>
+        <item>Penicillin</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Hypertension</item>
+        <item>Type 2 Diabetes</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-002">
+      <name>Emily Johnson</name>
+      <dob>1978-07-22</dob>
+      <gender>Female</gender>
+      <blood_type>O+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-005</primary_provider>
+      <emergency_contact>Robert Johnson (555-0102)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Asthma</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-003">
+      <name>Michael Williams</name>
+      <dob>1952-11-08</dob>
+      <gender>Male</gender>
+      <blood_type>B+</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-001</primary_provider>
+      <emergency_contact>Susan Williams (555-0103)</emergency_contact>
+      <allergies>
+        <item>Aspirin</item>
+        <item>Sulfa</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Coronary Artery Disease</item>
+        <item>Atrial Fibrillation</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-004">
+      <name>Sarah Davis</name>
+      <dob>1990-04-30</dob>
+      <gender>Female</gender>
+      <blood_type>AB-</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-006</primary_provider>
+      <emergency_contact>Tom Davis (555-0104)</emergency_contact>
+      <allergies>
+        <item>Latex</item>
+      </allergies>
+      <chronic_conditions>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-005">
+      <name>James Wilson</name>
+      <dob>1945-09-12</dob>
+      <gender>Male</gender>
+      <blood_type>O-</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-012</primary_provider>
+      <emergency_contact>Linda Wilson (555-0105)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Congestive Heart Failure</item>
+        <item>Hypertension</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-006">
+      <name>Jessica Brown</name>
+      <dob>1985-12-03</dob>
+      <gender>Female</gender>
+      <blood_type>A-</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-010</primary_provider>
+      <emergency_contact>David Brown (555-0106)</emergency_contact>
+      <allergies>
+        <item>Codeine</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Migraine</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-007">
+      <name>David Martinez</name>
+      <dob>1972-06-18</dob>
+      <gender>Male</gender>
+      <blood_type>B-</blood_type>
+      <insurance_type>medicaid</insurance_type>
+      <primary_provider>prov-003</primary_provider>
+      <emergency_contact>Rosa Martinez (555-0107)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>COPD</item>
+        <item>Hypertension</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-008">
+      <name>Amanda Taylor</name>
+      <dob>2015-02-25</dob>
+      <gender>Female</gender>
+      <blood_type>O+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-006</primary_provider>
+      <emergency_contact>Jennifer Taylor (555-0108)</emergency_contact>
+      <allergies>
+        <item>Eggs</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Eczema</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-009">
+      <name>Christopher Lee</name>
+      <dob>1960-08-14</dob>
+      <gender>Male</gender>
+      <blood_type>A+</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-001</primary_provider>
+      <emergency_contact>Helen Lee (555-0109)</emergency_contact>
+      <allergies>
+        <item>Iodine</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Peripheral Artery Disease</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-010">
+      <name>Michelle Anderson</name>
+      <dob>1988-01-29</dob>
+      <gender>Female</gender>
+      <blood_type>AB+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-015</primary_provider>
+      <emergency_contact>Kevin Anderson (555-0110)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Generalized Anxiety Disorder</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-011">
+      <name>Robert Thomas</name>
+      <dob>1955-05-06</dob>
+      <gender>Male</gender>
+      <blood_type>O+</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-008</primary_provider>
+      <emergency_contact>Patricia Thomas (555-0111)</emergency_contact>
+      <allergies>
+        <item>NSAIDs</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Osteoarthritis</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-012">
+      <name>Jennifer Jackson</name>
+      <dob>1995-10-17</dob>
+      <gender>Female</gender>
+      <blood_type>B+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-010</primary_provider>
+      <emergency_contact>Mark Jackson (555-0112)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-013">
+      <name>William White</name>
+      <dob>1948-12-22</dob>
+      <gender>Male</gender>
+      <blood_type>A-</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-002</primary_provider>
+      <emergency_contact>Barbara White (555-0113)</emergency_contact>
+      <allergies>
+        <item>Contrast Dye</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Parkinson Disease</item>
+        <item>Dementia</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-014">
+      <name>Elizabeth Harris</name>
+      <dob>1982-03-08</dob>
+      <gender>Female</gender>
+      <blood_type>O+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-003</primary_provider>
+      <emergency_contact>Richard Harris (555-0114)</emergency_contact>
+      <allergies>
+        <item>Shellfish</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Hypothyroidism</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-015">
+      <name>Joseph Clark</name>
+      <dob>1970-07-14</dob>
+      <gender>Male</gender>
+      <blood_type>B+</blood_type>
+      <insurance_type>medicaid</insurance_type>
+      <primary_provider>prov-005</primary_provider>
+      <emergency_contact>Nancy Clark (555-0115)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Type 2 Diabetes</item>
+        <item>Obesity</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-016">
+      <name>Margaret Lewis</name>
+      <dob>1938-11-30</dob>
+      <gender>Female</gender>
+      <blood_type>A+</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-012</primary_provider>
+      <emergency_contact>Edward Lewis (555-0116)</emergency_contact>
+      <allergies>
+        <item>Morphine</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Aortic Stenosis</item>
+        <item>Hypertension</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-017">
+      <name>Charles Robinson</name>
+      <dob>1975-04-25</dob>
+      <gender>Male</gender>
+      <blood_type>AB+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-008</primary_provider>
+      <emergency_contact>Diana Robinson (555-0117)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Herniated Disc</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-018">
+      <name>Patricia Walker</name>
+      <dob>1992-09-11</dob>
+      <gender>Female</gender>
+      <blood_type>O-</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-006</primary_provider>
+      <emergency_contact/>
+      <allergies>
+        <item>Peanuts</item>
+        <item>Tree Nuts</item>
+      </allergies>
+      <chronic_conditions>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-019">
+      <name>Daniel Hall</name>
+      <dob>1958-02-17</dob>
+      <gender>Male</gender>
+      <blood_type>B-</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-014</primary_provider>
+      <emergency_contact>Sharon Hall (555-0119)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Lung Cancer</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-020">
+      <name>Linda Allen</name>
+      <dob>1968-06-05</dob>
+      <gender>Female</gender>
+      <blood_type>A+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-001</primary_provider>
+      <emergency_contact>George Allen (555-0120)</emergency_contact>
+      <allergies>
+        <item>Beta Blockers</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Mitral Valve Prolapse</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-021">
+      <name>Matthew Young</name>
+      <dob>2018-08-20</dob>
+      <gender>Male</gender>
+      <blood_type>O+</blood_type>
+      <insurance_type>medicaid</insurance_type>
+      <primary_provider>prov-006</primary_provider>
+      <emergency_contact>Stephanie Young (555-0121)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Asthma</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-022">
+      <name>Sandra King</name>
+      <dob>1980-12-12</dob>
+      <gender>Female</gender>
+      <blood_type>AB-</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-015</primary_provider>
+      <emergency_contact>Thomas King (555-0122)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+        <item>Major Depressive Disorder</item>
+        <item>Insomnia</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-023">
+      <name>Anthony Wright</name>
+      <dob>1963-03-28</dob>
+      <gender>Male</gender>
+      <blood_type>A-</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-002</primary_provider>
+      <emergency_contact>Carol Wright (555-0123)</emergency_contact>
+      <allergies>
+        <item>Statins</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Multiple Sclerosis</item>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-024">
+      <name>Karen Scott</name>
+      <dob>1998-05-09</dob>
+      <gender>Female</gender>
+      <blood_type>B+</blood_type>
+      <insurance_type>private</insurance_type>
+      <primary_provider>prov-010</primary_provider>
+      <emergency_contact>James Scott (555-0124)</emergency_contact>
+      <allergies>
+      </allergies>
+      <chronic_conditions>
+      </chronic_conditions>
+    </patient>
+    <patient id="pat-025">
+      <name>Steven Adams</name>
+      <dob>1942-10-03</dob>
+      <gender>Male</gender>
+      <blood_type>O+</blood_type>
+      <insurance_type>medicare</insurance_type>
+      <primary_provider>prov-012</primary_provider>
+      <emergency_contact>Ruth Adams (555-0125)</emergency_contact>
+      <allergies>
+        <item>ACE Inhibitors</item>
+      </allergies>
+      <chronic_conditions>
+        <item>Heart Failure</item>
+        <item>Chronic Kidney Disease</item>
+      </chronic_conditions>
+    </patient>
+  </patients>
+  <appointments>
+    <appointment id="apt-001">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-15</date>
+      <time>09:00</time>
+      <duration_min>30</duration_min>
+      <status>Completed</status>
+      <reason>Annual Physical</reason>
+      <notes>Blood pressure slightly elevated</notes>
+    </appointment>
+    <appointment id="apt-002">
+      <patient>pat-002</patient>
+      <provider>prov-005</provider>
+      <facility>fac-002</facility>
+      <date>2024-01-16</date>
+      <time>10:30</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Asthma Follow-up</reason>
+      <notes>Symptoms well controlled</notes>
+    </appointment>
+    <appointment id="apt-003">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-17</date>
+      <time>14:00</time>
+      <duration_min>45</duration_min>
+      <status>Completed</status>
+      <reason>Cardiac Evaluation</reason>
+      <notes>Ordered stress test</notes>
+    </appointment>
+    <appointment id="apt-004">
+      <patient>pat-004</patient>
+      <provider>prov-006</provider>
+      <facility>fac-002</facility>
+      <date>2024-01-18</date>
+      <time>11:00</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Well Child Visit</reason>
+      <notes>Development on track</notes>
+    </appointment>
+    <appointment id="apt-005">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-01-19</date>
+      <time>08:30</time>
+      <duration_min>60</duration_min>
+      <status>Completed</status>
+      <reason>Heart Failure Review</reason>
+      <notes>Adjusted medications</notes>
+    </appointment>
+    <appointment id="apt-006">
+      <patient>pat-006</patient>
+      <provider>prov-010</provider>
+      <facility>fac-004</facility>
+      <date>2024-01-22</date>
+      <time>15:00</time>
+      <duration_min>30</duration_min>
+      <status>Completed</status>
+      <reason>Migraine Consultation</reason>
+      <notes>Started preventive therapy</notes>
+    </appointment>
+    <appointment id="apt-007">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-23</date>
+      <time>09:30</time>
+      <duration_min>30</duration_min>
+      <status>Completed</status>
+      <reason>COPD Management</reason>
+      <notes>Pulmonary function stable</notes>
+    </appointment>
+    <appointment id="apt-008">
+      <patient>pat-008</patient>
+      <provider>prov-006</provider>
+      <facility>fac-002</facility>
+      <date>2024-01-24</date>
+      <time>13:00</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Eczema Follow-up</reason>
+      <notes>Rash improving</notes>
+    </appointment>
+    <appointment id="apt-009">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-25</date>
+      <time>10:00</time>
+      <duration_min>45</duration_min>
+      <status>Completed</status>
+      <reason>PAD Evaluation</reason>
+      <notes>Scheduled angiogram</notes>
+    </appointment>
+    <appointment id="apt-010">
+      <patient>pat-010</patient>
+      <provider>prov-015</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-26</date>
+      <time>14:30</time>
+      <duration_min>50</duration_min>
+      <status>Completed</status>
+      <reason>Anxiety Management</reason>
+      <notes>Therapy progressing well</notes>
+    </appointment>
+    <appointment id="apt-011">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <facility>fac-003</facility>
+      <date>2024-01-29</date>
+      <time>08:00</time>
+      <duration_min>40</duration_min>
+      <status>Completed</status>
+      <reason>Knee Evaluation</reason>
+      <notes>Recommended surgery</notes>
+    </appointment>
+    <appointment id="apt-012">
+      <patient>pat-012</patient>
+      <provider>prov-010</provider>
+      <facility>fac-004</facility>
+      <date>2024-01-30</date>
+      <time>11:30</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Routine Checkup</reason>
+      <notes>All vitals normal</notes>
+    </appointment>
+    <appointment id="apt-013">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-31</date>
+      <time>09:00</time>
+      <duration_min>60</duration_min>
+      <status>Completed</status>
+      <reason>Neurology Review</reason>
+      <notes>Medication adjustment</notes>
+    </appointment>
+    <appointment id="apt-014">
+      <patient>pat-014</patient>
+      <provider>prov-003</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-01</date>
+      <time>10:30</time>
+      <duration_min>25</duration_min>
+      <status>Completed</status>
+      <reason>Thyroid Follow-up</reason>
+      <notes>TSH levels normalized</notes>
+    </appointment>
+    <appointment id="apt-015">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <facility>fac-002</facility>
+      <date>2024-02-02</date>
+      <time>14:00</time>
+      <duration_min>30</duration_min>
+      <status>Completed</status>
+      <reason>Diabetes Management</reason>
+      <notes>A1C improved</notes>
+    </appointment>
+    <appointment id="apt-016">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-05</date>
+      <time>09:00</time>
+      <duration_min>45</duration_min>
+      <status>Completed</status>
+      <reason>Pre-op Evaluation</reason>
+      <notes>Cleared for surgery</notes>
+    </appointment>
+    <appointment id="apt-017">
+      <patient>pat-017</patient>
+      <provider>prov-008</provider>
+      <facility>fac-003</facility>
+      <date>2024-02-06</date>
+      <time>13:30</time>
+      <duration_min>30</duration_min>
+      <status>Completed</status>
+      <reason>Back Pain Consult</reason>
+      <notes>MRI scheduled</notes>
+    </appointment>
+    <appointment id="apt-018">
+      <patient>pat-018</patient>
+      <provider>prov-006</provider>
+      <facility>fac-002</facility>
+      <date>2024-02-07</date>
+      <time>10:00</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Pediatric Wellness</reason>
+      <notes>Growth normal</notes>
+    </appointment>
+    <appointment id="apt-019">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-08</date>
+      <time>08:30</time>
+      <duration_min>60</duration_min>
+      <status>Completed</status>
+      <reason>Oncology Review</reason>
+      <notes>Treatment response good</notes>
+    </appointment>
+    <appointment id="apt-020">
+      <patient>pat-020</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-09</date>
+      <time>15:00</time>
+      <duration_min>40</duration_min>
+      <status>Completed</status>
+      <reason>MVP Follow-up</reason>
+      <notes>Echo scheduled</notes>
+    </appointment>
+    <appointment id="apt-021">
+      <patient>pat-021</patient>
+      <provider>prov-006</provider>
+      <facility>fac-002</facility>
+      <date>2024-02-12</date>
+      <time>09:30</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Asthma Check</reason>
+      <notes>Inhaler technique reviewed</notes>
+    </appointment>
+    <appointment id="apt-022">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-13</date>
+      <time>14:00</time>
+      <duration_min>50</duration_min>
+      <status>Completed</status>
+      <reason>Depression Follow-up</reason>
+      <notes>Medication effective</notes>
+    </appointment>
+    <appointment id="apt-023">
+      <patient>pat-023</patient>
+      <provider>prov-002</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-14</date>
+      <time>10:30</time>
+      <duration_min>45</duration_min>
+      <status>Completed</status>
+      <reason>MS Management</reason>
+      <notes>Stable condition</notes>
+    </appointment>
+    <appointment id="apt-024">
+      <patient>pat-024</patient>
+      <provider>prov-010</provider>
+      <facility>fac-004</facility>
+      <date>2024-02-15</date>
+      <time>11:00</time>
+      <duration_min>20</duration_min>
+      <status>Completed</status>
+      <reason>Annual Physical</reason>
+      <notes>Excellent health</notes>
+    </appointment>
+    <appointment id="apt-025">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-16</date>
+      <time>08:00</time>
+      <duration_min>60</duration_min>
+      <status>Completed</status>
+      <reason>Heart Failure Check</reason>
+      <notes>Fluid balance improved</notes>
+    </appointment>
+    <appointment id="apt-026">
+      <patient>pat-001</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-19</date>
+      <time>09:00</time>
+      <duration_min>45</duration_min>
+      <status>Scheduled</status>
+      <reason>Cardiology Referral</reason>
+      <notes/>
+    </appointment>
+    <appointment id="apt-027">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-20</date>
+      <time>07:30</time>
+      <duration_min>120</duration_min>
+      <status>Completed</status>
+      <reason>Stress Test</reason>
+      <notes>Positive for ischemia</notes>
+    </appointment>
+    <appointment id="apt-028">
+      <patient>pat-005</patient>
+      <provider>prov-013</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-21</date>
+      <time>10:00</time>
+      <duration_min>30</duration_min>
+      <status>Completed</status>
+      <reason>Echo Follow-up</reason>
+      <notes>EF improved to 40%</notes>
+    </appointment>
+    <appointment id="apt-029">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-22</date>
+      <time>14:30</time>
+      <duration_min>30</duration_min>
+      <status>Cancelled</status>
+      <reason>COPD Review</reason>
+      <notes>Patient called to cancel</notes>
+    </appointment>
+    <appointment id="apt-030">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-23</date>
+      <time>06:00</time>
+      <duration_min>180</duration_min>
+      <status>Completed</status>
+      <reason>Angiography</reason>
+      <notes>Two stents placed</notes>
+    </appointment>
+    <appointment id="apt-031">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <facility>fac-003</facility>
+      <date>2024-02-26</date>
+      <time>07:00</time>
+      <duration_min>120</duration_min>
+      <status>Completed</status>
+      <reason>Knee Replacement</reason>
+      <notes>Surgery successful</notes>
+    </appointment>
+    <appointment id="apt-032">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-27</date>
+      <time>09:30</time>
+      <duration_min>45</duration_min>
+      <status>No Show</status>
+      <reason>Follow-up</reason>
+      <notes>Patient did not arrive</notes>
+    </appointment>
+    <appointment id="apt-033">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-28</date>
+      <time>06:30</time>
+      <duration_min>240</duration_min>
+      <status>Completed</status>
+      <reason>TAVR Procedure</reason>
+      <notes>Valve replaced successfully</notes>
+    </appointment>
+    <appointment id="apt-034">
+      <patient>pat-017</patient>
+      <provider>prov-009</provider>
+      <facility>fac-003</facility>
+      <date>2024-03-01</date>
+      <time>08:00</time>
+      <duration_min>90</duration_min>
+      <status>Completed</status>
+      <reason>Spinal Surgery</reason>
+      <notes>Disc repaired</notes>
+    </appointment>
+    <appointment id="apt-035">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <facility>fac-001</facility>
+      <date>2024-03-04</date>
+      <time>10:00</time>
+      <duration_min>180</duration_min>
+      <status>Completed</status>
+      <reason>Chemotherapy</reason>
+      <notes>Cycle 3 completed</notes>
+    </appointment>
+    <appointment id="apt-036">
+      <patient>pat-020</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-03-05</date>
+      <time>13:00</time>
+      <duration_min>45</duration_min>
+      <status>Completed</status>
+      <reason>Echo Study</reason>
+      <notes>Mild regurgitation</notes>
+    </appointment>
+    <appointment id="apt-037">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <facility>fac-001</facility>
+      <date>2024-03-06</date>
+      <time>15:30</time>
+      <duration_min>50</duration_min>
+      <status>Scheduled</status>
+      <reason>Therapy Session</reason>
+      <notes/>
+    </appointment>
+    <appointment id="apt-038">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-03-07</date>
+      <time>09:00</time>
+      <duration_min>45</duration_min>
+      <status>Scheduled</status>
+      <reason>Device Check</reason>
+      <notes/>
+    </appointment>
+    <appointment id="apt-039">
+      <patient>pat-002</patient>
+      <provider>prov-005</provider>
+      <facility>fac-002</facility>
+      <date>2024-03-08</date>
+      <time>11:00</time>
+      <duration_min>20</duration_min>
+      <status>Scheduled</status>
+      <reason>Asthma Review</reason>
+      <notes/>
+    </appointment>
+    <appointment id="apt-040">
+      <patient>pat-006</patient>
+      <provider>prov-010</provider>
+      <facility>fac-004</facility>
+      <date>2024-03-11</date>
+      <time>14:00</time>
+      <duration_min>30</duration_min>
+      <status>Scheduled</status>
+      <reason>Migraine Check</reason>
+      <notes/>
+    </appointment>
+  </appointments>
+  <diagnoses>
+    <diagnosis id="dx-001">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <date>2020-05-10</date>
+      <icd_code>I10</icd_code>
+      <condition>Essential Hypertension</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-002">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <date>2021-08-22</date>
+      <icd_code>E11.9</icd_code>
+      <condition>Type 2 Diabetes Mellitus</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-003">
+      <patient>pat-002</patient>
+      <provider>prov-005</provider>
+      <date>2018-03-15</date>
+      <icd_code>J45.20</icd_code>
+      <condition>Mild Intermittent Asthma</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-004">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <date>2015-11-30</date>
+      <icd_code>I25.10</icd_code>
+      <condition>Coronary Artery Disease</condition>
+      <severity>Severe</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-005">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <date>2019-04-18</date>
+      <icd_code>I48.91</icd_code>
+      <condition>Atrial Fibrillation</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-006">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <date>2017-06-25</date>
+      <icd_code>I50.9</icd_code>
+      <condition>Heart Failure</condition>
+      <severity>Severe</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-007">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <date>2012-09-14</date>
+      <icd_code>I10</icd_code>
+      <condition>Essential Hypertension</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-008">
+      <patient>pat-006</patient>
+      <provider>prov-010</provider>
+      <date>2019-02-08</date>
+      <icd_code>G43.909</icd_code>
+      <condition>Migraine</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-009">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <date>2016-12-05</date>
+      <icd_code>J44.9</icd_code>
+      <condition>COPD</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-010">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <date>2018-07-20</date>
+      <icd_code>I10</icd_code>
+      <condition>Essential Hypertension</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-011">
+      <patient>pat-008</patient>
+      <provider>prov-006</provider>
+      <date>2022-04-12</date>
+      <icd_code>L30.9</icd_code>
+      <condition>Dermatitis</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-012">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <date>2020-10-28</date>
+      <icd_code>I73.9</icd_code>
+      <condition>Peripheral Artery Disease</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-013">
+      <patient>pat-010</patient>
+      <provider>prov-015</provider>
+      <date>2021-05-16</date>
+      <icd_code>F41.1</icd_code>
+      <condition>Generalized Anxiety Disorder</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-014">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <date>2014-08-03</date>
+      <icd_code>M17.11</icd_code>
+      <condition>Primary Osteoarthritis Right Knee</condition>
+      <severity>Severe</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-015">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <date>2018-01-22</date>
+      <icd_code>G20</icd_code>
+      <condition>Parkinson Disease</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-016">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <date>2022-11-08</date>
+      <icd_code>F03.90</icd_code>
+      <condition>Dementia</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-017">
+      <patient>pat-014</patient>
+      <provider>prov-003</provider>
+      <date>2019-09-30</date>
+      <icd_code>E03.9</icd_code>
+      <condition>Hypothyroidism</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-018">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <date>2017-04-14</date>
+      <icd_code>E11.9</icd_code>
+      <condition>Type 2 Diabetes Mellitus</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-019">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <date>2020-06-22</date>
+      <icd_code>E66.9</icd_code>
+      <condition>Obesity</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-020">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <date>2019-12-10</date>
+      <icd_code>I35.0</icd_code>
+      <condition>Aortic Stenosis</condition>
+      <severity>Severe</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-021">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <date>2010-05-18</date>
+      <icd_code>I10</icd_code>
+      <condition>Essential Hypertension</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-022">
+      <patient>pat-017</patient>
+      <provider>prov-008</provider>
+      <date>2023-01-15</date>
+      <icd_code>M51.16</icd_code>
+      <condition>Herniated Disc L4-L5</condition>
+      <severity>Moderate</severity>
+      <is_chronic>false</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-023">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <date>2023-06-20</date>
+      <icd_code>C34.90</icd_code>
+      <condition>Lung Cancer</condition>
+      <severity>Severe</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-024">
+      <patient>pat-020</patient>
+      <provider>prov-001</provider>
+      <date>2015-07-08</date>
+      <icd_code>I34.1</icd_code>
+      <condition>Mitral Valve Prolapse</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-025">
+      <patient>pat-021</patient>
+      <provider>prov-006</provider>
+      <date>2021-10-05</date>
+      <icd_code>J45.20</icd_code>
+      <condition>Mild Intermittent Asthma</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-026">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <date>2020-03-12</date>
+      <icd_code>F33.1</icd_code>
+      <condition>Major Depressive Disorder</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-027">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <date>2021-08-25</date>
+      <icd_code>G47.00</icd_code>
+      <condition>Insomnia</condition>
+      <severity>Mild</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-028">
+      <patient>pat-023</patient>
+      <provider>prov-002</provider>
+      <date>2016-04-30</date>
+      <icd_code>G35</icd_code>
+      <condition>Multiple Sclerosis</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-029">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <date>2018-09-22</date>
+      <icd_code>I50.9</icd_code>
+      <condition>Heart Failure</condition>
+      <severity>Severe</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+    <diagnosis id="dx-030">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <date>2020-01-15</date>
+      <icd_code>N18.3</icd_code>
+      <condition>Chronic Kidney Disease Stage 3</condition>
+      <severity>Moderate</severity>
+      <is_chronic>true</is_chronic>
+    </diagnosis>
+  </diagnoses>
+  <prescriptions>
+    <prescription id="rx-001">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <diagnosis>dx-001</diagnosis>
+      <medication>Lisinopril</medication>
+      <dosage_mg>10</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-15</start_date>
+    </prescription>
+    <prescription id="rx-002">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <diagnosis>dx-002</diagnosis>
+      <medication>Metformin</medication>
+      <dosage_mg>500</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-15</start_date>
+    </prescription>
+    <prescription id="rx-003">
+      <patient>pat-002</patient>
+      <provider>prov-005</provider>
+      <diagnosis>dx-003</diagnosis>
+      <medication>Albuterol</medication>
+      <dosage_mg>90</dosage_mg>
+      <frequency>prn</frequency>
+      <duration_days>30</duration_days>
+      <refills>6</refills>
+      <start_date>2024-01-16</start_date>
+    </prescription>
+    <prescription id="rx-004">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <diagnosis>dx-004</diagnosis>
+      <medication>Clopidogrel</medication>
+      <dosage_mg>75</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-17</start_date>
+    </prescription>
+    <prescription id="rx-005">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <diagnosis>dx-005</diagnosis>
+      <medication>Metoprolol</medication>
+      <dosage_mg>50</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-17</start_date>
+    </prescription>
+    <prescription id="rx-006">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <diagnosis>dx-005</diagnosis>
+      <medication>Warfarin</medication>
+      <dosage_mg>5</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>30</duration_days>
+      <refills>6</refills>
+      <start_date>2024-01-17</start_date>
+    </prescription>
+    <prescription id="rx-007">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-006</diagnosis>
+      <medication>Furosemide</medication>
+      <dosage_mg>40</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-19</start_date>
+    </prescription>
+    <prescription id="rx-008">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-006</diagnosis>
+      <medication>Carvedilol</medication>
+      <dosage_mg>25</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-19</start_date>
+    </prescription>
+    <prescription id="rx-009">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-007</diagnosis>
+      <medication>Amlodipine</medication>
+      <dosage_mg>10</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-19</start_date>
+    </prescription>
+    <prescription id="rx-010">
+      <patient>pat-006</patient>
+      <provider>prov-010</provider>
+      <diagnosis>dx-008</diagnosis>
+      <medication>Sumatriptan</medication>
+      <dosage_mg>50</dosage_mg>
+      <frequency>prn</frequency>
+      <duration_days>30</duration_days>
+      <refills>2</refills>
+      <start_date>2024-01-22</start_date>
+    </prescription>
+    <prescription id="rx-011">
+      <patient>pat-006</patient>
+      <provider>prov-010</provider>
+      <diagnosis>dx-008</diagnosis>
+      <medication>Topiramate</medication>
+      <dosage_mg>25</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-22</start_date>
+    </prescription>
+    <prescription id="rx-012">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <diagnosis>dx-009</diagnosis>
+      <medication>Tiotropium</medication>
+      <dosage_mg>18</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>30</duration_days>
+      <refills>6</refills>
+      <start_date>2024-01-23</start_date>
+    </prescription>
+    <prescription id="rx-013">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <diagnosis>dx-010</diagnosis>
+      <medication>Losartan</medication>
+      <dosage_mg>50</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-23</start_date>
+    </prescription>
+    <prescription id="rx-014">
+      <patient>pat-008</patient>
+      <provider>prov-006</provider>
+      <diagnosis>dx-011</diagnosis>
+      <medication>Hydrocortisone Cream</medication>
+      <dosage_mg>25</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>14</duration_days>
+      <refills>2</refills>
+      <start_date>2024-01-24</start_date>
+    </prescription>
+    <prescription id="rx-015">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <diagnosis>dx-012</diagnosis>
+      <medication>Cilostazol</medication>
+      <dosage_mg>100</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-25</start_date>
+    </prescription>
+    <prescription id="rx-016">
+      <patient>pat-010</patient>
+      <provider>prov-015</provider>
+      <diagnosis>dx-013</diagnosis>
+      <medication>Sertraline</medication>
+      <dosage_mg>50</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-26</start_date>
+    </prescription>
+    <prescription id="rx-017">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <diagnosis>dx-014</diagnosis>
+      <medication>Celecoxib</medication>
+      <dosage_mg>200</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>30</duration_days>
+      <refills>2</refills>
+      <start_date>2024-01-29</start_date>
+    </prescription>
+    <prescription id="rx-018">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <diagnosis>dx-015</diagnosis>
+      <medication>Carbidopa-Levodopa</medication>
+      <dosage_mg>25</dosage_mg>
+      <frequency>tid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-31</start_date>
+    </prescription>
+    <prescription id="rx-019">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <diagnosis>dx-016</diagnosis>
+      <medication>Donepezil</medication>
+      <dosage_mg>10</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-01-31</start_date>
+    </prescription>
+    <prescription id="rx-020">
+      <patient>pat-014</patient>
+      <provider>prov-003</provider>
+      <diagnosis>dx-017</diagnosis>
+      <medication>Levothyroxine</medication>
+      <dosage_mg>75</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-01</start_date>
+    </prescription>
+    <prescription id="rx-021">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <diagnosis>dx-018</diagnosis>
+      <medication>Metformin</medication>
+      <dosage_mg>1000</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-02</start_date>
+    </prescription>
+    <prescription id="rx-022">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <diagnosis>dx-019</diagnosis>
+      <medication>Semaglutide</medication>
+      <dosage_mg>0.5</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>30</duration_days>
+      <refills>6</refills>
+      <start_date>2024-02-02</start_date>
+    </prescription>
+    <prescription id="rx-023">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-020</diagnosis>
+      <medication>Aspirin</medication>
+      <dosage_mg>81</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-05</start_date>
+    </prescription>
+    <prescription id="rx-024">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-021</diagnosis>
+      <medication>Lisinopril</medication>
+      <dosage_mg>20</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-05</start_date>
+    </prescription>
+    <prescription id="rx-025">
+      <patient>pat-017</patient>
+      <provider>prov-008</provider>
+      <diagnosis>dx-022</diagnosis>
+      <medication>Gabapentin</medication>
+      <dosage_mg>300</dosage_mg>
+      <frequency>tid</frequency>
+      <duration_days>30</duration_days>
+      <refills>2</refills>
+      <start_date>2024-02-06</start_date>
+    </prescription>
+    <prescription id="rx-026">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <diagnosis>dx-023</diagnosis>
+      <medication>Ondansetron</medication>
+      <dosage_mg>8</dosage_mg>
+      <frequency>tid</frequency>
+      <duration_days>14</duration_days>
+      <refills>0</refills>
+      <start_date>2024-02-08</start_date>
+    </prescription>
+    <prescription id="rx-027">
+      <patient>pat-020</patient>
+      <provider>prov-001</provider>
+      <diagnosis>dx-024</diagnosis>
+      <medication>Propranolol</medication>
+      <dosage_mg>20</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-09</start_date>
+    </prescription>
+    <prescription id="rx-028">
+      <patient>pat-021</patient>
+      <provider>prov-006</provider>
+      <diagnosis>dx-025</diagnosis>
+      <medication>Fluticasone</medication>
+      <dosage_mg>44</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>30</duration_days>
+      <refills>6</refills>
+      <start_date>2024-02-12</start_date>
+    </prescription>
+    <prescription id="rx-029">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <diagnosis>dx-026</diagnosis>
+      <medication>Escitalopram</medication>
+      <dosage_mg>10</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-13</start_date>
+    </prescription>
+    <prescription id="rx-030">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <diagnosis>dx-027</diagnosis>
+      <medication>Trazodone</medication>
+      <dosage_mg>50</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>30</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-13</start_date>
+    </prescription>
+    <prescription id="rx-031">
+      <patient>pat-023</patient>
+      <provider>prov-002</provider>
+      <diagnosis>dx-028</diagnosis>
+      <medication>Ocrelizumab</medication>
+      <dosage_mg>300</dosage_mg>
+      <frequency/>
+      <duration_days>180</duration_days>
+      <refills>0</refills>
+      <start_date>2024-02-14</start_date>
+    </prescription>
+    <prescription id="rx-032">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-029</diagnosis>
+      <medication>Furosemide</medication>
+      <dosage_mg>80</dosage_mg>
+      <frequency>bid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-16</start_date>
+    </prescription>
+    <prescription id="rx-033">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-029</diagnosis>
+      <medication>Spironolactone</medication>
+      <dosage_mg>25</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-16</start_date>
+    </prescription>
+    <prescription id="rx-034">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <diagnosis>dx-030</diagnosis>
+      <medication>Sodium Bicarbonate</medication>
+      <dosage_mg>650</dosage_mg>
+      <frequency>tid</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-16</start_date>
+    </prescription>
+    <prescription id="rx-035">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <diagnosis>dx-004</diagnosis>
+      <medication>Atorvastatin</medication>
+      <dosage_mg>40</dosage_mg>
+      <frequency>qd</frequency>
+      <duration_days>90</duration_days>
+      <refills>3</refills>
+      <start_date>2024-02-20</start_date>
+    </prescription>
+  </prescriptions>
+  <labs>
+    <lab id="lab-001">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <test_name>HbA1c</test_name>
+      <date>2024-01-15</date>
+      <value>7.2</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>4.0</item>
+        <item>5.6</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-002">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <test_name>Fasting Glucose</test_name>
+      <date>2024-01-15</date>
+      <value>142</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>70</item>
+        <item>100</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-003">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <test_name>Total Cholesterol</test_name>
+      <date>2024-01-15</date>
+      <value>198</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>200</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-004">
+      <patient>pat-001</patient>
+      <provider>prov-003</provider>
+      <test_name>Blood Pressure Systolic</test_name>
+      <date>2024-01-15</date>
+      <value>145</value>
+      <unit>mmHg</unit>
+      <ref_range>
+        <item>90</item>
+        <item>120</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-005">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <test_name>Troponin I</test_name>
+      <date>2024-01-17</date>
+      <value>0.08</value>
+      <unit>ng/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>0.04</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-006">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <test_name>BNP</test_name>
+      <date>2024-01-17</date>
+      <value>450</value>
+      <unit>pg/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>100</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-007">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <test_name>INR</test_name>
+      <date>2024-01-17</date>
+      <value>2.3</value>
+      <unit>ratio</unit>
+      <ref_range>
+        <item>2.0</item>
+        <item>3.0</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-008">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <test_name>LDL Cholesterol</test_name>
+      <date>2024-01-17</date>
+      <value>145</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>100</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-009">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <test_name>BNP</test_name>
+      <date>2024-01-19</date>
+      <value>890</value>
+      <unit>pg/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>100</item>
+      </ref_range>
+      <status>Critical</status>
+    </lab>
+    <lab id="lab-010">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <test_name>Creatinine</test_name>
+      <date>2024-01-19</date>
+      <value>1.8</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>0.7</item>
+        <item>1.3</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-011">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <test_name>Potassium</test_name>
+      <date>2024-01-19</date>
+      <value>5.2</value>
+      <unit>mEq/L</unit>
+      <ref_range>
+        <item>3.5</item>
+        <item>5.0</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-012">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <test_name>Sodium</test_name>
+      <date>2024-01-19</date>
+      <value>132</value>
+      <unit>mEq/L</unit>
+      <ref_range>
+        <item>136</item>
+        <item>145</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-013">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <test_name>FEV1</test_name>
+      <date>2024-01-23</date>
+      <value>58</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>80</item>
+        <item>120</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-014">
+      <patient>pat-007</patient>
+      <provider>prov-003</provider>
+      <test_name>Oxygen Saturation</test_name>
+      <date>2024-01-23</date>
+      <value>94</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>95</item>
+        <item>100</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-015">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <test_name>ABI</test_name>
+      <date>2024-01-25</date>
+      <value>0.65</value>
+      <unit>ratio</unit>
+      <ref_range>
+        <item>0.9</item>
+        <item>1.3</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-016">
+      <patient>pat-010</patient>
+      <provider>prov-015</provider>
+      <test_name>TSH</test_name>
+      <date>2024-01-26</date>
+      <value>2.1</value>
+      <unit>mIU/L</unit>
+      <ref_range>
+        <item>0.4</item>
+        <item>4.0</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-017">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <test_name>Hemoglobin</test_name>
+      <date>2024-01-29</date>
+      <value>13.5</value>
+      <unit>g/dL</unit>
+      <ref_range>
+        <item>12.0</item>
+        <item>16.0</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-018">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <test_name>Platelet Count</test_name>
+      <date>2024-01-29</date>
+      <value>245</value>
+      <unit>K/uL</unit>
+      <ref_range>
+        <item>150</item>
+        <item>400</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-019">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <test_name>Vitamin D</test_name>
+      <date>2024-01-31</date>
+      <value>18</value>
+      <unit>ng/mL</unit>
+      <ref_range>
+        <item>30</item>
+        <item>100</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-020">
+      <patient>pat-014</patient>
+      <provider>prov-003</provider>
+      <test_name>TSH</test_name>
+      <date>2024-02-01</date>
+      <value>3.2</value>
+      <unit>mIU/L</unit>
+      <ref_range>
+        <item>0.4</item>
+        <item>4.0</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-021">
+      <patient>pat-014</patient>
+      <provider>prov-003</provider>
+      <test_name>Free T4</test_name>
+      <date>2024-02-01</date>
+      <value>1.1</value>
+      <unit>ng/dL</unit>
+      <ref_range>
+        <item>0.8</item>
+        <item>1.8</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-022">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <test_name>HbA1c</test_name>
+      <date>2024-02-02</date>
+      <value>8.4</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>4.0</item>
+        <item>5.6</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-023">
+      <patient>pat-015</patient>
+      <provider>prov-005</provider>
+      <test_name>Fasting Glucose</test_name>
+      <date>2024-02-02</date>
+      <value>186</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>70</item>
+        <item>100</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-024">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <test_name>BNP</test_name>
+      <date>2024-02-05</date>
+      <value>1250</value>
+      <unit>pg/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>100</item>
+      </ref_range>
+      <status>Critical</status>
+    </lab>
+    <lab id="lab-025">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <test_name>Creatinine</test_name>
+      <date>2024-02-05</date>
+      <value>1.4</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>0.7</item>
+        <item>1.3</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-026">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <test_name>WBC</test_name>
+      <date>2024-02-08</date>
+      <value>2.8</value>
+      <unit>K/uL</unit>
+      <ref_range>
+        <item>4.5</item>
+        <item>11.0</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-027">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <test_name>Hemoglobin</test_name>
+      <date>2024-02-08</date>
+      <value>9.2</value>
+      <unit>g/dL</unit>
+      <ref_range>
+        <item>12.0</item>
+        <item>16.0</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-028">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <test_name>Platelet Count</test_name>
+      <date>2024-02-08</date>
+      <value>95</value>
+      <unit>K/uL</unit>
+      <ref_range>
+        <item>150</item>
+        <item>400</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-029">
+      <patient>pat-020</patient>
+      <provider>prov-001</provider>
+      <test_name>Ejection Fraction</test_name>
+      <date>2024-02-09</date>
+      <value>62</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>55</item>
+        <item>70</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-030">
+      <patient>pat-022</patient>
+      <provider>prov-015</provider>
+      <test_name>Lithium Level</test_name>
+      <date>2024-02-13</date>
+      <value>0</value>
+      <unit>mEq/L</unit>
+      <ref_range>
+        <item>0.6</item>
+        <item>1.2</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-031">
+      <patient>pat-023</patient>
+      <provider>prov-002</provider>
+      <test_name>MRI Lesion Count</test_name>
+      <date>2024-02-14</date>
+      <value>12</value>
+      <unit>lesions</unit>
+      <ref_range>
+        <item>0</item>
+        <item>0</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-032">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <test_name>BNP</test_name>
+      <date>2024-02-16</date>
+      <value>1450</value>
+      <unit>pg/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>100</item>
+      </ref_range>
+      <status>Critical</status>
+    </lab>
+    <lab id="lab-033">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <test_name>eGFR</test_name>
+      <date>2024-02-16</date>
+      <value>38</value>
+      <unit>mL/min</unit>
+      <ref_range>
+        <item>90</item>
+        <item>120</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-034">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <test_name>Potassium</test_name>
+      <date>2024-02-16</date>
+      <value>5.5</value>
+      <unit>mEq/L</unit>
+      <ref_range>
+        <item>3.5</item>
+        <item>5.0</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-035">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <test_name>Troponin I</test_name>
+      <date>2024-02-20</date>
+      <value>0.15</value>
+      <unit>ng/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>0.04</item>
+      </ref_range>
+      <status>Critical</status>
+    </lab>
+    <lab id="lab-036">
+      <patient>pat-005</patient>
+      <provider>prov-013</provider>
+      <test_name>Ejection Fraction</test_name>
+      <date>2024-02-21</date>
+      <value>40</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>55</item>
+        <item>70</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-037">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <test_name>Creatinine</test_name>
+      <date>2024-02-23</date>
+      <value>1.2</value>
+      <unit>mg/dL</unit>
+      <ref_range>
+        <item>0.7</item>
+        <item>1.3</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-038">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <test_name>Hemoglobin</test_name>
+      <date>2024-02-26</date>
+      <value>11.8</value>
+      <unit>g/dL</unit>
+      <ref_range>
+        <item>12.0</item>
+        <item>16.0</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+    <lab id="lab-039">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <test_name>Ejection Fraction</test_name>
+      <date>2024-02-28</date>
+      <value>55</value>
+      <unit>%</unit>
+      <ref_range>
+        <item>55</item>
+        <item>70</item>
+      </ref_range>
+      <status>Normal</status>
+    </lab>
+    <lab id="lab-040">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <test_name>Tumor Marker CA-125</test_name>
+      <date>2024-03-04</date>
+      <value>85</value>
+      <unit>U/mL</unit>
+      <ref_range>
+        <item>0</item>
+        <item>35</item>
+      </ref_range>
+      <status>Abnormal</status>
+    </lab>
+  </labs>
+  <procedures>
+    <procedure id="proc-001">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-20</date>
+      <name>Cardiac Stress Test</name>
+      <cpt_code>93015</cpt_code>
+      <duration_min>45</duration_min>
+      <outcome>Successful</outcome>
+      <cost>2500</cost>
+    </procedure>
+    <procedure id="proc-002">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-23</date>
+      <name>Coronary Angiography</name>
+      <cpt_code>93458</cpt_code>
+      <duration_min>90</duration_min>
+      <outcome>Successful</outcome>
+      <cost>12500</cost>
+    </procedure>
+    <procedure id="proc-003">
+      <patient>pat-009</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-23</date>
+      <name>PCI with Stent x2</name>
+      <cpt_code>92928</cpt_code>
+      <duration_min>120</duration_min>
+      <outcome>Successful</outcome>
+      <cost>35000</cost>
+    </procedure>
+    <procedure id="proc-004">
+      <patient>pat-011</patient>
+      <provider>prov-008</provider>
+      <facility>fac-003</facility>
+      <date>2024-02-26</date>
+      <name>Total Knee Arthroplasty</name>
+      <cpt_code>27447</cpt_code>
+      <duration_min>150</duration_min>
+      <outcome>Successful</outcome>
+      <cost>45000</cost>
+    </procedure>
+    <procedure id="proc-005">
+      <patient>pat-016</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-28</date>
+      <name>TAVR</name>
+      <cpt_code>33361</cpt_code>
+      <duration_min>180</duration_min>
+      <outcome>Successful</outcome>
+      <cost>85000</cost>
+    </procedure>
+    <procedure id="proc-006">
+      <patient>pat-017</patient>
+      <provider>prov-009</provider>
+      <facility>fac-003</facility>
+      <date>2024-03-01</date>
+      <name>Lumbar Discectomy</name>
+      <cpt_code>63030</cpt_code>
+      <duration_min>90</duration_min>
+      <outcome>Successful</outcome>
+      <cost>28000</cost>
+    </procedure>
+    <procedure id="proc-007">
+      <patient>pat-019</patient>
+      <provider>prov-014</provider>
+      <facility>fac-001</facility>
+      <date>2024-03-04</date>
+      <name>Chemotherapy Administration</name>
+      <cpt_code>96413</cpt_code>
+      <duration_min>180</duration_min>
+      <outcome>Successful</outcome>
+      <cost>8500</cost>
+    </procedure>
+    <procedure id="proc-008">
+      <patient>pat-020</patient>
+      <provider>prov-001</provider>
+      <facility>fac-001</facility>
+      <date>2024-03-05</date>
+      <name>Echocardiogram</name>
+      <cpt_code>93306</cpt_code>
+      <duration_min>45</duration_min>
+      <outcome>Successful</outcome>
+      <cost>1800</cost>
+    </procedure>
+    <procedure id="proc-009">
+      <patient>pat-003</patient>
+      <provider>prov-001</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-27</date>
+      <name>Cardiac Catheterization</name>
+      <cpt_code>93452</cpt_code>
+      <duration_min>60</duration_min>
+      <outcome>Complication</outcome>
+      <cost>15000</cost>
+    </procedure>
+    <procedure id="proc-010">
+      <patient>pat-005</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-01-19</date>
+      <name>ICD Implantation</name>
+      <cpt_code>33249</cpt_code>
+      <duration_min>120</duration_min>
+      <outcome>Successful</outcome>
+      <cost>55000</cost>
+    </procedure>
+    <procedure id="proc-011">
+      <patient>pat-013</patient>
+      <provider>prov-002</provider>
+      <facility>fac-001</facility>
+      <date>2024-01-31</date>
+      <name>Lumbar Puncture</name>
+      <cpt_code>62270</cpt_code>
+      <duration_min>30</duration_min>
+      <outcome>Successful</outcome>
+      <cost>2200</cost>
+    </procedure>
+    <procedure id="proc-012">
+      <patient>pat-023</patient>
+      <provider>prov-002</provider>
+      <facility>fac-001</facility>
+      <date>2024-02-14</date>
+      <name>MRI Brain with Contrast</name>
+      <cpt_code>70553</cpt_code>
+      <duration_min>60</duration_min>
+      <outcome>Successful</outcome>
+      <cost>3500</cost>
+    </procedure>
+    <procedure id="proc-013">
+      <patient>pat-006</patient>
+      <provider>prov-010</provider>
+      <facility>fac-004</facility>
+      <date>2024-01-22</date>
+      <name>Nerve Block Injection</name>
+      <cpt_code>64450</cpt_code>
+      <duration_min>20</duration_min>
+      <outcome>Successful</outcome>
+      <cost>1500</cost>
+    </procedure>
+    <procedure id="proc-014">
+      <patient>pat-008</patient>
+      <provider>prov-006</provider>
+      <facility>fac-002</facility>
+      <date>2024-01-24</date>
+      <name>Allergy Skin Testing</name>
+      <cpt_code>95004</cpt_code>
+      <duration_min>45</duration_min>
+      <outcome>Successful</outcome>
+      <cost>450</cost>
+    </procedure>
+    <procedure id="proc-015">
+      <patient>pat-025</patient>
+      <provider>prov-012</provider>
+      <facility>fac-005</facility>
+      <date>2024-02-16</date>
+      <name>CRT-D Implantation</name>
+      <cpt_code>33225</cpt_code>
+      <duration_min>150</duration_min>
+      <outcome>Partial</outcome>
+      <cost>65000</cost>
+    </procedure>
+  </procedures>
+</healthcare_records>

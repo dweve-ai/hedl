@@ -7,15 +7,15 @@
 //! Integration tests for compression support in hedl-stream.
 
 // Test data - a minimal valid HEDL document
-#[allow(dead_code)]
-const HEDL_DOC: &str = r"%VERSION: 1.0
+#[cfg(feature = "compression")]
+const HEDL_DOC: &str = r#"%VERSION: 1.0
 %STRUCT: User: [id, name, email]
 ---
-users: @User
-  | alice, Alice Smith, alice@example.com
-  | bob, Bob Jones, bob@example.com
-  | carol, Carol Williams, carol@example.com
-";
+users:@User
+ | alice, Alice Smith, alice@example.com
+ | bob, Bob Jones, bob@example.com
+ | carol, Carol Williams, carol@example.com
+"#;
 
 #[cfg(feature = "compression")]
 #[test]

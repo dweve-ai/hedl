@@ -65,7 +65,7 @@ fn doc_with_id(id: &str) -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -112,7 +112,7 @@ fn doc_with_reference(from_id: &str, to_id: &str) -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs: BTreeMap::new(),
@@ -157,9 +157,9 @@ fn doc_with_nested_child(parent_id: &str, child_id: &str) -> Document {
         }),
     );
 
-    // nests: parent_type -> child_type (simple string mapping)
+    // nests: parent_type -> child_types (Vec<String> for multiple children)
     let mut nests = BTreeMap::new();
-    nests.insert("User".to_string(), "Post".to_string());
+    nests.insert("User".to_string(), vec!["Post".to_string()]);
 
     // structs: type_name -> list of field names
     let mut structs = BTreeMap::new();
@@ -173,7 +173,7 @@ fn doc_with_nested_child(parent_id: &str, child_id: &str) -> Document {
     );
 
     Document {
-        version: (1, 0),
+        version: (2, 0),
         schema_versions: BTreeMap::new(),
         aliases: BTreeMap::new(),
         structs,

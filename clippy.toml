@@ -1,0 +1,7 @@
+# Clippy configuration for HEDL
+#
+# Allow unwrap/expect in test code since tests are expected to panic on failure.
+# Production code should use proper error handling.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

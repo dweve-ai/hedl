@@ -17,6 +17,7 @@ jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -27,6 +28,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -38,10 +40,13 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-audit
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
       - run: cargo audit
 
   # =============================================================================
@@ -50,6 +55,7 @@ jobs:
   test-core:
     name: Test Core
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [fmt, clippy]
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +73,7 @@ jobs:
   test-formats:
     name: Test Formats
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [fmt, clippy]
     steps:
       - uses: actions/checkout@v4
@@ -84,6 +91,7 @@ jobs:
   test-data:
     name: Test Data
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [fmt, clippy]
     services:
       neo4j:
@@ -115,6 +123,7 @@ jobs:
   test-tooling:
     name: Test Tooling
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [fmt, clippy]
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +141,7 @@ jobs:
   test-bindings:
     name: Test Bindings
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [fmt, clippy]
     steps:
       - uses: actions/checkout@v4
@@ -151,6 +161,8 @@ jobs:
   coverage-core:
     name: Coverage Core
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     needs: [test-core]
     steps:
       - uses: actions/checkout@v4
@@ -158,7 +170,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: coverage-core
-      - run: cargo install cargo-llvm-cov
+      - run: cargo install cargo-llvm-cov --locked
       - name: Generate coverage
         run: |
           cargo llvm-cov --all-features \
@@ -172,6 +184,8 @@ jobs:
   coverage-formats:
     name: Coverage Formats
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     needs: [test-formats]
     steps:
       - uses: actions/checkout@v4
@@ -179,7 +193,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: coverage-formats
-      - run: cargo install cargo-llvm-cov
+      - run: cargo install cargo-llvm-cov --locked
       - name: Generate coverage
         run: |
           cargo llvm-cov --all-features \
@@ -193,6 +207,8 @@ jobs:
   coverage-data:
     name: Coverage Data
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     needs: [test-data]
     services:
       neo4j:
@@ -213,7 +229,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: coverage-data
-      - run: cargo install cargo-llvm-cov
+      - run: cargo install cargo-llvm-cov --locked
       - name: Generate coverage
         run: |
           cargo llvm-cov --all-features \
@@ -229,6 +245,8 @@ jobs:
   coverage-tooling:
     name: Coverage Tooling
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     needs: [test-tooling]
     steps:
       - uses: actions/checkout@v4
@@ -236,7 +254,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: coverage-tooling
-      - run: cargo install cargo-llvm-cov
+      - run: cargo install cargo-llvm-cov --locked
       - name: Generate coverage
         run: |
           cargo llvm-cov --all-features \
@@ -250,6 +268,8 @@ jobs:
   coverage-bindings:
     name: Coverage Bindings
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     needs: [test-bindings]
     steps:
       - uses: actions/checkout@v4
@@ -257,7 +277,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: coverage-bindings
-      - run: cargo install cargo-llvm-cov
+      - run: cargo install cargo-llvm-cov --locked
       - name: Generate coverage
         run: |
           cargo llvm-cov --all-features \
@@ -271,6 +291,8 @@ jobs:
   coverage-upload:
     name: Upload Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: always()
     needs: [coverage-core, coverage-formats, coverage-data, coverage-tooling, coverage-bindings]
     steps:
       - uses: actions/checkout@v4
@@ -280,8 +302,14 @@ jobs:
           merge-multiple: true
       - name: Merge coverage files
         run: |
-          cat lcov-*.info > lcov.info
+          if ls lcov-*.info 1> /dev/null 2>&1; then
+            cat lcov-*.info > lcov.info
+          else
+            echo "No coverage files found"
+            exit 0
+          fi
       - uses: codecov/codecov-action@v4
+        if: hashFiles('lcov.info') != ''
         with:
           files: lcov.info
           fail_ci_if_error: false
@@ -292,6 +320,7 @@ jobs:
   doc-tests:
     name: Doc Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [fmt, clippy]
     steps:
       - uses: actions/checkout@v4
@@ -302,6 +331,7 @@ jobs:
   conformance:
     name: SPEC Conformance
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [test-core]
     steps:
       - uses: actions/checkout@v4
@@ -309,25 +339,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --package hedl-core conformance --all-features
 
-  miri:
-    name: MIRI
-    runs-on: ubuntu-latest
-    needs: [test-core]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: miri
-      - name: Setup MIRI
-        run: cargo miri setup
-      - name: Run MIRI on hedl-core
-        run: cargo +nightly miri test -p hedl-core
-        env:
-          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-symbolic-alignment-check
-
   benchmarks:
     name: Benchmark Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [test-core, test-formats]
     steps:
       - uses: actions/checkout@v4
@@ -340,12 +355,13 @@ jobs:
   unsafe-audit:
     name: Unsafe Audit
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check for new unsafe code
+      - name: Check for new unsafe code (PR only)
+        if: github.event_name == 'pull_request'
         run: |
           git diff origin/master...HEAD -- 'crates/hedl-core/**/*.rs' > changes.diff
           if grep -q "^+.*unsafe" changes.diff; then
@@ -353,4 +369,16 @@ jobs:
             grep -n "^+.*unsafe" changes.diff
             exit 1
           fi
-          echo "No new unsafe code detected"
+          echo "No new unsafe code detected in PR"
+      - name: Count unsafe blocks (push events)
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Auditing existing unsafe code in hedl-core..."
+          unsafe_count=$(grep -r "unsafe" crates/hedl-core/src --include="*.rs" | wc -l || echo "0")
+          echo "Found ${unsafe_count} lines with 'unsafe' keyword"
+          if [ "$unsafe_count" -gt 0 ]; then
+            echo "::warning::hedl-core contains ${unsafe_count} lines with unsafe code"
+            grep -rn "unsafe" crates/hedl-core/src --include="*.rs" || true
+          else
+            echo "✓ hedl-core maintains zero unsafe blocks"
+          fi

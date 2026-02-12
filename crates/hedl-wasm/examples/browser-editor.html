@@ -257,10 +257,12 @@
         HEDL Input
         <span class="badge" id="hedl-badge">Ready</span>
       </div>
-      <textarea id="hedl-input" spellcheck="false">%VERSION: 1.0
-%STRUCT: User[id,name,email,age]
-%STRUCT: Post[id,title,views]
-%NEST: User > Post
+      <textarea id="hedl-input" spellcheck="false">%V:2.0
+%NULL:~
+%QUOTE:"
+%S:User:[id,name,email,age]
+%S:Post:[id,title,views]
+%N:User>Post
 ---
 users: @User
   |alice,Alice Smith,alice@example.com,30
@@ -437,12 +439,14 @@ users: @User
 
     // Load example
     document.getElementById('example-btn').addEventListener('click', () => {
-      document.getElementById('hedl-input').value = `%VERSION: 1.0
-%STRUCT: Company[id,name,industry,employees]
-%STRUCT: Department[id,name,budget]
-%STRUCT: Employee[id,name,role,salary]
-%NEST: Company > Department
-%NEST: Department > Employee
+      document.getElementById('hedl-input').value = `%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Company:[id,name,industry,employees]
+%S:Department:[id,name,budget]
+%S:Employee:[id,name,role,salary]
+%N:Company>Department
+%N:Department>Employee
 %ALIAS: %active: "true"
 ---
 companies: @Company

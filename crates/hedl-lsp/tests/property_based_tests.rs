@@ -30,7 +30,7 @@
 
 use hedl_lsp::analysis::AnalyzedDocument;
 use hedl_lsp::completion::get_completions;
-use hedl_lsp::document_manager::DocumentManager;
+use hedl_lsp::document_manager::DocumentCache;
 use hedl_lsp::hover::get_hover;
 use hedl_lsp::symbols::{get_document_symbols, get_workspace_symbols};
 use proptest::prelude::*;
@@ -109,12 +109,12 @@ proptest! {
         max_size in 1usize..50,
         num_docs in 1usize..100
     ) {
-        let manager = DocumentManager::new(max_size, 1024 * 1024);
+        let manager = DocumentCache::new(max_size, 1024 * 1024);
 
         // Insert documents
         for i in 0..num_docs {
             let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
-            manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+            manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         }
 
         let stats = manager.statistics();
@@ -126,7 +126,7 @@ proptest! {
         max_doc_size in 10usize..1000,
         doc_size in 0usize..2000
     ) {
-        let manager = DocumentManager::new(10, max_doc_size);
+        let manager = DocumentCache::new(10, max_doc_size);
         let uri = Url::parse("file:///test.hedl").unwrap();
         let content = "x".repeat(doc_size);
 
@@ -222,7 +222,7 @@ proptest! {
         content1 in ".*",
         content2 in ".*"
     ) {
-        let manager = DocumentManager::new(10, 1024 * 1024);
+        let manager = DocumentCache::new(10, 1024 * 1024);
         let uri = Url::parse("file:///test.hedl").unwrap();
 
         // Insert first content
@@ -242,7 +242,7 @@ proptest! {
         } else {
             // Different content should have different hash and be marked dirty
             if hash1 != hash2 {
-                assert!(dirty || hash1 == hash2, "Different hash should mark dirty");
+                assert!(dirty ||hash1 == hash2, "Different hash should mark dirty");
             }
         }
     }
@@ -261,12 +261,12 @@ proptest! {
         max_cache in 2usize..10,
         num_docs in 5usize..20
     ) {
-        let manager = DocumentManager::new(max_cache, 1024 * 1024);
+        let manager = DocumentCache::new(max_cache, 1024 * 1024);
 
         // Insert documents sequentially
         for i in 0..num_docs {
             let uri = Url::parse(&format!("file:///test{i}.hedl")).unwrap();
-            manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+            manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         }
 
         // Cache should not exceed max
@@ -314,7 +314,7 @@ proptest! {
         use std::sync::Arc;
         use std::thread;
 
-        let manager = Arc::new(DocumentManager::new(100, 1024 * 1024));
+        let manager = Arc::new(DocumentCache::new(100, 1024 * 1024));
         let uri = Url::parse("file:///test.hedl").unwrap();
         manager.insert_or_update(&uri, &content);
 
@@ -373,16 +373,16 @@ proptest! {
         num_inserts in 1usize..20,
         max_cache in 2usize..10
     ) {
-        let manager = DocumentManager::new(max_cache, 1024 * 1024);
+        let manager = DocumentCache::new(max_cache, 1024 * 1024);
 
         for i in 0..num_inserts {
             let uri = Url::parse(&format!("file:///test{}.hedl", i % 5)).unwrap();
-            manager.insert_or_update(&uri, "%VERSION: 1.0\n---\n");
+            manager.insert_or_update(&uri, "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         }
 
         let stats = manager.statistics();
         // Stats should reflect operations (approximately, due to concurrent access patterns)
-        assert!(stats.misses > 0 || num_inserts == 0);
+        assert!(stats.misses > 0 ||num_inserts == 0);
         assert!(stats.current_size <= max_cache);
     }
 }
@@ -416,7 +416,7 @@ proptest! {
 proptest! {
     #[test]
     fn prop_unicode_robustness(text in "\\PC*") {
-        let content = format!("%VERSION: 1.0\n---\nEntity: e1: \"{text}\"");
+        let content = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nEntity: e1: \"{text}\"");
         let _ = AnalyzedDocument::analyze(&content);
         // Should not panic on any Unicode
     }
@@ -434,7 +434,7 @@ proptest! {
         id in "[a-z][a-z0-9]*"
     ) {
         let content = format!(
-            "%VERSION: 1.0\n%STRUCT: {type_name}: [id]\n---\n{type_name}: {id}: \"test\"\nOther: o1: @{type_name}:{id}"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type_name}:[id]\n---\n{type_name}: {id}: \"test\"\nOther: o1:@{type_name}:{id}"
         );
         let analysis = AnalyzedDocument::analyze(&content);
 

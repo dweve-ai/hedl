@@ -13,10 +13,10 @@ use std::io::Cursor;
 
 #[test]
 fn test_version_basic() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
     assert_eq!(header.version, (1, 0));
@@ -91,11 +91,11 @@ fn test_version_must_come_before_separator() {
 
 #[test]
 fn test_struct_basic() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -107,11 +107,11 @@ fn test_struct_basic() {
 
 #[test]
 fn test_struct_multiple_fields() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name, email, age, active]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -126,11 +126,11 @@ fn test_struct_multiple_fields() {
 
 #[test]
 fn test_struct_single_field() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: Simple: [id]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -139,13 +139,13 @@ fn test_struct_single_field() {
 
 #[test]
 fn test_struct_multiple_types() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Product: [id, price]
 %STRUCT: Order: [id, user, product]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -185,11 +185,11 @@ fn test_struct_invalid_formats() {
 
 #[test]
 fn test_struct_field_with_hyphens() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [user-id, first-name, last-name]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -201,11 +201,11 @@ fn test_struct_field_with_hyphens() {
 
 #[test]
 fn test_struct_field_with_underscores() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [user_id, first_name, last_name]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -268,11 +268,11 @@ fn test_alias_with_spaces_in_value() {
 
 #[test]
 fn test_alias_without_quotes() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %ALIAS: active = Active
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -296,51 +296,60 @@ fn test_alias_with_whitespace() {
 
 #[test]
 fn test_nest_basic() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %NEST: User > Order
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
-    assert_eq!(header.get_child_type("User"), Some(&"Order".to_string()));
+    assert_eq!(
+        header.get_child_types("User"),
+        Some(&vec!["Order".to_string()])
+    );
 }
 
 #[test]
 fn test_nest_multiple() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %NEST: User > Order
 %NEST: Order > LineItem
 %NEST: Product > Review
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
-    assert_eq!(header.get_child_type("User"), Some(&"Order".to_string()));
     assert_eq!(
-        header.get_child_type("Order"),
-        Some(&"LineItem".to_string())
+        header.get_child_types("User"),
+        Some(&vec!["Order".to_string()])
     );
     assert_eq!(
-        header.get_child_type("Product"),
-        Some(&"Review".to_string())
+        header.get_child_types("Order"),
+        Some(&vec!["LineItem".to_string()])
+    );
+    assert_eq!(
+        header.get_child_types("Product"),
+        Some(&vec!["Review".to_string()])
     );
 }
 
 #[test]
 fn test_nest_with_whitespace() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %NEST:  User  >  Order
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
-    assert_eq!(header.get_child_type("User"), Some(&"Order".to_string()));
+    assert_eq!(
+        header.get_child_types("User"),
+        Some(&vec!["Order".to_string()])
+    );
 }
 
 #[test]
@@ -378,7 +387,10 @@ fn test_all_directives_together() {
     assert!(header.get_schema("User").is_some());
     assert!(header.get_schema("Order").is_some());
     assert_eq!(header.aliases.get("active"), Some(&"Active".to_string()));
-    assert_eq!(header.get_child_type("User"), Some(&"Order".to_string()));
+    assert_eq!(
+        header.get_child_types("User"),
+        Some(&vec!["Order".to_string()])
+    );
 }
 
 #[test]
@@ -401,7 +413,7 @@ fn test_directive_order_variation() {
 
 #[test]
 fn test_multiple_structs_with_nesting() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: Order: [id, user, amount]
@@ -409,7 +421,7 @@ fn test_multiple_structs_with_nesting() {
 %NEST: User > Order
 %NEST: Order > LineItem
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -467,14 +479,14 @@ fn test_missing_separator() {
 
 #[test]
 fn test_header_with_comments() {
-    let input = r"
+    let input = r#"
 # This is a comment
 %VERSION: 1.0
 # Another comment
 %STRUCT: User: [id, name]
 # Comment before separator
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -484,7 +496,7 @@ fn test_header_with_comments() {
 
 #[test]
 fn test_inline_comments_in_header() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0  # Version directive
 %STRUCT: User: [id, name]  # User schema
 ---
@@ -513,14 +525,14 @@ fn test_minimal_header() {
 
 #[test]
 fn test_header_with_blank_lines() {
-    let input = r"
+    let input = r#"
 
 %VERSION: 1.0
 
 %STRUCT: User: [id, name]
 
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -533,12 +545,12 @@ fn test_header_with_blank_lines() {
 #[test]
 fn test_struct_overwrite() {
     // Later STRUCT directive should overwrite earlier one
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id, name]
 %STRUCT: User: [id, name, email]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -562,12 +574,12 @@ fn test_alias_overwrite() {
 
 #[test]
 fn test_struct_type_name_with_numbers() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User2: [id, name]
 %STRUCT: Type123: [id]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 
@@ -577,11 +589,11 @@ fn test_struct_type_name_with_numbers() {
 
 #[test]
 fn test_struct_field_name_with_numbers() {
-    let input = r"
+    let input = r#"
 %VERSION: 1.0
 %STRUCT: User: [id1, field2, name3]
 ---
-";
+"#;
     let parser = StreamingParser::new(Cursor::new(input)).unwrap();
     let header = parser.header().unwrap();
 

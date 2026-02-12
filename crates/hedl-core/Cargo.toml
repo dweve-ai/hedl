@@ -55,11 +55,13 @@ bumpalo = "3.16"
 
 serde = { workspace = true, optional = true }
 rayon = { version = "1.10", optional = true }
+regex = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
 
 [features]
-default = []
+default = ["regex"]
 serde = ["dep:serde"]
 parallel = ["dep:rayon"]
+regex = ["dep:regex"]

@@ -8,7 +8,7 @@ use std::hint::black_box;
 use tempfile::TempDir;
 
 fn generate_test_data(num_rows: usize, num_columns: usize) -> Document {
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create schema
     let mut schema = vec!["id".to_string()];

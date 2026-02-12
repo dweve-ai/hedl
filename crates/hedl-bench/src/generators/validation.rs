@@ -52,17 +52,18 @@ pub fn validate_generated(hedl: &str) -> Result<()> {
 pub fn verify_complexity(hedl: &str, expected: ComplexityLevel) -> bool {
     match expected {
         ComplexityLevel::Flat => {
-            // Should not have %NEST or references
-            !hedl.contains("%NEST") && !hedl.contains('@')
-                || (hedl.contains('@') && hedl.contains(": @")) // Struct refs OK
+            // Should not have %NEST/%N: or references
+            !hedl.contains("%NEST") && !hedl.contains("%N:") && !hedl.contains('@')
+                || (hedl.contains('@') && (hedl.contains(":@") || hedl.contains(": @")))
+            // Struct refs OK
         }
         ComplexityLevel::ModerateNesting => {
-            // Should have some %NEST but not too deep
-            let nest_count = hedl.matches("%NEST").count();
+            // Should have some %NEST/%N: but not too deep
+            let nest_count = hedl.matches("%NEST").count() + hedl.matches("%N:").count();
             nest_count > 0 && nest_count < 10
         }
         ComplexityLevel::DittoHeavy => {
-            // Should have many ditto markers
+            // Should have many ditto markers (pre-v2.0 only, NOT allowed in v2.0)
             hedl.matches('^').count() > 5
         }
         ComplexityLevel::ReferenceHeavy => {
@@ -71,7 +72,7 @@ pub fn verify_complexity(hedl: &str, expected: ComplexityLevel) -> bool {
         }
         ComplexityLevel::DeepHierarchy => {
             // Should have deep nesting
-            let nest_count = hedl.matches("%NEST").count();
+            let nest_count = hedl.matches("%NEST").count() + hedl.matches("%N:").count();
             nest_count >= 4
         }
     }
@@ -123,16 +124,16 @@ pub fn verify_entity_count(hedl: &str, expected: usize, tolerance: f32) -> bool 
 /// Result indicating validation success.
 pub fn validate_structure(hedl: &str) -> Result<()> {
     // Check for version header
-    if !hedl.contains("%VERSION:") {
+    if !hedl.contains("%V:") && !hedl.contains("%VERSION:") {
         return Err(crate::BenchError::ValidationError(
-            "Missing %VERSION header".to_string(),
+            "Missing %V: or %VERSION: header".to_string(),
         ));
     }
 
     // Check for struct definitions
-    if !hedl.contains("%STRUCT:") {
+    if !hedl.contains("%S:") && !hedl.contains("%STRUCT:") {
         return Err(crate::BenchError::ValidationError(
-            "Missing %STRUCT definition".to_string(),
+            "Missing %S: or %STRUCT: definition".to_string(),
         ));
     }
 
@@ -175,7 +176,7 @@ pub fn validate_roundtrip(hedl: &str) -> Result<()> {
 /// Complexity score (higher = more complex).
 #[must_use]
 pub fn estimate_complexity_score(hedl: &str) -> usize {
-    let nest_count = hedl.matches("%NEST").count() * 10;
+    let nest_count = (hedl.matches("%NEST").count() + hedl.matches("%N:").count()) * 10;
     let ref_count = hedl.matches('@').count();
     let ditto_count = hedl.matches('^').count();
     let line_count = hedl.lines().count();

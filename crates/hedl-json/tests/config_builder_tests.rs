@@ -55,7 +55,8 @@ fn test_from_json_config_default_values() {
     assert_eq!(config.max_array_size, Some(DEFAULT_MAX_ARRAY_SIZE));
     assert_eq!(config.max_object_size, Some(DEFAULT_MAX_OBJECT_SIZE));
     assert_eq!(config.max_string_length, Some(DEFAULT_MAX_STRING_LENGTH));
-    assert_eq!(config.version, (1, 0));
+    // v2.0 is now the default version for new documents
+    assert_eq!(config.version, (2, 0));
     // Default is strict validation (Reject invalid surrogates)
     assert!(matches!(config.surrogate_policy, SurrogatePolicy::Reject));
 }

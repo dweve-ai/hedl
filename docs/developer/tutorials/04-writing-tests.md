@@ -43,7 +43,7 @@ This tutorial covers HEDL's testing practices:
 
 ### Example: Testing a Parser Function
 
-File: `crates/hedl-core/src/lex.rs`
+File: `crates/hedl-core/src/lex/mod.rs`
 
 ```rust
 use hedl_core::lex::{LexError, Reference, is_valid_type_name, is_valid_id_token};
@@ -188,7 +188,9 @@ use hedl_c14n::canonicalize;
 
 #[test]
 fn test_round_trip_simple_document() {
-    let hedl = r#"%VERSION: 1.0
+    let hedl = r#"%V:2.0
+%NULL:~
+%QUOTE:"
 ---
 name: Alice
 age: 30
@@ -207,7 +209,7 @@ active: true
 
 #[test]
 fn test_round_trip_preserves_types() {
-    let hedl = b"%VERSION: 1.0\n---\nint: 42\nfloat: 3.14\nbool: true\nstring: hello\nnull: ~\n";
+    let hedl = b"%V:2.0\n---\nint: 42\nfloat: 3.14\nbool: true\nstring: hello\nnull: ~\n";
 
     let doc1 = parse(hedl).unwrap();
     let json = to_json(&doc1, &Default::default()).unwrap();
@@ -223,7 +225,7 @@ fn test_round_trip_preserves_types() {
 
 #[test]
 fn test_cross_format_conversion() {
-    let hedl = b"%VERSION: 1.0\n---\nuser:\n  name: Alice\n  email: alice@example.com\n";
+    let hedl = b"%V:2.0\n---\nuser:\n  name: Alice\n  email: alice@example.com\n";
 
     let doc = parse(hedl).unwrap();
 
@@ -288,7 +290,7 @@ proptest! {
     // Property: Valid identifiers always parse
     #[test]
     fn test_valid_identifier_parses(id in arb_identifier()) {
-        let hedl = format!("%VERSION: 1.0\n---\n{}: value", id);
+        let hedl = format!("%V:2.0\n---\n{}: value", id);
         let result = parse(hedl.as_bytes());
         assert!(result.is_ok(), "Failed to parse valid identifier: {}", id);
     }
@@ -299,7 +301,7 @@ proptest! {
         key in arb_identifier(),
         value in arb_value()
     ) {
-        let hedl1 = format!("%VERSION: 1.0\n---\n{}: {}", key, value);
+        let hedl1 = format!("%V:2.0\n---\n{}: {}", key, value);
 
         if let Ok(doc1) = parse(hedl1.as_bytes()) {
             if let Ok(canon1) = canonicalize(&doc1) {
@@ -319,7 +321,7 @@ proptest! {
         count in 0usize..10,
         keys in prop::collection::vec(arb_identifier(), 0..10)
     ) {
-        let mut hedl = String::from("%VERSION: 1.0\n---\n");
+        let mut hedl = String::from("%V:2.0\n---\n");
         for (i, key) in keys.iter().enumerate().take(count) {
             hedl.push_str(&format!("{}: value{}\n", key, i));
         }
@@ -346,7 +348,7 @@ fn arb_document_with_depth(max_depth: usize) -> BoxedStrategy<String> {
             0..5
         )
         .prop_map(|attrs| {
-            let mut hedl = String::from("%VERSION: 1.0\n---\n");
+            let mut hedl = String::from("%V:2.0\n---\n");
             hedl.push_str(&attrs.into_iter()
                 .map(|(k, v)| format!("{}: {}", k, v))
                 .collect::<Vec<_>>()
@@ -364,7 +366,7 @@ fn arb_document_with_depth(max_depth: usize) -> BoxedStrategy<String> {
             )
         )
         .prop_map(|(attrs, children)| {
-            let mut hedl = String::from("%VERSION: 1.0\n---\n");
+            let mut hedl = String::from("%V:2.0\n---\n");
             for (k, v) in attrs {
                 hedl.push_str(&format!("{}: {}\n", k, v));
             }
@@ -421,7 +423,7 @@ use hedl_core::{parse, HedlError, HedlErrorKind};
 #[test]
 fn test_error_max_depth_exceeded() {
     // Create deeply nested structure beyond limit
-    let mut hedl = String::from("%VERSION: 1.0\n---\nroot:\n");
+    let mut hedl = String::from("%V:2.0\n---\nroot:\n");
     for i in 0..150 {
         hedl.push_str(&"  ".repeat(i + 1));
         hedl.push_str(&format!("level{}:\n", i));
@@ -441,7 +443,7 @@ fn test_error_invalid_utf8() {
 
 #[test]
 fn test_error_unclosed_quote() {
-    let hedl = b"%VERSION: 1.0\n---\nname: \"Alice";
+    let hedl = b"%V:2.0\n---\nname: \"Alice";
     let result = parse(hedl);
     assert!(result.is_err());
 
@@ -451,7 +453,7 @@ fn test_error_unclosed_quote() {
 
 #[test]
 fn test_error_schema_mismatch() {
-    let hedl = b"%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith, extra_field\n";
+    let hedl = b"%V:2.0\n%S:User:[id,name]\n---\nusers:@User\n |alice, Alice Smith, extra_field\n";
     let result = parse(hedl);
     assert!(result.is_err());
 }
@@ -480,8 +482,7 @@ crates/hedl-core/
 │   └── validation_rules_tests.rs       # Validation rule tests
 └── fuzz/
     └── fuzz_targets/
-        ├── parse.rs
-        └── lex.rs
+        └── parse.rs
 ```
 
 ### Test Utilities
@@ -541,7 +542,7 @@ For snapshot testing:
 ```rust
 #[test]
 fn test_json_output_format() {
-    let doc = parse(b"%VERSION: 1.0\n---\nname: Alice\nage: 30\n").unwrap();
+    let doc = parse(b"%V:2.0\n---\nname: Alice\nage: 30\n").unwrap();
     let json = to_json(&doc).unwrap();
 
     // Compare against golden file

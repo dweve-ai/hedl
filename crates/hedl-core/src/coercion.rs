@@ -353,6 +353,34 @@ pub fn coerce_with_config(
             }
         }
 
+        // List coercion: coerce each element
+        ExpectedType::List(element_type) => {
+            if let Value::List(items) = &value {
+                let mut coerced_items = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    match coerce_with_config(item.clone(), element_type, config) {
+                        CoercionResult::Matched(v) | CoercionResult::Coerced(v) => {
+                            coerced_items.push(v);
+                        }
+                        CoercionResult::Failed { reason, .. } => {
+                            return CoercionResult::Failed {
+                                expected: expected.clone(),
+                                reason: format!("list element coercion failed: {}", reason),
+                                value,
+                            };
+                        }
+                    }
+                }
+                CoercionResult::Coerced(Value::List(Box::new(coerced_items)))
+            } else {
+                CoercionResult::Failed {
+                    expected: expected.clone(),
+                    reason: format!("cannot coerce {} to List", describe_value_type(&value)),
+                    value,
+                }
+            }
+        }
+
         // Types that don't support coercion
         ExpectedType::Tensor { .. } | ExpectedType::Reference { .. } | ExpectedType::Expression => {
             CoercionResult::Failed {
@@ -566,7 +594,7 @@ fn coerce_to_string_with_config(value: Value, config: &CoercionConfig) -> Coerci
             Value::Float(f) => f.to_string().into_boxed_str(),
             Value::String(s) => return CoercionResult::Matched(Value::String(s.clone())),
             Value::Reference(r) => r.to_ref_string().into_boxed_str(),
-            Value::Expression(_) | Value::Tensor(_) => {
+            Value::Expression(_) | Value::Tensor(_) | Value::List(_) => {
                 return CoercionResult::Failed {
                     expected: ExpectedType::String,
                     reason: format!("cannot coerce {} to String", describe_value_type(&value)),
@@ -683,6 +711,7 @@ fn describe_value_type(value: &Value) -> &'static str {
         Value::Reference(_) => "Reference",
         Value::Expression(_) => "Expression",
         Value::Tensor(_) => "Tensor",
+        Value::List(_) => "List",
     }
 }
 

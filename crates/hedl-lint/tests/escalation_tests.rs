@@ -123,7 +123,7 @@ fn test_config_escalation_affects_warnings() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let ref_val = Value::Reference(Reference::local("some_id"));
     doc.root.insert("ref".to_string(), Item::Scalar(ref_val));
 
@@ -146,7 +146,7 @@ fn test_config_escalation_does_not_affect_hints() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let list = MatrixList::new("Empty", vec!["id".to_string()]);
     doc.root.insert("empty".to_string(), Item::List(list));
 
@@ -220,7 +220,7 @@ fn test_min_severity_hint() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let list = MatrixList::new("Empty", vec!["id".to_string()]);
     doc.root.insert("empty".to_string(), Item::List(list));
 
@@ -243,7 +243,7 @@ fn test_min_severity_warning() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let list = MatrixList::new("Empty", vec!["id".to_string()]);
     doc.root.insert("empty".to_string(), Item::List(list));
 
@@ -266,7 +266,7 @@ fn test_min_severity_error() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let ref_val = Value::Reference(Reference::local("id"));
     doc.root.insert("ref".to_string(), Item::Scalar(ref_val));
 
@@ -291,7 +291,7 @@ fn test_min_severity_with_escalation() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let ref_val = Value::Reference(Reference::local("id"));
     doc.root.insert("ref".to_string(), Item::Scalar(ref_val));
 
@@ -325,7 +325,7 @@ fn test_diagnostic_limit_custom() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     // Create many violations
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
     for i in 0..100 {
@@ -361,7 +361,7 @@ fn test_diagnostic_limit_zero() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let list = MatrixList::new("Empty", vec!["id".to_string()]);
     doc.root.insert("empty".to_string(), Item::List(list));
 
@@ -380,7 +380,7 @@ fn test_diagnostic_limit_exactly_reached() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
     for i in 0..10 {
         list.add_row(Node::new("Test", format!("{i}"), vec![]));
@@ -493,7 +493,7 @@ fn test_config_validation_boundary_rule_id_length() {
 fn test_diagnostics_sorted_by_severity() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create violations of different severities
     let list = MatrixList::new("Empty", vec!["id".to_string()]);
@@ -557,7 +557,7 @@ fn test_has_errors_mixed_with_escalation() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
     let ref_val = Value::Reference(Reference::local("id"));
     doc.root.insert("ref".to_string(), Item::Scalar(ref_val));
 
@@ -705,7 +705,7 @@ fn test_custom_rule_error() {
     let mut runner = LintRunner::with_rules(config, vec![]);
     runner.add_rule(Box::new(AlwaysErrorRule));
 
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let diagnostics = runner.run(&doc);
 
     assert!(runner.has_errors(&diagnostics));
@@ -719,7 +719,7 @@ fn test_custom_rule_warning_escalation() {
     let mut runner = LintRunner::with_rules(config, vec![]);
     runner.add_rule(Box::new(AlwaysWarningRule));
 
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let diagnostics = runner.run(&doc);
 
     assert!(runner.has_errors(&diagnostics));
@@ -733,7 +733,7 @@ fn test_custom_rule_disabled() {
     let mut runner = LintRunner::with_rules(config, vec![]);
     runner.add_rule(Box::new(AlwaysErrorRule));
 
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let diagnostics = runner.run(&doc);
 
     assert!(!runner.has_errors(&diagnostics));
@@ -747,7 +747,7 @@ fn test_custom_rule_disabled() {
 fn test_multiple_rules_all_enabled() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
     list.add_row(Node::new("Test", "a", vec![])); // Short ID
@@ -773,7 +773,7 @@ fn test_multiple_rules_some_disabled() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
     list.add_row(Node::new("Test", "a", vec![]));
@@ -811,7 +811,7 @@ fn test_multiple_rules_all_escalated() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     doc.structs
         .insert("Unused".to_string(), vec!["id".to_string()]);
@@ -919,7 +919,7 @@ fn test_diagnostic_display_with_suggestion() {
 
 #[test]
 fn test_lint_function() {
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let diagnostics = lint(&doc);
     assert!(diagnostics.is_empty());
 }
@@ -929,7 +929,7 @@ fn test_lint_with_config_function() {
     let mut config = LintConfig::default();
     config.disable_rule("id-naming");
 
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let diagnostics = lint_with_config(&doc, config);
     assert!(diagnostics.is_empty());
 }
@@ -941,7 +941,7 @@ fn test_lint_with_config_function() {
 #[test]
 fn test_empty_document() {
     let runner = LintRunner::new(LintConfig::default());
-    let doc = Document::new((1, 0));
+    let doc = Document::new((2, 0));
     let diagnostics = runner.run(&doc);
     assert!(diagnostics.is_empty());
 }
@@ -950,7 +950,7 @@ fn test_empty_document() {
 fn test_deeply_nested_objects() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create nested structure
     let mut innermost = BTreeMap::new();
@@ -981,7 +981,7 @@ fn test_deeply_nested_objects() {
 fn test_unicode_in_ids() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
     list.add_row(Node::new("Test", "user_alice_你好", vec![]));
@@ -1001,7 +1001,7 @@ fn test_unicode_in_ids() {
 fn test_very_long_id() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     let long_id = "user_".to_string() + &"a".repeat(1000);
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
@@ -1064,7 +1064,7 @@ fn test_lint_runner_thread_safe() {
     for _ in 0..4 {
         let runner = Arc::clone(&runner);
         let handle = thread::spawn(move || {
-            let doc = Document::new((1, 0));
+            let doc = Document::new((2, 0));
             runner.run(&doc)
         });
         handles.push(handle);
@@ -1089,7 +1089,7 @@ fn test_many_violations() {
 
     let runner = LintRunner::new(config);
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     // Create many violations
     let mut list = MatrixList::new("Test", vec!["id".to_string()]);
@@ -1108,7 +1108,7 @@ fn test_many_violations() {
 fn test_many_empty_lists() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     for i in 0..50 {
         let list = MatrixList::new(format!("Type{i}"), vec!["id".to_string()]);
@@ -1128,7 +1128,7 @@ fn test_many_empty_lists() {
 fn test_many_unused_schemas() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     for i in 0..50 {
         doc.structs
@@ -1148,7 +1148,7 @@ fn test_many_unused_schemas() {
 fn test_many_unqualified_references() {
     let runner = LintRunner::new(LintConfig::default());
 
-    let mut doc = Document::new((1, 0));
+    let mut doc = Document::new((2, 0));
 
     for i in 0..50 {
         let ref_val = Value::Reference(Reference::local(format!("id{i}")));

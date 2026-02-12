@@ -19,8 +19,8 @@
 
 use crate::error::McpResult;
 use crate::protocol::{CallToolResult, Content};
-use crate::tools::helpers::{estimate_tokens, parse_args, validate_input_size};
-use crate::tools::json_utils::{doc_schema_for_type, node_to_json};
+use crate::tools::argument_parsing::{estimate_tokens, parse_args, validate_input_size};
+use crate::tools::json_serialization::{doc_schema_for_type, node_to_json};
 use crate::tools::types::{QueryArgs, StatsArgs, MAX_INPUT_SIZE};
 use hedl_core::{parse, Item, Node};
 use hedl_json::{to_json_value, ToJsonConfig};
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn test_hedl_stats_basic() {
         let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice Smith\n";
+            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice Smith\n";
         let args = json!({ "hedl": hedl });
         let result = execute_hedl_stats(Some(args)).unwrap();
 
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_hedl_stats_shows_savings() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name, email]\n---\nusers: @User\n  | alice, Alice Smith, alice@example.com\n  | bob, Bob Jones, bob@example.com\n  | charlie, Charlie Brown, charlie@example.com\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name, email]\n---\nusers:@User\n | alice, Alice Smith, alice@example.com\n | bob, Bob Jones, bob@example.com\n | charlie, Charlie Brown, charlie@example.com\n";
         let args = json!({ "hedl": hedl });
         let result = execute_hedl_stats(Some(args)).unwrap();
 
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_hedl_query_all_entities() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n";
         let args = json!({ "hedl": hedl });
         let result = execute_hedl_query(Some(args)).unwrap();
 
@@ -260,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_hedl_query_by_type() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nusers: @User\n  | alice, Alice\nproducts: @Product\n  | widget, Widget\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n%STRUCT: Product: [id, title]\n---\nusers:@User\n | alice, Alice\nproducts:@Product\n | widget, Widget\n";
         let args = json!({ "hedl": hedl, "type_name": "User" });
         let result = execute_hedl_query(Some(args)).unwrap();
 
@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_hedl_query_by_id() {
-        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n  | bob, Bob\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n | bob, Bob\n";
         let args = json!({ "hedl": hedl, "id": "alice" });
         let result = execute_hedl_query(Some(args)).unwrap();
 
@@ -290,8 +290,7 @@ mod tests {
 
     #[test]
     fn test_hedl_query_no_matches() {
-        let hedl =
-            "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n";
+        let hedl = "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers:@User\n | alice, Alice\n";
         let args = json!({ "hedl": hedl, "id": "nonexistent" });
         let result = execute_hedl_query(Some(args)).unwrap();
 

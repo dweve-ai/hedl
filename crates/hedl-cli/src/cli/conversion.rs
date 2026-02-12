@@ -67,7 +67,8 @@ pub enum ConversionCommands {
 
     /// Convert JSON to HEDL
     ///
-    /// Converts a JSON file to HEDL format.
+    /// Converts a JSON file to HEDL format. Foreign key relationships are
+    /// automatically detected and converted to nested hierarchies.
     FromJson {
         /// Input JSON file
         #[arg(value_name = "FILE")]

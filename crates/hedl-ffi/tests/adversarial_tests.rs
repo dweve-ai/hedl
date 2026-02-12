@@ -31,7 +31,7 @@ use std::ptr;
 // =============================================================================
 
 fn valid_hedl_cstring() -> CString {
-    CString::new("%VERSION: 1.0\n---\nkey: value").unwrap()
+    CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value").unwrap()
 }
 
 // =============================================================================
@@ -40,6 +40,7 @@ fn valid_hedl_cstring() -> CString {
 
 #[test]
 fn test_invalid_utf8_single_byte() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Invalid UTF-8: 0xFF is never valid
         let invalid = [0xFFu8, 0x00];
@@ -52,6 +53,7 @@ fn test_invalid_utf8_single_byte() {
 
 #[test]
 fn test_invalid_utf8_overlong_encoding() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Overlong encoding of '/' (0xC0 0xAF instead of 0x2F)
         let overlong = [0xC0u8, 0xAF, 0x00];
@@ -64,6 +66,7 @@ fn test_invalid_utf8_overlong_encoding() {
 
 #[test]
 fn test_invalid_utf8_truncated_sequence() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Start of 3-byte sequence (0xE0) followed by null terminator
         let truncated = [0xE0u8, 0x00];
@@ -76,6 +79,7 @@ fn test_invalid_utf8_truncated_sequence() {
 
 #[test]
 fn test_invalid_utf8_surrogate_half() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // UTF-8 encoding of surrogate half (U+D800, invalid in UTF-8)
         let surrogate = [0xEDu8, 0xA0, 0x80, 0x00];
@@ -88,6 +92,7 @@ fn test_invalid_utf8_surrogate_half() {
 
 #[test]
 fn test_invalid_utf8_continuation_without_start() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Continuation bytes without start byte
         let orphan = [0x80u8, 0x80, 0x80, 0x00];
@@ -100,6 +105,7 @@ fn test_invalid_utf8_continuation_without_start() {
 
 #[test]
 fn test_invalid_utf8_out_of_range() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Code point beyond U+10FFFF (4-byte encoding of invalid value)
         let beyond = [0xF4u8, 0x90, 0x80, 0x80, 0x00];
@@ -116,6 +122,7 @@ fn test_invalid_utf8_out_of_range() {
 
 #[test]
 fn test_empty_input_with_explicit_length() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let empty = CString::new("").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -130,6 +137,7 @@ fn test_empty_input_with_explicit_length() {
 
 #[test]
 fn test_input_length_zero_with_content() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let content = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -144,6 +152,7 @@ fn test_input_length_zero_with_content() {
 
 #[test]
 fn test_input_length_shorter_than_content() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let content = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -157,6 +166,7 @@ fn test_input_length_shorter_than_content() {
 
 #[test]
 fn test_input_length_negative_one_null_terminated() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let content = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -169,6 +179,7 @@ fn test_input_length_negative_one_null_terminated() {
 
 #[test]
 fn test_input_length_exact() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let content = valid_hedl_cstring();
         let len = content.as_bytes().len() as c_int;
@@ -186,6 +197,7 @@ fn test_input_length_exact() {
 
 #[test]
 fn test_malformed_version_missing_colon() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let bad = CString::new("%VERSION 1.0\n---\nkey: value").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -199,8 +211,9 @@ fn test_malformed_version_missing_colon() {
 
 #[test]
 fn test_malformed_version_invalid_number() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let bad = CString::new("%VERSION: abc.xyz\n---\nkey: value").unwrap();
+        let bad = CString::new("%V:abc.xyz\n---\nkey: value").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(bad.as_ptr(), -1, 0, &mut doc);
         assert_ne!(result, HEDL_OK, "Invalid version should fail");
@@ -210,11 +223,12 @@ fn test_malformed_version_invalid_number() {
 
 #[test]
 fn test_deeply_nested_structure() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // Create deeply nested structure
-        let mut nested = String::from("%VERSION: 1.0\n---\nroot:\n");
+        let mut nested = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nroot:\n");
         for i in 0..100 {
-            nested.push_str(&format!("{}level{}:\n", "  ".repeat(i + 1), i));
+            nested.push_str(&format!("{}level{}:\n", " ".repeat(i + 1), i));
         }
         let cstr = CString::new(nested).unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -228,10 +242,11 @@ fn test_deeply_nested_structure() {
 
 #[test]
 fn test_very_long_key() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // 10KB key name
         let long_key = "k".repeat(10_000);
-        let content = format!("%VERSION: 1.0\n---\n{long_key}: value");
+        let content = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n{long_key}: value");
         let cstr = CString::new(content).unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(cstr.as_ptr(), -1, 0, &mut doc);
@@ -244,10 +259,11 @@ fn test_very_long_key() {
 
 #[test]
 fn test_very_long_value() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // 100KB value
         let long_value = "v".repeat(100_000);
-        let content = format!("%VERSION: 1.0\n---\nkey: {long_value}");
+        let content = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: {long_value}");
         let cstr = CString::new(content).unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(cstr.as_ptr(), -1, 0, &mut doc);
@@ -260,9 +276,10 @@ fn test_very_long_value() {
 
 #[test]
 fn test_many_keys() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
         // 10,000 keys
-        let mut content = String::from("%VERSION: 1.0\n---\n");
+        let mut content = String::from("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\n");
         for i in 0..10_000 {
             content.push_str(&format!("key{i}: value{i}\n"));
         }
@@ -282,9 +299,10 @@ fn test_many_keys() {
 
 #[test]
 fn test_embedded_null_character() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Create input with embedded null (requires explicit length)
-        let input = b"%VERSION: 1.0\n---\nkey: val\x00ue";
+        let input = b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: val\x00ue";
         let mut doc: *mut HedlDocument = ptr::null_mut();
         // Use explicit length to include the null
         let result = hedl_parse(
@@ -302,9 +320,11 @@ fn test_embedded_null_character() {
 
 #[test]
 fn test_control_characters() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Various control characters
-        let input = CString::new("%VERSION: 1.0\n---\nkey: \x01\x02\x03\x04\x05").unwrap();
+        let input =
+            CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: \x01\x02\x03\x04\x05").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
         // May succeed or fail
@@ -316,14 +336,12 @@ fn test_control_characters() {
 
 #[test]
 fn test_unicode_bom() {
+    // SAFETY: Unsafe operation required for FFI boundary
     unsafe {
-        // UTF-8 BOM followed by HEDL
-        let input = [
-            0xEFu8, 0xBB, 0xBF, // UTF-8 BOM
-            b'%', b'V', b'E', b'R', b'S', b'I', b'O', b'N', b':', b' ', b'1', b'.', b'0', b'\n',
-            b'-', b'-', b'-', b'\n', b'k', b'e', b'y', b':', b' ', b'v', b'a', b'l', b'u', b'e',
-            0x00,
-        ];
+        // UTF-8 BOM followed by HEDL v2.0
+        let mut input_vec: Vec<u8> = vec![0xEFu8, 0xBB, 0xBF]; // UTF-8 BOM
+        input_vec.extend_from_slice(b"%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\x00");
+        let input = input_vec;
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr().cast::<c_char>(), -1, 0, &mut doc);
         // May succeed or fail depending on BOM handling
@@ -335,9 +353,12 @@ fn test_unicode_bom() {
 
 #[test]
 fn test_unicode_codepoints() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Various Unicode characters
-        let input = CString::new("%VERSION: 1.0\n---\nkey: 日本語 中文 한국어 العربية").unwrap();
+        let input =
+            CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: 日本語 中文 한국어 العربية")
+                .unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
         assert_eq!(result, HEDL_OK, "Should handle Unicode content");
@@ -348,8 +369,9 @@ fn test_unicode_codepoints() {
 
 #[test]
 fn test_emoji() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = CString::new("%VERSION: 1.0\n---\nkey: 🚀🎉💯🔥").unwrap();
+        let input = CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: 🚀🎉💯🔥").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
         assert_eq!(result, HEDL_OK, "Should handle emoji");
@@ -360,10 +382,13 @@ fn test_emoji() {
 
 #[test]
 fn test_zero_width_characters() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Zero-width space, zero-width joiner, etc.
-        let input =
-            CString::new("%VERSION: 1.0\n---\nkey: a\u{200B}b\u{200C}c\u{200D}d\u{FEFF}e").unwrap();
+        let input = CString::new(
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: a\u{200B}b\u{200C}c\u{200D}d\u{FEFF}e",
+        )
+        .unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
         // Should handle zero-width characters
@@ -379,6 +404,7 @@ fn test_zero_width_characters() {
 
 #[test]
 fn test_diagnostics_negative_index() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -399,6 +425,7 @@ fn test_diagnostics_negative_index() {
 
 #[test]
 fn test_diagnostics_max_int_index() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -422,6 +449,7 @@ fn test_diagnostics_max_int_index() {
 
 #[test]
 fn test_diagnostics_severity_negative_index() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -444,6 +472,7 @@ fn test_diagnostics_severity_negative_index() {
 
 #[test]
 fn test_version_extraction_valid() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -453,7 +482,7 @@ fn test_version_extraction_valid() {
         let mut minor: c_int = -1;
         let result = hedl_get_version(doc, &mut major, &mut minor);
         assert_eq!(result, HEDL_OK);
-        assert_eq!(major, 1);
+        assert_eq!(major, 2);
         assert_eq!(minor, 0);
 
         hedl_free_document(doc);
@@ -466,8 +495,9 @@ fn test_version_extraction_valid() {
 
 #[test]
 fn test_strict_mode_disabled() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = CString::new("%VERSION: 1.0\n---\nkey: value").unwrap();
+        let input = CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
         assert_eq!(result, HEDL_OK);
@@ -477,8 +507,9 @@ fn test_strict_mode_disabled() {
 
 #[test]
 fn test_strict_mode_enabled() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        let input = CString::new("%VERSION: 1.0\n---\nkey: value").unwrap();
+        let input = CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 1, &mut doc);
         assert_eq!(result, HEDL_OK);
@@ -488,10 +519,11 @@ fn test_strict_mode_enabled() {
 
 #[test]
 fn test_strict_mode_nonzero_values() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Test various non-zero strict values
         for strict_val in [1, 2, 100, -1, i32::MAX] {
-            let input = CString::new("%VERSION: 1.0\n---\nkey: value").unwrap();
+            let input = CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value").unwrap();
             let mut doc: *mut HedlDocument = ptr::null_mut();
             let result = hedl_parse(input.as_ptr(), -1, strict_val, &mut doc);
             // Should not crash regardless of strict value
@@ -508,6 +540,7 @@ fn test_strict_mode_nonzero_values() {
 
 #[test]
 fn test_validate_valid_input() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let result = hedl_validate(input.as_ptr(), -1, 0);
@@ -517,6 +550,7 @@ fn test_validate_valid_input() {
 
 #[test]
 fn test_validate_invalid_input() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = CString::new("not valid hedl").unwrap();
         let result = hedl_validate(input.as_ptr(), -1, 0);
@@ -526,6 +560,7 @@ fn test_validate_invalid_input() {
 
 #[test]
 fn test_validate_null_input() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let result = hedl_validate(ptr::null(), -1, 0);
         assert_eq!(result, HEDL_ERR_NULL_PTR);
@@ -538,6 +573,7 @@ fn test_validate_null_input() {
 
 #[test]
 fn test_canonicalize_valid() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -559,9 +595,11 @@ fn test_canonicalize_valid() {
 
 #[test]
 fn test_schema_count_valid() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input =
-            CString::new("%VERSION: 1.0\n%STRUCT: Person: [name, age]\n---\nkey: value").unwrap();
+            CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:Person:[name, age]\n---\nkey: value")
+                .unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr(), -1, 0, &mut doc);
 
@@ -574,10 +612,12 @@ fn test_schema_count_valid() {
 
 #[test]
 fn test_alias_count_valid() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
-        // Correct ALIAS syntax: %ALIAS: %key: "value"
+        // Correct ALIAS syntax: %A:%key:"value"
         let input =
-            CString::new("%VERSION: 1.0\n%ALIAS: %short: \"long_name\"\n---\nkey: value").unwrap();
+            CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n%A:%short:\"long_name\"\n---\nkey: value")
+                .unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(input.as_ptr(), -1, 0, &mut doc);
 
@@ -594,6 +634,7 @@ fn test_alias_count_valid() {
 
 #[test]
 fn test_root_item_count_valid() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -616,8 +657,9 @@ fn test_concurrent_parsing() {
 
     let handles: Vec<_> = (0..10)
         .map(|i| {
+            // SAFETY: FFI function requires raw pointer for output parameter
             thread::spawn(move || unsafe {
-                let content = format!("%VERSION: 1.0\n---\nthread{i}: value{i}");
+                let content = format!("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nthread{i}: value{i}");
                 let cstr = CString::new(content).unwrap();
                 let mut doc: *mut HedlDocument = ptr::null_mut();
                 let result = hedl_parse(cstr.as_ptr(), -1, 0, &mut doc);
@@ -645,6 +687,7 @@ fn test_concurrent_parsing() {
 
 #[test]
 fn test_error_message_after_failure() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         hedl_clear_error_threadsafe();
 
@@ -660,6 +703,7 @@ fn test_error_message_after_failure() {
 
 #[test]
 fn test_error_message_cleared_on_success() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // First cause an error
         let invalid = CString::new("not valid").unwrap();
@@ -681,6 +725,7 @@ fn test_error_message_cleared_on_success() {
 
 #[test]
 fn test_clear_error_threadsafe() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Cause an error
         let invalid = CString::new("invalid").unwrap();
@@ -712,6 +757,7 @@ fn test_thread_local_error_isolation() {
     let barrier = Arc::new(Barrier::new(2));
 
     let barrier1 = barrier.clone();
+    // SAFETY: FFI call with valid C-compatible types and checked pointers
     let handle1 = thread::spawn(move || unsafe {
         // Clear any previous error
         hedl_clear_error_threadsafe();
@@ -730,12 +776,13 @@ fn test_thread_local_error_isolation() {
     });
 
     let barrier2 = barrier.clone();
+    // SAFETY: FFI call with valid C-compatible types and checked pointers
     let handle2 = thread::spawn(move || unsafe {
         // Clear any previous error
         hedl_clear_error_threadsafe();
 
         // Parse successfully
-        let valid = CString::new("%VERSION: 1.0\n---\nkey: value").unwrap();
+        let valid = CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value").unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         let result = hedl_parse(valid.as_ptr(), -1, 0, &mut doc);
         assert_eq!(result, HEDL_OK);
@@ -760,6 +807,7 @@ fn test_thread_local_error_isolation() {
 
 #[test]
 fn test_free_string_null() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Should not crash
         hedl_free_string(ptr::null_mut());
@@ -768,6 +816,7 @@ fn test_free_string_null() {
 
 #[test]
 fn test_free_document_null() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Should not crash
         hedl_free_document(ptr::null_mut());
@@ -776,6 +825,7 @@ fn test_free_document_null() {
 
 #[test]
 fn test_free_diagnostics_null() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Should not crash
         hedl_free_diagnostics(ptr::null_mut());
@@ -784,6 +834,7 @@ fn test_free_diagnostics_null() {
 
 #[test]
 fn test_free_bytes_null() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Should not crash
         hedl_free_bytes(ptr::null_mut(), 0);
@@ -797,6 +848,7 @@ fn test_free_bytes_null() {
 
 #[test]
 fn test_lint_valid_document() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         let input = valid_hedl_cstring();
         let mut doc: *mut HedlDocument = ptr::null_mut();
@@ -818,10 +870,12 @@ fn test_lint_valid_document() {
 
 #[test]
 fn test_lint_iterate_all_diagnostics() {
+    // SAFETY: Testing FFI function with known-valid input
     unsafe {
         // Create document that might produce diagnostics
         let input =
-            CString::new("%VERSION: 1.0\n---\nkey: value\nunused_key: unused_value").unwrap();
+            CString::new("%V:2.0\n%NULL:~\n%QUOTE:\"\n---\nkey: value\nunused_key: unused_value")
+                .unwrap();
         let mut doc: *mut HedlDocument = ptr::null_mut();
         hedl_parse(input.as_ptr(), -1, 0, &mut doc);
 

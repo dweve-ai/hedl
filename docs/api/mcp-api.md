@@ -194,7 +194,7 @@ Read and parse HEDL files from a directory.
     "results": [
         {
             "file": "users.hedl",
-            "version": "1.0",
+            "version": "2.0",
             "schemas": ["User", "Product"],
             "aliases": 2,
             "nests": 3,
@@ -256,7 +256,7 @@ Query entities by type and/or ID with graph-aware lookups.
 {
     "name": "hedl_query",
     "arguments": {
-        "hedl": "%VERSION: 1.0\n...",
+        "hedl": "%V:2.0\n...",
         "type_name": "User",
         "id": "alice"
     }
@@ -298,13 +298,12 @@ Validate HEDL input and return detailed diagnostics.
 
 ### 4. `hedl_optimize`
 
-Convert JSON to optimized HEDL format (40-60% token savings).
+Convert JSON to optimized HEDL format (56% token savings).
 
 **Input Schema**:
 ```json
 {
     "json": "{...}",                  // Required: JSON content
-    "ditto": true,                    // Optional: Use ditto operator (default: true)
     "compact": false                  // Optional: Minimize whitespace (default: false)
 }
 ```
@@ -312,7 +311,7 @@ Convert JSON to optimized HEDL format (40-60% token savings).
 **Returns**:
 ```json
 {
-    "hedl": "%VERSION: 1.0\n%STRUCT: User: [id, name]\n---\nusers: @User\n  | alice, Alice\n",
+    "hedl": "%V:2.0\n%S:User:[id,name]\n---\nusers:@User\n |alice,Alice\n",
     "stats": {
         "json_tokens": 1000,
         "hedl_tokens": 450,
@@ -327,8 +326,7 @@ Convert JSON to optimized HEDL format (40-60% token savings).
 {
     "name": "hedl_optimize",
     "arguments": {
-        "json": "{\"users\": [{\"id\": \"alice\", \"name\": \"Alice\"}]}",
-        "ditto": true
+        "json": "{\"users\": [{\"id\": \"alice\", \"name\": \"Alice\"}]}"
     }
 }
 ```
@@ -375,14 +373,15 @@ Format HEDL to canonical form.
 **Input Schema**:
 ```json
 {
-    "hedl": "...",                    // Required: HEDL content
-    "ditto": true                     // Optional: Apply ditto optimization (default: true)
+    "hedl": "..."                     // Required: HEDL content
 }
 ```
 
 **Returns**:
 ```
-%VERSION: 1.0
+%V:2.0
+%NULL:~
+%QUOTE:"
 ...
 (Formatted HEDL content directly as text)
 ```
@@ -466,7 +465,7 @@ Convert other formats to HEDL.
 **Returns**:
 ```json
 {
-    "hedl": "%VERSION: 1.0\n...",
+    "hedl": "%V:2.0\n...",
     "entities": 150
 }
 ```
@@ -602,7 +601,7 @@ Execute multiple operations in a single request for better throughput.
 ```json
 {
     "name": "hedl-mcp",
-    "version": "1.2.0",
+    "version": "2.0.0",
     "protocol_version": "1.0"
 }
 ```
@@ -677,18 +676,18 @@ All tools return errors in a consistent format:
 
 **Error Codes** (JSON-RPC style):
 
-| Code | Name | Description |
+ |Code |Name |Description |
 |------|------|-------------|
-| -32001 | Parse | HEDL parsing failed |
-| -32002 | Io | File I/O error |
-| -32003 | PathTraversal | Path traversal attempt blocked |
-| -32004 | FileNotFound | File not found |
-| -32005 | ResourceLimit | Resource limit exceeded |
-| -32600 | InvalidRequest | Invalid request structure |
-| -32601 | ToolNotFound | Unknown tool name |
-| -32602 | InvalidArguments | Invalid tool arguments |
-| -32603 | ResourceNotFound | Resource not found |
-| -32700 | Json | JSON serialization error |
+ |-32001 |Parse |HEDL parsing failed |
+ |-32002 |Io |File I/O error |
+ |-32003 |PathTraversal |Path traversal attempt blocked |
+ |-32004 |FileNotFound |File not found |
+ |-32005 |ResourceLimit |Resource limit exceeded |
+ |-32600 |InvalidRequest |Invalid request structure |
+ |-32601 |ToolNotFound |Unknown tool name |
+ |-32602 |InvalidArguments |Invalid tool arguments |
+ |-32603 |ResourceNotFound |Resource not found |
+ |-32700 |Json |JSON serialization error |
 
 ---
 
@@ -704,7 +703,7 @@ async fn main() {
     let config = McpServerConfig {
         root_path: "/path/to/data".into(),
         name: "hedl-mcp".to_string(),
-        version: "1.2.0".to_string(),
+        version: "2.0.0".to_string(),
         rate_limit_burst: 200,        // Burst capacity
         rate_limit_per_second: 100,   // Sustained rate
         cache_size: 1000,
@@ -802,7 +801,7 @@ LLM can analyze the data structure and provide insights.
 }
 ```
 
-Reduce token usage by 40-60% before injecting into LLM context.
+Reduce token usage by 56% before injecting into LLM context.
 
 ---
 

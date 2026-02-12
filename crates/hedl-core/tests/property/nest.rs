@@ -38,15 +38,15 @@ proptest! {
         prop_assume!(parent_type != child_type);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type}: [id]\n%NEST: {parent_type} > {child_type}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type}:[id]\n%N:{parent_type}>{child_type}\n---\nvalue: 1\n"
         );
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 
         let parsed = result.unwrap();
-        let child_type_from_nest = parsed.get_child_type(&parent_type);
-        prop_assert_eq!(child_type_from_nest, Some(&child_type),
+        let child_types_from_nest = parsed.get_child_types(&parent_type);
+        prop_assert_eq!(child_types_from_nest, Some(&vec![child_type]),
             "NEST relationship not defined correctly");
     }
 
@@ -59,7 +59,7 @@ proptest! {
         prop_assume!(parent_type != child_type);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type}: [id]\n%NEST: {parent_type} > {child_type}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type}:[id]\n%N:{parent_type}>{child_type}\n---\nvalue: 1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -76,15 +76,15 @@ proptest! {
         prop_assume!(type1 != type2 && type2 != type3 && type1 != type3);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {type1}: [id]\n%STRUCT: {type2}: [id]\n%STRUCT: {type3}: [id]\n%NEST: {type1} > {type2}\n%NEST: {type2} > {type3}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{type1}:[id]\n%S:{type2}:[id]\n%S:{type3}:[id]\n%N:{type1}>{type2}\n%N:{type2}>{type3}\n---\nvalue: 1\n"
         );
 
         let result = parse(doc.as_bytes());
         prop_assert!(result.is_ok(), "Failed to parse multiple NEST: {:?}", result.err());
 
         let parsed = result.unwrap();
-        prop_assert_eq!(parsed.get_child_type(&type1), Some(&type2));
-        prop_assert_eq!(parsed.get_child_type(&type2), Some(&type3));
+        prop_assert_eq!(parsed.get_child_types(&type1), Some(&vec![type2.clone()]));
+        prop_assert_eq!(parsed.get_child_types(&type2), Some(&vec![type3]));
     }
 
     /// Property: NEST relationships are stored in document.
@@ -96,7 +96,7 @@ proptest! {
         prop_assume!(parent_type != child_type);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type}: [id]\n%NEST: {parent_type} > {child_type}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type}:[id]\n%N:{parent_type}>{child_type}\n---\nvalue: 1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -105,7 +105,7 @@ proptest! {
         let parsed = result.unwrap();
         prop_assert!(parsed.nests.contains_key(&parent_type),
             "NEST parent not in document");
-        prop_assert_eq!(parsed.nests.get(&parent_type), Some(&child_type),
+        prop_assert_eq!(parsed.nests.get(&parent_type), Some(&vec![child_type]),
             "NEST child not correct");
     }
 
@@ -129,7 +129,7 @@ proptest! {
             .join(", ");
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [{parent_fields}]\n%STRUCT: {child_type}: [{child_fields}]\n%NEST: {parent_type} > {child_type}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[{parent_fields}]\n%S:{child_type}:[{child_fields}]\n%N:{parent_type}>{child_type}\n---\nvalue: 1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -138,7 +138,7 @@ proptest! {
         let parsed = result.unwrap();
         prop_assert!(parsed.get_schema(&parent_type).is_some());
         prop_assert!(parsed.get_schema(&child_type).is_some());
-        prop_assert_eq!(parsed.get_child_type(&parent_type), Some(&child_type));
+        prop_assert_eq!(parsed.get_child_types(&parent_type), Some(&vec![child_type]));
     }
 
     /// Property: NEST with same parent and different children across documents.
@@ -152,7 +152,7 @@ proptest! {
 
         // First document with one child type
         let doc1 = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type1}: [id]\n%NEST: {parent_type} > {child_type1}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type1}:[id]\n%N:{parent_type}>{child_type1}\n---\nvalue: 1\n"
         );
 
         let result1 = parse(doc1.as_bytes());
@@ -160,7 +160,7 @@ proptest! {
 
         // Second document with different child type
         let doc2 = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type2}: [id]\n%NEST: {parent_type} > {child_type2}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type2}:[id]\n%N:{parent_type}>{child_type2}\n---\nvalue: 1\n"
         );
 
         let result2 = parse(doc2.as_bytes());
@@ -170,8 +170,8 @@ proptest! {
         let parsed1 = result1.unwrap();
         let parsed2 = result2.unwrap();
 
-        prop_assert_eq!(parsed1.get_child_type(&parent_type), Some(&child_type1));
-        prop_assert_eq!(parsed2.get_child_type(&parent_type), Some(&child_type2));
+        prop_assert_eq!(parsed1.get_child_types(&parent_type), Some(&vec![child_type1]));
+        prop_assert_eq!(parsed2.get_child_types(&parent_type), Some(&vec![child_type2]));
     }
 
     /// Property: Very long type names in NEST work.
@@ -187,7 +187,7 @@ proptest! {
         prop_assume!(parent_type != child_type);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type}: [id]\n%NEST: {parent_type} > {child_type}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type}:[id]\n%N:{parent_type}>{child_type}\n---\nvalue: 1\n"
         );
 
         let result = parse(doc.as_bytes());
@@ -195,7 +195,7 @@ proptest! {
             "Failed to parse NEST with long type names: {:?}", result.err());
 
         let parsed = result.unwrap();
-        prop_assert_eq!(parsed.get_child_type(&parent_type), Some(&child_type));
+        prop_assert_eq!(parsed.get_child_types(&parent_type), Some(&vec![child_type]));
     }
 
     /// Property: NEST declarations are parsed deterministically.
@@ -207,7 +207,7 @@ proptest! {
         prop_assume!(parent_type != child_type);
 
         let doc = format!(
-            "%VERSION: 1.0\n%STRUCT: {parent_type}: [id]\n%STRUCT: {child_type}: [id]\n%NEST: {parent_type} > {child_type}\n---\nvalue: 1\n"
+            "%V:2.0\n%NULL:~\n%QUOTE:\"\n%S:{parent_type}:[id]\n%S:{child_type}:[id]\n%N:{parent_type}>{child_type}\n---\nvalue: 1\n"
         );
 
         let result1 = parse(doc.as_bytes());

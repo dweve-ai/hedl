@@ -91,6 +91,7 @@ async fn setup_users_and_posts(graph: &Graph, user_count: usize, posts_per_user:
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_empty() {
     let graph = connect().await;
@@ -105,6 +106,7 @@ async fn test_batch_read_empty() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_single_node() {
     let graph = connect().await;
@@ -120,6 +122,7 @@ async fn test_batch_read_single_node() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_multiple_nodes() {
     let graph = connect().await;
@@ -134,6 +137,7 @@ async fn test_batch_read_multiple_nodes() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_missing_ids_handled() {
     let graph = connect().await;
@@ -158,6 +162,7 @@ async fn test_batch_read_missing_ids_handled() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_with_relationships() {
     let graph = connect().await;
@@ -181,6 +186,7 @@ async fn test_batch_read_with_relationships() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_with_relationships_from_posts() {
     let graph = connect().await;
@@ -203,6 +209,7 @@ async fn test_batch_read_with_relationships_from_posts() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_multi_label_batch_query() {
     let graph = connect().await;
@@ -235,6 +242,7 @@ async fn test_multi_label_batch_query() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_large_batch_read() {
     let graph = connect().await;
@@ -249,6 +257,7 @@ async fn test_large_batch_read() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_preserves_order() {
     let graph = connect().await;
@@ -275,6 +284,7 @@ async fn test_batch_read_preserves_order() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_with_custom_relationship_pattern() {
     let graph = connect().await;
@@ -306,6 +316,7 @@ async fn test_batch_read_with_custom_relationship_pattern() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j instance"]
 #[serial]
 async fn test_batch_read_non_existent_label() {
     let graph = connect().await;

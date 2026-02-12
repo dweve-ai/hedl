@@ -32,8 +32,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hedl_neo4j::{AsyncNeo4jClient, ToCypherConfig};
-//! use hedl_core::Document;
+//! use hedl_neo4j::AsyncNeo4jClient;
+//! use hedl_core::parse;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Connect to Neo4j
@@ -43,8 +43,15 @@
 //!     "password",
 //! ).await?;
 //!
-//! // Import HEDL document
-//! let doc: Document = todo!();
+//! // Parse and import HEDL document
+//! let hedl = r#"%V:2.0
+//! %NULL:~
+//! %QUOTE:"
+//! ---
+//! users:
+//!  |alice,Alice Smith
+//! "#;
+//! let doc = parse(hedl.as_bytes())?;
 //! client.import_document(&doc).await?;
 //! # Ok(())
 //! # }
@@ -417,12 +424,13 @@ impl AsyncNeo4jClient {
 
         // Separate schema operations from data operations
         // Neo4j forbids mixing schema modifications with write operations in the same transaction
-        let (schema_stmts, data_stmts): (Vec<_>, Vec<_>) = stmts.into_iter().partition(|s| {
-            matches!(
-                s.statement_type,
-                StatementType::Constraint | StatementType::Index
-            )
-        });
+        let (schema_stmts, data_stmts): (Vec<crate::CypherStatement>, Vec<crate::CypherStatement>) =
+            stmts.into_iter().partition(|s| {
+                matches!(
+                    s.statement_type,
+                    StatementType::Constraint | StatementType::Index
+                )
+            });
 
         // Execute schema statements outside transaction (each in its own implicit transaction)
         // Schema operations in Neo4j are auto-committed and cannot be part of explicit transactions

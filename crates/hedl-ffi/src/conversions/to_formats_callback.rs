@@ -55,10 +55,15 @@
 use crate::error::{clear_error, set_error};
 use crate::memory::is_valid_document_ptr;
 use crate::reentrancy::ReentrancyGuard;
-use crate::types::{
-    HedlDocument, HEDL_ERR_CSV, HEDL_ERR_JSON, HEDL_ERR_NEO4J, HEDL_ERR_NULL_PTR, HEDL_ERR_XML,
-    HEDL_ERR_YAML, HEDL_OK,
-};
+#[cfg(feature = "csv")]
+use crate::types::HEDL_ERR_CSV;
+#[cfg(feature = "neo4j")]
+use crate::types::HEDL_ERR_NEO4J;
+#[cfg(feature = "xml")]
+use crate::types::HEDL_ERR_XML;
+#[cfg(feature = "yaml")]
+use crate::types::HEDL_ERR_YAML;
+use crate::types::{HedlDocument, HEDL_ERR_JSON, HEDL_ERR_NULL_PTR, HEDL_OK};
 use std::os::raw::{c_char, c_int, c_void};
 
 // =============================================================================
@@ -80,14 +85,26 @@ pub type HedlOutputCallback =
 // =============================================================================
 
 /// Validate that a callback function pointer is not NULL
+///
+/// # Safety
+/// This function only checks if the function pointer is non-null.
+/// It cannot verify that the pointer points to a valid function.
+/// The caller must ensure the callback pointer was obtained from valid FFI.
 #[inline]
 unsafe fn is_valid_callback(callback: HedlOutputCallback) -> bool {
-    // Function pointers in Rust FFI can be checked by casting to usize
+    // SAFETY: Casting a function pointer to usize is safe and only
+    // allows us to check for NULL (address 0). We do not dereference the pointer.
     let callback_addr = callback as usize;
     callback_addr != 0
 }
 
 /// Helper to invoke callback with output data
+///
+/// # Safety
+/// The caller must ensure:
+/// - callback is a valid function pointer
+/// - user_data is valid for the callback's use (or NULL if unused)
+/// - The callback does not call back into HEDL functions (reentrancy check guards against this)
 #[inline]
 unsafe fn invoke_callback(output: &str, callback: HedlOutputCallback, user_data: *mut c_void) {
     // Enter callback context to detect reentrant FFI calls
@@ -100,6 +117,10 @@ unsafe fn invoke_callback(output: &str, callback: HedlOutputCallback, user_data:
         return;
     };
 
+    // SAFETY: We cast the Rust string slice pointer to C char pointer.
+    // The pointer is valid for the duration of this function call.
+    // We pass the exact length, so the callback can read len bytes safely.
+    // The callback contract requires it not to store this pointer.
     let data = output.as_ptr().cast::<c_char>();
     let len = output.len();
     callback(data, len, user_data);
