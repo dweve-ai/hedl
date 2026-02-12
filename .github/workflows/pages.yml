@@ -42,15 +42,18 @@ jobs:
         with:
           key: wasm-playground
 
-      - name: Install wasm-pack
-        run: cargo install wasm-pack
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.108
 
       - name: Build WASM package
         run: |
-          wasm-pack build crates/hedl-wasm \
+          cargo build --release --target wasm32-unknown-unknown \
+            --package hedl-wasm --features json,yaml,xml,csv
+          wasm-bindgen \
             --target web \
             --out-dir playground/pkg \
-            --features json,yaml,xml,csv
+            --typescript \
+            target/wasm32-unknown-unknown/release/hedl_wasm.wasm
 
       - name: Prepare playground directory
         run: |
