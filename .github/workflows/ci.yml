@@ -308,7 +308,7 @@ jobs:
             echo "No coverage files found"
             exit 0
           fi
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         if: hashFiles('lcov.info') != ''
         with:
           files: lcov.info
