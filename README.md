@@ -61,11 +61,11 @@ What if you could declare your structure once and then just send the data?
 %S:User:[id, name, email, role]
 ---
 users: @User
- |u1, Alice, alice@company.com, admin
- |u2, Bob, bob@company.com, user
- |u3, Carol, carol@company.com, user
- |u4, Dave, dave@company.com, user
- |u5, Eve, eve@company.com, user
+ |u1,Alice,alice@company.com,admin
+ |u2,Bob,bob@company.com,user
+ |u3,Carol,carol@company.com,user
+ |u4,Dave,dave@company.com,user
+ |u5,Eve,eve@company.com,user
 ```
 
 **Same data. 56% fewer tokens.**
@@ -236,18 +236,18 @@ HEDL isn't just about compression. It's about building better AI applications.
 %S:Product:[sku, name, price]
 ---
 products: @Product
- | ABC-123, Widget, 29.99
- | DEF-456, Gadget, not_a_price   # Error caught at parse time
+ |ABC-123,Widget,29.99
+ |DEF-456,Gadget,not_a_price   # Error caught at parse time
 ```
 
 **Type-Safe References** let you link entities without duplicating data:
 
 ```yaml
 users: @User
- | alice, Alice Smith, alice@company.com
+ |alice,Alice Smith,alice@company.com
 
 orders: @Order
- | ord-001, @User:alice, 2024-01-15, 299.99
+ |ord-001,@User:alice,2024-01-15,299.99
   #          ^^^^^^^^^^^^ validated at parse time
 ```
 
