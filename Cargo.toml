@@ -87,7 +87,7 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 serde_json_path = "0.7"
 serde_jsonrc = "0.1"
-toml = "0.9"
+toml = "1.0"
 
 # Format-specific
 quick-xml = { version = "0.39", features = ["serialize"] }
@@ -96,7 +96,7 @@ parquet = "57.0"
 arrow = "57.0"
 roxmltree = "0.21"
 string_cache = "0.9"
-jsonschema = "0.40"
+jsonschema = "0.42"
 
 # CLI
 clap = { version = "4.4", features = ["derive"] }
@@ -134,7 +134,7 @@ ureq = { version = "3.1", features = ["json"] }
 neo4rs = "0.9.0-rc"
 rusqlite = "0.38"
 duckdb = "1.1"
-polars = { version = "0.52", features = ["lazy", "sql"] }
+polars = { version = "0.53", features = ["lazy", "sql"] }
 
 # Tracing and logging
 tracing = "0.1"
@@ -170,7 +170,7 @@ mockall = "0.14"
 loom = "0.7"
 
 # Benchmarking utilities
-rand = "0.9.2"
+rand = "0.10.0"
 fake = { version = "4.4", features = ["derive"] }
 tiktoken-rs = "0.9"
 dhat = "0.3"
