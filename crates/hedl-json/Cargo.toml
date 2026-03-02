@@ -55,7 +55,7 @@ thiserror = { workspace = true }
 smallvec = { workspace = true }
 
 serde_json_path = { version = "0.7", optional = true }
-jsonschema = { version = "0.27", optional = true }
+jsonschema = { version = "0.44", optional = true }
 serde_jsonrc = { version = "0.1", optional = true }
 
 [dev-dependencies]
