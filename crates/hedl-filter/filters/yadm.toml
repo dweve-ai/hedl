@@ -1,0 +1,7 @@
+[filters.yadm]
+description = "Strip yadm status noise"
+match_command = "^yadm"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

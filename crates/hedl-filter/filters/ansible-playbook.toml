@@ -1,0 +1,16 @@
+[filters.ansible-playbook]
+description = "Strip Ansible task ok/changed noise"
+match_command = "^ansible-playbook"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*ok=",
+    "^\\s*changed=",
+    "^\\s*unreachable=",
+    "^\\s*failed=",
+    "^\\s*skipped=",
+    "^\\s*rescued=",
+    "^\\s*ignored=",
+    "^TASK \\[",
+    "^PLAY \\[",
+    "^\\s*$",
+]

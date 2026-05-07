@@ -1,0 +1,11 @@
+[filters.df]
+description = "Compact df output"
+match_command = "^df\\b"
+strip_lines_matching = [
+    "^Filesystem",
+    "^tmpfs",
+    "^devtmpfs",
+    "^udev",
+    "^overlay",
+    "^cgroup",
+]

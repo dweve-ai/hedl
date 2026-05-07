@@ -1,0 +1,6 @@
+[filters.gcc]
+description = "Strip GCC compilation progress"
+match_command = "^gcc\\b"
+strip_lines_matching = [
+    "^\\s*$",
+]

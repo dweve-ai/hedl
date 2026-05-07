@@ -1,0 +1,267 @@
+%V:2.0
+%NULL:~
+%QUOTE:"
+%S:Filter:[name, description, match_command, strip_ansi, truncate_lines_at, head_lines, tail_lines, max_lines, on_empty, filter_stderr]
+%S:LineRule:[id, filter_name, action, pattern]
+%S:ReplaceRule:[id, filter_name, pattern, replacement]
+%S:MatchRule:[id, filter_name, pattern, message, unless]
+%S:FilterTest:[id, filter_name, test_name, input, expected]
+---
+
+filters: @Filter
+ |ansible-playbook,Strip Ansible task ok/changed noise,^ansible-playbook,true,,,,,,false
+ |basedpyright,Strip basedpyright progress,^basedpyright,true,,,,,,false
+ |biome,Strip biome progress,^biome,true,,,,,,false
+ |brew-install,Strip Homebrew download progress,^brew\s+(install|upgrade|reinstall),true,,,,,,false
+ |bundle-install,Strip bundle install progress,^bundle\s+install,true,,,,,,false
+ |composer-install,Strip Composer download progress,^composer\s+(install|update|require),false,,,,,,false
+ |df,Compact df output,^df\b,false,,,,,,false
+ |du,Compact du output,^du\b,false,,30,,,,false
+ |fail2ban-client,Strip fail2ban status noise,^fail2ban-client,false,,,,,,false
+ |gcc,Strip GCC compilation progress,^gcc\b,false,,,,,,false
+ |gcloud,Strip gcloud progress and headers,^gcloud\b,true,,,,,,false
+ |gradle,Strip Gradle build progress,^gradle\b,true,,,,,,false
+ |hadolint,Strip hadolint noise,^hadolint,false,,,,,,false
+ |helm,Strip Helm install/upgrade progress,^helm\b,true,,,,,,false
+ |iptables,Strip iptables noise,^iptables,false,,,,,,false
+ |jira,Strip Jira CLI noise,^jira,true,,,,,,false
+ |jj,Strip jujutsu progress,^jj\b,true,,,,,,false
+ |jq,Strip jq output noise,^jq\b,false,,100,,,,false
+ |just,Strip just progress,^just\b,true,,,,,,false
+ |liquibase,Strip Liquibase banner and progress,^liquibase,true,,,,,,false
+ |make,Strip make entering/leaving directory noise,^make\b,false,,,,,,false
+ |markdownlint,Strip markdownlint noise,^markdownlint,false,,,,,,false
+ |mise,Strip mise progress,^mise,true,,,,,,false
+ |mix-compile,Strip mix compile progress,^mix\s+compile,true,,,,,,false
+ |mvn-build,Strip Maven download and progress,^mvn\b,true,,,,,,false
+ |nx,Strip nx build progress,^nx\b,true,,,,,,false
+ |ollama,Strip ollama progress,^ollama,true,,,,,,false
+ |oxlint,Strip oxlint progress,^oxlint,true,,,,,,false
+ |ping,Compact ping output,^ping\b,false,,,,,,false
+ |pio-run,Strip PlatformIO build progress,^pio\s+run,true,,,,,,false
+ |poetry-install,Strip poetry install progress,^poetry\s+(install|update|add),true,,,,,,false
+ |pre-commit,Strip pre-commit hook noise,^pre-commit,true,,,,,,false
+ |quarto-render,Strip Quarto render progress,^quarto\s+render,true,,,,,,false
+ |rsync,"Strip rsync progress, keep summary",^rsync,true,,,,,,false
+ |shellcheck,Strip shellcheck banner,^shellcheck,false,,,,,,false
+ |shopify-theme,Strip shopify theme progress,^shopify\s+theme,true,,,,,,false
+ |skopeo,Strip skopeo progress,^skopeo,true,,,,,,false
+ |sops,Strip sops metadata,^sops,false,,,,,,false
+ |spring-boot,Strip Spring Boot build progress,^\./mvnw\b,true,,,,,,false
+ |ssh,Strip ssh connection noise,^ssh\b,false,,,,,,false
+ |stat,Compact stat output,^stat\b,false,,,,,,false
+ |swift-build,Strip Swift build progress,^swift\s+build,true,,,,,,false
+ |systemctl-status,Compact systemctl status,^systemctl\s+status,true,,,,,,false
+ |task,Strip taskfile progress,^task\b,true,,,,,,false
+ |terraform-apply,Strip terraform apply refresh noise,^terraform\s+apply,true,,,,,,false
+ |terraform-plan,Strip terraform refresh state noise,^terraform\s+plan,true,,,,,,false
+ |tofu-fmt,OpenTofu fmt check,^tofu\s+fmt,false,,,,,,false
+ |tofu-init,Strip OpenTofu init progress,^tofu\s+init,true,,,,,,false
+ |tofu-plan,OpenTofu plan - strip refresh noise,^tofu\s+plan,true,,,,,,false
+ |tofu-validate,OpenTofu validate,^tofu\s+validate,true,,,,,,false
+ |trunk-build,Strip trunk build progress,^trunk\s+build,true,,,,,,false
+ |turbo,Strip turbo build progress,^turbo\b,true,,,,,,false
+ |ty,Strip ty (typos) progress,^ty\b,true,,,,,,false
+ |uv-sync,Strip uv sync progress,^uv\s+sync,true,,,,,,false
+ |xcodebuild,Strip xcodebuild progress,^xcodebuild,true,,,,,,false
+ |yadm,Strip yadm status noise,^yadm,true,,,,,,false
+ |yamllint,Strip yamllint noise,^yamllint,false,,,,,,false
+
+line_rules: @LineRule
+ |lr1,ansible-playbook,strip,^\s*ok=
+ |lr2,ansible-playbook,strip,^\s*changed=
+ |lr3,ansible-playbook,strip,^\s*unreachable=
+ |lr4,ansible-playbook,strip,^\s*failed=
+ |lr5,ansible-playbook,strip,^\s*skipped=
+ |lr6,ansible-playbook,strip,^\s*rescued=
+ |lr7,ansible-playbook,strip,^\s*ignored=
+ |lr8,ansible-playbook,strip,^TASK \[
+ |lr9,ansible-playbook,strip,^PLAY \[
+ |lr10,ansible-playbook,strip,^\s*$
+ |lr11,basedpyright,strip,^\s*$
+ |lr12,biome,strip,^Checked
+ |lr13,biome,strip,^\s*$
+ |lr14,brew-install,strip,^==> \s*Downloading
+ |lr15,brew-install,strip,^==> \s*Pouring
+ |lr16,brew-install,strip,^==> \s*Fetching
+ |lr17,brew-install,strip,^==> \s*Cloning
+ |lr18,brew-install,strip,^==> \s*Checking out
+ |lr19,brew-install,strip,^==> \s*Auto-updated
+ |lr20,brew-install,strip,Already downloaded
+ |lr21,brew-install,strip,^\s*$
+ |lr22,bundle-install,strip,^Fetching
+ |lr23,bundle-install,strip,^Installing
+ |lr24,bundle-install,strip,^Using
+ |lr25,bundle-install,strip,^Bundle complete
+ |lr26,bundle-install,strip,^\s*$
+ |lr27,composer-install,strip,^Loading composer repositories
+ |lr28,composer-install,strip,^Updating dependencies
+ |lr29,composer-install,strip,^Dependency resolution
+ |lr30,composer-install,strip,^Package operations
+ |lr31,composer-install,strip,^  - 
+ |lr32,composer-install,strip,^Generating autoload files
+ |lr33,composer-install,strip,^\s*$
+ |lr34,df,strip,^Filesystem
+ |lr35,df,strip,^tmpfs
+ |lr36,df,strip,^devtmpfs
+ |lr37,df,strip,^udev
+ |lr38,df,strip,^overlay
+ |lr39,df,strip,^cgroup
+ |lr40,du,strip,^\s*$
+ |lr41,fail2ban-client,strip,^Status for
+ |lr42,fail2ban-client,strip,^\s*-
+ |lr43,fail2ban-client,strip,^\s*\[`
+ |lr44,fail2ban-client,strip,^\s*$
+ |lr45,gcc,strip,^\s*$
+ |lr46,gcloud,strip,^Creating
+ |lr47,gcloud,strip,^Waiting for
+ |lr48,gcloud,strip,^Updating
+ |lr49,gcloud,strip,^Deleting
+ |lr50,gcloud,strip,^Done
+ |lr51,gcloud,strip,^\s*$
+ |lr52,gradle,strip,^>
+ |lr53,gradle,strip,^Download
+ |lr54,gradle,strip,^\s*$
+ |lr55,hadolint,strip,^\s*$
+ |lr56,helm,strip,^NAME:
+ |lr57,helm,strip,^LAST DEPLOYED:
+ |lr58,helm,strip,^NAMESPACE:
+ |lr59,helm,strip,^STATUS:
+ |lr60,helm,strip,^REVISION:
+ |lr61,helm,strip,^TEST SUITE:
+ |lr62,helm,strip,^NOTES:
+ |lr63,helm,strip,^\s*$
+ |lr64,iptables,strip,^Chain
+ |lr65,iptables,strip,^target
+ |lr66,iptables,strip,^\s*$
+ |lr67,jira,strip,^\s*$
+ |lr68,jj,strip,^Working copy
+ |lr69,jj,strip,^\s*$
+ |lr70,jq,strip,^\s*$
+ |lr71,just,strip,^\s*$
+ |lr72,liquibase,strip,^Starting Liquibase
+ |lr73,liquibase,strip,^Liquibase Version
+ |lr74,liquibase,strip,^Liquibase Command
+ |lr75,liquibase,strip,^\s*$
+ |lr76,make,strip,^make\[\d+\]:
+ |lr77,make,strip,^\s*$
+ |lr78,markdownlint,strip,^\s*$
+ |lr79,mise,strip,^\s*$
+ |lr80,mix-compile,strip,^Compiling
+ |lr81,mix-compile,strip,^Generated
+ |lr82,mix-compile,strip,^\s*$
+ |lr83,mvn-build,strip,^\[INFO\] \s*Download
+ |lr84,mvn-build,strip,^\[INFO\] \s*---
+ |lr85,mvn-build,strip,^\[INFO\] \s*Building
+ |lr86,mvn-build,strip,^\[INFO\] \s*Reactor Summary
+ |lr87,mvn-build,strip,^\[INFO\] \s*Total time
+ |lr88,mvn-build,strip,^\[INFO\] \s*Finished at
+ |lr89,mvn-build,strip,^\[INFO\] \s*Final Memory
+ |lr90,mvn-build,strip,^\[INFO\] \s*------------------------------------------------------------------------
+ |lr91,mvn-build,strip,^\[INFO\] \s*BUILD SUCCESS
+ |lr92,mvn-build,strip,^\[INFO\] \s*BUILD FAILURE
+ |lr93,mvn-build,strip,^\s*$
+ |lr94,nx,strip,^>
+ |lr95,nx,strip,^\s*$
+ |lr96,ollama,strip,^pulling
+ |lr97,ollama,strip,^\s*$
+ |lr98,oxlint,strip,^\s*$
+ |lr99,ping,strip,^PING
+ |lr100,ping,strip,^\d+ bytes from
+ |lr101,pio-run,strip,^Processing
+ |lr102,pio-run,strip,^Building
+ |lr103,pio-run,strip,^Linking
+ |lr104,pio-run,strip,^Checking
+ |lr105,pio-run,strip,^\s*$
+ |lr106,poetry-install,strip,^Installing dependencies
+ |lr107,poetry-install,strip,^Package operations
+ |lr108,poetry-install,strip,^  - 
+ |lr109,poetry-install,strip,^\s*$
+ |lr110,pre-commit,strip,^\[INFO\]
+ |lr111,pre-commit,strip,^\[WARNING\]
+ |lr112,pre-commit,strip,^\s*$
+ |lr113,quarto-render,strip,^pandoc
+ |lr114,quarto-render,strip,^output file
+ |lr115,quarto-render,strip,^\s*$
+ |lr116,rsync,strip,^sending incremental
+ |lr117,rsync,strip,^\s*$
+ |lr118,shellcheck,strip,^\s*$
+ |lr119,shopify-theme,strip,^\[
+ |lr120,shopify-theme,strip,^\s*$
+ |lr121,skopeo,strip,^\s*$
+ |lr122,sops,strip,^\s*$
+ |lr123,spring-boot,strip,^\[INFO\] \s*Download
+ |lr124,spring-boot,strip,^\[INFO\] \s*---
+ |lr125,spring-boot,strip,^\[INFO\] \s*Building
+ |lr126,spring-boot,strip,^\s*$
+ |lr127,ssh,strip,^Welcome to
+ |lr128,ssh,strip,^Documentation:
+ |lr129,ssh,strip,^Management:
+ |lr130,ssh,strip,^Support:
+ |lr131,ssh,strip,^\s*$
+ |lr132,stat,strip,^  File:
+ |lr133,stat,strip,^  Size:
+ |lr134,stat,strip,^  Blocks:
+ |lr135,stat,strip,^  IO Block:
+ |lr136,stat,strip,^  Device:
+ |lr137,stat,strip,^  Inode:
+ |lr138,stat,strip,^  Links:
+ |lr139,stat,strip,^  Access:
+ |lr140,stat,strip,^  Modify:
+ |lr141,stat,strip,^  Change:
+ |lr142,stat,strip,^ Birth:
+ |lr143,stat,strip,^\s*$
+ |lr144,swift-build,strip,^Compiling
+ |lr145,swift-build,strip,^Linking
+ |lr146,swift-build,strip,^Build complete
+ |lr147,swift-build,strip,^\s*$
+ |lr148,systemctl-status,strip,^\s*Loaded:
+ |lr149,systemctl-status,strip,^\s*Docs:
+ |lr150,systemctl-status,strip,^\s*Main PID:
+ |lr151,systemctl-status,strip,^\s*Tasks:
+ |lr152,systemctl-status,strip,^\s*Memory:
+ |lr153,systemctl-status,strip,^\s*CPU:
+ |lr154,systemctl-status,strip,^\s*CGroup:
+ |lr155,systemctl-status,strip,^\s*└─
+ |lr156,systemctl-status,strip,^\s*$
+ |lr157,task,strip,^task:
+ |lr158,task,strip,^\s*$
+ |lr159,terraform-apply,strip,^Refreshing state
+ |lr160,terraform-apply,strip,^Acquiring state lock
+ |lr161,terraform-apply,strip,^Releasing state lock
+ |lr162,terraform-apply,strip,^\s*$
+ |lr163,terraform-plan,strip,^Refreshing state
+ |lr164,terraform-plan,strip,^Acquiring state lock
+ |lr165,terraform-plan,strip,^Releasing state lock
+ |lr166,terraform-plan,strip,^\s*$
+ |lr167,tofu-fmt,strip,^\s*$
+ |lr168,tofu-init,strip,^Initializing
+ |lr169,tofu-init,strip,^Downloading
+ |lr170,tofu-init,strip,^Installing
+ |lr171,tofu-init,strip,^\s*$
+ |lr172,tofu-plan,strip,^Refreshing state
+ |lr173,tofu-plan,strip,^Acquiring state lock
+ |lr174,tofu-plan,strip,^Releasing state lock
+ |lr175,tofu-plan,strip,^\s*$
+ |lr176,tofu-validate,strip,^\s*$
+ |lr177,trunk-build,strip,^\[
+ |lr178,trunk-build,strip,^\s*$
+ |lr179,turbo,strip,^>
+ |lr180,turbo,strip,^\s*$
+ |lr181,ty,strip,^\s*$
+ |lr182,uv-sync,strip,^Resolved
+ |lr183,uv-sync,strip,^Prepared
+ |lr184,uv-sync,strip,^Installed
+ |lr185,uv-sync,strip,^\s*$
+ |lr186,xcodebuild,strip,^CompileSwift
+ |lr187,xcodebuild,strip,^CompileStoryboard
+ |lr188,xcodebuild,strip,^Linking
+ |lr189,xcodebuild,strip,^\s*$
+ |lr190,yadm,strip,^\s*$
+ |lr191,yamllint,strip,^\s*$
+
+match_rules: @MatchRule
+ |mr1,rsync,total size is,ok (synced),error|failed
+
+tests: @FilterTest
+ |t1,make,strips noise,"make[1]: Entering directory '/home/user'\ngcc -O2 foo.c\nmake[1]: Leaving directory '/home/user'\n","gcc -O2 foo.c\n"

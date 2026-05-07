@@ -1,0 +1,10 @@
+[filters.spring-boot]
+description = "Strip Spring Boot build progress"
+match_command = "^\\./mvnw\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\[INFO\\] \\s*Download",
+    "^\\[INFO\\] \\s*---",
+    "^\\[INFO\\] \\s*Building",
+    "^\\s*$",
+]

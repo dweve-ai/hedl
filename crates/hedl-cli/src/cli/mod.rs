@@ -40,6 +40,8 @@ mod batch;
 mod completion;
 mod conversion;
 mod core;
+mod filter;
+mod hook;
 
 use clap::Subcommand;
 
@@ -47,36 +49,10 @@ pub use batch::BatchCommands;
 pub use completion::CompletionCommands;
 pub use conversion::ConversionCommands;
 pub use core::CoreCommands;
+pub use filter::FilterCommands;
+pub use hook::{Agent, HookCommands};
 
 /// Top-level CLI commands enum.
-///
-/// This is the main command dispatcher that delegates to specialized command
-/// categories. Each variant represents a category of related commands.
-///
-/// # Architecture
-///
-/// The commands are organized hierarchically:
-///
-/// ```text
-/// Commands
-/// ├── Core (validate, format, lint, inspect, stats)
-/// ├── Conversion (JSON, YAML, XML, CSV, Parquet)
-/// ├── Batch (batch-validate, batch-format, batch-lint)
-/// └── Completion (shell completion generation)
-/// ```
-///
-/// # Examples
-///
-/// ```no_run
-/// use clap::Parser;
-/// use hedl_cli::cli::Commands;
-///
-/// #[derive(Parser)]
-/// struct Cli {
-///     #[command(subcommand)]
-///     command: Commands,
-/// }
-/// ```
 #[derive(Subcommand)]
 pub enum Commands {
     /// Core commands (validate, format, lint, inspect, stats).
@@ -91,9 +67,17 @@ pub enum Commands {
     #[command(flatten)]
     Batch(BatchCommands),
 
+    /// Filter commands (run, read, git, cargo, docker, stats, verify).
+    #[command(flatten)]
+    Filter(FilterCommands),
+
     /// Shell completion generation.
     #[command(flatten)]
     Completion(CompletionCommands),
+
+    /// Hook commands for AI agent integration.
+    #[command(subcommand)]
+    Hook(HookCommands),
 }
 
 impl Commands {
@@ -118,7 +102,9 @@ impl Commands {
             Commands::Core(cmd) => cmd.execute(),
             Commands::Conversion(cmd) => cmd.execute(),
             Commands::Batch(cmd) => cmd.execute(),
+            Commands::Filter(cmd) => cmd.execute(),
             Commands::Completion(cmd) => cmd.execute(),
+            Commands::Hook(cmd) => cmd.execute(),
         }
     }
 }

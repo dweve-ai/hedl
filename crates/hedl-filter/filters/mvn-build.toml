@@ -1,0 +1,17 @@
+[filters.mvn-build]
+description = "Strip Maven download and progress"
+match_command = "^mvn\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\[INFO\\] \\s*Download",
+    "^\\[INFO\\] \\s*---",
+    "^\\[INFO\\] \\s*Building",
+    "^\\[INFO\\] \\s*Reactor Summary",
+    "^\\[INFO\\] \\s*Total time",
+    "^\\[INFO\\] \\s*Finished at",
+    "^\\[INFO\\] \\s*Final Memory",
+    "^\\[INFO\\] \\s*------------------------------------------------------------------------",
+    "^\\[INFO\\] \\s*BUILD SUCCESS",
+    "^\\[INFO\\] \\s*BUILD FAILURE",
+    "^\\s*$",
+]

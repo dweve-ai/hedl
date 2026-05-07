@@ -1,0 +1,8 @@
+[filters.shopify-theme]
+description = "Strip shopify theme progress"
+match_command = "^shopify\\s+theme"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\[",
+    "^\\s*$",
+]

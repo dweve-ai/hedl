@@ -1,0 +1,10 @@
+[filters.terraform-plan]
+description = "Strip terraform refresh state noise"
+match_command = "^terraform\\s+plan"
+strip_ansi = true
+strip_lines_matching = [
+    "^Refreshing state",
+    "^Acquiring state lock",
+    "^Releasing state lock",
+    "^\\s*$",
+]

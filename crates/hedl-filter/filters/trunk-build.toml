@@ -1,0 +1,8 @@
+[filters.trunk-build]
+description = "Strip trunk build progress"
+match_command = "^trunk\\s+build"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\[",
+    "^\\s*$",
+]

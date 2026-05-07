@@ -1,0 +1,7 @@
+[filters.mise]
+description = "Strip mise progress"
+match_command = "^mise"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

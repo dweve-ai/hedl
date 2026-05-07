@@ -1,0 +1,6 @@
+[filters.hadolint]
+description = "Strip hadolint noise"
+match_command = "^hadolint"
+strip_lines_matching = [
+    "^\\s*$",
+]

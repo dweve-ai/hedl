@@ -1,0 +1,10 @@
+[filters.tofu-init]
+description = "Strip OpenTofu init progress"
+match_command = "^tofu\\s+init"
+strip_ansi = true
+strip_lines_matching = [
+    "^Initializing",
+    "^Downloading",
+    "^Installing",
+    "^\\s*$",
+]

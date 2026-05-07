@@ -45,6 +45,7 @@ hedl-cli = { version = "2.0.0", path = "crates/hedl-cli" }
 hedl-core = { version = "2.0.0", path = "crates/hedl-core" }
 hedl-csv = { version = "2.0.0", path = "crates/hedl-csv" }
 hedl-ffi = { version = "2.0.0", path = "crates/hedl-ffi" }
+hedl-filter = { version = "2.0.0", path = "crates/hedl-filter" }
 hedl-json = { version = "2.0.0", path = "crates/hedl-json" }
 hedl-lint = { version = "2.0.0", path = "crates/hedl-lint" }
 hedl-lsp = { version = "2.0.0", path = "crates/hedl-lsp" }
@@ -57,6 +58,7 @@ hedl-toon = { version = "2.0.0", path = "crates/hedl-toon" }
 hedl-wasm = { version = "2.0.0", path = "crates/hedl-wasm" }
 hedl-xml = { version = "2.0.0", path = "crates/hedl-xml" }
 hedl-yaml = { version = "2.0.0", path = "crates/hedl-yaml" }
+hedl-analytics = { version = "2.0.0", path = "crates/hedl-analytics" }
 
 # Core utilities
 thiserror = "2.0"

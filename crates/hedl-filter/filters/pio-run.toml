@@ -1,0 +1,11 @@
+[filters.pio-run]
+description = "Strip PlatformIO build progress"
+match_command = "^pio\\s+run"
+strip_ansi = true
+strip_lines_matching = [
+    "^Processing",
+    "^Building",
+    "^Linking",
+    "^Checking",
+    "^\\s*$",
+]

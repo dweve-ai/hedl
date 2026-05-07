@@ -1,0 +1,10 @@
+[filters.terraform-apply]
+description = "Strip terraform apply refresh noise"
+match_command = "^terraform\\s+apply"
+strip_ansi = true
+strip_lines_matching = [
+    "^Refreshing state",
+    "^Acquiring state lock",
+    "^Releasing state lock",
+    "^\\s*$",
+]

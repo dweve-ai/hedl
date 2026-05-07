@@ -1,0 +1,7 @@
+[filters.skopeo]
+description = "Strip skopeo progress"
+match_command = "^skopeo"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

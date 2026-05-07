@@ -1,0 +1,8 @@
+[filters.biome]
+description = "Strip biome progress"
+match_command = "^biome"
+strip_ansi = true
+strip_lines_matching = [
+    "^Checked",
+    "^\\s*$",
+]

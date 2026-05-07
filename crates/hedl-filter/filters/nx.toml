@@ -1,0 +1,8 @@
+[filters.nx]
+description = "Strip nx build progress"
+match_command = "^nx\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^>",
+    "^\\s*$",
+]

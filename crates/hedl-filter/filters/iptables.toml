@@ -1,0 +1,8 @@
+[filters.iptables]
+description = "Strip iptables noise"
+match_command = "^iptables"
+strip_lines_matching = [
+    "^Chain",
+    "^target",
+    "^\\s*$",
+]

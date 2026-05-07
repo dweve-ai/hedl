@@ -1,0 +1,15 @@
+[filters.systemctl-status]
+description = "Compact systemctl status"
+match_command = "^systemctl\\s+status"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*Loaded:",
+    "^\\s*Docs:",
+    "^\\s*Main PID:",
+    "^\\s*Tasks:",
+    "^\\s*Memory:",
+    "^\\s*CPU:",
+    "^\\s*CGroup:",
+    "^\\s*└─",
+    "^\\s*$",
+]

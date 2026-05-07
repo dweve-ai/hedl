@@ -1,0 +1,7 @@
+[filters.just]
+description = "Strip just progress"
+match_command = "^just\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

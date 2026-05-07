@@ -1,0 +1,10 @@
+[filters.ssh]
+description = "Strip ssh connection noise"
+match_command = "^ssh\\b"
+strip_lines_matching = [
+    "^Welcome to",
+    "^Documentation:",
+    "^Management:",
+    "^Support:",
+    "^\\s*$",
+]

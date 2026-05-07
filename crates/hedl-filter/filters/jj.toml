@@ -1,0 +1,8 @@
+[filters.jj]
+description = "Strip jujutsu progress"
+match_command = "^jj\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^Working copy",
+    "^\\s*$",
+]

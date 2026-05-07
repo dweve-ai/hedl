@@ -1,0 +1,7 @@
+[filters.tofu-validate]
+description = "OpenTofu validate"
+match_command = "^tofu\\s+validate"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

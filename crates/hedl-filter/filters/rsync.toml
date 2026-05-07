@@ -1,0 +1,11 @@
+[filters.rsync]
+description = "Strip rsync progress, keep summary"
+match_command = "^rsync"
+strip_ansi = true
+strip_lines_matching = [
+    "^sending incremental",
+    "^\\s*$",
+]
+match_output = [
+    { pattern = "total size is", message = "ok (synced)", unless = "error|failed" },
+]

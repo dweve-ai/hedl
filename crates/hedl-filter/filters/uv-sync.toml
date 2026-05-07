@@ -1,0 +1,10 @@
+[filters.uv-sync]
+description = "Strip uv sync progress"
+match_command = "^uv\\s+sync"
+strip_ansi = true
+strip_lines_matching = [
+    "^Resolved",
+    "^Prepared",
+    "^Installed",
+    "^\\s*$",
+]

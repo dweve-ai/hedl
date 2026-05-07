@@ -1,0 +1,8 @@
+[filters.turbo]
+description = "Strip turbo build progress"
+match_command = "^turbo\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^>",
+    "^\\s*$",
+]

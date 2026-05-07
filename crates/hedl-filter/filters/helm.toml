@@ -1,0 +1,14 @@
+[filters.helm]
+description = "Strip Helm install/upgrade progress"
+match_command = "^helm\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^NAME:",
+    "^LAST DEPLOYED:",
+    "^NAMESPACE:",
+    "^STATUS:",
+    "^REVISION:",
+    "^TEST SUITE:",
+    "^NOTES:",
+    "^\\s*$",
+]

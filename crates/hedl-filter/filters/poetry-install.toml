@@ -1,0 +1,10 @@
+[filters.poetry-install]
+description = "Strip poetry install progress"
+match_command = "^poetry\\s+(install|update|add)"
+strip_ansi = true
+strip_lines_matching = [
+    "^Installing dependencies",
+    "^Package operations",
+    "^  - ",
+    "^\\s*$",
+]

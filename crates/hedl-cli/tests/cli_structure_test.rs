@@ -228,10 +228,12 @@ fn test_command_count() {
     let cmd = TestCli::command();
     let count = cmd.get_subcommands().count();
 
-    // We expect 21 commands total:
+    // We expect 31 commands total:
     // - 5 core (validate, format, lint, inspect, stats)
     // - 12 conversion (to/from for json, yaml, xml, csv, parquet, toon)
     // - 3 batch (batch-validate, batch-format, batch-lint)
+    // - 9 filter (run, read, git, cargo, docker, kubectl, sys, filter-stats, verify)
     // - 1 completion (completion)
-    assert_eq!(count, 21, "Expected 21 commands, found {count}");
+    // - 1 hook (hook with subcommands: run, init, uninstall, rewrite)
+    assert_eq!(count, 31, "Expected 31 commands, found {count}");
 }

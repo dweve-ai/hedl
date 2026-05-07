@@ -1,0 +1,9 @@
+[filters.quarto-render]
+description = "Strip Quarto render progress"
+match_command = "^quarto\\s+render"
+strip_ansi = true
+strip_lines_matching = [
+    "^pandoc",
+    "^output file",
+    "^\\s*$",
+]

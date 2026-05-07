@@ -1,0 +1,7 @@
+[filters.du]
+description = "Compact du output"
+match_command = "^du\\b"
+strip_lines_matching = [
+    "^\\s*$",
+]
+head_lines = 30

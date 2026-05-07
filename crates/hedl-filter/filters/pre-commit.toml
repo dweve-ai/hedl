@@ -1,0 +1,9 @@
+[filters.pre-commit]
+description = "Strip pre-commit hook noise"
+match_command = "^pre-commit"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\[INFO\\]",
+    "^\\[WARNING\\]",
+    "^\\s*$",
+]

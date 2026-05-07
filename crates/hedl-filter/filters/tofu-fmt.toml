@@ -1,0 +1,6 @@
+[filters.tofu-fmt]
+description = "OpenTofu fmt check"
+match_command = "^tofu\\s+fmt"
+strip_lines_matching = [
+    "^\\s*$",
+]

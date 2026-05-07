@@ -1,0 +1,9 @@
+[filters.gradle]
+description = "Strip Gradle build progress"
+match_command = "^gradle\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^>",
+    "^Download",
+    "^\\s*$",
+]

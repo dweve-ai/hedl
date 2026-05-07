@@ -1,0 +1,8 @@
+[filters.task]
+description = "Strip taskfile progress"
+match_command = "^task\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^task:",
+    "^\\s*$",
+]

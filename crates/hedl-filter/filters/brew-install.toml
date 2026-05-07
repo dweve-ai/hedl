@@ -1,0 +1,14 @@
+[filters.brew-install]
+description = "Strip Homebrew download progress"
+match_command = "^brew\\s+(install|upgrade|reinstall)"
+strip_ansi = true
+strip_lines_matching = [
+    "^==> \\s*Downloading",
+    "^==> \\s*Pouring",
+    "^==> \\s*Fetching",
+    "^==> \\s*Cloning",
+    "^==> \\s*Checking out",
+    "^==> \\s*Auto-updated",
+    "Already downloaded",
+    "^\\s*$",
+]

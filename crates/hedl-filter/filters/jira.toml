@@ -1,0 +1,7 @@
+[filters.jira]
+description = "Strip Jira CLI noise"
+match_command = "^jira"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

@@ -1,0 +1,44 @@
+[package]
+name = "hedl-filter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+description = "Command output filtering and compression for HEDL"
+documentation = "https://docs.rs/hedl-filter"
+
+publish = true
+
+include = ["Cargo.toml", "src/**", "filters/**", "tests/**"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+once_cell = { workspace = true }
+walkdir = { workspace = true }
+dirs = "5.0"
+which = "7.0"
+lazy_static = "1.5"
+hedl-core = { workspace = true }
+hedl-analytics = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+assert_cmd = { workspace = true }
+predicates = { workspace = true }

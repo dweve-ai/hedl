@@ -1,0 +1,10 @@
+[filters.liquibase]
+description = "Strip Liquibase banner and progress"
+match_command = "^liquibase"
+strip_ansi = true
+strip_lines_matching = [
+    "^Starting Liquibase",
+    "^Liquibase Version",
+    "^Liquibase Command",
+    "^\\s*$",
+]

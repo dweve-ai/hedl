@@ -1,0 +1,6 @@
+[filters.sops]
+description = "Strip sops metadata"
+match_command = "^sops"
+strip_lines_matching = [
+    "^\\s*$",
+]

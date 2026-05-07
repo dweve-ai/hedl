@@ -1,0 +1,10 @@
+[filters.xcodebuild]
+description = "Strip xcodebuild progress"
+match_command = "^xcodebuild"
+strip_ansi = true
+strip_lines_matching = [
+    "^CompileSwift",
+    "^CompileStoryboard",
+    "^Linking",
+    "^\\s*$",
+]

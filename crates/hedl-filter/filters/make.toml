@@ -1,0 +1,18 @@
+[filters.make]
+description = "Strip make entering/leaving directory noise"
+match_command = "^make\\b"
+strip_lines_matching = [
+    "^make\\[\\d+\\]:",
+    "^\\s*$",
+]
+
+[[tests.make]]
+name = "strips noise"
+input = """
+make[1]: Entering directory '/home/user'
+gcc -O2 foo.c
+make[1]: Leaving directory '/home/user'
+"""
+expected = """
+gcc -O2 foo.c
+"""

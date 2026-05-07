@@ -1,0 +1,6 @@
+[filters.yamllint]
+description = "Strip yamllint noise"
+match_command = "^yamllint"
+strip_lines_matching = [
+    "^\\s*$",
+]

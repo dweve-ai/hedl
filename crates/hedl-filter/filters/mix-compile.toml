@@ -1,0 +1,9 @@
+[filters.mix-compile]
+description = "Strip mix compile progress"
+match_command = "^mix\\s+compile"
+strip_ansi = true
+strip_lines_matching = [
+    "^Compiling",
+    "^Generated",
+    "^\\s*$",
+]

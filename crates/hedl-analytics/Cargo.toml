@@ -1,0 +1,35 @@
+[package]
+name = "hedl-analytics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+description = "Analytics and tracking for HEDL ecosystem"
+documentation = "https://docs.rs/hedl-analytics"
+
+publish = true
+
+include = ["Cargo.toml", "src/**", "tests/**"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+hedl-core = { workspace = true }
+thiserror = { workspace = true }
+once_cell = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

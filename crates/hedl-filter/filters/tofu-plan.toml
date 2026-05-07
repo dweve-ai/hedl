@@ -1,0 +1,10 @@
+[filters.tofu-plan]
+description = "OpenTofu plan - strip refresh noise"
+match_command = "^tofu\\s+plan"
+strip_ansi = true
+strip_lines_matching = [
+    "^Refreshing state",
+    "^Acquiring state lock",
+    "^Releasing state lock",
+    "^\\s*$",
+]

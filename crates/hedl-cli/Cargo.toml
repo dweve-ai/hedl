@@ -62,6 +62,8 @@ hedl-parquet = { workspace = true }
 hedl-toon = { workspace = true }
 hedl-lint = { workspace = true }
 hedl-stream = { workspace = true }
+hedl-filter = { workspace = true }
+hedl-analytics = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 serde_json = { workspace = true }
@@ -72,6 +74,9 @@ glob = { workspace = true }
 walkdir = { workspace = true }
 indicatif = { workspace = true }
 tokio = { workspace = true }
+lazy_static = "1.5"
+regex = { workspace = true }
+dirs = "5.0"
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

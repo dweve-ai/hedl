@@ -1,0 +1,9 @@
+[filters.fail2ban-client]
+description = "Strip fail2ban status noise"
+match_command = "^fail2ban-client"
+strip_lines_matching = [
+    "^Status for",
+    "^\\s*-",
+    "^\\s*\\[`",
+    "^\\s*$",
+]

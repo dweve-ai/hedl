@@ -1,0 +1,11 @@
+[filters.bundle-install]
+description = "Strip bundle install progress"
+match_command = "^bundle\\s+install"
+strip_ansi = true
+strip_lines_matching = [
+    "^Fetching",
+    "^Installing",
+    "^Using",
+    "^Bundle complete",
+    "^\\s*$",
+]

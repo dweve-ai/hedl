@@ -139,6 +139,8 @@ pub mod commands;
 pub mod error;
 /// File discovery with glob patterns and recursive traversal.
 pub mod file_discovery;
+/// AI agent hooks for command interception and optimization.
+pub mod hooks;
 
 use clap::{Command, CommandFactory, Parser};
 use cli::Commands;

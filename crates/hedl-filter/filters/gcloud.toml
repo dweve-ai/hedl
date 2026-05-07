@@ -1,0 +1,12 @@
+[filters.gcloud]
+description = "Strip gcloud progress and headers"
+match_command = "^gcloud\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^Creating",
+    "^Waiting for",
+    "^Updating",
+    "^Deleting",
+    "^Done",
+    "^\\s*$",
+]

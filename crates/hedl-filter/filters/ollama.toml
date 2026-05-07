@@ -1,0 +1,8 @@
+[filters.ollama]
+description = "Strip ollama progress"
+match_command = "^ollama"
+strip_ansi = true
+strip_lines_matching = [
+    "^pulling",
+    "^\\s*$",
+]

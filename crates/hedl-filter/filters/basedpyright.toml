@@ -1,0 +1,7 @@
+[filters.basedpyright]
+description = "Strip basedpyright progress"
+match_command = "^basedpyright"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

@@ -1,0 +1,17 @@
+[filters.stat]
+description = "Compact stat output"
+match_command = "^stat\\b"
+strip_lines_matching = [
+    "^  File:",
+    "^  Size:",
+    "^  Blocks:",
+    "^  IO Block:",
+    "^  Device:",
+    "^  Inode:",
+    "^  Links:",
+    "^  Access:",
+    "^  Modify:",
+    "^  Change:",
+    "^ Birth:",
+    "^\\s*$",
+]

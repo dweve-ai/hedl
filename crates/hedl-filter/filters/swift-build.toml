@@ -1,0 +1,10 @@
+[filters.swift-build]
+description = "Strip Swift build progress"
+match_command = "^swift\\s+build"
+strip_ansi = true
+strip_lines_matching = [
+    "^Compiling",
+    "^Linking",
+    "^Build complete",
+    "^\\s*$",
+]

@@ -1,0 +1,7 @@
+[filters.ty]
+description = "Strip ty (typos) progress"
+match_command = "^ty\\b"
+strip_ansi = true
+strip_lines_matching = [
+    "^\\s*$",
+]

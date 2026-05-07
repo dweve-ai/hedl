@@ -1,0 +1,6 @@
+[filters.shellcheck]
+description = "Strip shellcheck banner"
+match_command = "^shellcheck"
+strip_lines_matching = [
+    "^\\s*$",
+]

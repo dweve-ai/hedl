@@ -1,0 +1,6 @@
+[filters.markdownlint]
+description = "Strip markdownlint noise"
+match_command = "^markdownlint"
+strip_lines_matching = [
+    "^\\s*$",
+]

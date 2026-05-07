@@ -1,0 +1,7 @@
+[filters.ping]
+description = "Compact ping output"
+match_command = "^ping\\b"
+strip_lines_matching = [
+    "^PING",
+    "^\\d+ bytes from",
+]

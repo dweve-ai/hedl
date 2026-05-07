@@ -1,0 +1,12 @@
+[filters.composer-install]
+description = "Strip Composer download progress"
+match_command = "^composer\\s+(install|update|require)"
+strip_lines_matching = [
+    "^Loading composer repositories",
+    "^Updating dependencies",
+    "^Dependency resolution",
+    "^Package operations",
+    "^  - ",
+    "^Generating autoload files",
+    "^\\s*$",
+]

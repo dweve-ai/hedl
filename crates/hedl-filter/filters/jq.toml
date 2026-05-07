@@ -1,0 +1,7 @@
+[filters.jq]
+description = "Strip jq output noise"
+match_command = "^jq\\b"
+strip_lines_matching = [
+    "^\\s*$",
+]
+head_lines = 100
