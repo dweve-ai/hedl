@@ -176,7 +176,7 @@ jobs:
           cargo llvm-cov --all-features \
             -p hedl-core -p hedl-c14n -p hedl-test -p hedl \
             --lcov --output-path lcov-core.info
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: coverage-core
           path: lcov-core.info
@@ -199,7 +199,7 @@ jobs:
           cargo llvm-cov --all-features \
             -p hedl-json -p hedl-yaml -p hedl-xml -p hedl-csv \
             --lcov --output-path lcov-formats.info
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: coverage-formats
           path: lcov-formats.info
@@ -237,7 +237,7 @@ jobs:
             --lcov --output-path lcov-data.info
         env:
           NEO4J_PASSWORD: testpassword
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: coverage-data
           path: lcov-data.info
@@ -260,7 +260,7 @@ jobs:
           cargo llvm-cov --all-features \
             -p hedl-lint -p hedl-lsp -p hedl-cli -p hedl-mcp \
             --lcov --output-path lcov-tooling.info
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: coverage-tooling
           path: lcov-tooling.info
@@ -283,7 +283,7 @@ jobs:
           cargo llvm-cov --all-features \
             -p hedl-ffi -p hedl-wasm -p hedl-toon \
             --lcov --output-path lcov-bindings.info
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: coverage-bindings
           path: lcov-bindings.info
